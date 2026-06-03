@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>June 2026 Payment</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    height:100vh;
+    overflow:hidden;
+    font-family:'Segoe UI',sans-serif;
+    position:relative;
+    background:#0b2742;
+}
+
+/* Background */
+
+.bg{
+    position:fixed;
+    inset:0;
+
+    background-size:cover;
+    background-position:center;
+
+    transition:all 1s ease;
+}
+
+/* Soft Ocean Overlay */
+
+.overlay{
+    position:fixed;
+    inset:0;
+
+    background:
+    linear-gradient(
+        rgba(15,70,130,.08),
+        rgba(0,150,255,.06)
+    );
+}
+
+/* Light Glow */
+
+.light{
+    position:absolute;
+
+    width:800px;
+    height:800px;
+
+    border-radius:50%;
+
+    background:
+    radial-gradient(
+        rgba(255,255,255,.18),
+        rgba(150,230,255,.10),
+        transparent 72%
+    );
+
+    filter:blur(60px);
+
+    animation:glowMove 18s ease-in-out infinite alternate;
+}
+
+@keyframes glowMove{
+
+    from{
+        transform:translate(-5vw,-5vh);
+    }
+
+    to{
+        transform:translate(40vw,10vh);
+    }
+}
+
+/* Seagull */
+
+.seagull{
+
+    position:absolute;
+
+    top:15%;
+    left:-150px;
+
+    z-index:3;
+
+    opacity:.85;
+
+    animation:flyAcross 22s linear infinite;
+}
+
+@keyframes flyAcross{
+
+    0%{
+        transform:
+        translateX(-150px)
+        translateY(0px);
+    }
+
+    25%{
+        transform:
+        translateX(25vw)
+        translateY(-20px);
+    }
+
+    50%{
+        transform:
+        translateX(50vw)
+        translateY(10px);
+    }
+
+    75%{
+        transform:
+        translateX(75vw)
+        translateY(-15px);
+    }
+
+    100%{
+        transform:
+        translateX(120vw)
+        translateY(0px);
+    }
+}
+
+/* Ocean Bubbles */
+
+.bubble{
+
+    position:absolute;
+
+    bottom:-60px;
+
+    border-radius:50%;
+
+    background:
+    radial-gradient(
+        rgba(255,255,255,.55),
+        rgba(255,255,255,.08)
+    );
+
+    backdrop-filter:blur(3px);
+
+    pointer-events:none;
+
+    animation:bubbleRise linear infinite;
+}
+
+@keyframes bubbleRise{
+
+    from{
+        transform:
+        translateY(0)
+        translateX(0);
+
+        opacity:0;
+    }
+
+    10%{
+        opacity:.45;
+    }
+
+    90%{
+        opacity:.25;
+    }
+
+    to{
+        transform:
+        translateY(-120vh)
+        translateX(40px);
+
+        opacity:0;
+    }
+}
+
+/* Glass Panel */
+
+.portal{
+
+    position:absolute;
+
+    top:50%;
+    left:50%;
+
+    transform:translate(-50%,-50%);
+
+    width:90%;
+    max-width:720px;
+
+    padding:65px;
+
+    text-align:center;
+
+    border-radius:32px;
+
+    background:
+    rgba(255,255,255,.18);
+
+    backdrop-filter:
+    blur(24px);
+
+    border:
+    1px solid rgba(255,255,255,.30);
+
+    box-shadow:
+    0 25px 70px rgba(0,0,0,.18);
+
+    z-index:5;
+}
+
+/* Header */
+
+.month{
+
+    color:#c7f6ff;
+
+    font-size:13px;
+
+    font-weight:600;
+
+    letter-spacing:4px;
+
+    text-transform:uppercase;
+
+    margin-bottom:18px;
+}
+
+.title{
+
+    color:white;
+
+    font-size:60px;
+
+    font-weight:700;
+
+    line-height:1.1;
+
+    margin-bottom:12px;
+
+    text-shadow:
+    0 0 18px rgba(255,255,255,.18);
+}
+
+.subtitle{
+
+    color:white;
+
+    opacity:.92;
+
+    font-size:18px;
+
+    margin-bottom:22px;
+}
+
+.quote{
+
+    color:white;
+
+    opacity:.82;
+
+    font-size:17px;
+
+    font-style:italic;
+
+    margin-bottom:40px;
+}
+
+/* Button */
+
+.button{
+
+    display:inline-block;
+
+    text-decoration:none;
+
+    padding:18px 48px;
+
+    border-radius:999px;
+
+    color:white;
+
+    font-size:17px;
+
+    font-weight:700;
+
+    letter-spacing:.5px;
+
+    background:
+    linear-gradient(
+        135deg,
+        #00a8ff,
+        #00e8b5
+    );
+
+    box-shadow:
+    0 12px 35px rgba(0,180,255,.30);
+
+    transition:.25s ease;
+}
+
+.button:hover{
+
+    transform:
+    translateY(-3px);
+
+    box-shadow:
+    0 18px 45px rgba(0,180,255,.45);
+}
+
+/* Footer */
+
+.footer{
+
+    position:absolute;
+
+    bottom:24px;
+
+    width:100%;
+
+    text-align:center;
+
+    color:white;
+
+    opacity:.75;
+
+    font-size:13px;
+
+    letter-spacing:.5px;
+
+    z-index:5;
+}
+
+		#easterEgg{
+
+    position:fixed;
+
+    inset:0;
+
+    display:none;
+
+    justify-content:center;
+
+    align-items:center;
+
+    background:rgba(0,0,0,.45);
+
+    z-index:9999;
+}
+
+.eggBox{
+
+    width:420px;
+
+    max-width:90%;
+
+    padding:35px;
+
+    text-align:center;
+
+    border-radius:24px;
+
+    color:white;
+
+    background:
+    rgba(255,255,255,.18);
+
+    backdrop-filter:blur(20px);
+
+    border:
+    1px solid rgba(255,255,255,.25);
+}
+
+.systemTitle{
+
+    font-size:24px;
+
+    font-weight:700;
+
+    margin-bottom:20px;
+}
+
+.systemStatus{
+
+    font-size:20px;
+
+    color:#7dffb3;
+
+    margin-bottom:15px;
+}
+
+.systemNote{
+
+    font-size:14px;
+
+    opacity:.7;
+
+    margin-bottom:25px;
+
+    font-style:italic;
+}
+
+.eggBox button{
+
+    border:none;
+
+    cursor:pointer;
+
+    padding:10px 24px;
+
+    border-radius:999px;
+
+    color:white;
+
+    background:
+    linear-gradient(
+        135deg,
+        #00a8ff,
+        #00e8b5
+    );
+}
+
+</style>
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-1CWTTKTYGM"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'G-1CWTTKTYGM');
+</script>
+
+
+</head>
+
+<body>
+
+<div class="bg"></div>
+<div class="overlay"></div>
+<div class="light"></div>
+
+<!-- Seagull -->
+
+<div class="seagull">
+<svg width="70" height="70" viewBox="0 0 64 64"
+fill="rgba(255,255,255,.9)">
+<path d="M2 40c10-18 25-18 30-10 5-8 20-8 30 10-12-5-18-2-30 6-12-8-18-11-30-6z"/>
+</svg>
+</div>
+
+<!-- Main Panel -->
+
+<div class="portal">
+
+    <div class="month">
+        CSCEC MEP PAYMENT PORTAL
+    </div>
+
+    <div class="title">
+        June 2026 Payment
+    </div>
+
+    <div class="subtitle">
+        Monthly Payment Tracking Dashboard
+    </div>
+
+    <div class="quote">
+        “Where payments flow with clarity.”
+    </div>
+
+    <a class="button" href="sheet.html" id="paymentBtn">
+    VIEW PAYMENT PROGRESS
+</a>
+
+</div>
+
+<div class="footer">
+    Hope your approvals are as smooth as these waves.
+</div>
+
+
+<script>
+
+/* Ocean bubbles */
+
+for(let i=0;i<18;i++){
+
+    const bubble=document.createElement("div");
+
+    bubble.className="bubble";
+
+    const size=Math.random()*20+8;
+
+    bubble.style.width=size+"px";
+    bubble.style.height=size+"px";
+
+    bubble.style.left=
+    Math.random()*100+"%";
+
+    bubble.style.animationDuration=
+    (Math.random()*10+12)+"s";
+
+    bubble.style.animationDelay=
+    (-Math.random()*20)+"s";
+
+    document.body.appendChild(bubble);
+}
+		/* Easter Egg */
+
+let clickCount = 0;
+
+document
+.querySelector(".footer")
+.addEventListener("click",()=>{
+
+    clickCount++;
+
+    if(clickCount >= 5){
+
+        document
+        .getElementById("easterEgg")
+        .style.display="flex";
+
+        clickCount = 0;
+    }
+});
+
+function closeEgg(){
+
+    document
+    .getElementById("easterEgg")
+    .style.display="none";
+}
+</script>
+<audio id="bgm" loop>
+  <source src="ocean.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+const audio = document.getElementById("bgm");
+
+// try autoplay immediately
+window.addEventListener("load", () => {
+  audio.play().catch(() => {
+    // fallback nếu bị chặn
+    const silentUnlock = () => {
+      audio.play();
+      document.removeEventListener("mousemove", silentUnlock);
+      document.removeEventListener("scroll", silentUnlock);
+      document.removeEventListener("touchstart", silentUnlock);
+    };
+
+    document.addEventListener("mousemove", silentUnlock);
+    document.addEventListener("scroll", silentUnlock);
+    document.addEventListener("touchstart", silentUnlock);
+  });
+});
+</script>
+
+<script>
+window.addEventListener("click", () => {
+  document.getElementById("bgm").play();
+}, { once: true });
+</script>
+
+<script>
+document.getElementById("paymentBtn")
+.addEventListener("click", function() {
+
+    gtag('event', 'payment_button_click', {
+        event_category: 'navigation',
+        event_label: 'View Payment Progress'
+    });
+
+});
+</script>
+
+<script>
+const bg = document.querySelector(".bg");
+const overlay = document.querySelector(".overlay");
+const subtitle = document.querySelector(".subtitle");
+
+const hour = new Date().getHours();
+
+if(hour >= 6 && hour < 16){
+
+    // Ban ngày
+    bg.style.backgroundImage =
+    'url("https://images.unsplash.com/photo-1519046904884-53103b34b206?auto=format&fit=crop&w=1920&q=80")';
+
+    subtitle.innerHTML =
+    'Monthly Payment Tracking Dashboard ☀️';
+
+}else{
+
+    // Ban đêm
+    bg.style.backgroundImage =
+    'url("night-beach.png")';
+
+    overlay.style.background =
+    'linear-gradient(rgba(0,0,0,.25), rgba(0,20,50,.35))';
+
+    subtitle.innerHTML =
+    'Monthly Payment Tracking Dashboard 🌙';
+}
+</script>
+
+
+</body>
+</html>
