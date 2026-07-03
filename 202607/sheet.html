@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<body style="margin:0">
+<iframe
+src="https://docs.google.com/spreadsheets/d/1rXUornLTikxA7uimyk8ss73ObKTTTdL9J2AvhUl_5Q4/edit?gid=637988023#gid=637988023"
+style="width:100%;height:100vh;border:none;">
+</iframe>
+
+<audio id="bgm" loop>
+    <source src="music.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+const bgm = document.getElementById("bgm");
+
+bgm.volume = 0.25; // 25% âm lượng
+
+bgm.play().catch(() => {
+    document.addEventListener("click", () => {
+        bgm.play();
+    }, { once: true });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>July 2026 Payment</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Tahoma&display=swap" rel="stylesheet">
+
+<style>
+
+/* ===== NAME POPUP ===== */
+.name-window{
+    width:340px;
+    border:2px solid #7aa7ff;
+    background:#fff;
+    box-shadow:5px 5px 0 #777;
+}
+
+.name-titlebar{
+    background:linear-gradient(#6aa8ff,#3d6fdc);
+    color:#fff;
+    font-size:12px;
+    font-weight:bold;
+    padding:6px 10px;
+}
+
+.name-content{
+    padding:22px;
+    text-align:center;
+}
+
+.name-content input{
+    width:100%;
+    padding:7px;
+    border:1px solid #7aa7ff;
+    margin-bottom:14px;
+    font-size:12px;
+}
+
+.name-content button{
+    width:100%;
+    padding:8px;
+    background:#6aa8ff;
+    border:1px solid #1d3f8f;
+    color:white;
+    cursor:pointer;
+    font-weight:bold;
+}
+
+.name-modal{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.35);
+    display:none;
+    justify-content:center;
+    align-items:center;
+    z-index:99999;
+}
+
+/* RESET */
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:Tahoma, Verdana, sans-serif;
+    background: linear-gradient(180deg,#cfe8ff,#e9e6ff);
+    height:100vh;
+    display:flex;
+    overflow:hidden;
+    color:#222;
+}
+
+/* ===== TOP BAR ===== */
+.topbar{
+    position:fixed;
+    top:0;
+    left:0;
+    right:0;
+    height:34px;
+    background:linear-gradient(180deg,#6aa8ff,#3d6fdc);
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 12px;
+    font-size:12px;
+    font-weight:bold;
+    border-bottom:2px solid #1d3f8f;
+    z-index:1000;
+}
+
+.topbar .right{
+    font-weight:normal;
+}
+
+.brand{
+    display:flex;
+    align-items:center;
+    gap:6px;
+}
+
+.logo{
+    width:18px;
+    height:18px;
+    object-fit:contain;
+}
+
+/* ===== LAYOUT ===== */
+.wrapper{
+    display:flex;
+    width:100%;
+    margin-top:34px;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar{
+    width:240px;
+    background:linear-gradient(180deg,#f6f9ff,#dbe9ff);
+    border-right:2px solid #7aa7ff;
+    padding:12px;
+}
+
+.sidebar h2{
+    font-size:13px;
+    margin-bottom:10px;
+    color:#1d3f8f;
+}
+
+.category{
+    font-size:11px;
+    margin-bottom:12px;
+    color:#444;
+}
+
+.project{
+    background:linear-gradient(180deg,#ffffff,#dbe9ff);
+    border:1px solid #7aa7ff;
+    padding:8px;
+    margin-bottom:8px;
+    font-size:12px;
+    cursor:pointer;
+    box-shadow:1px 1px 0 #999;
+}
+
+.project:hover{
+    background:#cfe2ff;
+}
+
+/* ===== MAIN ===== */
+.main{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    background:radial-gradient(circle at top,#ffffff,#dfe9ff);
+}
+
+.card{
+    width:700px;
+    background:#fff;
+    border:2px solid #7aa7ff;
+    box-shadow:4px 4px 0 #999;
+    text-align:center;
+    padding:40px;
+}
+
+.month{
+    font-size:12px;
+    letter-spacing:2px;
+    color:#3d6fdc;
+    margin-bottom:10px;
+}
+
+.title{
+    font-size:48px;
+    color:#2a4ea1;
+    margin-bottom:10px;
+    font-weight:bold;
+}
+
+.subtitle{
+    font-size:16px;
+    margin-bottom:20px;
+    color:#333;
+}
+
+.quote{
+    font-style:italic;
+    margin-bottom:25px;
+    color:#444;
+}
+
+/* BUTTON */
+.btn{
+    display:inline-block;
+    padding:10px 20px;
+    background:linear-gradient(180deg,#6aa8ff,#3d6fdc);
+    color:#fff;
+    text-decoration:none;
+    font-weight:bold;
+    border:2px solid #1d3f8f;
+    box-shadow:2px 2px 0 #333;
+}
+
+.btn:active{
+    transform:translate(2px,2px);
+    box-shadow:none;
+}
+
+/* FOOTER */
+.footer{
+    position:fixed;
+    bottom:0;
+    width:100%;
+    text-align:center;
+    font-size:11px;
+    background:#dfe9ff;
+    border-top:2px solid #7aa7ff;
+    padding:4px;
+    color:#333;
+}
+
+
+/*THEM*/
+.dashboard{
+    margin-top:28px;
+    width:700px;          /* bằng card */
+    display:flex;
+    gap:18px;
+}
+
+.panel{
+    flex:1;
+    border:2px solid #7aa7ff;
+    background:linear-gradient(180deg,#ffffff,#eef5ff);
+    box-shadow:2px 2px 0 #999;
+}
+
+.panel-title{
+    background:#6aa8ff;
+    color:#fff;
+    padding:7px 10px;
+    font-size:12px;
+    font-weight:bold;
+}
+
+.panel-body{
+    padding:10px;
+}
+
+.panel-link{
+    display:block;
+    padding:6px 8px;
+    margin-bottom:4px;
+    color:#234;
+    text-decoration:none;
+    border:1px solid transparent;
+    font-size:12px;
+}
+
+.panel-link:hover{
+    background:#dceaff;
+    border:1px solid #7aa7ff;
+}
+
+
+/* ===== CHAT BOX ===== */
+.chat-box{
+    position:fixed;
+    right:12px;
+    bottom:40px;
+    width:260px;
+    background:#fff;
+    border:2px solid #7aa7ff;
+    box-shadow:4px 4px 0 #999;
+    font-size:12px;
+    z-index:9999;
+
+    display:flex;
+    flex-direction:column;
+    box-sizing:border-box;
+}
+
+.chat-header{
+    background:#6aa8ff;
+    color:#fff;
+    padding:6px 8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-weight:bold;
+}
+
+.chat-log{
+    height:200px;
+    overflow-y:auto;
+    padding:6px;
+    font-size:12px;
+    background:#f9fbff;
+    border-top:1px solid #ccc;
+    border-bottom:1px solid #ccc;
+    box-sizing:border-box;
+}
+
+.chat-input{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    padding:6px;
+    box-sizing:border-box;
+}
+
+/* dòng input */
+.chat-input > div{
+    display:flex;
+    gap:4px;
+    align-items:center;
+    width:100%;
+}
+
+/* input */
+.chat-input input{
+    flex:1;
+    min-width:0;
+    padding:4px;
+    font-size:12px;
+    border:1px solid #7aa7ff;
+    box-sizing:border-box;
+}
+
+/* button */
+.chat-input button{
+    padding:4px 6px;
+    font-size:12px;
+    background:#6aa8ff;
+    border:1px solid #1d3f8f;
+    color:#fff;
+    font-weight:bold;
+    cursor:pointer;
+    white-space:nowrap;
+    flex-shrink:0;
+}
+
+.chat-input button:active{
+    transform:translate(1px,1px);
+}
+*{
+    box-sizing:border-box;
+}
+
+/* ===== STICKER PANEL ===== */
+#stickerPanel{
+    display:none;
+    flex-wrap:wrap;
+    gap:6px;
+    padding-top:6px;
+}
+
+#stickerPanel span{
+    cursor:pointer;
+    font-size:22px;
+    transition:0.15s;
+    user-select:none;
+}
+
+#stickerPanel span:hover{
+    transform:scale(1.2);
+}
+
+#stickerPanel span:active{
+    transform:scale(0.95);
+}
+
+
+body{font-family:Tahoma;background:#e9e6ff;margin:0;}
+
+.chat-box{position:fixed;right:12px;bottom:40px;width:260px;background:#fff;border:2px solid #7aa7ff;z-index:9999;}
+.chat-log{height:200px;overflow:auto;padding:6px;font-size:12px;}
+</style>
+</head>
+
+<body>
+
+<!-- POPUP -->
+<div id="nameModal" class="name-modal">
+  <div class="name-window">
+    <div class="name-titlebar">💬 Guest Chat</div>
+    <div class="name-content">
+      <h3>Welcome</h3>
+      <input id="modalName" placeholder="Your name">
+      <button id="saveBtn">Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+    <div class="brand">
+        <img src="logo.png" class="logo">
+        中建二局安装工程有限公司
+    </div>
+    <div class="right">Online ● System Ready</div>
+</div>
+
+<div class="wrapper">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+
+    <h2>📁 CONTRACT LIST</h2>
+
+    <div class="category">
+        Subcon • Labor • Material<br>
+        Overhead • Others
+    </div>
+
+    <div class="project" onclick="openLink('https://docs.google.com/spreadsheets/d/1MAmprYCcy4WlA8vHiZ6UWAoFpD-QqF2yu2Q5CtI0V1Q/edit?gid=0#gid=0')">
+        PHU HUNG
+    </div>
+
+    <div class="project" onclick="openLink('https://docs.google.com/spreadsheets/d/17x3pbx_-OlYSo60mA7kfFMHddz9rCVITKsQUx_cGiC4/edit?gid=0#gid=0')">
+        H14-3
+    </div>
+
+
+    <div class="project" onclick="openLink('https://docs.google.com/spreadsheets/d/1iRxyqn_iF3UDUViwkfTMuRB8gSJfdEyImSVaftvtyRI/edit?gid=1350186176#gid=1350186176')">
+        EATON
+    </div>
+
+    
+
+    <div class="project" onclick="openLink('https://docs.google.com/spreadsheets/d/1S-MUsqidvHGxNTXNd9iuMkVY7GShADjx9rzwK1zyPmQ/edit?gid=0#gid=0')">
+        CR5-B1
+    </div>
+
+   
+
+    <div class="project" onclick="openLink('https://docs.google.com/spreadsheets/d/1S-MUsqidvHGxNTXNd9iuMkVY7GShADjx9rzwK1zyPmQ/edit?gid=1286176578#gid=1286176578')">
+        CN8-2
+    </div>
+
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+    <div class="card">
+
+        <div class="month">CSCEC MEP PAYMENT PORTAL</div>
+
+        <div class="title">July 2026</div>
+
+        <div class="subtitle">Payment Tracking Dashboard</div>
+
+        <div class="quote">“No Docs, No Pay. 😆”</div>
+
+        <a class="btn"
+        href="https://docs.google.com/spreadsheets/d/1rXUornLTikxA7uimyk8ss73ObKTTTdL9J2AvhUl_5Q4/edit?gid=637988023#gid=637988023"
+        target="_blank">
+            VIEW PAYMENT PROGRESS »
+        </a>
+
+    </div>
+<div class="dashboard">
+
+    <div class="panel">
+
+        <div class="panel-title">
+            📂 DOCUMENT CENTER
+        </div>
+
+        <div class="panel-body">
+
+            <a class="panel-link"
+               href="https://drive.google.com/drive/folders/1rfkI9U__twlV4KeHNCPvI_gxG8RrYmP6"
+               target="_blank">
+               📑 All Project Documents
+            </a>
+
+
+        </div>
+
+    </div>
+
+    <div class="panel">
+
+        <div class="panel-title">
+            📅 PAYMENT HISTORY
+        </div>
+
+        <div class="panel-body">
+
+    <a class="panel-link" target="_blank" href="https://202606.vercel.app/">📄 2026-06 Payment</a>
+
+    <a class="panel-link" target="_blank" href="https://docs.google.com/spreadsheets/d/e/2PACX-1vRvhfpnhHp3OLmr2OxprTdfbIMDE03qG91Qp98qISz46wm6vk1ULDEGF38bWPj7n_vyAiZVHVwsNWDC/pubhtml">📄 2026-05 Payment</a>
+
+    <a class="panel-link" target="_blank" href="https://docs.google.com/spreadsheets/d/e/2PACX-1vQoiDzerOhbIGTxxrc5eLt8jpIie9A2q4vpuD6dlMr4vcg8cxbWezUJjGP4I4JzKa78lSk3TkdKmARi/pubhtml">📄 2026-04 Payment</a>
+
+    <a class="panel-link" target="_blank" href="https://docs.google.com/spreadsheets/d/e/2PACX-1vQuPg_8utVOQtwV-iDmewYO_aHNT1X4rupxfYBGAMO2u2LzjgM1i3UumGKxpZ-gtxbLDPZwyNQrsb83/pubhtml">📄 2026-03 Payment</a>
+
+    <a class="panel-link" target="_blank" href="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPzzlwREB2Qqr_SH93djokNmI6B7DKWWivbiQ-bKobCnojpqI3Cut7ATxVXe0AXCmUaQgNpRi8fdBP/pubhtml">📄 2026-02 Payment</a>
+
+    <a class="panel-link" target="_blank" href="https://docs.google.com/spreadsheets/d/e/2PACX-1vQmi716YFM4uqWyQ6UBofEr4itBYdifDnEJj69ouJ1CeTj7vS1n8DUqI9A_uAI_tHwa6jzBu5eeeY1C/pubhtml">📄 2026-01 Payment</a>
+
+</div>
+
+    </div>
+
+</div>
+</div>
+
+</div>
+
+<!-- ================= CHAT BOX ================= -->
+<div class="chat-box">
+
+    <div class="chat-header">
+    <span>💬 Leave a message here</span>
+
+    <span
+        onclick="changeName()"
+        style="cursor:pointer;font-size:14px;"
+        title="Change name">
+        ✏️
+    </span>
+</div>
+
+    <div id="chat-log" class="chat-log"></div>
+
+    <div class="chat-input" style="flex-direction:column;gap:6px;">
+
+        <div style="display:flex;gap:4px;align-items:center;">
+
+            <button type="button" onclick="toggleSticker()">😊</button>
+
+            <input id="fileInput" type="file" hidden accept="image/*">
+            <button type="button" onclick="document.getElementById('fileInput').click()">📎</button>
+
+            <input id="msg" type="text" placeholder="Leave a message...">
+
+            <button onclick="sendMsg()">Send</button>
+
+        </div>
+
+        <div id="stickerPanel"
+     style="display:none;flex-wrap:wrap;gap:6px;padding-top:6px;">
+                <span onclick="sendSticker('😀')">😀</span>
+    		<span onclick="sendSticker('😂')">😂</span>
+    		<span onclick="sendSticker('🤣')">🤣</span>
+    		<span onclick="sendSticker('😊')">😊</span>
+    		<span onclick="sendSticker('😍')">😍</span>
+    		<span onclick="sendSticker('😎')">😎</span>
+    		<span onclick="sendSticker('😢')">😢</span>
+    		<span onclick="sendSticker('😭')">😭</span>
+    		<span onclick="sendSticker('😡')">😡</span>
+    		<span onclick="sendSticker('🤔')">🤔</span>
+    		<span onclick="sendSticker('😴')">😴</span>
+   		<span onclick="sendSticker('👍')">👍</span>
+   		<span onclick="sendSticker('👎')">👎</span>
+    		<span onclick="sendSticker('🙏')">🙏</span>
+    		<span onclick="sendSticker('💔')">💔</span>
+    		<span onclick="sendSticker('❤️')">❤️</span>
+        </div>
+
+    </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+    "🌟 May every "Pending" become "Approved" and every "Approved" become "Paid". 💰
+
+<!-- ================= FIREBASE ================= -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  query,
+  orderBy,
+  onSnapshot,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+/* ================= FIREBASE ================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",
+  authDomain: "cscecmep-payment.firebaseapp.com",
+  projectId: "cscecmep-payment",
+  storageBucket: "cscecmep-payment.firebasestorage.app",
+  messagingSenderId: "217279768663",
+  appId: "1:217279768663:web:ad6b423078aee5ca925b12",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+/* ================= DOM ================= */
+const modal = document.getElementById("nameModal");
+const nameInput = document.getElementById("modalName");
+const msgInput = document.getElementById("msg");
+const chatLog = document.getElementById("chat-log");
+msgInput.addEventListener("keydown", (e) => {
+    if(e.key === "Enter" && !e.shiftKey){
+        e.preventDefault();
+        sendMsg();
+    }
+});
+
+console.log("SCRIPT LOADED OK");
+
+/* ================= POPUP ================= */
+function initPopup(){
+    const saved = localStorage.getItem("chat_name");
+
+    if(!saved){
+        modal.style.display = "flex";
+        msgInput.disabled = true;
+
+        setTimeout(() => {
+            nameInput.focus();
+        }, 100);
+    } else {
+        modal.style.display = "none";
+        msgInput.disabled = false;
+    }
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initPopup);
+} else {
+    initPopup();
+}
+/* ================= SAVE NAME ================= */
+document.getElementById("saveBtn").onclick = () => {
+    const name = nameInput.value.trim();
+    if(!name) return alert("Enter name");
+
+    localStorage.setItem("chat_name", name);
+
+    modal.style.display = "none";
+    msgInput.disabled = false;
+    msgInput.focus();
+};
+
+/* ================= CHANGE NAME ================= */
+window.changeName = () => {
+    modal.style.display = "flex";
+    msgInput.disabled = true;
+};
+
+/* ================= SEND ================= */
+window.sendMsg = async () => {
+    const text = msgInput.value.trim();
+    if(!text) return;
+
+    const name = localStorage.getItem("chat_name") || "Guest";
+
+    await addDoc(collection(db,"messages"),{
+        name,
+        text,
+        time:serverTimestamp()
+    });
+
+    msgInput.value = "";
+};
+
+/* ================= STICKER ================= */
+window.toggleSticker = function () {
+    const panel = document.getElementById("stickerPanel");
+    panel.style.display = panel.style.display === "flex" ? "none" : "flex";
+}
+
+window.sendSticker = async function(sticker){
+
+   const name = nameInput.value.trim() || "Guest";
+
+localStorage.setItem("chat_name", name);
+
+
+
+    await addDoc(collection(db,"messages"),{
+        name,
+        text: sticker,
+        time:serverTimestamp()
+    });
+}
+
+/* ================= UPLOAD IMAGE ================= */
+document.getElementById("fileInput").addEventListener("change", function(){
+
+    const file = this.files[0];
+    if(!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = async function(e){
+
+        const name = nameInput.value.trim() || "Guest";
+	localStorage.setItem("chat_name", name);
+	
+
+        await addDoc(collection(db,"messages"),{
+            name,
+            text:"[image]",
+            image:e.target.result,
+            time:serverTimestamp()
+        });
+
+    };
+
+    reader.readAsDataURL(file);
+
+    // Reset input để lần sau chọn lại cùng 1 ảnh vẫn upload được
+    this.value = "";
+});
+
+/* ================= PASTE IMAGE ================= */
+
+msgInput.addEventListener("paste", async function(e){
+  e.preventDefault(); // 🔥 THÊM DÒNG NÀY
+
+    const items = e.clipboardData?.items;
+    if(!items) return;
+
+    for(const item of items){
+
+        if(item.type.startsWith("image/")){
+
+            e.preventDefault();
+
+            const file = item.getAsFile();
+            const reader = new FileReader();
+
+            reader.onload = async function(ev){
+
+                const name = nameInput.value.trim() || "Guest";
+		localStorage.setItem("chat_name", name);
+		
+
+                await addDoc(collection(db,"messages"),{
+                    name,
+                    text:"[image]",
+                    image:ev.target.result,
+                    time:serverTimestamp()
+                });
+
+            };
+
+            reader.readAsDataURL(file);
+            break;
+        }
+    }
+
+});
+
+/* ================= REALTIME ================= */
+const q = query(collection(db,"messages"), orderBy("time"));
+
+onSnapshot(q,(snap)=>{
+    chatLog.innerHTML = "";
+
+    snap.forEach(doc=>{
+        const d = doc.data();
+        const div = document.createElement("div");
+
+        const t = d.time ? d.time.toDate().toLocaleTimeString() : "";
+
+        if (d.image) {
+            div.innerHTML = `[${t}] <b>${d.name}</b>:<br>
+                <img src="${d.image}" style="max-width:180px;border:1px solid #7aa7ff;margin-top:4px;">
+            `;
+        } else {
+            div.textContent = `[${t}] ${d.name}: ${d.text}`;
+        }
+
+        chatLog.appendChild(div);
+    });
+
+    chatLog.scrollTop = chatLog.scrollHeight;
+});
+</script>
+
+<script>
+function openLink(url) {
+    window.open(url, "_blank");
+}
+</script>
+
+<audio id="bgm" loop>
+    <source src="music.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+const bgm = document.getElementById("bgm");
+
+bgm.volume = 0.25; // 25% âm lượng
+
+bgm.play().catch(() => {
+    document.addEventListener("click", () => {
+        bgm.play();
+    }, { once: true });
+});
+</script>
+
+
+</body>
+</html>
