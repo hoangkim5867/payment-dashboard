@@ -14826,7 +14826,7 @@ html[data-theme="corporate"] .theme-picker-wrap *{
                     <div class="timeline-section-title">TÌNH TRẠNG HIỆN TẠI</div>
                     <div id="timelineCurrentState"></div>
                     <div id="timelineAuditSection">
-                        <div class="timeline-section-title" style="margin-top:14px">AUDIT GẦN NHẤT</div>
+                        <div class="timeline-section-title" id="timelineAuditTitle" style="margin-top:14px">AUDIT GẦN NHẤT</div>
                         <div class="timeline-side-card timeline-audit-list" id="timelineAuditList">
                             <div class="timeline-empty">Đang tải lịch sử...</div>
                         </div>
@@ -16356,6 +16356,18 @@ function applyLanguage(){
         }
         document.getElementById("activityLogTitle").textContent = t("activityLog");
         document.getElementById("activityLogDesc").textContent = t("activityDesc");
+        const timelineAuditTitle=document.getElementById("timelineAuditTitle");
+        if(timelineAuditTitle){
+            timelineAuditTitle.textContent =
+                currentLanguage === "zh"
+                    ? "最近操作记录"
+                    : currentLanguage === "en"
+                        ? "RECENT AUDIT"
+                        : "AUDIT GẦN NHẤT";
+        }
+        if(activityLogModal.classList.contains("show")){
+            renderActivityLog();
+        }
         updateOperatorDisplay();
     }
 
@@ -20622,6 +20634,116 @@ async function renderRecycleBin(){
         });
 }
 
+function activityActionLabel(action){
+    const code = String(action || "").trim().toUpperCase();
+    const labels = {
+        vi:{
+            ADD:"Thêm thanh toán",
+            EDIT:"Chỉnh sửa",
+            DELETE:"Chuyển vào thùng rác",
+            RESTORE:"Khôi phục",
+            PURGE:"Xóa vĩnh viễn",
+            CARRY_FORWARD:"Chuyển sang tháng sau",
+            REPAIR_CARRY_FORWARD_PROGRESS:"Khôi phục tiến trình dòng chuyển tháng",
+            CANCEL:"Hủy khoản thanh toán",
+            PASSWORD_CHANGE:"Đổi mật khẩu"
+        },
+        en:{
+            ADD:"Add payment",
+            EDIT:"Edit",
+            DELETE:"Move to Recycle Bin",
+            RESTORE:"Restore",
+            PURGE:"Permanently delete",
+            CARRY_FORWARD:"Move to next month",
+            REPAIR_CARRY_FORWARD_PROGRESS:"Restore carried-forward progress",
+            CANCEL:"Cancel payment",
+            PASSWORD_CHANGE:"Change password"
+        },
+        zh:{
+            ADD:"新增付款",
+            EDIT:"编辑",
+            DELETE:"移至回收站",
+            RESTORE:"恢复",
+            PURGE:"永久删除",
+            CARRY_FORWARD:"转至下月",
+            REPAIR_CARRY_FORWARD_PROGRESS:"恢复转月付款进度",
+            CANCEL:"取消付款",
+            PASSWORD_CHANGE:"修改密码"
+        }
+    };
+
+    return labels[currentLanguage]?.[code] || code;
+}
+
+
+function activityFieldLabel(field){
+    const labels = {
+        paymentMonth:t("paymentMonth"),
+        personInCharge:t("person"),
+        project:t("project"),
+        company:t("company"),
+        bankAccount:t("bank"),
+        contractNo:t("contractNo"),
+        contractName:t("contractName"),
+        ipcNo:t("ipc"),
+        budgetNo:currentLanguage === "zh" ? "预算编号" : currentLanguage === "en" ? "Budget No." : "Mã dự toán",
+        costType:t("costType"),
+        contractType:t("contractType"),
+        amount:t("amount"),
+        remark:t("remark"),
+        processPlatformPlan:t("platformPlan"),
+        processPaper:t("paper"),
+        processSettlement:t("settlement"),
+        processPaymentNo:t("paymentNo"),
+        processPlatformPayment:t("platformPayment"),
+        processApproval:t("approval"),
+        processBanking:t("banking"),
+        processActualAmount:t("actualAmount"),
+        processPaymentDate:t("paymentDate")
+    };
+
+    return labels[field] || field || "";
+}
+
+
+function activityDetailText(item){
+    const detail = String(item?.detail || "").trim();
+    if(!detail) return "";
+
+    if(String(item?.action || "").toUpperCase() === "REPAIR_CARRY_FORWARD_PROGRESS"){
+        const parts = detail.split("·");
+        const monthText = String(parts.shift() || "").trim();
+        const fields = parts.join("·")
+            .split(",")
+            .map(field => activityFieldLabel(field.trim()))
+            .filter(Boolean)
+            .join(", ");
+
+        return fields ? `${monthText} · ${fields}` : monthText;
+    }
+
+    const staticDetails = {
+        "Permanently deleted from Recycle Bin":{
+            vi:"Đã xóa vĩnh viễn khỏi Thùng rác",
+            en:"Permanently deleted from Recycle Bin",
+            zh:"已从回收站永久删除"
+        },
+        "Changed own password":{
+            vi:"Đã thay đổi mật khẩu cá nhân",
+            en:"Changed own password",
+            zh:"已修改个人密码"
+        },
+        "Excel Import":{
+            vi:"Nhập từ Excel",
+            en:"Excel import",
+            zh:"从 Excel 导入"
+        }
+    };
+
+    return staticDetails[detail]?.[currentLanguage] || detail;
+}
+
+
 async function renderActivityLog(){
 
     const snapshot =
@@ -20677,22 +20799,8 @@ async function renderActivityLog(){
             .map(
                 item => {
 
-                    const label =
-                        item.action === "ADD"
-                            ? t("actionAdd")
-                            : item.action === "EDIT"
-                                ? t("actionEdit")
-                                : item.action === "DELETE"
-                                    ? t("actionDelete")
-                                    : item.action === "RESTORE"
-                                        ? t("actionRestore")
-                                        : item.action === "CARRY_FORWARD"
-                                            ? t("actionCarryForward")
-                                        : item.action === "CANCEL"
-                                            ? t("actionCancel")
-                                        : item.action === "PASSWORD_CHANGE"
-                                            ? t("changePassword")
-                                            : item.action;
+                    const label = activityActionLabel(item.action);
+                    const localizedDetail = activityDetailText(item);
 
                     return `
                         <div class="audit-row">
@@ -20705,8 +20813,8 @@ async function renderActivityLog(){
                                 · ${escapeHTML(item.ipcNo || "")}
                                 · ${escapeHTML(formatMoney(item.amount))}
                                 ${
-                                    item.detail
-                                        ? `<div class="recycle-meta">${escapeHTML(item.detail)}</div>`
+                                    localizedDetail
+                                        ? `<div class="recycle-meta">${escapeHTML(localizedDetail)}</div>`
                                         : ""
                                 }
 
@@ -20721,7 +20829,7 @@ async function renderActivityLog(){
                                                 .map(
                                                     change => `
                                                         <div class="audit-change-line">
-                                                            <strong>${escapeHTML(change.label || change.field || "")}:</strong>
+                                                            <strong>${escapeHTML(activityFieldLabel(change.field) || change.label || "")}:</strong>
                                                             <span class="audit-old-value">${escapeHTML(String(change.before ?? "—") || "—")}</span>
                                                             <span class="audit-arrow">→</span>
                                                             <span class="audit-new-value">${escapeHTML(String(change.after ?? "—") || "—")}</span>
@@ -24120,18 +24228,7 @@ function paymentTimelineDefinition(payment){
 }
 
 function paymentTimelineFieldLabel(field){
-    const labels = {
-        processPlatformPlan:t("platformPlan"),
-        processPaper:t("paper"),
-        processSettlement:t("settlement"),
-        processPaymentNo:t("paymentNo"),
-        processPlatformPayment:t("platformPayment"),
-        processApproval:t("approval"),
-        processBanking:t("banking"),
-        processActualAmount:t("actualAmount"),
-        processPaymentDate:t("paymentDate")
-    };
-    return labels[field] || field || "";
+    return activityFieldLabel(field);
 }
 
 async function loadTimelineAudit(payment){
@@ -24174,6 +24271,7 @@ async function loadTimelineAudit(payment){
 
         timelineAuditSection.style.display = "";
         timelineAuditList.innerHTML = logs.slice(0,12).map(log => {
+            const localizedDetail = activityDetailText(log);
             const changeText =
                 Array.isArray(log.changes) && log.changes.length
                     ? log.changes
@@ -24184,12 +24282,12 @@ async function loadTimelineAudit(payment){
                             `${escapeHTML(String(change.after ?? "—"))}`
                         )
                         .join("<br>")
-                    : escapeHTML(log.detail || "");
+                    : escapeHTML(localizedDetail);
 
             return `
                 <div class="timeline-audit-row">
                     <strong>${escapeHTML(safeTimestampText(log.createdAt))} · ${escapeHTML(log.operator || "—")}</strong>
-                    <span>${escapeHTML(log.action || "")}${changeText ? "<br>" + changeText : ""}</span>
+                    <span>${escapeHTML(activityActionLabel(log.action))}${changeText ? "<br>" + changeText : ""}</span>
                 </div>
             `;
         }).join("");
