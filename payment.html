@@ -13060,6 +13060,7 @@ html[data-theme="corporate"] .theme-picker-wrap *{
                 <button type="button" data-tools-action="normalizeMepFormat" id="toolsNormalizeMepFormatBtn" style="display:none;">🧩 Chuẩn hóa định dạng MEP</button>
                 <button type="button" data-tools-action="history2026" id="toolsHistory2026Btn" style="display:none;">🧹 Chuẩn hóa lịch sử</button>
                 <button type="button" data-tools-action="staff" id="toolsStaffSetupBtn">👥 Staff Setup</button>
+                <button type="button" data-tools-action="clear-test-audit" id="toolsClearTestAuditBtn" style="display:none;color:#b42318;">🧹 Xóa nhật ký test đến 02/09/2026</button>
                 <button type="button" data-tools-action="purge-payments" id="toolsPurgePaymentsBtn" style="display:none;">🗑 Xóa vĩnh viễn mục đã chọn</button>
             </div>
         </div>
@@ -16408,6 +16409,7 @@ function applyLanguage(){
         const carryTool=toolsMenu.querySelector('[data-tools-action="carry-payment"]');
         const repairCarryTool=toolsMenu.querySelector('[data-tools-action="repair-carry-progress"]');
         const cancelTool=toolsMenu.querySelector('[data-tools-action="cancel-payment"]');
+        const clearTestAuditTool=toolsMenu.querySelector('[data-tools-action="clear-test-audit"]');
 
         if(undoTool)undoTool.textContent="↶ "+t("undoLastImport");
         if(recycleTool)recycleTool.textContent="🗑 "+t("recycleBin");
@@ -16415,6 +16417,14 @@ function applyLanguage(){
         if(carryTool)carryTool.textContent="→ "+t("carryForwardSelected");
         if(repairCarryTool)repairCarryTool.textContent="↺ "+t("repairCarryProgress");
         if(cancelTool)cancelTool.textContent="× "+t("cancelPayment");
+        if(clearTestAuditTool){
+            clearTestAuditTool.textContent =
+                currentLanguage === "zh"
+                    ? "🧹 删除截至2026年9月2日的测试记录"
+                    : currentLanguage === "vi"
+                        ? "🧹 Xóa nhật ký test đến 02/09/2026"
+                        : "🧹 Clear test logs through 02 Sep 2026";
+        }
         if(typeof adminPaymentToolsLabel !== "undefined" && adminPaymentToolsLabel){
             adminPaymentToolsLabel.textContent=t("adminPaymentTools");
         }
@@ -19583,6 +19593,17 @@ function applyRoleUI(){
                 : "none";
     }
 
+    const clearTestAuditButton =
+        document.getElementById("toolsClearTestAuditBtn");
+
+    if(clearTestAuditButton){
+        /* This irreversible reset belongs only to the system owner, not every Admin. */
+        clearTestAuditButton.style.display =
+            isHistoryNormalizerOwner()
+                ? ""
+                : "none";
+    }
+
     [adminPaymentToolsLabel,toolsCarryPaymentBtn,toolsRepairCarryProgressBtn,toolsCancelPaymentBtn]
         .filter(Boolean)
         .forEach(element => {
@@ -20718,6 +20739,100 @@ async function renderActivityLog(){
                 }
             )
             .join("");
+}
+
+
+function clearTestAuditText(){
+    if(currentLanguage === "zh"){
+        return {
+            prompt:"此操作将永久删除全系统截至2026年9月2日的全部测试操作记录和 Audit（包括 Admin 和 Staff），但不会删除付款数据。\n\n请输入 XOA NHAT KY TEST 以确认：",
+            running:"正在删除测试日志...",
+            done:n => `已永久删除截至2026年9月2日的 ${n} 条系统测试日志和 Audit。付款数据未受影响。`,
+            error:"无法删除测试日志："
+        };
+    }
+
+    if(currentLanguage === "en"){
+        return {
+            prompt:"This permanently deletes all system-wide test Activity Logs and Audit entries through 02 Sep 2026, including Admin and Staff actions. Payment data is not deleted.\n\nType XOA NHAT KY TEST to confirm:",
+            running:"Deleting test logs...",
+            done:n => `Permanently deleted ${n} system test log(s) and Audit entries through 02 Sep 2026. Payment data was not changed.`,
+            error:"Could not delete test logs: "
+        };
+    }
+
+    return {
+        prompt:"Thao tác này sẽ xóa vĩnh viễn trên TOÀN HỆ THỐNG mọi Lịch sử thao tác và Audit test đến hết 02/09/2026, gồm cả Admin và Staff; nhưng KHÔNG xóa dữ liệu thanh toán.\n\nNhập XOA NHAT KY TEST để xác nhận:",
+        running:"Đang xóa nhật ký test...",
+        done:n => `Đã xóa vĩnh viễn ${n} nhật ký và Audit test toàn hệ thống đến hết 02/09/2026. Dữ liệu thanh toán không thay đổi.`,
+        error:"Không thể xóa nhật ký test: "
+    };
+}
+
+
+async function clearAllTestActivityLogs(button = null){
+    if(!requireHistoryNormalizerOwner()){
+        return;
+    }
+
+    const copy = clearTestAuditText();
+    const confirmation = prompt(copy.prompt);
+
+    if(String(confirmation || "").trim().toUpperCase() !== "XOA NHAT KY TEST"){
+        return;
+    }
+
+    const oldText = button?.textContent || "";
+    let deletedCount = 0;
+    /* Fixed Vietnam-time cutoff: everything before 03 Sep is test data.
+       Logs created from 03 Sep onward are official and can never be touched by
+       this one-time cleanup, even if the button is clicked much later. */
+    const testAuditCutoff =
+        new Date("2026-09-03T00:00:00+07:00");
+
+    if(button){
+        button.disabled = true;
+        button.textContent = copy.running;
+    }
+
+    try{
+        /* Firestore batches allow at most 500 writes. Delete in smaller pages
+           until the collection is empty; do not create a new audit entry for
+           the reset itself, so September genuinely starts clean. */
+        while(true){
+            const snapshot = await getDocs(
+                query(
+                    activityLogsRef,
+                    where("createdAt","<",testAuditCutoff),
+                    limit(400)
+                )
+            );
+
+            if(snapshot.empty){
+                break;
+            }
+
+            const batch = writeBatch(db);
+            snapshot.docs.forEach(item => batch.delete(item.ref));
+            await batch.commit();
+            deletedCount += snapshot.size;
+        }
+
+        if(auditList){
+            auditList.innerHTML =
+                `<div class="empty">${escapeHTML(t("noAudit"))}</div>`;
+        }
+
+        alert("✅ " + copy.done(deletedCount));
+    }catch(error){
+        console.error("CLEAR TEST ACTIVITY LOGS ERROR:", error);
+        alert("❌ " + copy.error + "\n" + error.message);
+    }finally{
+        if(button){
+            button.disabled = false;
+            button.textContent = oldText;
+        }
+    }
 }
 
 
@@ -21971,6 +22086,11 @@ toolsMenu.addEventListener("click",async event=>{
 
         staffSetupModal.classList.add("show");
         await renderStaffSetup();
+    }
+
+    if(action==="clear-test-audit"){
+        await clearAllTestActivityLogs(button);
+        return;
     }
 
     if(action==="purge-payments"){
@@ -33679,6 +33799,22 @@ searchInput.addEventListener(
 paymentMonthFilter.addEventListener(
     "change",
     () => {
+        const selectedMonth =
+            String(paymentMonthFilter.value || "").trim();
+
+        /* Historical months open as paid history; the current/future month
+           opens as the active working list. The user may still switch status
+           manually afterward. */
+        if(selectedMonth){
+            paymentStatusFilter.value =
+                selectedMonth < CURRENT_MONTH
+                    ? "paid"
+                    : "unpaid";
+
+            actualPaymentMonthFilter.value = "";
+            applyPaymentStatusView();
+        }
+
         updateProjectFilter();
         renderPayments();
     }
@@ -45851,14 +45987,11 @@ html[data-theme] .data-first-summary .enterprise-filter-main > .global-search-fi
 </style>
 
 <style id="admin-tools-viewport-fit-final">
-/* Keep the Admin menu inside the visible screen even when the table has only
-   a few rows. The menu itself scrolls; the page no longer needs fake height. */
+/* The Admin menu opens at its natural full height over the payment table.
+   Do not turn this dropdown into a separately scrolling panel. */
 html[data-theme] #toolsMenu{
-    max-height:calc(100vh - 116px) !important;
-    max-height:calc(100dvh - 116px) !important;
-    overflow-y:auto !important;
-    overscroll-behavior:contain;
-    scrollbar-width:thin;
+    max-height:none !important;
+    overflow:visible !important;
 }
 
 .modern-app-header > .brand-block{
