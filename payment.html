@@ -15314,6 +15314,19 @@ function canBatchPayment(){
     return isAdmin();
 }
 
+function canExportExcel(){
+    return isStaff() || isAdmin();
+}
+
+function requireExcelExportPermission(){
+    if(canExportExcel()){
+        return true;
+    }
+
+    alert(t("pleaseSignIn"));
+    return false;
+}
+
 function requireStaffPermission(){
     if(
         !ensureOperator()
@@ -15792,7 +15805,8 @@ Object.assign(I18N.en,{
     admin:"Admin",
     staff:"Staff",
     adminOnly:"Admin only.",
-    noPermission:"You do not have permission for this action."
+    noPermission:"You do not have permission for this action.",
+    pleaseSignIn:"Please sign in."
 });
 
 Object.assign(I18N.zh,{
@@ -15806,7 +15820,8 @@ Object.assign(I18N.zh,{
     admin:"管理员",
     staff:"员工",
     adminOnly:"仅管理员可操作。",
-    noPermission:"您没有此操作权限。"
+    noPermission:"您没有此操作权限。",
+    pleaseSignIn:"请登录。"
 });
 
 Object.assign(I18N.vi,{
@@ -15820,7 +15835,8 @@ Object.assign(I18N.vi,{
     admin:"Admin",
     staff:"Nhân viên",
     adminOnly:"Chỉ Admin được thao tác.",
-    noPermission:"Bạn không có quyền thực hiện thao tác này."
+    noPermission:"Bạn không có quyền thực hiện thao tác này.",
+    pleaseSignIn:"Vui lòng đăng nhập."
 });
 
 
@@ -20690,7 +20706,8 @@ function activityActionLabel(action){
             CARRY_FORWARD:"Chuyển sang tháng sau",
             REPAIR_CARRY_FORWARD_PROGRESS:"Khôi phục tiến trình dòng chuyển tháng",
             CANCEL:"Hủy khoản thanh toán",
-            PASSWORD_CHANGE:"Đổi mật khẩu"
+            PASSWORD_CHANGE:"Đổi mật khẩu",
+            EXPORT_EXCEL:"Xuất Excel"
         },
         en:{
             ADD:"Add payment",
@@ -20701,7 +20718,8 @@ function activityActionLabel(action){
             CARRY_FORWARD:"Move to next month",
             REPAIR_CARRY_FORWARD_PROGRESS:"Restore carried-forward progress",
             CANCEL:"Cancel payment",
-            PASSWORD_CHANGE:"Change password"
+            PASSWORD_CHANGE:"Change password",
+            EXPORT_EXCEL:"Export Excel"
         },
         zh:{
             ADD:"新增付款",
@@ -20712,7 +20730,8 @@ function activityActionLabel(action){
             CARRY_FORWARD:"转至下月",
             REPAIR_CARRY_FORWARD_PROGRESS:"恢复转月付款进度",
             CANCEL:"取消付款",
-            PASSWORD_CHANGE:"修改密码"
+            PASSWORD_CHANGE:"修改密码",
+            EXPORT_EXCEL:"导出 Excel"
         }
     };
 
@@ -20753,6 +20772,42 @@ function activityFieldLabel(field){
 function activityDetailText(item){
     const detail = String(item?.detail || "").trim();
     if(!detail) return "";
+
+    if(String(item?.action || "").toUpperCase() === "EXPORT_EXCEL"){
+        try{
+            const data = JSON.parse(detail);
+            const monthText = data.month
+                ? `${t("paymentMonth")} ${data.month}`
+                : t("allMonths");
+            const scopeText = (Array.isArray(data.scopes) ? data.scopes : [])
+                .map(key => {
+                    if(key === "all") return t("allProjects");
+                    if(key === "indirect") return indirectCostWorkspaceLabel();
+                    if(String(key).startsWith("project:")) return String(key).slice(8);
+                    return String(key || "");
+                })
+                .filter(Boolean)
+                .join(", ");
+            const statusKey = String(data.status || "all");
+            const statusText = getStatusSegmentCopy()[statusKey] || statusKey;
+            const rowCount = Number(data.rows) || 0;
+            const rowsText = currentLanguage === "zh"
+                ? `${rowCount} 笔`
+                : currentLanguage === "en"
+                    ? `${rowCount} payment(s)`
+                    : `${rowCount} khoản`;
+
+            return [
+                monthText,
+                scopeText,
+                statusText,
+                rowsText,
+                String(data.fileName || "")
+            ].filter(Boolean).join(" · ");
+        }catch(error){
+            return detail;
+        }
+    }
 
     if(String(item?.action || "").toUpperCase() === "REPAIR_CARRY_FORWARD_PROGRESS"){
         const parts = detail.split("·");
@@ -20845,6 +20900,8 @@ async function renderActivityLog(){
 
                     const label = activityActionLabel(item.action);
                     const localizedDetail = activityDetailText(item);
+                    const isExcelExport =
+                        String(item.action || "").toUpperCase() === "EXPORT_EXCEL";
 
                     return `
                         <div class="audit-row">
@@ -20852,10 +20909,16 @@ async function renderActivityLog(){
                             <div class="audit-action">${escapeHTML(label || "")}</div>
                             <div>${escapeHTML(item.operator || "—")}</div>
                             <div class="audit-detail">
-                                <strong>${escapeHTML(item.company || "")}</strong>
-                                · ${escapeHTML(item.contractNo || "")}
-                                · ${escapeHTML(item.ipcNo || "")}
-                                · ${escapeHTML(formatMoney(item.amount))}
+                                ${
+                                    isExcelExport
+                                        ? ""
+                                        : `
+                                            <strong>${escapeHTML(item.company || "")}</strong>
+                                            · ${escapeHTML(item.contractNo || "")}
+                                            · ${escapeHTML(item.ipcNo || "")}
+                                            · ${escapeHTML(formatMoney(item.amount))}
+                                        `
+                                }
                                 ${
                                     localizedDetail
                                         ? `<div class="recycle-meta">${escapeHTML(localizedDetail)}</div>`
@@ -35017,6 +35080,10 @@ function renderExcelExportScopeList(){
 
 function openExcelExportScopeModal(){
 
+    if(!requireExcelExportPermission()){
+        return;
+    }
+
     if(
         typeof XLSX ===
         "undefined"
@@ -35424,7 +35491,12 @@ function makeUniqueExcelSheetName(
 }
 
 
-function exportSelectedExcelScopes(){
+async function exportSelectedExcelScopes(){
+
+    if(!requireExcelExportPermission()){
+        closeExcelExportScopeModal();
+        return;
+    }
 
     try{
 
@@ -35449,6 +35521,7 @@ function exportSelectedExcelScopes(){
 
         let exportedRows = 0;
         let exportedSheets = 0;
+        const exportedScopeKeys = [];
 
         scopes.forEach(scope => {
 
@@ -35478,6 +35551,7 @@ function exportSelectedExcelScopes(){
                 payments.length;
 
             exportedSheets++;
+            exportedScopeKeys.push(scope.key);
         });
 
         if(!exportedSheets){
@@ -35489,15 +35563,37 @@ function exportSelectedExcelScopes(){
             paymentMonthFilter.value ||
             CURRENT_MONTH;
 
+        const fileName =
+            `Payment_History_${fileMonth}.xlsx`;
+
         XLSX.writeFile(
             workbook,
-            `Payment_History_${fileMonth}.xlsx`,
+            fileName,
             {
                 bookType:"xlsx",
                 cellStyles:true,
                 compression:true
             }
         );
+
+        /*
+           Staff exports are recorded once at system level so Admin can review
+           them. Admin exports intentionally stay out of Activity Log.
+        */
+        if(isStaff()){
+            await logActivity(
+                "EXPORT_EXCEL",
+                null,
+                JSON.stringify({
+                    month:String(paymentMonthFilter.value || ""),
+                    scopes:exportedScopeKeys,
+                    status:String(paymentStatusFilter.value || "all"),
+                    rows:exportedRows,
+                    sheets:exportedSheets,
+                    fileName:fileName
+                })
+            );
+        }
 
         closeExcelExportScopeModal();
 
