@@ -23041,6 +23041,11 @@ onAuthStateChanged(
 
         if(!user){
 
+            /* A Firestore listener must never remain active after sign-out. */
+            stopPaymentsRealtime();
+            allPayments = [];
+            selectedPaymentIds.clear();
+
             currentUserProfile =
                 null;
 
@@ -23071,6 +23076,10 @@ onAuthStateChanged(
         updateOperatorDisplay();
 
         if(!hasProfile){
+
+            stopPaymentsRealtime();
+            allPayments = [];
+            selectedPaymentIds.clear();
 
             document.body.classList.add(
                 "access-login-required"
@@ -23114,7 +23123,16 @@ onAuthStateChanged(
                 : "none";
 
         applyRoleUI();
-        renderPayments();
+
+        /*
+           Security Rules now require an approved signed-in profile.
+           Recreate the current-month listener only after that profile has
+           loaded, including when a pre-auth listener was previously denied.
+        */
+        await startPaymentsRealtime(
+            paymentMonthFilter.value || CURRENT_MONTH,
+            {force:true}
+        );
     }
 );
 
@@ -39613,10 +39631,10 @@ paymentStatusFilter.value = "unpaid";
 applyPaymentStatusView();
 
 /*
-   The realtime listener supplies this month's initial dataset and later
-   changes. Selecting a different month swaps this one scoped listener.
+   Do not query Firestore here. The authentication callback starts the scoped
+   realtime listener only after the signed-in user's authUsers profile passes
+   the Security Rules check. Selecting another month swaps that listener.
 */
-await startPaymentsRealtime(CURRENT_MONTH);
 
     schedulePaymentFixedHeaderRefresh();
 
