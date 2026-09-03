@@ -3085,21 +3085,21 @@ body.operator-required-lock .container, body.operator-required-lock .header{
     font-size:9.5px;
 }
 
-.payment-result-box.viewer-mode{
+.payment-result-box.readonly-mode{
     background:#f8fafc;
     border-color:#e2e7ef;
 }
 
-.payment-result-box.viewer-mode .payment-result-header{
+.payment-result-box.readonly-mode .payment-result-header{
     border-bottom-color:#e9edf2;
 }
 
-.payment-result-box.viewer-mode .payment-result-admin-badge{
+.payment-result-box.readonly-mode .payment-result-admin-badge{
     background:#eef2f6;
     color:#667085;
 }
 
-.payment-result-box.viewer-mode input{
+.payment-result-box.readonly-mode input{
     background:#f3f5f8 !important;
     border-color:#e1e6ed !important;
     color:#475467 !important;
@@ -11628,7 +11628,7 @@ html[data-theme="onyxcat"] .modern-app-header{
     overflow:hidden !important;
 }
 
-/* Do not let login lock/viewer mode change table geometry. */
+/* Do not let the signed-out lock screen change table geometry. */
 body.operator-required-lock #paymentTable thead,
 body.operator-required-lock #paymentTable thead tr,
 body.operator-required-lock #paymentTable thead th{
@@ -12965,7 +12965,7 @@ html[data-theme="corporate"] .theme-picker-wrap *{
             <div class="header-user-menu" id="headerUserMenu">
                 <div class="header-user-card">
                     <div class="header-user-name" id="headerUserMenuName">User</div>
-                    <div class="header-user-role" id="headerUserMenuRole">VIEWER</div>
+                    <div class="header-user-role" id="headerUserMenuRole">SIGNED OUT</div>
                 </div>
                 <div class="header-user-divider"></div>
                 <button type="button" class="header-menu-action" id="headerChangePasswordBtn">🔑 Change Password</button>
@@ -15395,10 +15395,6 @@ function isStaff(){
         !!currentUserProfile &&
         currentUserRole === "staff"
     );
-}
-
-function isViewer(){
-    return !currentAuthUser || currentUserRole === "viewer";
 }
 
 function canBulkEdit(){
@@ -18454,11 +18450,14 @@ function updatePaymentMonthFilters(){
         .reverse();
 
 
-    paymentMonthFilter.innerHTML = `
-        <option value="">
-            ${t("allMonths")}
-        </option>
-    `;
+    /* Loading every payment document is intentionally Admin-only. */
+    paymentMonthFilter.innerHTML = isAdmin()
+        ? `
+            <option value="">
+                ${t("allMonths")}
+            </option>
+        `
+        : "";
 
 
     actualPaymentMonthFilter.innerHTML = `
@@ -18520,6 +18519,15 @@ function updatePaymentMonthFilters(){
 
         paymentMonthFilter.value =
             currentPlan;
+
+    }else if(isAdmin() && currentPlan === ""){
+
+        paymentMonthFilter.value = "";
+
+    }else{
+
+        /* Staff always stays on a bounded monthly query. */
+        paymentMonthFilter.value = CURRENT_MONTH;
 
     }
 
@@ -18989,16 +18997,32 @@ function normalizePaymentListenerMonth(month){
 }
 
 
+function authorizedPaymentListenerMonth(month){
+
+    const normalizedMonth =
+        normalizePaymentListenerMonth(month);
+
+    if(normalizedMonth){
+        return normalizedMonth;
+    }
+
+    /* A blank month means "All time" only for an authenticated Admin. */
+    return isAdmin()
+        ? ""
+        : CURRENT_MONTH;
+}
+
+
 function paymentScopeKey(month){
 
-    return normalizePaymentListenerMonth(month) || "ALL";
+    return authorizedPaymentListenerMonth(month) || "ALL";
 }
 
 
 function paymentSourceForMonth(month){
 
     const normalizedMonth =
-        normalizePaymentListenerMonth(month);
+        authorizedPaymentListenerMonth(month);
 
     return normalizedMonth
         ? query(
@@ -19033,7 +19057,12 @@ function startPaymentsRealtime(
 ){
 
     const normalizedMonth =
-        normalizePaymentListenerMonth(month);
+        authorizedPaymentListenerMonth(month);
+
+    /* Also block a non-Admin who forces an empty value through DevTools. */
+    if(!isAdmin() && paymentMonthFilter.value === ""){
+        paymentMonthFilter.value = CURRENT_MONTH;
+    }
 
     const nextScopeKey =
         paymentScopeKey(normalizedMonth);
@@ -19797,7 +19826,7 @@ function applyPaymentResultRoleUI(){
 
     if(paymentResultBox){
         paymentResultBox.classList.toggle(
-            "viewer-mode",
+            "readonly-mode",
             !editable
         );
     }
@@ -19829,9 +19858,11 @@ function applyRoleUI(){
         loggedIn &&
         isAdmin();
 
+    const mustLeaveAllTimeScope =
+        !adminAccess &&
+        activePaymentsScopeKey === "ALL";
+
     /*
-       Viewer:
-       - browse/search/filter/sort only
        Staff:
        - Bulk Edit + Bulk Process
        Admin:
@@ -19854,7 +19885,7 @@ function applyRoleUI(){
 
     /*
        The selected-items Batch Payment toolbar is Admin-only.
-       Viewers/Staff should not see its update button.
+       Staff should not see its update button.
     */
     if(openBatchPaymentBtn){
         openBatchPaymentBtn.style.display =
@@ -19864,7 +19895,6 @@ function applyRoleUI(){
     }
 
     /*
-       Viewer should not select rows for bulk actions.
        Staff may select rows for Bulk Edit / Bulk Process.
     */
     document
@@ -19954,6 +19984,13 @@ function applyRoleUI(){
     applyPaymentResultRoleUI();
     applyNoMEPExceptionUI();
 
+    /* Rebuild the month choices after the authenticated role is known. */
+    updatePaymentMonthFilters();
+
+    if(mustLeaveAllTimeScope){
+        startPaymentsRealtime(CURRENT_MONTH, {force:true});
+    }
+
     if(
         typeof loadSavedTheme ===
         "function"
@@ -19972,8 +20009,7 @@ function updateOperatorDisplay(){
     if(!currentAuthUser){
 
         operatorNameDisplay.textContent =
-            "👁 Viewer · " +
-            t("signIn");
+            "🔒 " + t("signIn");
 
         return;
     }
@@ -22076,8 +22112,8 @@ function syncHeaderUserMenu(){
     if(!headerUserMenuName || !headerUserMenuRole) return;
 
     if(!currentAuthUser || !currentUserProfile){
-        headerUserMenuName.textContent = "Viewer";
-        headerUserMenuRole.textContent = "VIEWER";
+        headerUserMenuName.textContent = "Sign in";
+        headerUserMenuRole.textContent = "SIGNED OUT";
         if(headerChangePasswordBtn) headerChangePasswordBtn.style.display = "none";
         if(headerLogoutBtn) headerLogoutBtn.style.display = "none";
         return;
@@ -22672,10 +22708,7 @@ onAuthStateChanged(
         currentAuthUser =
             user || null;
 
-        /*
-           Column visibility + column widths belong to this UID.
-           Viewer has a separate "viewer" profile.
-        */
+        /* Column visibility + column widths belong to this UID. */
         loadCurrentUserTablePreferences();
 
         if(!user){
@@ -22692,7 +22725,7 @@ onAuthStateChanged(
             updateOperatorDisplay();
 
             /* Payment is internal. Signed-out visitors only see
-               the sign-in screen; there is no guest Viewer mode. */
+               the sign-in screen and have no application role. */
             recycleBinBtn.style.display = "none";
             activityLogBtn.style.display = "none";
 
@@ -34439,8 +34472,13 @@ searchInput.addEventListener(
 paymentMonthFilter.addEventListener(
     "change",
     async () => {
-        const selectedMonth =
+        let selectedMonth =
             String(paymentMonthFilter.value || "").trim();
+
+        if(!selectedMonth && !isAdmin()){
+            selectedMonth = CURRENT_MONTH;
+            paymentMonthFilter.value = CURRENT_MONTH;
+        }
 
         /* Historical months open as paid history; the current/future month
            opens as the active working list. The user may still switch status
@@ -36245,7 +36283,7 @@ function getTablePreferenceOwnerKey(){
         return currentAuthUser.uid;
     }
 
-    return "viewer";
+    return "signed_out";
 }
 
 
@@ -38510,7 +38548,7 @@ function themeStorageKey(){
             currentAuthUser.uid
         )
             ? currentAuthUser.uid
-            : "viewer";
+            : "signed_out";
 
     return (
         "paymentHistoryThemeV1_" +
@@ -38659,9 +38697,6 @@ function loadSavedTheme(){
     const saved =
         localStorage.getItem(
             themeStorageKey()
-        ) ||
-        localStorage.getItem(
-            "paymentHistoryThemeV1_viewer"
         ) ||
         "corporate";
 
