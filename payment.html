@@ -25622,7 +25622,26 @@ function renderPayments(){
                                 ? `<span class="payment-cancelled-badge">${escapeHTML(t("cancelledPayment"))}</span>`
                                 : carriedForward
                                 ? `<span class="payment-carried-badge">${escapeHTML(t("carriedForward", {month:item.carryForwardToMonth || "—"}))}</span>`
-                                : `<span class="payment-locked">${t("paid")}</span>`
+                                : `
+                                <span class="payment-locked">${t("paid")}</span>
+                                ${
+                                    isAdmin()
+                                    ? `
+                                    <button
+                                        class="action-icon-btn edit-icon-btn paid-result-edit-btn"
+                                        data-id="${item.id}"
+                                        title="${escapeHTML(t("edit"))}: ${escapeHTML(t("actualAmount"))} / ${escapeHTML(t("paymentDate"))}"
+                                        aria-label="${escapeHTML(t("edit"))}: ${escapeHTML(t("actualAmount"))} / ${escapeHTML(t("paymentDate"))}"
+                                    >
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M12 20h9"></path>
+                                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                                        </svg>
+                                    </button>
+                                    `
+                                    : ""
+                                }
+                                `
                         )
                         :
                         `
@@ -25758,6 +25777,28 @@ function renderPayments(){
                             );
 
                         }
+
+                    }
+                );
+
+            }
+        );
+
+
+    document
+        .querySelectorAll(
+            ".paid-result-edit-btn"
+        )
+        .forEach(
+            button => {
+
+                button.addEventListener(
+                    "click",
+                    () => {
+
+                        editPaidPaymentResult(
+                            button.dataset.id
+                        );
 
                     }
                 );
@@ -28517,6 +28558,155 @@ addPaymentBtn.addEventListener(
 /* =====================================================
    EDIT
 ===================================================== */
+
+async function editPaidPaymentResult(paymentId){
+
+    if(!ensureOperator() || !isAdmin()){
+        alert("🔒 " + t("adminOnly"));
+        return;
+    }
+
+    const payment =
+        allPayments.find(
+            item => String(item.id) === String(paymentId)
+        );
+
+    if(
+        !payment ||
+        !isPaymentPaid(payment) ||
+        isPaymentCarriedForward(payment) ||
+        isPaymentCancelled(payment)
+    ){
+        alert("❌ " + t("paymentNotFound"));
+        return;
+    }
+
+    const copy =
+        currentLanguage === "zh"
+            ? {
+                amount:"修改实际付款金额：",
+                date:"修改付款日期（YYYY-MM-DD）：",
+                invalidAmount:"请输入有效的实际付款金额。",
+                invalidDate:"请输入有效日期，格式为 YYYY-MM-DD。",
+                confirm:"确认修改已付款结果？",
+                before:"原数据",
+                after:"修改后",
+                done:"付款结果已修改。",
+                error:"无法修改付款结果：\n"
+            }
+            : currentLanguage === "en"
+                ? {
+                    amount:"Edit actual paid amount:",
+                    date:"Edit payment date (YYYY-MM-DD):",
+                    invalidAmount:"Enter a valid actual paid amount.",
+                    invalidDate:"Enter a valid date in YYYY-MM-DD format.",
+                    confirm:"Update this paid result?",
+                    before:"Before",
+                    after:"After",
+                    done:"Payment result updated.",
+                    error:"Could not update payment result:\n"
+                }
+                : {
+                    amount:"Sửa số tiền thực trả:",
+                    date:"Sửa ngày thanh toán (YYYY-MM-DD):",
+                    invalidAmount:"Hãy nhập số tiền thực trả hợp lệ.",
+                    invalidDate:"Ngày không hợp lệ, phải theo dạng YYYY-MM-DD.",
+                    confirm:"Xác nhận sửa kết quả đã thanh toán?",
+                    before:"Trước",
+                    after:"Sau",
+                    done:"Đã sửa kết quả thanh toán.",
+                    error:"Không sửa được kết quả thanh toán:\n"
+                };
+
+    const amountInput = prompt(
+        copy.amount,
+        formatMoney(payment.processActualAmount)
+    );
+
+    if(amountInput === null){
+        return;
+    }
+
+    const nextAmount = parseMoneyInput(amountInput);
+
+    if(!Number.isFinite(nextAmount) || nextAmount <= 0){
+        alert("⚠ " + copy.invalidAmount);
+        return;
+    }
+
+    const dateInput = prompt(
+        copy.date,
+        payment.processPaymentDate || ""
+    );
+
+    if(dateInput === null){
+        return;
+    }
+
+    const nextDate = String(dateInput || "").trim();
+    const dateMatch = nextDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const parsedDate = dateMatch
+        ? new Date(Date.UTC(
+            Number(dateMatch[1]),
+            Number(dateMatch[2]) - 1,
+            Number(dateMatch[3])
+        ))
+        : null;
+    const validDate = !!(
+        parsedDate &&
+        parsedDate.getUTCFullYear() === Number(dateMatch[1]) &&
+        parsedDate.getUTCMonth() === Number(dateMatch[2]) - 1 &&
+        parsedDate.getUTCDate() === Number(dateMatch[3])
+    );
+
+    if(!validDate){
+        alert("⚠ " + copy.invalidDate);
+        return;
+    }
+
+    const previousAmount = Number(payment.processActualAmount);
+    const previousDate = payment.processPaymentDate || "";
+
+    if(nextAmount === previousAmount && nextDate === previousDate){
+        return;
+    }
+
+    const confirmed = confirm(
+        `${copy.confirm}\n\n` +
+        `${copy.before}: ${formatMoney(previousAmount)} · ${previousDate}\n` +
+        `${copy.after}: ${formatMoney(nextAmount)} · ${nextDate}`
+    );
+
+    if(!confirmed){
+        return;
+    }
+
+    try{
+
+        await updateDoc(
+            doc(db,"payments",payment.id),
+            {
+                processActualAmount:nextAmount,
+                processPaymentDate:nextDate,
+                updatedAt:serverTimestamp(),
+                updatedBy:currentOperatorName,
+                updatedByUid:currentAuthUser.uid,
+                updatedByEmail:currentAuthUser.email || ""
+            }
+        );
+
+        payment.processActualAmount = nextAmount;
+        payment.processPaymentDate = nextDate;
+
+        /* Admin correction only: intentionally do not create an Audit entry. */
+        renderPayments();
+        alert("✅ " + copy.done);
+
+    }catch(error){
+        console.error("PAID RESULT CORRECTION ERROR:",error);
+        alert("❌ " + copy.error + error.message);
+    }
+}
 
 async function openEditModal(
     payment
