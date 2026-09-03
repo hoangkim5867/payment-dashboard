@@ -14997,9 +14997,15 @@ html[data-theme="corporate"] .theme-picker-wrap *{
 </div>
 
 <style id="unc-voucher-style">
-.unc-modal-box{width:min(920px,94vw);max-height:92vh;padding:0;overflow:hidden;display:flex;flex-direction:column}
+#uncModal{padding:18px!important;align-items:center!important;justify-content:center!important;overflow:hidden!important}
+#uncModal>.unc-modal-box{display:flex!important;flex-direction:column!important;width:min(700px,calc(100vw - 36px))!important;max-width:min(700px,calc(100vw - 36px))!important;height:auto!important;min-height:0!important;max-height:calc(100vh - 36px)!important;margin:auto!important;padding:0!important;overflow:hidden!important}
+#uncModal.preview-open>.unc-modal-box{width:min(1040px,calc(100vw - 36px))!important;max-width:min(1040px,calc(100vw - 36px))!important;height:min(860px,calc(100vh - 36px))!important;max-height:calc(100vh - 36px)!important}
+#uncModal .modal-header{flex:0 0 auto;margin:0!important;padding:14px 16px!important;border-bottom:1px solid var(--theme-border,#e2e7ef)!important;background:var(--theme-surface,#fff)!important}
+#uncModal .modal-header h2{margin:0!important;font-size:18px!important;line-height:1.2!important}
+#uncModal .modal-header .close{flex:0 0 auto;margin-left:14px}
 .unc-modal-sub{margin-top:4px;font-size:10px;color:var(--theme-muted,#667085);line-height:1.4}
-.unc-body{padding:16px 18px;overflow:auto}
+#uncModal .unc-body{flex:0 1 auto;min-height:0;padding:14px 16px!important;overflow:auto!important}
+#uncModal.preview-open .unc-body{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;overflow:hidden!important}
 .unc-file-card{padding:12px;border:1px solid var(--theme-border,#e2e7ef);border-radius:8px;background:var(--theme-surface-alt,#f8fafc)}
 .unc-file-card strong{display:block;font-size:12px;color:var(--theme-primary,#17365d);overflow-wrap:anywhere}
 .unc-file-card span{display:block;margin-top:5px;font-size:10px;color:var(--theme-muted,#667085);line-height:1.45;overflow-wrap:anywhere}
@@ -15022,15 +15028,16 @@ html[data-theme="corporate"] .theme-picker-wrap *{
 .unc-storage-note{margin-top:12px;padding:9px 10px;border-left:3px solid var(--theme-primary,#2764c4);background:color-mix(in srgb,var(--theme-primary,#2764c4) 6%,var(--theme-surface,#fff));font-size:9.5px;color:var(--theme-muted,#667085);line-height:1.45}
 .unc-preview-panel{margin-top:12px;border:1px solid var(--theme-border,#d5dce5);border-radius:8px;overflow:hidden;background:#fff}
 .unc-preview-panel[hidden]{display:none!important}
+#uncModal.preview-open .unc-preview-panel{display:flex;flex:1 1 0;flex-direction:column;min-height:300px}
 .unc-preview-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border-bottom:1px solid var(--theme-border,#e2e7ef);background:var(--theme-surface-alt,#f8fafc);font-size:10px}
 .unc-preview-head a{color:var(--theme-primary,#2764c4);font-weight:800;text-decoration:none}
-.unc-preview-frame,.unc-preview-panel iframe{display:block;width:100%;height:min(62vh,650px);min-height:420px;border:0;background:#f3f4f6}
-.unc-modal-actions{display:flex;justify-content:flex-end;gap:7px}
+.unc-preview-frame,.unc-preview-panel iframe{display:block;flex:1 1 auto;width:100%;height:100%!important;min-height:0;border:0;background:#f3f4f6}
+#uncModal .unc-modal-actions{display:flex;flex:0 0 auto;justify-content:flex-end;gap:7px;margin:0!important;padding:11px 16px!important;border-top:1px solid var(--theme-border,#e2e7ef);background:var(--theme-surface-alt,#f8fafc)}
 .unc-voucher-btn.has-file{background:#ecfdf3!important;color:#027a48!important;border-color:#abefc6!important}
 .unc-voucher-btn.has-file svg{stroke:#027a48!important}
 .unc-voucher-btn.add-file{background:var(--theme-surface-alt,#f8fafc)!important;color:var(--theme-primary,#17365d)!important;border-color:var(--theme-border,#d5dce5)!important}
 .unc-voucher-btn.add-file svg{stroke:var(--theme-primary,#17365d)!important}
-@media(max-width:680px){.unc-preview-frame,.unc-preview-panel iframe{height:56vh;min-height:330px}.unc-modal-actions{flex-wrap:wrap}.unc-modal-actions button{flex:1 1 auto}}
+@media(max-height:760px),(max-width:760px){#uncModal{align-items:center!important;padding:10px!important}#uncModal>.unc-modal-box{width:min(700px,calc(100vw - 20px))!important;max-width:calc(100vw - 20px)!important;max-height:calc(100vh - 20px)!important}#uncModal.preview-open>.unc-modal-box{width:calc(100vw - 20px)!important;max-width:calc(100vw - 20px)!important;height:calc(100vh - 20px)!important;max-height:calc(100vh - 20px)!important}#uncModal.preview-open .unc-preview-panel{min-height:220px}#uncModal .unc-modal-actions{flex-wrap:wrap}#uncModal .unc-modal-actions button{flex:1 1 auto}}
 </style>
 
 <!-- =====================================================
@@ -20406,7 +20413,12 @@ async function logActivity(
     changes = []
 ){
 
-    if(!currentAuthUser){
+    /*
+       Admin corrections are intentionally excluded from Activity Log.
+       Staff activity remains auditable. This guard runs before addDoc, so an
+       Admin edit creates no audit document and therefore no later read.
+    */
+    if(!currentAuthUser || isAdmin()){
         return;
     }
 
@@ -20673,21 +20685,23 @@ async function emptyRecycleBinPermanently(){
                 item => !deletedSet.has(item.id)
             );
 
-        try{
-            await addDoc(
-                activityLogsRef,
-                {
-                    action:"PURGE_RECYCLE_BIN",
-                    count:count,
-                    paymentIds:ids,
-                    operator:currentOperatorName,
-                    operatorUid:currentAuthUser.uid,
-                    operatorRole:currentUserRole,
-                    createdAt:serverTimestamp()
-                }
-            );
-        }catch(logError){
-            console.warn("RECYCLE BIN PURGE AUDIT ERROR:",logError);
+        if(!isAdmin()){
+            try{
+                await addDoc(
+                    activityLogsRef,
+                    {
+                        action:"PURGE_RECYCLE_BIN",
+                        count:count,
+                        paymentIds:ids,
+                        operator:currentOperatorName,
+                        operatorUid:currentAuthUser.uid,
+                        operatorRole:currentUserRole,
+                        createdAt:serverTimestamp()
+                    }
+                );
+            }catch(logError){
+                console.warn("RECYCLE BIN PURGE AUDIT ERROR:",logError);
+            }
         }
 
         updateIPCFilter();
@@ -20782,21 +20796,23 @@ async function purgeSelectedRecyclePayments(){
 
         selectedRecyclePaymentIds.clear();
 
-        try{
-            await addDoc(
-                activityLogsRef,
-                {
-                    action:"PURGE_SELECTED_RECYCLE_PAYMENTS",
-                    count:count,
-                    paymentIds:ids,
-                    operator:currentOperatorName,
-                    operatorUid:currentAuthUser.uid,
-                    operatorRole:currentUserRole,
-                    createdAt:serverTimestamp()
-                }
-            );
-        }catch(logError){
-            console.warn("SELECTED RECYCLE PURGE AUDIT ERROR:",logError);
+        if(!isAdmin()){
+            try{
+                await addDoc(
+                    activityLogsRef,
+                    {
+                        action:"PURGE_SELECTED_RECYCLE_PAYMENTS",
+                        count:count,
+                        paymentIds:ids,
+                        operator:currentOperatorName,
+                        operatorUid:currentAuthUser.uid,
+                        operatorRole:currentUserRole,
+                        createdAt:serverTimestamp()
+                    }
+                );
+            }catch(logError){
+                console.warn("SELECTED RECYCLE PURGE AUDIT ERROR:",logError);
+            }
         }
 
         updateIPCFilter();
@@ -21237,6 +21253,43 @@ function activityDetailText(item){
 }
 
 
+function normalizeAuditIdentity(value){
+    return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g,"")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9@._-]/g,"");
+}
+
+
+function isAdminActivityLog(item){
+    if(String(item?.operatorRole || "").trim().toLowerCase() === "admin"){
+        return true;
+    }
+
+    const operatorEmail = normalizeAuditIdentity(item?.operatorEmail);
+    const operatorName = normalizeAuditIdentity(item?.operator)
+        .replace(/[^a-z0-9]/g,"");
+
+    /* Legacy maintenance logs did not always store operatorRole. */
+    if(
+        operatorEmail === "lehoangoanh@cscecmep.internal" ||
+        operatorEmail.startsWith("lehoangoanh@") ||
+        operatorName === "lehoangoanh"
+    ){
+        return true;
+    }
+
+    /* Covers older role-less entries made by the currently signed-in Admin. */
+    return !!(
+        isAdmin() &&
+        currentAuthUser?.uid &&
+        String(item?.operatorUid || "") === String(currentAuthUser.uid)
+    );
+}
+
+
 async function renderActivityLog(){
 
     const snapshot =
@@ -21262,22 +21315,10 @@ async function renderActivityLog(){
 
     /* The query already returns newest first and never downloads old logs. */
 
-    /*
-       Staff may see Staff activity only.
-       Admin may see all activity.
-       Firestore Rules enforce this server-side too.
-    */
-    const roleVisibleLogs =
-        isAdmin()
-            ? logs
-            : logs.filter(
-                item =>
-                    String(
-                        item.operatorRole || ""
-                    ).toLowerCase() !== "admin"
-            );
-
-    const visibleLogs = roleVisibleLogs;
+    /* Admin activity is hidden for every role, including legacy Admin rows. */
+    const visibleLogs = logs.filter(
+        item => !isAdminActivityLog(item)
+    );
 
     if(!visibleLogs.length){
 
@@ -22445,31 +22486,33 @@ async function purgeSelectedPaymentsFromFirebase(){
         updateBatchSelectionUI();
         renderPayments();
 
-        try{
-            await addDoc(
-                activityLogsRef,
-                {
-                    action:
-                        "PURGE_SELECTED_PAYMENTS",
-                    count:
-                        deletedCount,
-                    paymentIds:
-                        selectedIds,
-                    operator:
-                        currentOperatorName,
-                    operatorUid:
-                        currentAuthUser.uid,
-                    operatorRole:
-                        currentUserRole,
-                    createdAt:
-                        serverTimestamp()
-                }
-            );
-        }catch(logError){
-            console.warn(
-                "SELECTED PURGE AUDIT LOG ERROR:",
-                logError
-            );
+        if(!isAdmin()){
+            try{
+                await addDoc(
+                    activityLogsRef,
+                    {
+                        action:
+                            "PURGE_SELECTED_PAYMENTS",
+                        count:
+                            deletedCount,
+                        paymentIds:
+                            selectedIds,
+                        operator:
+                            currentOperatorName,
+                        operatorUid:
+                            currentAuthUser.uid,
+                        operatorRole:
+                            currentUserRole,
+                        createdAt:
+                            serverTimestamp()
+                    }
+                );
+            }catch(logError){
+                console.warn(
+                    "SELECTED PURGE AUDIT LOG ERROR:",
+                    logError
+                );
+            }
         }
 
         alert(
@@ -24728,19 +24771,22 @@ async function loadTimelineAudit(payment){
             logs.push({id:docSnap.id,...data});
         });
 
-        logs.sort((a,b) =>
+        const visibleLogs = logs
+            .filter(log => !isAdminActivityLog(log));
+
+        visibleLogs.sort((a,b) =>
             (timestampToMillis(b.createdAt) || 0) -
             (timestampToMillis(a.createdAt) || 0)
         );
 
-        if(!logs.length){
+        if(!visibleLogs.length){
             timelineAuditSection.style.display = "none";
             timelineAuditList.innerHTML = "";
             return;
         }
 
         timelineAuditSection.style.display = "";
-        timelineAuditList.innerHTML = logs.slice(0,12).map(log => {
+        timelineAuditList.innerHTML = visibleLogs.slice(0,12).map(log => {
             const localizedDetail = activityDetailText(log);
             const changeText =
                 Array.isArray(log.changes) && log.changes.length
@@ -40120,29 +40166,33 @@ async function normalizeExistingMEPFormat(){
                 group.length;
         }
 
-        try{
-            await addDoc(
-                activityLogsRef,
-                {
-                    action:
-                        "NORMALIZE_MEP_FORMAT",
-                    count:
-                        updated,
-                    operator:
-                        currentOperatorName,
-                    operatorUid:
-                        currentAuthUser?.uid || "",
-                    operatorEmail:
-                        currentAuthUser?.email || "",
-                    createdAt:
-                        serverTimestamp()
-                }
-            );
-        }catch(error){
-            console.warn(
-                "MEP FORMAT AUDIT ERROR",
-                error
-            );
+        if(!isAdmin()){
+            try{
+                await addDoc(
+                    activityLogsRef,
+                    {
+                        action:
+                            "NORMALIZE_MEP_FORMAT",
+                        count:
+                            updated,
+                        operator:
+                            currentOperatorName,
+                        operatorUid:
+                            currentAuthUser?.uid || "",
+                        operatorEmail:
+                            currentAuthUser?.email || "",
+                        operatorRole:
+                            currentUserRole,
+                        createdAt:
+                            serverTimestamp()
+                    }
+                );
+            }catch(error){
+                console.warn(
+                    "MEP FORMAT AUDIT ERROR",
+                    error
+                );
+            }
         }
 
         await loadPayments();
@@ -40230,20 +40280,23 @@ async function cleanupHistoryPersonInCharge(){
             cleaned += group.length;
         }
 
-        try{
-            await addDoc(
-                activityLogsRef,
-                {
-                    action:"HISTORY_CLEAR_PLACEHOLDER_PIC",
-                    count:cleaned,
-                    operator:currentOperatorName,
-                    operatorUid:currentAuthUser?.uid || "",
-                    operatorEmail:currentAuthUser?.email || "",
-                    createdAt:serverTimestamp()
-                }
-            );
-        }catch(error){
-            console.warn("HISTORY PIC CLEANUP AUDIT ERROR",error);
+        if(!isAdmin()){
+            try{
+                await addDoc(
+                    activityLogsRef,
+                    {
+                        action:"HISTORY_CLEAR_PLACEHOLDER_PIC",
+                        count:cleaned,
+                        operator:currentOperatorName,
+                        operatorUid:currentAuthUser?.uid || "",
+                        operatorEmail:currentAuthUser?.email || "",
+                        operatorRole:currentUserRole,
+                        createdAt:serverTimestamp()
+                    }
+                );
+            }catch(error){
+                console.warn("HISTORY PIC CLEANUP AUDIT ERROR",error);
+            }
         }
 
         await loadPayments();
@@ -41444,24 +41497,27 @@ history26CommitBtn.addEventListener("click",async()=>{
             }
         }
 
-        try{
-            await addDoc(
-                activityLogsRef,
-                {
-                    action:"HISTORY_IMPORT",
-                    operator:currentOperatorName,
-                    operatorUid:currentAuthUser?.uid || "",
-                    operatorEmail:currentAuthUser?.email || "",
-                    count:prepared.length,
-                    contractCount:
-                        prepared.filter(x=>x.data.paymentType==="contract").length,
-                    mepCount:
-                        prepared.filter(x=>x.data.paymentType==="other").length,
-                    createdAt:serverTimestamp()
-                }
-            );
-        }catch(error){
-            console.warn("HISTORY26 AUDIT LOG ERROR",error);
+        if(!isAdmin()){
+            try{
+                await addDoc(
+                    activityLogsRef,
+                    {
+                        action:"HISTORY_IMPORT",
+                        operator:currentOperatorName,
+                        operatorUid:currentAuthUser?.uid || "",
+                        operatorEmail:currentAuthUser?.email || "",
+                        operatorRole:currentUserRole,
+                        count:prepared.length,
+                        contractCount:
+                            prepared.filter(x=>x.data.paymentType==="contract").length,
+                        mepCount:
+                            prepared.filter(x=>x.data.paymentType==="other").length,
+                        createdAt:serverTimestamp()
+                    }
+                );
+            }catch(error){
+                console.warn("HISTORY26 AUDIT LOG ERROR",error);
+            }
         }
 
         await loadPayments();
@@ -41691,6 +41747,7 @@ function resetUncPreview(){
     uncPreviewFrame.src = "about:blank";
     uncPreviewPanel.hidden = true;
     uncOpenDriveLink.removeAttribute("href");
+    uncModal.classList.remove("preview-open");
 }
 
 function setUncBusy(busy, label = ""){
@@ -42363,8 +42420,8 @@ uncViewBtn.addEventListener("click",async()=>{
     uncPreviewFrame.src = urls.preview;
     uncOpenDriveLink.href = urls.view;
     uncPreviewPanel.hidden = false;
+    uncModal.classList.add("preview-open");
     uncViewBtn.textContent = uncCopy().hide;
-    setTimeout(()=>uncPreviewPanel.scrollIntoView({behavior:"smooth",block:"nearest"}),0);
 });
 
 uncDeleteBtn.addEventListener("click",async()=>{
