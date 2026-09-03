@@ -14373,6 +14373,72 @@ html[data-theme="corporate"] .theme-picker-wrap *{
     </div>
 </div>
 
+<style id="cross-month-import-confirm-style">
+.cross-month-import-summary{
+    margin:4px 0 12px;
+    padding:10px 12px;
+    border:1px solid #f5b8ad;
+    border-radius:9px;
+    background:#fff4f1;
+    color:#8f1d16;
+    font-size:12px;
+    line-height:1.45;
+}
+.cross-month-import-list{
+    display:grid;
+    gap:8px;
+    max-height:min(50vh,420px);
+    overflow:auto;
+}
+.cross-month-import-item{
+    border:1px solid #f0c8c1;
+    border-left:4px solid #d92d20;
+    border-radius:8px;
+    padding:10px 12px;
+    background:#fff;
+    color:#172033;
+    font-size:11px;
+    line-height:1.45;
+}
+.cross-month-import-item strong{display:block;margin-bottom:4px;color:#7a271a}
+.cross-month-import-existing{color:#b42318;font-weight:700}
+.cross-month-import-incoming{color:#475467;margin-top:3px}
+.import-duplicate-risk{
+    color:#b42318;
+    font-weight:700;
+    line-height:1.35;
+}
+#continueCrossMonthImportBtn{
+    background:#b42318;
+    color:#fff;
+    border-color:#b42318;
+}
+#continueCrossMonthImportBtn:hover{
+    background:#912018;
+    border-color:#912018;
+}
+</style>
+
+<!-- =====================================================
+     CROSS-MONTH DUPLICATE IMPORT CONFIRMATION
+===================================================== -->
+<div class="modal" id="crossMonthImportConfirmModal">
+    <div class="modal-box" style="max-width:720px;">
+        <div class="modal-header">
+            <div>
+                <h2 id="crossMonthImportConfirmTitle">Possible duplicate payments</h2>
+            </div>
+            <button class="close" id="closeCrossMonthImportConfirmBtn" type="button">×</button>
+        </div>
+        <div class="cross-month-import-summary" id="crossMonthImportConfirmSummary"></div>
+        <div class="cross-month-import-list" id="crossMonthImportConfirmList"></div>
+        <div class="modal-footer">
+            <button class="btn-gray" id="cancelCrossMonthImportBtn" type="button">Cancel import</button>
+            <button class="btn-danger" id="continueCrossMonthImportBtn" type="button">Still import — supplemental payment</button>
+        </div>
+    </div>
+</div>
+
 
 <!-- =====================================================
      EXCEL EXPORT SCOPE MODAL
@@ -16500,6 +16566,14 @@ Object.assign(I18N.en,{
     importContractNotFound:"Contract not found in Contract Master",
     importDuplicate:"Possible duplicate payment",
     importCrossMonthDuplicate:"Same Project + Contract No. + IPC already exists in another payment month: {month}. Please review before importing.",
+    importDuplicateRiskCount:"{n} row(s) match payments in another month",
+    importDuplicateConfirmTitle:"Possible duplicate payments",
+    importDuplicateConfirmSummary:"These rows match payments from another month. Continue only when this is a supplemental or split payment.",
+    importDuplicateExisting:"Existing: {month} · {amount} · {status} · Payment date: {date}",
+    importDuplicateIncoming:"Importing: {month} · {amount}",
+    importDuplicateCancel:"Cancel import",
+    importDuplicateContinue:"Still import — supplemental payment",
+    importSupplementalNote:"Supplemental payment after {month}",
     importRow:"Row",
     importError:"Error",
     importing:"Importing...",
@@ -16529,6 +16603,14 @@ Object.assign(I18N.zh,{
     importContractNotFound:"合同主数据中找不到该合同",
     importDuplicate:"可能存在重复付款",
     importCrossMonthDuplicate:"相同项目 + 合同编号 + IPC 已在其他付款月份存在：{month}。请在导入前检查。",
+    importDuplicateRiskCount:"{n} 行与其他月份的付款相同",
+    importDuplicateConfirmTitle:"可能重复付款",
+    importDuplicateConfirmSummary:"以下记录与其他月份的付款相同。仅当本次为补充付款或分次付款时才继续导入。",
+    importDuplicateExisting:"已有：{month} · {amount} · {status} · 付款日期：{date}",
+    importDuplicateIncoming:"本次导入：{month} · {amount}",
+    importDuplicateCancel:"取消导入",
+    importDuplicateContinue:"仍然导入 — 补充付款",
+    importSupplementalNote:"{month} 后续补充付款",
     importRow:"行",
     importError:"错误",
     importing:"正在导入...",
@@ -16558,6 +16640,14 @@ Object.assign(I18N.vi,{
     importContractNotFound:"Không tìm thấy hợp đồng trong Contract Master",
     importDuplicate:"Có thể trùng khoản thanh toán đã có",
     importCrossMonthDuplicate:"Có cùng Dự án + Số HĐ + IPC ở tháng thanh toán khác: {month}. Vui lòng kiểm tra lại trước khi nhập.",
+    importDuplicateRiskCount:"{n} dòng trùng với khoản ở tháng khác",
+    importDuplicateConfirmTitle:"Có thể nhập trùng khoản thanh toán",
+    importDuplicateConfirmSummary:"Các dòng dưới đây trùng với khoản ở tháng khác. Chỉ tiếp tục nếu đây là lần thanh toán bổ sung hoặc chia nhiều đợt.",
+    importDuplicateExisting:"Đã có: {month} · {amount} · {status} · Ngày trả: {date}",
+    importDuplicateIncoming:"Đang nhập: {month} · {amount}",
+    importDuplicateCancel:"Hủy nhập",
+    importDuplicateContinue:"Vẫn nhập — thanh toán bổ sung",
+    importSupplementalNote:"Thanh toán bổ sung sau tháng {month}",
     importRow:"Dòng",
     importError:"Lỗi",
     importing:"Đang nhập...",
@@ -16760,6 +16850,27 @@ const cancelExcelImportBtn =
 
 const confirmExcelImportBtn =
     document.getElementById("confirmExcelImportBtn");
+
+const crossMonthImportConfirmModal =
+    document.getElementById("crossMonthImportConfirmModal");
+
+const crossMonthImportConfirmTitle =
+    document.getElementById("crossMonthImportConfirmTitle");
+
+const crossMonthImportConfirmSummary =
+    document.getElementById("crossMonthImportConfirmSummary");
+
+const crossMonthImportConfirmList =
+    document.getElementById("crossMonthImportConfirmList");
+
+const closeCrossMonthImportConfirmBtn =
+    document.getElementById("closeCrossMonthImportConfirmBtn");
+
+const cancelCrossMonthImportBtn =
+    document.getElementById("cancelCrossMonthImportBtn");
+
+const continueCrossMonthImportBtn =
+    document.getElementById("continueCrossMonthImportBtn");
 
 const pasteExcelTitle =
     document.getElementById("pasteExcelTitle");
@@ -20821,6 +20932,15 @@ function activityDetailText(item){
         return fields ? `${monthText} · ${fields}` : monthText;
     }
 
+    if(detail.startsWith("Excel Import Supplemental|")){
+        const month = detail.split("|")[1] || "—";
+        return currentLanguage === "zh"
+            ? `从 Excel 导入 · ${month} 后续补充付款`
+            : currentLanguage === "en"
+                ? `Excel import · Supplemental payment after ${month}`
+                : `Nhập từ Excel · Thanh toán bổ sung sau tháng ${month}`;
+    }
+
     const staticDetails = {
         "Permanently deleted from Recycle Bin":{
             vi:"Đã xóa vĩnh viễn khỏi Thùng rác",
@@ -22616,10 +22736,16 @@ function canonicalizeCarryForwardRemark(value){
 function localizeCarryForwardRemark(value){
     const canonical = canonicalizeCarryForwardRemark(value);
 
-    return canonical.replace(
-        /\[\[CARRY_FROM:(\d{4}-\d{2})\]\]/g,
-        (match, month) => `[${t("carryFromRemark", {month})}]`
-    ).trim();
+    return canonical
+        .replace(
+            /\[\[CARRY_FROM:(\d{4}-\d{2})\]\]/g,
+            (match, month) => `[${t("carryFromRemark", {month})}]`
+        )
+        .replace(
+            /\[\[SUPPLEMENTAL_FROM:(\d{4}-\d{2})\]\]/g,
+            (match, month) => `[${t("importSupplementalNote", {month})}]`
+        )
+        .trim();
 }
 
 function carryForwardRemark(payment, reason){
@@ -29575,14 +29701,58 @@ function isLikelyDuplicateImport(data){
 */
 function findCrossMonthDuplicateImport(data){
 
-    return allPayments.find(
+    const matches = allPayments.filter(
         payment =>
             payment.deleted !== true &&
             normalize(payment.project) === normalize(data.project) &&
             normalize(payment.contractNo) === normalize(data.contractNo) &&
             normalize(payment.ipcNo) === normalize(data.ipcNo) &&
             normalize(payment.paymentMonth) !== normalize(data.paymentMonth)
-    ) || null;
+    );
+
+    /*
+       Show the riskiest match first:
+       same amount + already paid is the strongest duplicate signal.
+       A different amount may still be a legitimate partial payment.
+    */
+    matches.sort((a,b) => {
+        const score = payment => {
+            const existingAmount = Number(
+                isPaymentPaid(payment)
+                    ? payment.processActualAmount
+                    : payment.amount
+            ) || 0;
+            const sameAmount =
+                Math.abs(existingAmount - (Number(data.amount) || 0)) < 0.5;
+
+            return (
+                (sameAmount ? 4 : 0) +
+                (isPaymentPaid(payment) ? 2 : 0) +
+                (isPaymentCarriedForward(payment) ? 1 : 0)
+            );
+        };
+
+        return score(b) - score(a);
+    });
+
+    return matches[0] || null;
+}
+
+function crossMonthDuplicateImportDetail(payment){
+    if(!payment) return "";
+
+    const existingAmount = Number(
+        isPaymentPaid(payment)
+            ? payment.processActualAmount
+            : payment.amount
+    ) || 0;
+
+    return t("importDuplicateExisting",{
+        month:payment.paymentMonth || "—",
+        amount:formatMoney(existingAmount),
+        status:getPaymentWorkflowStatusLabel(payment),
+        date:payment.processPaymentDate || "—"
+    });
 }
 
 
@@ -31565,6 +31735,7 @@ function buildExcelImportRows(){
 
 
                 const notices = [];
+                let crossMonthDuplicate = null;
 
                 if(data){
 
@@ -31587,39 +31758,12 @@ function buildExcelImportRows(){
                         );
                     }
 
-                    const crossMonthDuplicate =
+                    crossMonthDuplicate =
                         findCrossMonthDuplicateImport(data);
-
-                    if(crossMonthDuplicate){
-                        const message =
-                            t("importCrossMonthDuplicate", {
-                                month: crossMonthDuplicate.paymentMonth || "?"
-                            });
-
-                        /* Do not block import: this is a review notice. */
-                        const existingNotice =
-                            typeof notices !== "undefined"
-                                ? notices
-                                : null;
-
-                        if(existingNotice){
-                            existingNotice.push(message);
-                        }
-                        else{
-                            data.__crossMonthDuplicateNotice = message;
-                        }
-                    }
 
                     seenInPaste.add(
                         duplicateKey
                     );
-
-                    if(data.__crossMonthDuplicateNotice){
-                        notices.push(
-                            data.__crossMonthDuplicateNotice
-                        );
-                        delete data.__crossMonthDuplicateNotice;
-                    }
                 }
 
                 /*
@@ -31767,6 +31911,7 @@ function buildExcelImportRows(){
                     errors:errors,
                     warnings:warnings,
                     notices:notices,
+                    crossMonthDuplicate:crossMonthDuplicate,
                     autoConfidence:
                         useSmartAutoDetect
                             ? smart.confidence
@@ -31832,6 +31977,11 @@ function renderExcelImportPreview(){
                 item.warnings.length > 0
         ).length;
 
+    const crossMonthDuplicateCount =
+        rows.filter(
+            item => !!item.crossMonthDuplicate
+        ).length;
+
     excelImportStatus.innerHTML =
         `
         <span class="import-badge ok">
@@ -31854,6 +32004,11 @@ function renderExcelImportPreview(){
                 </span>`
                 :
                 ""
+        }
+        ${
+            crossMonthDuplicateCount
+                ? `<span class="import-badge error">⚠ ${escapeHTML(t("importDuplicateRiskCount",{n:crossMonthDuplicateCount}))}</span>`
+                : ""
         }
         `;
 
@@ -31894,7 +32049,8 @@ function renderExcelImportPreview(){
                                 !hasError &&
                                 (
                                     (Array.isArray(item.warnings) && item.warnings.length > 0) ||
-                                    (Array.isArray(item.notices) && item.notices.length > 0)
+                                    (Array.isArray(item.notices) && item.notices.length > 0) ||
+                                    !!item.crossMonthDuplicate
                                 );
 
                             const rowClass =
@@ -31919,6 +32075,11 @@ function renderExcelImportPreview(){
                                     <td>${escapeHTML(data.remark || "")}</td>
                                     <td class="import-error-text">
                                         ${escapeHTML(item.errors.join("; "))}
+                                        ${
+                                            item.crossMonthDuplicate
+                                                ? `<div class="import-duplicate-risk">⚠ ${escapeHTML(crossMonthDuplicateImportDetail(item.crossMonthDuplicate))}</div>`
+                                                : ""
+                                        }
                                         ${
                                             Array.isArray(item.warnings) &&
                                             item.warnings.length
@@ -32848,6 +33009,115 @@ function contractMasterSyncDetailsText(details){
     return "\n\n" + title + "\n" + lines.join("\n");
 }
 
+let crossMonthImportDecisionResolver = null;
+
+function closeCrossMonthImportDecision(decision=false){
+    if(crossMonthImportConfirmModal){
+        crossMonthImportConfirmModal.classList.remove("show");
+    }
+
+    if(!document.querySelector(".modal.show")){
+        document.body.classList.remove("modal-open");
+    }
+
+    if(crossMonthImportDecisionResolver){
+        const resolve = crossMonthImportDecisionResolver;
+        crossMonthImportDecisionResolver = null;
+        resolve(!!decision);
+    }
+}
+
+function requestCrossMonthImportDecision(rows){
+    const riskyRows = rows.filter(
+        item => item && item.data && item.crossMonthDuplicate
+    );
+
+    if(!riskyRows.length){
+        return Promise.resolve(true);
+    }
+
+    if(crossMonthImportDecisionResolver){
+        closeCrossMonthImportDecision(false);
+    }
+
+    crossMonthImportConfirmTitle.textContent =
+        t("importDuplicateConfirmTitle");
+    crossMonthImportConfirmSummary.textContent =
+        t("importDuplicateConfirmSummary");
+    cancelCrossMonthImportBtn.textContent =
+        t("importDuplicateCancel");
+    continueCrossMonthImportBtn.textContent =
+        t("importDuplicateContinue");
+
+    crossMonthImportConfirmList.innerHTML =
+        riskyRows.map(item => {
+            const incoming = item.data;
+            const existing = item.crossMonthDuplicate;
+            const identity = [
+                incoming.project,
+                incoming.contractNo,
+                incoming.ipcNo
+            ].filter(Boolean).join(" · ");
+
+            return `
+                <div class="cross-month-import-item">
+                    <strong>${escapeHTML(identity)}</strong>
+                    <div class="cross-month-import-existing">
+                        ${escapeHTML(crossMonthDuplicateImportDetail(existing))}
+                    </div>
+                    <div class="cross-month-import-incoming">
+                        ${escapeHTML(t("importDuplicateIncoming",{
+                            month:incoming.paymentMonth || "—",
+                            amount:formatMoney(Number(incoming.amount) || 0)
+                        }))}
+                    </div>
+                </div>
+            `;
+        }).join("");
+
+    crossMonthImportConfirmModal.classList.add("show");
+    document.body.classList.add("modal-open");
+
+    return new Promise(resolve => {
+        crossMonthImportDecisionResolver = resolve;
+    });
+}
+
+function markCrossMonthImportsAsSupplemental(rows){
+    rows.forEach(item => {
+        if(!item?.data || !item.crossMonthDuplicate){
+            return;
+        }
+
+        const sourceMonth =
+            item.crossMonthDuplicate.paymentMonth || "—";
+        const note =
+            `[[SUPPLEMENTAL_FROM:${sourceMonth}]]`;
+        const currentRemark = String(item.data.remark || "").trim();
+
+        if(!currentRemark.includes(note)){
+            item.data.remark = currentRemark
+                ? `${currentRemark} · ${note}`
+                : note;
+        }
+    });
+}
+
+closeCrossMonthImportConfirmBtn.addEventListener(
+    "click",
+    () => closeCrossMonthImportDecision(false)
+);
+
+cancelCrossMonthImportBtn.addEventListener(
+    "click",
+    () => closeCrossMonthImportDecision(false)
+);
+
+continueCrossMonthImportBtn.addEventListener(
+    "click",
+    () => closeCrossMonthImportDecision(true)
+);
+
 confirmExcelImportBtn.addEventListener(
     "click",
     async () => {
@@ -32899,6 +33169,15 @@ confirmExcelImportBtn.addEventListener(
             );
             return;
         }
+
+        const supplementalApproved =
+            await requestCrossMonthImportDecision(validRows);
+
+        if(!supplementalApproved){
+            return;
+        }
+
+        markCrossMonthImportsAsSupplemental(validRows);
 
         confirmExcelImportBtn.disabled =
             true;
@@ -32985,7 +33264,9 @@ confirmExcelImportBtn.addEventListener(
                 await logActivity(
                     "ADD",
                     activityData,
-                    "Excel Import"
+                    item.crossMonthDuplicate
+                        ? `Excel Import Supplemental|${item.crossMonthDuplicate.paymentMonth || "—"}`
+                        : "Excel Import"
                 );
             }
             }
@@ -38316,6 +38597,7 @@ function mountAllModalsAtBodyRoot(){
         "batchPaymentModal",
         "columnSettingsModal",
         "pasteExcelModal",
+        "crossMonthImportConfirmModal",
         "exportExcelModal",
         "bulkEditModal",
         "bulkProcessModal",
