@@ -18392,18 +18392,17 @@ function getSelectablePaymentMonths(){
     /*
        Firestore has no cheap DISTINCT-month query. Build the month choices
        locally so opening the page never has to read historical payments just
-       to populate this select. Five past years plus one future year covers
-       normal planning; older data remains available through "All months".
+       to populate this select. For now, only show the active operating period:
+       January 2026 through the current month. Older/future data remains
+       available through "All months" without cluttering this selector.
     */
     const months = [];
+    const firstMonth = "2026-01";
+    let month = firstMonth;
 
-    for(let offset = -60; offset <= 12; offset++){
-        months.push(
-            shiftPaymentMonth(
-                CURRENT_MONTH,
-                offset
-            )
-        );
+    while(month && month <= CURRENT_MONTH){
+        months.push(month);
+        month = shiftPaymentMonth(month,1);
     }
 
     return months.filter(Boolean);
@@ -18419,7 +18418,11 @@ function updatePaymentMonthFilters(){
                     .map(
                         x => x.paymentMonth
                     )
-                    .filter(Boolean)
+                    .filter(month =>
+                        /^\d{4}-\d{2}$/.test(String(month || "")) &&
+                        String(month) >= "2026-01" &&
+                        String(month) <= CURRENT_MONTH
+                    )
             ])
         ]
         .sort()
@@ -18554,10 +18557,11 @@ function updateFormProjects(){
     const projects =
         [
             ...new Set(
-                allContracts
-                    .map(
-                        x => x.project
-                    )
+                [
+                    ...allContracts,
+                    ...allPayments
+                ]
+                    .map(x => x.project)
                     .filter(Boolean)
             )
         ]
@@ -26894,36 +26898,19 @@ function getVendorDefaultBankAccount(vendor){
         ).trim();
 
     if(storedDefault){
-
-        const defaultKey =
-            bankAccountNumberKey(storedDefault);
-
-        const matching =
-            accounts.find(
-                account => {
-
-                    const accountKey =
-                        bankAccountNumberKey(account);
-
-                    return defaultKey && accountKey
-                        ? defaultKey === accountKey
-                        : normalize(account) === normalize(storedDefault);
-                }
-            );
-
-        if(matching){
-            return chooseRicherBankValue(
-                storedDefault,
-                matching
-            );
-        }
+        /* Vendor Master's selected default is authoritative. */
+        return storedDefault;
     }
 
     return accounts[0] || "";
 }
 
 
-function resolveVendorIdentity(company, bankAccount){
+function resolveVendorIdentity(
+    company,
+    bankAccount,
+    {preferInput = false} = {}
+){
 
     const companyValue =
         String(company || "").trim();
@@ -26970,7 +26957,9 @@ function resolveVendorIdentity(company, bankAccount){
     const resolvedBank =
         bankValue
             ? (
-                matchingAccount
+                preferInput
+                    ? bankValue
+                    : matchingAccount
                     ? chooseRicherBankValue(
                         matchingAccount,
                         bankValue
@@ -27355,7 +27344,8 @@ function selectNewVendorFromCombobox(companyName){
 
 async function upsertVendor(
     company,
-    bankAccount
+    bankAccount,
+    {preferInputDefault = false} = {}
 ){
 
     const companyValue =
@@ -27438,6 +27428,11 @@ async function upsertVendor(
                         bankValue
                     );
             }
+        }
+
+        /* A manual MEP edit intentionally replaces the displayed default. */
+        if(preferInputDefault && bankValue){
+            defaultBank = bankValue;
         }
 
         const accountsChanged =
@@ -28218,6 +28213,14 @@ async function openEditModal(
         "";
 
 
+    /*
+       MEP Edit may open before Contract Master has ever been loaded.
+       Rebuild this select from the visible payments as well, so the existing
+       project never disappears and block an otherwise valid edit.
+    */
+    updateFormProjects();
+
+
     formProject.value =
         payment.project ||
         "";
@@ -28227,7 +28230,11 @@ async function openEditModal(
         const resolvedVendor =
             resolveVendorIdentity(
                 payment.company || "",
-                payment.bankAccount || ""
+                payment.bankAccount || "",
+                {
+                    /* Show the exact bank text stored on this payment while editing. */
+                    preferInput:true
+                }
             );
 
         formMEPNoCodeException.checked =
@@ -28861,7 +28868,11 @@ savePaymentBtn.addEventListener(
             isMEPPayment
                 ? resolveVendorIdentity(
                     formMEPCompany.value.trim(),
-                    formMEPBank.value.trim()
+                    formMEPBank.value.trim(),
+                    {
+                        /* Manual Add/Edit must keep exactly what the user typed. */
+                        preferInput:true
+                    }
                 )
                 : null;
 
@@ -28922,7 +28933,7 @@ savePaymentBtn.addEventListener(
 
             contractNo:
                 isMEPPayment
-                    ? mepCode
+                    ? contractNo
                     : contract.contractNo,
 
             contractName:
@@ -29222,7 +29233,10 @@ savePaymentBtn.addEventListener(
 
                 await upsertVendor(
                     data.company,
-                    data.bankAccount
+                    data.bankAccount,
+                    {
+                        preferInputDefault:true
+                    }
                 );
             }
 
