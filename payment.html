@@ -9025,6 +9025,25 @@ html[data-theme] #appBootScreen .app-boot-spinner{
     }
 }
 
+/* ==========================================================
+   SIGN-IN GATE
+   Payment is an internal workspace: the application remains
+   visually unavailable until an Admin/Staff profile is loaded.
+========================================================== */
+body.access-login-required .header,
+body.access-login-required .container,
+body.access-login-required .theme-decor-layer{
+    visibility:hidden !important;
+    pointer-events:none !important;
+    user-select:none !important;
+}
+
+/* Use an opaque page background so no payment data is visible
+   behind the sign-in card. */
+#requiredOperatorModal{
+    background:var(--theme-page,#f4f7fb) !important;
+}
+
 
 
 /* ==========================================================
@@ -12838,7 +12857,7 @@ html[data-theme="corporate"] .theme-picker-wrap *{
 
 
 
-<body>
+<body class="access-login-required">
 
 <div id="appBootScreen" aria-live="polite" aria-label="Loading">
     <div class="app-boot-card">
@@ -12862,10 +12881,7 @@ html[data-theme="corporate"] .theme-picker-wrap *{
 <header class="header modern-app-header">
 
     <a class="brand-block" href="./" title="Home" aria-label="Back to home">
-        <div class="brand-logo" style="padding:0!important;overflow:hidden;background:transparent!important;box-shadow:none!important;">
-    <img src="./logo.png" alt="CSCEC"
-         style="width:100%;height:100%;display:block;object-fit:cover;">
-</div>
+        <div class="brand-logo">▤</div>
         <div>
             <h1>CSCECMEP-PAYMENT</h1>
             <div class="brand-subtitle">Payment Management</div>
@@ -19884,6 +19900,10 @@ function updateOperatorDisplay(){
 
 function showLoginModal(){
 
+    document.body.classList.add(
+        "access-login-required"
+    );
+
     requiredOperatorModal.classList.add(
         "show"
     );
@@ -22564,19 +22584,17 @@ onAuthStateChanged(
                 "";
 
             currentUserRole =
-                "viewer";
+                "";
 
             updateOperatorDisplay();
 
-            hideLoginModal();
-
-            /* Viewer may browse/search/filter/sort only.
-               Write actions call ensureOperator() and trigger login. */
+            /* Payment is internal. Signed-out visitors only see
+               the sign-in screen; there is no guest Viewer mode. */
             recycleBinBtn.style.display = "none";
             activityLogBtn.style.display = "none";
 
             applyRoleUI();
-            renderPayments();
+            showLoginModal();
 
             return;
         }
@@ -22589,6 +22607,10 @@ onAuthStateChanged(
         updateOperatorDisplay();
 
         if(!hasProfile){
+
+            document.body.classList.add(
+                "access-login-required"
+            );
 
             currentUserProfile = null;
             currentOperatorName = "";
@@ -22606,6 +22628,10 @@ onAuthStateChanged(
 
             return;
         }
+
+        document.body.classList.remove(
+            "access-login-required"
+        );
 
         hideLoginModal();
 

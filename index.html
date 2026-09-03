@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#15395f">
-  <meta name="description" content="CSCEC MEP Payment Management System">
-  <title>CSCEC MEP · Payment System</title>
+  <meta name="description" content="CSCEC MEP workspace">
+  <title>CSCEC MEP · Workspace</title>
   <style>
     :root{--navy:#15395f;--blue:#2d6d9d;--text:#18283a;--muted:#718096;--line:#e3e9f0;--bg:#f4f7fa;--white:#fff}
     *{box-sizing:border-box}html,body{min-height:100%}body{margin:0;color:var(--text);background:var(--bg);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}a{color:inherit;text-decoration:none}button{font:inherit;cursor:pointer}
@@ -17,7 +17,16 @@
     .icon{width:46px;height:46px;display:grid;place-items:center;flex:0 0 auto;border-radius:13px;color:var(--navy);background:#edf4f9}.card-primary .icon{color:#fff;background:rgba(255,255,255,.14)}.icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
     .card-copy{min-width:0}.card h2{margin:0 0 5px;font-size:18px;letter-spacing:-.015em}.card p{margin:0;color:var(--muted);font-size:11px;line-height:1.5}.card-primary h2{font-size:25px}.card-primary p{color:#c4d7e8}.arrow{margin-left:auto;align-self:center;color:#91a0b0;font-size:20px}.card-primary .arrow{color:#fff}
     .card-disabled{cursor:default;background:#f8fafc;box-shadow:none}.card-disabled:hover{transform:none;border-color:var(--line);box-shadow:none}.card-disabled .icon{color:#9aa8b6;background:#edf1f5}.badge{display:inline-flex;margin-top:9px;padding:4px 8px;border-radius:999px;color:#7b8794;background:#e9eef3;font-size:8px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+    .chat-launcher{position:fixed;right:22px;bottom:22px;z-index:1000;width:54px;height:54px;display:grid;place-items:center;border:0;border-radius:50%;color:#fff;background:var(--navy);box-shadow:0 14px 32px rgba(21,57,95,.28);transition:transform .18s,box-shadow .18s}.chat-launcher:hover{transform:translateY(-2px);box-shadow:0 18px 38px rgba(21,57,95,.34)}.chat-launcher svg{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+    .chat-panel{position:fixed;right:22px;bottom:88px;z-index:1001;width:min(370px,calc(100vw - 28px));height:min(520px,calc(100dvh - 112px));display:flex;flex-direction:column;overflow:hidden;border:1px solid #d7e0e9;border-radius:18px;background:#fff;box-shadow:0 24px 70px rgba(17,42,69,.22);opacity:0;transform:translateY(10px) scale(.98);transform-origin:bottom right;transition:opacity .17s,transform .17s}.chat-panel[hidden]{display:none}.chat-panel.is-open{opacity:1;transform:none}
+    .chat-head{min-height:61px;display:flex;align-items:center;gap:10px;padding:12px 14px;color:#fff;background:var(--navy)}.chat-head-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:rgba(255,255,255,.13)}.chat-head-icon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9}.chat-head-copy{min-width:0}.chat-head strong{display:block;font-size:14px}.chat-head small{display:block;margin-top:2px;color:#bfd1e1;font-size:10px}.chat-close{margin-left:auto;width:34px;height:34px;border:0;border-radius:9px;color:#fff;background:transparent;font-size:22px;line-height:1}.chat-close:hover{background:rgba(255,255,255,.12)}
+    .chat-identity{min-height:39px;display:flex;align-items:center;justify-content:space-between;padding:7px 13px;border-bottom:1px solid var(--line);color:var(--muted);font-size:10px}.chat-name{border:0;padding:4px 7px;border-radius:7px;color:var(--navy);background:#edf4f9;font-weight:750}.chat-name:hover{background:#e2edf5}
+    .chat-log{flex:1;overflow:auto;overscroll-behavior:contain;padding:14px;background:#f5f8fb}.chat-empty{height:100%;display:grid;place-items:center;padding:24px;color:#8794a3;text-align:center;font-size:11px;line-height:1.5}.chat-message{display:flex;flex-direction:column;align-items:flex-start;margin:0 0 10px}.chat-message.me{align-items:flex-end}.chat-message-meta{display:flex;gap:6px;margin:0 5px 3px;color:#8491a0;font-size:9px}.chat-message.me .chat-message-meta{flex-direction:row-reverse}.chat-bubble{max-width:82%;padding:8px 10px;border:1px solid #dce5ed;border-radius:5px 13px 13px;background:#fff;color:#243548;font-size:12px;line-height:1.42;overflow-wrap:anywhere}.chat-message.me .chat-bubble{border-color:#1e517c;border-radius:13px 5px 13px 13px;color:#fff;background:#1e517c}.chat-image{display:block;max-width:100%;max-height:190px;border-radius:8px;object-fit:contain}.chat-reaction{margin-top:4px;font-size:11px}
+    .chat-form{display:flex;gap:8px;padding:11px;border-top:1px solid var(--line);background:#fff}.chat-form input{min-width:0;flex:1;height:38px;border:1px solid #d4dee8;border-radius:10px;padding:0 11px;outline:0;color:var(--text);background:#fff;font:inherit;font-size:12px}.chat-form input:focus{border-color:#6e9bc0;box-shadow:0 0 0 3px rgba(45,109,157,.1)}.chat-send{height:38px;padding:0 14px;border:0;border-radius:10px;color:#fff;background:var(--navy);font-size:11px;font-weight:750}.chat-send:disabled,.chat-form input:disabled{cursor:not-allowed;opacity:.55}
+    .chat-name-layer{position:absolute;inset:61px 0 0;z-index:3;display:grid;place-items:center;padding:20px;background:rgba(244,247,250,.96);backdrop-filter:blur(5px)}.chat-name-layer[hidden]{display:none}.chat-name-card{width:100%;padding:22px;border:1px solid #dce5ed;border-radius:15px;background:#fff;box-shadow:0 14px 34px rgba(22,49,77,.12)}.chat-name-card h3{margin:0 0 7px;font-size:17px}.chat-name-card p{margin:0 0 14px;color:var(--muted);font-size:11px;line-height:1.5}.chat-name-card input{width:100%;height:40px;border:1px solid #ccd8e3;border-radius:10px;padding:0 11px;outline:0;font:inherit;font-size:12px}.chat-name-card input:focus{border-color:#6e9bc0;box-shadow:0 0 0 3px rgba(45,109,157,.1)}.chat-name-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}.chat-name-cancel,.chat-name-save{height:36px;padding:0 13px;border-radius:9px;font-size:11px;font-weight:750}.chat-name-cancel{border:1px solid #d8e1e9;color:#526274;background:#fff}.chat-name-save{border:0;color:#fff;background:var(--navy)}
     @media(max-width:680px){main{place-items:start center;padding-top:54px}.grid{grid-template-columns:1fr}.card-primary{grid-row:auto;min-height:190px}.card{min-height:132px}.heading{margin-bottom:22px}}
+    @media(max-width:480px){.chat-launcher{right:14px;bottom:calc(14px + env(safe-area-inset-bottom))}.chat-panel{right:14px;bottom:calc(78px + env(safe-area-inset-bottom));height:min(520px,calc(100dvh - 98px));border-radius:16px}}
+    @media(prefers-reduced-motion:reduce){.chat-launcher,.chat-panel{transition:none}}
   </style>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-6QQBQ1C6FE"></script>
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-6QQBQ1C6FE');</script>
@@ -36,5 +45,168 @@
       </div>
     </section>
   </main>
+  <button class="chat-launcher" id="chatLauncher" type="button" aria-label="Open team chat" aria-controls="chatPanel" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18.5 3.5 21v-5A8.5 8.5 0 1 1 7 19.5Z"/><path d="M8 10h8M8 14h5"/></svg>
+  </button>
+  <section class="chat-panel" id="chatPanel" aria-label="Team chat" hidden>
+    <div class="chat-head">
+      <span class="chat-head-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18.5 3.5 21v-5A8.5 8.5 0 1 1 7 19.5Z"/></svg></span>
+      <span class="chat-head-copy"><strong>Team chat</strong><small>Anonymous nicknames</small></span>
+      <button class="chat-close" id="chatClose" type="button" aria-label="Close chat">×</button>
+    </div>
+    <div class="chat-identity"><span>You are chatting as</span><button class="chat-name" id="chatNameButton" type="button">Set nickname</button></div>
+    <div class="chat-log" id="chatLog" aria-live="polite"><div class="chat-empty">Loading messages…</div></div>
+    <form class="chat-form" id="chatForm">
+      <input id="chatMessage" type="text" maxlength="500" autocomplete="off" placeholder="Type a message…" aria-label="Message" disabled>
+      <button class="chat-send" id="chatSend" type="submit" disabled>Send</button>
+    </form>
+    <div class="chat-name-layer" id="chatNameLayer" hidden>
+      <form class="chat-name-card" id="chatNameForm">
+        <h3>Choose a nickname</h3>
+        <p>Use any nickname — no real name required.</p>
+        <input id="chatNameInput" type="text" maxlength="30" autocomplete="nickname" placeholder="Nickname" required>
+        <div class="chat-name-actions">
+          <button class="chat-name-cancel" id="chatNameCancel" type="button">Cancel</button>
+          <button class="chat-name-save" type="submit">Continue</button>
+        </div>
+      </form>
+    </div>
+  </section>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+    import { getFirestore,collection,addDoc,query,orderBy,limit,onSnapshot,serverTimestamp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+    const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
+    const db=getFirestore(initializeApp(firebaseConfig));
+    const launcher=document.getElementById("chatLauncher");
+    const panel=document.getElementById("chatPanel");
+    const closeButton=document.getElementById("chatClose");
+    const log=document.getElementById("chatLog");
+    const form=document.getElementById("chatForm");
+    const messageInput=document.getElementById("chatMessage");
+    const sendButton=document.getElementById("chatSend");
+    const nameButton=document.getElementById("chatNameButton");
+    const nameLayer=document.getElementById("chatNameLayer");
+    const nameForm=document.getElementById("chatNameForm");
+    const nameInput=document.getElementById("chatNameInput");
+    const nameCancel=document.getElementById("chatNameCancel");
+    let stopMessages=null;
+
+    const currentName=()=>localStorage.getItem("chat_name")||"";
+    const cleanName=value=>value.trim().replace(/\s+/g," ").slice(0,30);
+    const cleanText=value=>value.trim().slice(0,500);
+    const setComposerState=()=>{
+      const ready=Boolean(currentName());
+      nameButton.textContent=ready?currentName():"Set nickname";
+      messageInput.disabled=!ready;
+      sendButton.disabled=!ready;
+    };
+    const showNameEditor=()=>{
+      nameInput.value=currentName();
+      nameLayer.hidden=false;
+      setTimeout(()=>nameInput.focus(),0);
+    };
+    const hideNameEditor=()=>{nameLayer.hidden=true;};
+    const showChatMessage=text=>{const empty=document.createElement("div");empty.className="chat-empty";empty.textContent=text;log.replaceChildren(empty);};
+    const formatTime=value=>{
+      const date=value?.toDate?.();
+      return date?date.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}):"";
+    };
+    const renderMessages=snapshot=>{
+      const messages=snapshot.docs.slice().reverse();
+      if(!messages.length){showChatMessage("No messages yet. Start the conversation.");return;}
+      const fragment=document.createDocumentFragment();
+      const nickname=currentName();
+      messages.forEach(messageDoc=>{
+        const data=messageDoc.data();
+        const name=cleanName(String(data.name||"Guest"))||"Guest";
+        const row=document.createElement("div");
+        row.className="chat-message"+(name===nickname?" me":"");
+        const meta=document.createElement("div");
+        meta.className="chat-message-meta";
+        const author=document.createElement("span");
+        author.textContent=name;
+        const time=document.createElement("span");
+        time.textContent=formatTime(data.time);
+        meta.append(author,time);
+        const bubble=document.createElement("div");
+        bubble.className="chat-bubble";
+        if(data.image){
+          const image=document.createElement("img");
+          image.className="chat-image";
+          image.src=String(data.image);
+          image.alt="Image shared by "+name;
+          bubble.append(image);
+        }
+        if(data.text&&!(data.image&&data.text==="[image]")){
+          const text=document.createElement("div");
+          text.textContent=String(data.text);
+          bubble.append(text);
+        }
+        if(data.reaction){const reaction=document.createElement("div");reaction.className="chat-reaction";reaction.textContent=String(data.reaction);bubble.append(reaction);}
+        row.append(meta,bubble);
+        fragment.append(row);
+      });
+      log.replaceChildren(fragment);
+      requestAnimationFrame(()=>{log.scrollTop=log.scrollHeight;});
+    };
+    const startMessages=()=>{
+      if(stopMessages)return;
+      showChatMessage("Loading messages…");
+      const recent=query(collection(db,"messages"),orderBy("time","desc"),limit(50));
+      stopMessages=onSnapshot(recent,renderMessages,error=>{
+        console.error("Chat read failed",error);
+        showChatMessage("Chat is temporarily unavailable.");
+      });
+    };
+    const openChat=()=>{
+      panel.hidden=false;
+      requestAnimationFrame(()=>panel.classList.add("is-open"));
+      launcher.setAttribute("aria-expanded","true");
+      setComposerState();
+      startMessages();
+      if(currentName())setTimeout(()=>messageInput.focus(),180);else showNameEditor();
+    };
+    const closeChat=()=>{
+      panel.classList.remove("is-open");
+      launcher.setAttribute("aria-expanded","false");
+      if(stopMessages){stopMessages();stopMessages=null;}
+      setTimeout(()=>{if(!panel.classList.contains("is-open"))panel.hidden=true;},180);
+      launcher.focus();
+    };
+    launcher.addEventListener("click",()=>panel.hidden?openChat():closeChat());
+    closeButton.addEventListener("click",closeChat);
+    nameButton.addEventListener("click",showNameEditor);
+    nameCancel.addEventListener("click",()=>{if(currentName())hideNameEditor();else closeChat();});
+    nameForm.addEventListener("submit",event=>{
+      event.preventDefault();
+      const nickname=cleanName(nameInput.value);
+      if(!nickname)return;
+      localStorage.setItem("chat_name",nickname);
+      setComposerState();
+      hideNameEditor();
+      messageInput.focus();
+    });
+    form.addEventListener("submit",async event=>{
+      event.preventDefault();
+      const text=cleanText(messageInput.value);
+      const name=currentName();
+      if(!text||!name)return;
+      messageInput.disabled=true;
+      sendButton.disabled=true;
+      try{
+        await addDoc(collection(db,"messages"),{name,text,reaction:"",time:serverTimestamp()});
+        messageInput.value="";
+      }catch(error){
+        console.error("Chat send failed",error);
+        alert("Message could not be sent. Please try again.");
+      }finally{
+        setComposerState();
+        messageInput.focus();
+      }
+    });
+    document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!panel.hidden){if(!nameLayer.hidden&&currentName())hideNameEditor();else closeChat();}});
+    setComposerState();
+  </script>
 </body>
 </html>
