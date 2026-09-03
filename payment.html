@@ -11799,6 +11799,35 @@ html[data-theme] #paymentTable tbody tr:hover td:last-child{
     box-sizing:border-box !important;
 }
 
+/* Vietnamese keeps the full status wording, but uses a tighter badge and a
+   small amount of extra column room so the two icons remain aligned. */
+html[lang="vi"] #paymentTable thead th:last-child,
+html[lang="vi"] #paymentTable tbody td:last-child{
+    width:184px !important;
+    min-width:184px !important;
+    max-width:184px !important;
+}
+
+html[lang="vi"] #paymentFixedHeaderInner th:last-child,
+html[lang="vi"] .payment-fixed-header-cell:last-child{
+    width:184px !important;
+    min-width:184px !important;
+    max-width:184px !important;
+}
+
+html[lang="vi"] #paymentTable td.actions-cell .payment-locked{
+    padding:4px 5px !important;
+    font-size:8px !important;
+    letter-spacing:-.15px !important;
+}
+
+/* Keep paid-row controls in the same three visual slots even when no UNC exists. */
+#paymentTable td.actions-cell .unc-voucher-placeholder{
+    visibility:hidden !important;
+    pointer-events:none !important;
+    cursor:default !important;
+}
+
 /* Extra scroll breathing room is no longer needed */
 #tableScroll{
     padding-right:0 !important;
@@ -15033,8 +15062,9 @@ html[data-theme="corporate"] .theme-picker-wrap *{
 .unc-preview-head a{color:var(--theme-primary,#2764c4);font-weight:800;text-decoration:none}
 .unc-preview-frame,.unc-preview-panel iframe{display:block;flex:1 1 auto;width:100%;height:100%!important;min-height:0;border:0;background:#f3f4f6}
 #uncModal .unc-modal-actions{display:flex;flex:0 0 auto;justify-content:flex-end;gap:7px;margin:0!important;padding:11px 16px!important;border-top:1px solid var(--theme-border,#e2e7ef);background:var(--theme-surface-alt,#f8fafc)}
-.unc-voucher-btn.has-file{background:#ecfdf3!important;color:#027a48!important;border-color:#abefc6!important}
-.unc-voucher-btn.has-file svg{stroke:#027a48!important}
+.unc-voucher-btn.has-file{background:var(--theme-surface-alt,#eef4ff)!important;color:var(--theme-primary,#2457a7)!important;border-color:var(--theme-border,#cfe0ff)!important}
+.unc-voucher-btn.has-file svg{stroke:var(--theme-primary,#2457a7)!important}
+.unc-voucher-btn.has-file:hover{background:color-mix(in srgb,var(--theme-primary,#2457a7) 12%,var(--theme-surface,#fff) 88%)!important;border-color:var(--theme-primary-2,#aac6f3)!important}
 .unc-voucher-btn.add-file{background:var(--theme-surface-alt,#f8fafc)!important;color:var(--theme-primary,#17365d)!important;border-color:var(--theme-border,#d5dce5)!important}
 .unc-voucher-btn.add-file svg{stroke:var(--theme-primary,#17365d)!important}
 @media(max-height:760px),(max-width:760px){#uncModal{align-items:center!important;padding:10px!important}#uncModal>.unc-modal-box{width:min(700px,calc(100vw - 20px))!important;max-width:calc(100vw - 20px)!important;max-height:calc(100vh - 20px)!important}#uncModal.preview-open>.unc-modal-box{width:calc(100vw - 20px)!important;max-width:calc(100vw - 20px)!important;height:calc(100vh - 20px)!important;max-height:calc(100vh - 20px)!important}#uncModal.preview-open .unc-preview-panel{min-height:220px}#uncModal .unc-modal-actions{flex-wrap:wrap}#uncModal .unc-modal-actions button{flex:1 1 auto}}
@@ -16294,6 +16324,13 @@ function setStatusFilter(select, labelKey){
 function applyLanguage(){
     const langMap={en:'en',zh:'zh-CN',vi:'vi'};
     document.documentElement.lang = langMap[currentLanguage];
+
+    /* The real <colgroup> must follow the language-specific Actions width;
+       CSS alone only widened the floating header, leaving body rows at 156px. */
+    if(typeof setColumnWidth === "function"){
+        setColumnWidth(23,getLockedColumnWidth(23));
+    }
+
     document.title = t('appTitle');
     const languageSelect = document.getElementById('languageSelect');
     if(languageSelect) languageSelect.value = currentLanguage;
@@ -36467,6 +36504,15 @@ const LOCKED_COLUMN_WIDTHS = {
     23:156
 };
 
+function getLockedColumnWidth(index){
+
+    if(index === 23 && currentLanguage === "vi"){
+        return 184;
+    }
+
+    return LOCKED_COLUMN_WIDTHS[index];
+}
+
 // Only keep a tiny strip so the column can still be grabbed again.
 const MIN_COLUMN_WIDTH = 2;
 const MAX_COLUMN_WIDTH = 1200;
@@ -36541,7 +36587,7 @@ function setColumnWidth(index,width){
             LOCKED_COLUMN_WIDTHS,
             index
         )
-            ? LOCKED_COLUMN_WIDTHS[index]
+            ? getLockedColumnWidth(index)
             : Number(width);
 
     const safeWidth =
@@ -41714,7 +41760,9 @@ function renderUncActionButton(payment){
     const canAdd = isAdmin() && isPaymentPaid(payment);
 
     if(!hasFile && !canAdd){
-        return "";
+        return isPaymentPaid(payment)
+            ? `<span class="action-icon-btn unc-voucher-placeholder" aria-hidden="true"></span>`
+            : "";
     }
 
     const label = hasFile
@@ -41837,11 +41885,17 @@ function renderUncModal(){
 
     if(hasFile){
         const uploadTime = safeTimestampText(payment.uncUploadedAt);
-        const details = [
-            payment.uncSize ? formatUncBytes(payment.uncSize) : "",
-            uploadTime !== "—" ? uploadTime : "",
-            payment.uncUploadedBy || ""
-        ].filter(Boolean).join(" · ");
+        const details = (
+            admin
+                ? [
+                    payment.uncSize ? formatUncBytes(payment.uncSize) : "",
+                    uploadTime !== "—" ? uploadTime : "",
+                    payment.uncUploadedBy || ""
+                ]
+                : [
+                    payment.uncSize ? formatUncBytes(payment.uncSize) : ""
+                ]
+        ).filter(Boolean).join(" · ");
 
         uncFileCard.className = "unc-file-card";
         uncFileCard.innerHTML = `
