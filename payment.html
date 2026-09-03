@@ -13060,7 +13060,6 @@ html[data-theme="corporate"] .theme-picker-wrap *{
                 <button type="button" data-tools-action="normalizeMepFormat" id="toolsNormalizeMepFormatBtn" style="display:none;">🧩 Chuẩn hóa định dạng MEP</button>
                 <button type="button" data-tools-action="history2026" id="toolsHistory2026Btn" style="display:none;">🧹 Chuẩn hóa lịch sử</button>
                 <button type="button" data-tools-action="staff" id="toolsStaffSetupBtn">👥 Staff Setup</button>
-                <button type="button" data-tools-action="clear-test-audit" id="toolsClearTestAuditBtn" style="display:none;color:#b42318;">🧹 Xóa nhật ký test đến 02/09/2026</button>
                 <button type="button" data-tools-action="purge-payments" id="toolsPurgePaymentsBtn" style="display:none;">🗑 Xóa vĩnh viễn mục đã chọn</button>
             </div>
         </div>
@@ -15369,7 +15368,7 @@ const I18N = {
         language:"Language", paymentsCount:"{shown} / {total} payments", appTitle:"Payment System — Payment History", history:"Payment Plan", loading:"Loading data...",
         batchPayment:"Batch Payment", exportExcel:"Export Excel", columns:"Columns", addPayment:"Add Payment", refresh:"Refresh", refreshing:"Refreshing...",
         paymentPlan:"TOTAL TO PROCESS", planAmount:"PAID", actualPaid:"IN PROGRESS", completedPayment:"COMPLETED PAYMENT", unpaidAmount:"CARRIED TO NEXT MONTH", completedShort:"{n} payment(s)",
-        paymentMonth:"Payment Month", allMonths:"All Months", search:"Search...", allProjects:"All Projects", allIPC:"All IPC",
+        paymentMonth:"Payment Month", allMonths:"All time", search:"Search...", allProjects:"All Projects", allIPC:"All IPC",
         all:"All", pending:"Not completed", done:"Completed", actualPaymentDate:"Actual Payment Date", actualPaymentHint:"Use this filter only to view actual payment history.",
         selected:"{n} payment(s) selected", hideSelected:"Hide {n} row(s)", unhideSelected:"Unhide {n} row(s)", hiddenRows:"Hidden rows ({n})", hiddenManagerTitle:"Hidden rows", hiddenManagerSummary:"{n} row(s) hidden on this browser", hiddenManagerEmpty:"No hidden rows on this browser.", unhideOne:"Unhide", unhideAll:"Unhide all", closeHiddenManager:"Close", clearSelection:"Clear Selection", updateSelected:"Update Selected", selectAllVisible:"Select all visible payments",
         no:"No.", person:"Person in Charge", project:"Project", company:"Company", bank:"Bank Account", contractNo:"Contract No.", contractName:"Contract Name",
@@ -15396,7 +15395,7 @@ const I18N = {
         language:"语言", paymentsCount:"显示 {shown} / 共 {total} 笔", appTitle:"付款系统 — 付款记录", history:"付款计划", loading:"正在加载数据...",
         batchPayment:"批量付款", exportExcel:"导出 Excel", columns:"显示列", addPayment:"新增付款", refresh:"刷新", refreshing:"刷新中...",
         paymentPlan:"本月待处理总额", planAmount:"已付款", actualPaid:"跟进中", completedPayment:"已完成付款", unpaidAmount:"转至下月", completedShort:"{n} 笔",
-        paymentMonth:"付款月份", allMonths:"全部月份", search:"搜索...", allProjects:"全部项目", allIPC:"全部 IPC",
+        paymentMonth:"付款月份", allMonths:"全部期间", search:"搜索...", allProjects:"全部项目", allIPC:"全部 IPC",
         all:"全部", pending:"未完成", done:"已完成", actualPaymentDate:"实际付款日期", actualPaymentHint:"仅在查看实际付款历史时使用此筛选。",
         selected:"已选择 {n} 笔付款", hideSelected:"隐藏 {n} 行", unhideSelected:"取消隐藏 {n} 行", hiddenRows:"已隐藏行 ({n})", hiddenManagerTitle:"已隐藏行", hiddenManagerSummary:"此浏览器已隐藏 {n} 行", hiddenManagerEmpty:"此浏览器目前没有隐藏行。", unhideOne:"取消隐藏", unhideAll:"全部取消隐藏", closeHiddenManager:"关闭", clearSelection:"清除选择", updateSelected:"更新所选", selectAllVisible:"选择当前显示的全部付款",
         no:"序号", person:"负责人", project:"项目", company:"公司", bank:"银行账户", contractNo:"合同编号", contractName:"合同名称",
@@ -15423,7 +15422,7 @@ const I18N = {
         language:"Ngôn ngữ", paymentsCount:"{shown} / {total} khoản thanh toán", appTitle:"Hệ thống thanh toán — Lịch sử thanh toán", history:"Kế hoạch thanh toán", loading:"Đang tải dữ liệu...",
         batchPayment:"Thanh toán hàng loạt", exportExcel:"Xuất Excel", columns:"Hiển thị cột", addPayment:"Thêm thanh toán", refresh:"Làm mới", refreshing:"Đang làm mới...",
         paymentPlan:"TỔNG CẦN XỬ LÝ", planAmount:"ĐÃ THANH TOÁN", actualPaid:"ĐANG THEO DÕI", completedPayment:"THANH TOÁN HOÀN TẤT", unpaidAmount:"CHUYỂN THÁNG SAU", completedShort:"{n} khoản",
-        paymentMonth:"Tháng thanh toán", allMonths:"Tất cả tháng", search:"Tìm kiếm...", allProjects:"Tất cả dự án", allIPC:"Tất cả IPC",
+        paymentMonth:"Tháng thanh toán", allMonths:"Toàn bộ thời gian", search:"Tìm kiếm...", allProjects:"Tất cả dự án", allIPC:"Tất cả IPC",
         all:"Tất cả", pending:"Chưa hoàn thành", done:"Đã hoàn thành", actualPaymentDate:"Ngày thanh toán thực tế", actualPaymentHint:"Chỉ dùng bộ lọc này khi muốn xem lịch sử thanh toán thực tế.",
         selected:"Đã chọn {n} khoản thanh toán", hideSelected:"Ẩn {n} dòng", unhideSelected:"Bỏ ẩn {n} dòng", hiddenRows:"Dòng ẩn ({n})", hiddenManagerTitle:"Dòng đã ẩn", hiddenManagerSummary:"Đang ẩn {n} dòng trên trình duyệt này", hiddenManagerEmpty:"Trình duyệt này hiện không có dòng nào bị ẩn.", unhideOne:"Bỏ ẩn", unhideAll:"Bỏ ẩn tất cả", closeHiddenManager:"Đóng", clearSelection:"Bỏ chọn", updateSelected:"Cập nhật đã chọn", selectAllVisible:"Chọn tất cả khoản thanh toán đang hiển thị",
         no:"STT", person:"Người phụ trách", project:"Dự án", company:"Công ty", bank:"Tài khoản ngân hàng", contractNo:"Số hợp đồng", contractName:"Tên hợp đồng",
@@ -16421,7 +16420,6 @@ function applyLanguage(){
         const carryTool=toolsMenu.querySelector('[data-tools-action="carry-payment"]');
         const repairCarryTool=toolsMenu.querySelector('[data-tools-action="repair-carry-progress"]');
         const cancelTool=toolsMenu.querySelector('[data-tools-action="cancel-payment"]');
-        const clearTestAuditTool=toolsMenu.querySelector('[data-tools-action="clear-test-audit"]');
 
         if(undoTool)undoTool.textContent="↶ "+t("undoLastImport");
         if(recycleTool)recycleTool.textContent="🗑 "+t("recycleBin");
@@ -16429,14 +16427,6 @@ function applyLanguage(){
         if(carryTool)carryTool.textContent="→ "+t("carryForwardSelected");
         if(repairCarryTool)repairCarryTool.textContent="↺ "+t("repairCarryProgress");
         if(cancelTool)cancelTool.textContent="× "+t("cancelPayment");
-        if(clearTestAuditTool){
-            clearTestAuditTool.textContent =
-                currentLanguage === "zh"
-                    ? "🧹 删除截至2026年9月2日的测试记录"
-                    : currentLanguage === "vi"
-                        ? "🧹 Xóa nhật ký test đến 02/09/2026"
-                        : "🧹 Clear test logs through 02 Sep 2026";
-        }
         if(typeof adminPaymentToolsLabel !== "undefined" && adminPaymentToolsLabel){
             adminPaymentToolsLabel.textContent=t("adminPaymentTools");
         }
@@ -18191,13 +18181,14 @@ function updatePaymentMonthFilters(){
 
     const months =
         [
-            ...new Set(
-                allPayments
+            ...new Set([
+                CURRENT_MONTH,
+                ...allPayments
                     .map(
                         x => x.paymentMonth
                     )
                     .filter(Boolean)
-            )
+            ])
         ]
         .sort()
         .reverse();
@@ -18734,10 +18725,7 @@ function applyRealtimePaymentSnapshot(
     /* Avoid rendering every historical month during the first frame. */
     if(
         preferCurrentMonth &&
-        !paymentMonthFilter.value &&
-        allPayments.some(
-            item => item.paymentMonth === CURRENT_MONTH
-        )
+        !paymentMonthFilter.value
     ){
         paymentMonthFilter.value = CURRENT_MONTH;
     }
@@ -19424,6 +19412,29 @@ document
     });
 
 
+function paymentSummaryCopy(view){
+    const copy = {
+        vi:{
+            current:["TỔNG CẦN XỬ LÝ","ĐÃ THANH TOÁN","ĐANG THEO DÕI","CHUYỂN THÁNG SAU"],
+            history:["TỔNG KẾ HOẠCH THÁNG","ĐÃ THANH TOÁN","CHUYỂN THÁNG SAU","ĐÃ HỦY"],
+            all:["TỔNG ĐÃ THANH TOÁN","ĐANG THEO DÕI HIỆN TẠI","TỔNG CHUYỂN THÁNG","TỔNG ĐÃ HỦY"]
+        },
+        en:{
+            current:["TOTAL TO PROCESS","PAID","IN PROGRESS","CARRIED TO NEXT MONTH"],
+            history:["MONTHLY PLAN TOTAL","PAID","CARRIED TO NEXT MONTH","CANCELLED"],
+            all:["TOTAL PAID","CURRENTLY IN PROGRESS","TOTAL CARRIED FORWARD","TOTAL CANCELLED"]
+        },
+        zh:{
+            current:["本月待处理总额","已付款","跟进中","转至下月"],
+            history:["本月计划总额","已付款","转至下月","已取消"],
+            all:["累计已付款","当前跟进中","累计转月","累计已取消"]
+        }
+    };
+
+    return copy[currentLanguage]?.[view] || copy.vi[view];
+}
+
+
 function updateSummary(
     filtered
 ){
@@ -19434,6 +19445,7 @@ function updateSummary(
         item => isPaymentPaid(item) && !isPaymentCarriedForward(item) && !isPaymentCancelled(item)
     );
     const carriedRows = filtered.filter(item => isPaymentCarriedForward(item));
+    const cancelledRows = filtered.filter(item => isPaymentCancelled(item));
 
     /* A cancelled item remains available in its status tab for audit, but it is
        no longer part of the amount that the team must process. */
@@ -19453,6 +19465,49 @@ function updateSummary(
             node.textContent = t("completedShort", {n:count.toLocaleString()});
         }
     };
+
+    const selectedMonth = String(paymentMonthFilter.value || "").trim();
+    const view = !selectedMonth
+        ? "all"
+        : selectedMonth < CURRENT_MONTH
+            ? "history"
+            : "current";
+
+    const labels = paymentSummaryCopy(view);
+    document.querySelectorAll(".data-first-summary .summary-label")
+        .forEach((node,index) => {
+            if(labels[index]) node.textContent = labels[index];
+        });
+
+    if(view === "all"){
+        const currentActiveRows = activeRows.filter(
+            item => String(item.paymentMonth || "") === CURRENT_MONTH
+        );
+
+        summaryCount.textContent = formatMoney(sumPaid(paidRows));
+        summaryAmount.textContent = formatMoney(sumPlanned(currentActiveRows));
+        summaryActual.textContent = formatMoney(sumPlanned(carriedRows));
+        summaryUnpaid.textContent = formatMoney(sumPlanned(cancelledRows));
+
+        setMeta("summaryTotalMeta", paidRows.length);
+        setMeta("summaryPaidMeta", currentActiveRows.length);
+        setMeta("summaryActiveMeta", carriedRows.length);
+        setMeta("summaryCompleted", cancelledRows.length);
+        return;
+    }
+
+    if(view === "history"){
+        summaryCount.textContent = formatMoney(sumPlanned(processRows));
+        summaryAmount.textContent = formatMoney(sumPaid(paidRows));
+        summaryActual.textContent = formatMoney(sumPlanned(carriedRows));
+        summaryUnpaid.textContent = formatMoney(sumPlanned(cancelledRows));
+
+        setMeta("summaryTotalMeta", processRows.length);
+        setMeta("summaryPaidMeta", paidRows.length);
+        setMeta("summaryActiveMeta", carriedRows.length);
+        setMeta("summaryCompleted", cancelledRows.length);
+        return;
+    }
 
     summaryCount.textContent = formatMoney(sumPlanned(processRows));
     summaryAmount.textContent = formatMoney(sumPaid(paidRows));
@@ -19601,17 +19656,6 @@ function applyRoleUI(){
     if(typeof toolsPurgePaymentsBtn !== "undefined" && toolsPurgePaymentsBtn){
         toolsPurgePaymentsBtn.style.display =
             adminAccess
-                ? ""
-                : "none";
-    }
-
-    const clearTestAuditButton =
-        document.getElementById("toolsClearTestAuditBtn");
-
-    if(clearTestAuditButton){
-        /* This irreversible reset belongs only to the system owner, not every Admin. */
-        clearTestAuditButton.style.display =
-            isHistoryNormalizerOwner()
                 ? ""
                 : "none";
     }
@@ -20850,100 +20894,6 @@ async function renderActivityLog(){
 }
 
 
-function clearTestAuditText(){
-    if(currentLanguage === "zh"){
-        return {
-            prompt:"此操作将永久删除全系统截至2026年9月2日的全部测试操作记录和 Audit（包括 Admin 和 Staff），但不会删除付款数据。\n\n请输入 XOA NHAT KY TEST 以确认：",
-            running:"正在删除测试日志...",
-            done:n => `已永久删除截至2026年9月2日的 ${n} 条系统测试日志和 Audit。付款数据未受影响。`,
-            error:"无法删除测试日志："
-        };
-    }
-
-    if(currentLanguage === "en"){
-        return {
-            prompt:"This permanently deletes all system-wide test Activity Logs and Audit entries through 02 Sep 2026, including Admin and Staff actions. Payment data is not deleted.\n\nType XOA NHAT KY TEST to confirm:",
-            running:"Deleting test logs...",
-            done:n => `Permanently deleted ${n} system test log(s) and Audit entries through 02 Sep 2026. Payment data was not changed.`,
-            error:"Could not delete test logs: "
-        };
-    }
-
-    return {
-        prompt:"Thao tác này sẽ xóa vĩnh viễn trên TOÀN HỆ THỐNG mọi Lịch sử thao tác và Audit test đến hết 02/09/2026, gồm cả Admin và Staff; nhưng KHÔNG xóa dữ liệu thanh toán.\n\nNhập XOA NHAT KY TEST để xác nhận:",
-        running:"Đang xóa nhật ký test...",
-        done:n => `Đã xóa vĩnh viễn ${n} nhật ký và Audit test toàn hệ thống đến hết 02/09/2026. Dữ liệu thanh toán không thay đổi.`,
-        error:"Không thể xóa nhật ký test: "
-    };
-}
-
-
-async function clearAllTestActivityLogs(button = null){
-    if(!requireHistoryNormalizerOwner()){
-        return;
-    }
-
-    const copy = clearTestAuditText();
-    const confirmation = prompt(copy.prompt);
-
-    if(String(confirmation || "").trim().toUpperCase() !== "XOA NHAT KY TEST"){
-        return;
-    }
-
-    const oldText = button?.textContent || "";
-    let deletedCount = 0;
-    /* Fixed Vietnam-time cutoff: everything before 03 Sep is test data.
-       Logs created from 03 Sep onward are official and can never be touched by
-       this one-time cleanup, even if the button is clicked much later. */
-    const testAuditCutoff =
-        new Date("2026-09-03T00:00:00+07:00");
-
-    if(button){
-        button.disabled = true;
-        button.textContent = copy.running;
-    }
-
-    try{
-        /* Firestore batches allow at most 500 writes. Delete in smaller pages
-           until the collection is empty; do not create a new audit entry for
-           the reset itself, so September genuinely starts clean. */
-        while(true){
-            const snapshot = await getDocs(
-                query(
-                    activityLogsRef,
-                    where("createdAt","<",testAuditCutoff),
-                    limit(400)
-                )
-            );
-
-            if(snapshot.empty){
-                break;
-            }
-
-            const batch = writeBatch(db);
-            snapshot.docs.forEach(item => batch.delete(item.ref));
-            await batch.commit();
-            deletedCount += snapshot.size;
-        }
-
-        if(auditList){
-            auditList.innerHTML =
-                `<div class="empty">${escapeHTML(t("noAudit"))}</div>`;
-        }
-
-        alert("✅ " + copy.done(deletedCount));
-    }catch(error){
-        console.error("CLEAR TEST ACTIVITY LOGS ERROR:", error);
-        alert("❌ " + copy.error + "\n" + error.message);
-    }finally{
-        if(button){
-            button.disabled = false;
-            button.textContent = oldText;
-        }
-    }
-}
-
-
 async function doFirebaseLogin(){
 
     const username =
@@ -22096,9 +22046,61 @@ async function purgeSelectedPaymentsFromFirebase(){
 
 
 
+function positionViewportPopover(panel,anchor,gap = 7){
+    if(!panel || !anchor) return;
+
+    panel.style.setProperty("position","fixed","important");
+    panel.style.setProperty("right","auto","important");
+    panel.style.setProperty("bottom","auto","important");
+    panel.style.setProperty("z-index","1000000","important");
+
+    const anchorRect = anchor.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    const viewportPadding = 8;
+    const panelWidth = panelRect.width || panel.offsetWidth || 260;
+    const panelHeight = panelRect.height || panel.offsetHeight || 0;
+
+    let left = anchorRect.right - panelWidth;
+    left = Math.max(
+        viewportPadding,
+        Math.min(left,window.innerWidth - panelWidth - viewportPadding)
+    );
+
+    let top = anchorRect.bottom + gap;
+    const upwardTop = anchorRect.top - panelHeight - gap;
+
+    if(
+        panelHeight &&
+        top + panelHeight > window.innerHeight - viewportPadding &&
+        upwardTop >= viewportPadding
+    ){
+        top = upwardTop;
+    }
+
+    panel.style.setProperty("left",`${Math.round(left)}px`,"important");
+    panel.style.setProperty("top",`${Math.round(top)}px`,"important");
+}
+
+
+/* Put the long Admin menu at the document root so a short payment table can
+   never crop it. Event listeners remain attached after moving the element. */
+if(toolsMenu.parentElement !== document.body){
+    document.body.appendChild(toolsMenu);
+}
+
+
 toolsMenuBtn.addEventListener("click",event=>{
     event.stopPropagation();
-    toolsMenu.classList.toggle("show");
+    const willOpen = !toolsMenu.classList.contains("show");
+    toolsMenu.classList.toggle("show",willOpen);
+    if(willOpen){
+        positionViewportPopover(toolsMenu,toolsMenuBtn);
+
+        const themePanel = document.getElementById("themePickerPanel");
+        const themeButton = document.getElementById("themePickerBtn");
+        themePanel?.classList.remove("show");
+        themeButton?.setAttribute("aria-expanded","false");
+    }
 });
 
 toolsMenu.addEventListener("click",async event=>{
@@ -22196,11 +22198,6 @@ toolsMenu.addEventListener("click",async event=>{
         await renderStaffSetup();
     }
 
-    if(action==="clear-test-audit"){
-        await clearAllTestActivityLogs(button);
-        return;
-    }
-
     if(action==="purge-payments"){
         await purgeSelectedPaymentsFromFirebase();
         return;
@@ -22210,9 +22207,16 @@ toolsMenu.addEventListener("click",async event=>{
 document.addEventListener("click",event=>{
     if(
         toolsMenu.classList.contains("show") &&
-        !toolsMenuWrap.contains(event.target)
+        !toolsMenuWrap.contains(event.target) &&
+        !toolsMenu.contains(event.target)
     ){
         toolsMenu.classList.remove("show");
+    }
+});
+
+window.addEventListener("resize",() => {
+    if(toolsMenu.classList.contains("show")){
+        positionViewportPopover(toolsMenu,toolsMenuBtn);
     }
 });
 
@@ -38100,6 +38104,11 @@ function initThemePicker(){
         return;
     }
 
+    /* Keep the picker independent from the amount of table content below. */
+    if(panel.parentElement !== document.body){
+        document.body.appendChild(panel);
+    }
+
     button.addEventListener(
         "click",
         event => {
@@ -38115,6 +38124,16 @@ function initThemePicker(){
                 "show",
                 willOpen
             );
+
+            if(willOpen){
+                positionViewportPopover(panel,button,8);
+                if(
+                    typeof toolsMenu !== "undefined" &&
+                    toolsMenu
+                ){
+                    toolsMenu.classList.remove("show");
+                }
+            }
 
             button.setAttribute(
                 "aria-expanded",
@@ -38168,9 +38187,8 @@ function initThemePicker(){
         event => {
 
             if(
-                !wrap.contains(
-                    event.target
-                )
+                !wrap.contains(event.target) &&
+                !panel.contains(event.target)
             ){
                 panel.classList.remove(
                     "show"
@@ -38222,6 +38240,12 @@ function mountAllModalsAtBodyRoot(){
             }
         }
     );
+
+    window.addEventListener("resize",() => {
+        if(panel.classList.contains("show")){
+            positionViewportPopover(panel,button,8);
+        }
+    });
 }
 
 mountAllModalsAtBodyRoot();
@@ -38487,21 +38511,11 @@ applyLanguage();
    mở web = tháng hiện tại
 */
 
-if(
-    allPayments.some(
-        item =>
-            item.paymentMonth ===
-            CURRENT_MONTH
-    )
-){
-
-    paymentMonthFilter.value =
-        CURRENT_MONTH;
-
-    updateProjectFilter();
-    renderPayments();
-
-}
+paymentMonthFilter.value = CURRENT_MONTH;
+paymentStatusFilter.value = "unpaid";
+applyPaymentStatusView();
+updateProjectFilter();
+renderPayments();
 
 /*
    Everything needed for the first visible frame is now ready.
