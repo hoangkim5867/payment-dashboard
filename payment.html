@@ -15172,9 +15172,17 @@ const authUsersRef =
 
 let allContracts = [];
 
+let contractsLoaded = false;
+
+let contractsLoadPromise = null;
+
 let allPayments = [];
 
 let allVendors = [];
+
+let vendorsLoaded = false;
+
+let vendorsLoadPromise = null;
 let currentPaymentEntryType = "contract";
 
 let editingId = null;
@@ -15190,6 +15198,9 @@ function saveHiddenPaymentRows(){
 }
 
 function cleanupStaleHiddenPaymentIds(){
+    /* A monthly snapshot cannot prove that an ID from another month is stale. */
+    if(activePaymentsScopeKey !== "ALL") return;
+
     if(!Array.isArray(allPayments) || !allPayments.length) return;
 
     const validIds = new Set(allPayments.map(item => String(item.id)));
@@ -15212,11 +15223,14 @@ function isPaymentLocallyHidden(item){
 let unsubscribePaymentsRealtime = null;
 
 /*
-   One shared promise represents the first realtime snapshot.
-   This prevents the app from reading the complete payments collection once
-   with getDocs() and then reading it again when onSnapshot() starts.
+   Only one payment listener may exist at a time. Its scope is either one
+   selected month or ALL when the user explicitly chooses "All months".
 */
 let paymentsRealtimeReadyPromise = null;
+
+let activePaymentsScopeKey = null;
+
+let paymentsListenerGeneration = 0;
 
 let currentAuthUser = null;
 
@@ -17903,78 +17917,101 @@ function matchProcessFilter(
    LOAD CONTRACTS
 ===================================================== */
 
-async function loadContracts(){
+async function loadContracts({force = false} = {}){
 
-    try{
+    if(contractsLoaded && !force){
+        return allContracts;
+    }
 
-        const snapshot =
-            await getDocs(
-                contractsRef
+    if(contractsLoadPromise){
+        return contractsLoadPromise;
+    }
+
+    contractsLoadPromise = (async () => {
+
+        try{
+
+            const snapshot =
+                await getDocs(
+                    contractsRef
+                );
+
+            allContracts = [];
+
+            snapshot.forEach(
+                item => {
+
+                    allContracts.push({
+
+                        id:item.id,
+
+                        ...item.data()
+
+                    });
+
+                }
             );
 
-        allContracts = [];
 
-        snapshot.forEach(
-            item => {
+            allContracts.sort(
+                (a,b) => {
 
-                allContracts.push({
+                    const p =
+                        String(
+                            a.project || ""
+                        ).localeCompare(
+                            String(
+                                b.project || ""
+                            )
+                        );
 
-                    id:item.id,
+                    if(p !== 0){
+                        return p;
+                    }
 
-                    ...item.data()
-
-                });
-
-            }
-        );
-
-
-        allContracts.sort(
-            (a,b) => {
-
-                const p =
-                    String(
-                        a.project || ""
+                    return String(
+                        a.contractNo || ""
                     ).localeCompare(
                         String(
-                            b.project || ""
+                            b.contractNo || ""
                         )
                     );
 
-                if(p !== 0){
-                    return p;
                 }
-
-                return String(
-                    a.contractNo || ""
-                ).localeCompare(
-                    String(
-                        b.contractNo || ""
-                    )
-                );
-
-            }
-        );
+            );
 
 
-        updateProjectFilter();
+            contractsLoaded = true;
 
-        updateFormProjects();
+            updateProjectFilter();
 
-    }
+            updateFormProjects();
 
-    catch(error){
+            return allContracts;
 
-        console.error(
-            error
-        );
+        }
 
-        alert(
-            "❌ " + t("loadContractsError") +
-            error.message
-        );
+        catch(error){
 
-    }
+            console.error(
+                error
+            );
+
+            alert(
+                "❌ " + t("loadContractsError") +
+                error.message
+            );
+
+            throw error;
+
+        }
+
+        finally{
+            contractsLoadPromise = null;
+        }
+    })();
+
+    return contractsLoadPromise;
 
 }
 
@@ -18323,12 +18360,61 @@ function updateIPCFilter(){
    PAYMENT MONTH FILTER
 ===================================================== */
 
+function shiftPaymentMonth(month, offset){
+
+    const match =
+        String(month || "")
+            .match(/^(\d{4})-(\d{2})$/);
+
+    if(!match){
+        return "";
+    }
+
+    const date =
+        new Date(
+            Date.UTC(
+                Number(match[1]),
+                Number(match[2]) - 1 + offset,
+                1
+            )
+        );
+
+    return (
+        date.getUTCFullYear() +
+        "-" +
+        String(date.getUTCMonth() + 1).padStart(2,"0")
+    );
+}
+
+
+function getSelectablePaymentMonths(){
+
+    /*
+       Firestore has no cheap DISTINCT-month query. Build the month choices
+       locally so opening the page never has to read historical payments just
+       to populate this select. Five past years plus one future year covers
+       normal planning; older data remains available through "All months".
+    */
+    const months = [];
+
+    for(let offset = -60; offset <= 12; offset++){
+        months.push(
+            shiftPaymentMonth(
+                CURRENT_MONTH,
+                offset
+            )
+        );
+    }
+
+    return months.filter(Boolean);
+}
+
 function updatePaymentMonthFilters(){
 
     const months =
         [
             ...new Set([
-                CURRENT_MONTH,
+                ...getSelectablePaymentMonths(),
                 ...allPayments
                     .map(
                         x => x.paymentMonth
@@ -18889,11 +18975,83 @@ function applyRealtimePaymentSnapshot(
 }
 
 
-function startPaymentsRealtime(){
+function normalizePaymentListenerMonth(month){
 
-    if(paymentsRealtimeReadyPromise){
+    const value = String(month || "").trim();
+
+    return /^\d{4}-\d{2}$/.test(value)
+        ? value
+        : "";
+}
+
+
+function paymentScopeKey(month){
+
+    return normalizePaymentListenerMonth(month) || "ALL";
+}
+
+
+function paymentSourceForMonth(month){
+
+    const normalizedMonth =
+        normalizePaymentListenerMonth(month);
+
+    return normalizedMonth
+        ? query(
+            paymentsRef,
+            where(
+                "paymentMonth",
+                "==",
+                normalizedMonth
+            )
+        )
+        : paymentsRef;
+}
+
+
+function stopPaymentsRealtime(){
+
+    paymentsListenerGeneration++;
+
+    if(unsubscribePaymentsRealtime){
+        unsubscribePaymentsRealtime();
+    }
+
+    unsubscribePaymentsRealtime = null;
+    paymentsRealtimeReadyPromise = null;
+    activePaymentsScopeKey = null;
+}
+
+
+function startPaymentsRealtime(
+    month = paymentMonthFilter.value || CURRENT_MONTH,
+    {force = false} = {}
+){
+
+    const normalizedMonth =
+        normalizePaymentListenerMonth(month);
+
+    const nextScopeKey =
+        paymentScopeKey(normalizedMonth);
+
+    if(
+        !force &&
+        activePaymentsScopeKey === nextScopeKey &&
+        paymentsRealtimeReadyPromise
+    ){
         return paymentsRealtimeReadyPromise;
     }
+
+    stopPaymentsRealtime();
+
+    activePaymentsScopeKey = nextScopeKey;
+
+    const listenerGeneration =
+        ++paymentsListenerGeneration;
+
+    /* Never merge rows from the previous month into the new query. */
+    allPayments = [];
+    selectedPaymentIds.clear();
 
     paymentBody.innerHTML = `
         <tr>
@@ -18912,13 +19070,24 @@ function startPaymentsRealtime(){
 
                 unsubscribePaymentsRealtime =
                     onSnapshot(
-                        paymentsRef,
+                        paymentSourceForMonth(
+                            normalizedMonth
+                        ),
                         snapshot => {
+
+                            if(
+                                listenerGeneration !==
+                                paymentsListenerGeneration
+                            ){
+                                return;
+                            }
 
                             applyRealtimePaymentSnapshot(
                                 snapshot,
                                 {
-                                    preferCurrentMonth:firstSnapshot
+                                    preferCurrentMonth:
+                                        firstSnapshot &&
+                                        normalizedMonth === CURRENT_MONTH
                                 }
                             );
 
@@ -18930,6 +19099,13 @@ function startPaymentsRealtime(){
                             }
                         },
                         error => {
+
+                            if(
+                                listenerGeneration !==
+                                paymentsListenerGeneration
+                            ){
+                                return;
+                            }
 
                             console.error(
                                 "PAYMENTS REALTIME ERROR:",
@@ -18969,89 +19145,12 @@ function startPaymentsRealtime(){
 async function loadPayments(){
 
     /*
-       Once realtime is active it is the single source of truth. Calls left
-       after add/edit/import operations become cheap no-ops instead of full
-       collection rereads; local writes trigger the listener immediately.
+       Writes call this helper after saving. Reuse the active scoped listener;
+       never fall back to a full-collection getDocs() read.
     */
-    if(unsubscribePaymentsRealtime){
-        return;
-    }
-
-    paymentBody.innerHTML = `
-        <tr>
-            <td colspan="24" class="empty">
-                ⏳ ${t("loading")}
-            </td>
-        </tr>
-    `;
-
-
-    try{
-
-        const snapshot =
-            await getDocs(
-                paymentsRef
-            );
-
-
-        allPayments = [];
-
-
-        snapshot.forEach(
-            item => {
-
-                allPayments.push({
-
-                    id:item.id,
-
-                    ...normalizeLoadedPaymentData(
-                        item.data()
-                    )
-
-                });
-
-            }
-        );
-
-
-        sortAllPaymentsInPlace();
-
-
-        updateIPCFilter();
-
-        updatePaymentMonthFilters();
-
-        updateProjectFilter();
-
-        renderPayments();
-
-    }
-
-    catch(error){
-
-        console.error(
-            "PAYMENT LOAD ERROR:",
-            error
-        );
-
-
-        paymentBody.innerHTML = `
-            <tr>
-                <td colspan="24" class="empty">
-
-                    ❌ ${t("loadPaymentsError").replace("\n","")}
-
-                    <br><br>
-
-                    ${escapeHTML(
-                        error.message
-                    )}
-
-                </td>
-            </tr>
-        `;
-
-    }
+    return startPaymentsRealtime(
+        paymentMonthFilter.value
+    );
 
 }
 
@@ -26916,26 +27015,48 @@ function renderVendorBankAccountOptions(vendor){
         );
 }
 
-async function loadVendors(){
+async function loadVendors({force = false} = {}){
 
-    const snapshot =
-        await getDocs(
-            vendorMastersRef
-        );
+    if(vendorsLoaded && !force){
+        return allVendors;
+    }
 
-    allVendors = [];
+    if(vendorsLoadPromise){
+        return vendorsLoadPromise;
+    }
 
-    snapshot.forEach(
-        item => {
+    vendorsLoadPromise = (async () => {
 
-            allVendors.push({
-                id:item.id,
-                ...item.data()
-            });
+        try{
+            const snapshot =
+                await getDocs(
+                    vendorMastersRef
+                );
+
+            allVendors = [];
+
+            snapshot.forEach(
+                item => {
+
+                    allVendors.push({
+                        id:item.id,
+                        ...item.data()
+                    });
+                }
+            );
+
+            vendorsLoaded = true;
+            renderVendorOptions();
+
+            return allVendors;
         }
-    );
 
-    renderVendorOptions();
+        finally{
+            vendorsLoadPromise = null;
+        }
+    })();
+
+    return vendorsLoadPromise;
 }
 
 
@@ -27729,12 +27850,26 @@ function applyMEPCostSuggestion(useFallback = false){
 
 entryContractBtn.addEventListener(
     "click",
-    () => setPaymentEntryType("contract")
+    async () => {
+        try{
+            await loadContracts();
+            setPaymentEntryType("contract");
+        }catch(error){
+            console.error("LAZY CONTRACT LOAD ERROR:",error);
+        }
+    }
 );
 
 entryMEPBtn.addEventListener(
     "click",
-    () => setPaymentEntryType("mep")
+    async () => {
+        try{
+            await loadVendors();
+            setPaymentEntryType("mep");
+        }catch(error){
+            console.error("LAZY VENDOR LOAD ERROR:",error);
+        }
+    }
 );
 
 
@@ -27980,7 +28115,13 @@ document.addEventListener(
 
 addPaymentBtn.addEventListener(
     "click",
-    () => {
+    async () => {
+
+        try{
+            await loadContracts();
+        }catch(error){
+            return;
+        }
 
         editingId =
             null;
@@ -28016,7 +28157,7 @@ addPaymentBtn.addEventListener(
    EDIT
 ===================================================== */
 
-function openEditModal(
+async function openEditModal(
     payment
 ){
 
@@ -28049,6 +28190,16 @@ function openEditModal(
         !!normalizeMEP(
             payment.contractNo
         );
+
+    try{
+        if(editingMEP){
+            await loadVendors();
+        }else{
+            await loadContracts();
+        }
+    }catch(error){
+        return;
+    }
 
     setPaymentEntryType(
         editingMEP
@@ -32994,7 +33145,7 @@ async function syncImportedPaymentsToContracts(validRows){
     /*
        Refresh local Contract Master cache used by Add Payment.
     */
-    await loadContracts();
+    await loadContracts({force:true});
 
     return {
         added,
@@ -34273,7 +34424,7 @@ searchInput.addEventListener(
 
 paymentMonthFilter.addEventListener(
     "change",
-    () => {
+    async () => {
         const selectedMonth =
             String(paymentMonthFilter.value || "").trim();
 
@@ -34290,8 +34441,10 @@ paymentMonthFilter.addEventListener(
             applyPaymentStatusView();
         }
 
-        updateProjectFilter();
-        renderPayments();
+        /* This is the only filter that changes the Firestore listener. */
+        await startPaymentsRealtime(
+            selectedMonth
+        );
     }
 );
 
@@ -34365,9 +34518,29 @@ refreshBtn.addEventListener(
 
         try{
 
-            await loadContracts();
+            const optionalReloads = [];
 
-            await loadPayments();
+            /* Refresh supporting collections only if this session opened them. */
+            if(contractsLoaded){
+                optionalReloads.push(
+                    loadContracts({force:true})
+                );
+            }
+
+            if(vendorsLoaded){
+                optionalReloads.push(
+                    loadVendors({force:true})
+                );
+            }
+
+            optionalReloads.push(
+                startPaymentsRealtime(
+                    paymentMonthFilter.value,
+                    {force:true}
+                )
+            );
+
+            await Promise.all(optionalReloads);
 
         }
 
@@ -38847,15 +39020,20 @@ normalizePaymentHeaderLabels();
 initThemePicker();
 applyLanguage();
 
-await loadContracts();
-
-await loadVendors();
+/*
+   Populate month choices locally, then subscribe only to the current month.
+   Contract Master and Vendor Master are loaded lazily when their forms open.
+*/
+updatePaymentMonthFilters();
+paymentMonthFilter.value = CURRENT_MONTH;
+paymentStatusFilter.value = "unpaid";
+applyPaymentStatusView();
 
 /*
-   The realtime listener supplies the initial dataset and every later change.
-   Awaiting its first snapshot replaces the former getDocs()+onSnapshot pair.
+   The realtime listener supplies this month's initial dataset and later
+   changes. Selecting a different month swaps this one scoped listener.
 */
-await startPaymentsRealtime();
+await startPaymentsRealtime(CURRENT_MONTH);
 
     schedulePaymentFixedHeaderRefresh();
 
@@ -40536,8 +40714,15 @@ function history26OpenWithRows(rows, sourceLabel){
     history26Restage();
 }
 
-function openHistory2026Center(){
+async function openHistory2026Center(){
     if(!requireHistoryNormalizerOwner()) return;
+
+    try{
+        await loadContracts();
+    }catch(error){
+        return;
+    }
+
     history2026Modal.classList.add("show");
 
     try{
