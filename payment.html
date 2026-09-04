@@ -15004,7 +15004,7 @@ html[data-theme="corporate"] .theme-picker-wrap *{
             <div class="unc-preview-panel" id="uncPreviewPanel" hidden>
                 <div class="unc-preview-head">
                     <strong>Xem ủy nhiệm chi</strong>
-                    <a id="uncOpenDriveLink" target="_blank" rel="noopener noreferrer">Mở bằng Google Drive ↗</a>
+                    <a id="uncOpenDriveLink" hidden aria-hidden="true" target="_blank" rel="noopener noreferrer"></a>
                 </div>
                 <iframe
                     id="uncPreviewFrame"
@@ -15021,6 +15021,7 @@ html[data-theme="corporate"] .theme-picker-wrap *{
             <button class="btn-gray" id="uncCloseBtn" type="button">Đóng</button>
             <button class="btn-red" id="uncDeleteBtn" type="button" hidden>Xóa UNC</button>
             <button class="btn-gray" id="uncViewBtn" type="button" hidden>📎 Xem UNC</button>
+            <button class="btn-gray" id="uncDownloadBtn" type="button" hidden>Tải PDF</button>
             <button class="btn-primary" id="uncUploadBtn" type="button" hidden disabled>Tải PDF lên</button>
         </div>
     </div>
@@ -42028,6 +42029,7 @@ const uncFileHelp = document.getElementById("uncFileHelp");
 const uncPreviewPanel = document.getElementById("uncPreviewPanel");
 const uncPreviewFrame = document.getElementById("uncPreviewFrame");
 const uncOpenDriveLink = document.getElementById("uncOpenDriveLink");
+const uncDownloadBtn = document.getElementById("uncDownloadBtn");
 const uncCloseBtn = document.getElementById("uncCloseBtn");
 const closeUncModal = document.getElementById("closeUncModal");
 const uncDeleteBtn = document.getElementById("uncDeleteBtn");
@@ -42044,6 +42046,7 @@ function uncCopy(){
             empty:"尚未上传付款委托书。",
             view:"📎 查看付款委托书",
             hide:"收起 PDF",
+            download:"下载 PDF",
             upload:"上传 PDF",
             replace:"替换 PDF",
             remove:"删除付款委托书",
@@ -42059,6 +42062,7 @@ function uncCopy(){
             empty:"No payment voucher has been uploaded.",
             view:"📎 View voucher",
             hide:"Hide PDF",
+            download:"Download PDF",
             upload:"Upload PDF",
             replace:"Replace PDF",
             remove:"Delete voucher",
@@ -42073,6 +42077,7 @@ function uncCopy(){
         empty:"Chưa có ủy nhiệm chi.",
         view:"📎 Xem UNC",
         hide:"Ẩn PDF",
+        download:"Tải PDF",
         upload:"Tải PDF lên",
         replace:"Thay PDF",
         remove:"Xóa UNC",
@@ -42140,7 +42145,7 @@ function resetUncFileInput(){
 function resetUncPreview(){
     uncPreviewFrame.src = "about:blank";
     uncPreviewPanel.hidden = true;
-    uncOpenDriveLink.removeAttribute("href");
+    uncOpenDriveLink?.removeAttribute("href");
     uncModal.classList.remove("preview-open");
 }
 
@@ -42152,6 +42157,7 @@ function setUncBusy(busy, label = ""){
     uncViewBtn.disabled = uncBusy;
     uncDeleteBtn.disabled = uncBusy;
     uncCloseBtn.disabled = uncBusy;
+    uncDownloadBtn.disabled = uncBusy;
     closeUncModal.disabled = uncBusy;
     uncUploadBtn.disabled = uncBusy || !uncFileInput.files?.length;
 
@@ -42255,6 +42261,11 @@ function renderUncModal(){
 
     uncViewBtn.hidden = !hasFile;
     uncViewBtn.textContent = copy.view;
+
+    uncDownloadBtn.hidden = !hasFile;
+    if(hasFile){
+        uncDownloadBtn.textContent = copy.download;
+    }
 
     uncAdminPanel.hidden = !(admin && attachable);
     uncUploadBtn.hidden = !(admin && attachable);
@@ -42612,7 +42623,8 @@ function getUncDriveUrls(fileId){
     const safeId = encodeURIComponent(String(fileId || "").trim());
     return {
         preview:`https://drive.google.com/file/d/${safeId}/preview`,
-        view:`https://drive.google.com/file/d/${safeId}/view`
+        view:`https://drive.google.com/file/d/${safeId}/view`,
+        download:`https://drive.usercontent.google.com/download?id=${safeId}&export=download&confirm=t`
     };
 }
 
@@ -42818,10 +42830,24 @@ uncViewBtn.addEventListener("click",async()=>{
 
     const urls = getUncDriveUrls(fileId);
     uncPreviewFrame.src = urls.preview;
-    uncOpenDriveLink.href = urls.view;
+    if(uncOpenDriveLink) uncOpenDriveLink.href = urls.view;
     uncPreviewPanel.hidden = false;
     uncModal.classList.add("preview-open");
     uncViewBtn.textContent = uncCopy().hide;
+});
+
+uncDownloadBtn.addEventListener("click",()=>{
+    const payment = getActiveUncPayment();
+    const fileId = String(payment?.uncDriveFileId || "").trim();
+    if(!payment || !fileId || !ensureOperator()) return;
+
+    const downloadLink = document.createElement("a");
+    downloadLink.href = getUncDriveUrls(fileId).download;
+    downloadLink.target = "_blank";
+    downloadLink.rel = "noopener noreferrer";
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
 });
 
 uncDeleteBtn.addEventListener("click",async()=>{
