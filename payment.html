@@ -43242,6 +43242,29 @@ function extractBulkUncInfo(text){
         .replace(/\u00a0/g," ")
         .replace(/：/g,":");
     const normalizedText = normalize(source);
+    const extractAmountByLabel = (labels)=>{
+        for(const label of labels){
+            const match = source.match(new RegExp(`${label}\\)?\\s*:?\\s*(?:VND|USD)?\\s*${BULK_UNC_MONEY_TOKEN}`,"i"));
+            const parsed = parseBulkUncMoney(match?.[1]);
+            if(Number.isFinite(parsed) && parsed > 0) return parsed;
+        }
+        return NaN;
+    };
+
+    // Some banks (notably HSBC) show both the amount debited from the payer
+    // and the amount remitted to the beneficiary. Keep both so bank fees do
+    // not prevent an otherwise exact UNC match.
+    const debitAmount = extractAmountByLabel([
+        "debit\\s+ccy\\s*-\\s*amt",
+        "debit(?:\\s*/\\s*credit)?\\s+amount",
+        "total\\s+debited"
+    ]);
+    const remittanceAmount = extractAmountByLabel([
+        "remittance\\s+amount",
+        "amount\\s+transferred",
+        "transfer\\s+amount",
+        "telex\\s+transfer"
+    ]);
     const moneyPatterns = [
         new RegExp(`(?:telex\\s+transfer)\\s*(?:VND|USD)?\\s*${BULK_UNC_MONEY_TOKEN}`,"i"),
         new RegExp(`(?:debit\\s+ccy\\s*-\\s*amt|debit\\s+amount|credit\\s+amount)\\)?\\s*:?\\s*(?:VND|USD)?\\s*${BULK_UNC_MONEY_TOKEN}`,"i"),
@@ -43288,15 +43311,35 @@ function extractBulkUncInfo(text){
             .filter(value=>value.length >= 6 && value.length <= 20)
     )];
 
+    // Prefer the beneficiary/remittance amount as the actual amount written
+    // for a new payment.  Both values remain available for matching.
+    const paymentAmount = Number.isFinite(remittanceAmount)
+        ? remittanceAmount
+        : (Number.isFinite(debitAmount) ? debitAmount : amount);
+
     return {
         text:source,
         normalizedText,
-        amount,
+        amount:paymentAmount,
+        debitAmount,
+        remittanceAmount,
         date:normalizeBulkUncDate(dateRaw),
         beneficiary,
         bankReference,
         accountNumbers
     };
+}
+
+function bulkUncAmounts(info){
+    return [...new Set([
+        info?.amount,
+        info?.remittanceAmount,
+        info?.debitAmount
+    ].filter(value=>Number.isFinite(value) && value > 0))];
+}
+
+function bulkUncMatchesAmount(info,amount){
+    return bulkUncAmounts(info).some(value=>Number(amount) === value);
 }
 
 const BULK_UNC_COMPANY_STOP_WORDS = new Set([
@@ -43333,11 +43376,16 @@ function bulkUncPaymentCandidates(info,{existingOnly = false} = {}){
             const comparisonAmount = Number(
                 paid ? payment.processActualAmount : payment.amount
             );
-            const amountExact = Number.isFinite(info.amount) && comparisonAmount === info.amount;
+            const uncAmounts = bulkUncAmounts(info);
+            const matchedUncAmount = uncAmounts.find(value=>comparisonAmount === value);
+            const amountExact = Number.isFinite(matchedUncAmount);
             let score = amountExact ? 60 : 0;
             const reasons = [];
 
-            if(amountExact) reasons.push(paid ? "số tiền thực trả" : "số tiền kế hoạch");
+            if(amountExact){
+                const usesDebit = matchedUncAmount === info.debitAmount && info.debitAmount !== info.remittanceAmount;
+                reasons.push(usesDebit ? "số tiền trích nợ" : (paid ? "số tiền thực trả" : "số tiền kế hoạch"));
+            }
 
             if(info.date && String(payment.processPaymentDate || "") === info.date){
                 score += 16;
@@ -43377,7 +43425,7 @@ function bulkUncPaymentCandidates(info,{existingOnly = false} = {}){
                     return false;
                 });
 
-            return {payment,score,reasons,amountExact};
+            return {payment,score,reasons,amountExact,matchedUncAmount};
         })
         .sort((a,b)=>b.score-a.score);
 
@@ -43466,8 +43514,15 @@ function renderBulkUncRows(){
             : row.manual
                 ? copy.manual
                 : copy[level];
+        const detectedAmount = Number.isFinite(info.remittanceAmount) &&
+            Number.isFinite(info.debitAmount) &&
+            info.remittanceAmount !== info.debitAmount
+            ? `Chuyển ${formatMoney(info.remittanceAmount)} · Trích nợ ${formatMoney(info.debitAmount)} VND`
+            : Number.isFinite(info.amount)
+                ? formatMoney(info.amount) + " VND"
+                : "Không đọc được số tiền";
         const detected = [
-            Number.isFinite(info.amount) ? formatMoney(info.amount) + " VND" : "Không đọc được số tiền",
+            detectedAmount,
             info.date || "Không đọc được ngày",
             info.beneficiary || "",
             info.bankReference ? `Ref: ${info.bankReference}` : ""
@@ -43808,7 +43863,7 @@ confirmBulkUncBtn.addEventListener("click",async()=>{
                 Number.isFinite(Number(payment.processActualAmount));
             const hasDate = !!String(payment.processPaymentDate || "").trim();
 
-            if(hasActual && Number(payment.processActualAmount) !== Number(row.info.amount)){
+            if(hasActual && !bulkUncMatchesAmount(row.info,Number(payment.processActualAmount))){
                 alert(`⚠ Số tiền đã nhập của Payment không giống UNC ${row.file.name}. Hãy kiểm tra trước khi lưu.`);
                 return;
             }
