@@ -36476,6 +36476,9 @@ function closeExcelExportScopeModal(){
 
 function getExcelExportColumns(scope){
 
+    const paidMode =
+        paymentStatusFilter.value === "paid";
+
     const allColumns = [
         { index:1,  label:COLUMN_LABELS[1], value:(item,index) => index + 1, width:6 },
         { index:2,  label:COLUMN_LABELS[2], value:item => item.paymentMonth || "", width:14 },
@@ -36484,7 +36487,14 @@ function getExcelExportColumns(scope){
         { index:5,  label:COLUMN_LABELS[5], value:item => item.company || "", width:28 },
         { index:6,  label:COLUMN_LABELS[6], value:item => item.bankAccount || "", width:20 },
         { index:7,  label:COLUMN_LABELS[7], value:item => item.noMEPException ? "—" : (item.contractNo || ""), width:18 },
-        { index:8,  label:COLUMN_LABELS[8], value:item => item.contractName || "", width:35 },
+        {
+            index:8,
+            label:paidMode
+                ? paidResultContractContentLabel()
+                : COLUMN_LABELS[8],
+            value:item => item.contractName || "",
+            width:35
+        },
         { index:9,  label:COLUMN_LABELS[9], value:item => item.noMEPException ? "—" : (item.ipcNo || ""), width:12 },
         { index:10, label:COLUMN_LABELS[10], value:item => item.costType || "", width:18 },
         { index:11, label:COLUMN_LABELS[11], value:item => getPaymentContractType(item), width:18 },
@@ -36506,12 +36516,10 @@ function getExcelExportColumns(scope){
 
     const paidHidden =
         new Set([
-            1,8,12,13,
+            /* Paid Excel follows the Paid table: STT + contract content stay. */
+            11,12,13,
             14,15,16,17,18,19,20
         ]);
-
-    const paidMode =
-        paymentStatusFilter.value === "paid";
 
     const monthSelected =
         !!String(
