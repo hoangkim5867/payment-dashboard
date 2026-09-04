@@ -2133,6 +2133,25 @@ body.operator-required-lock .container, body.operator-required-lock .header{
     font-size:20px;
     font-weight:900;
     box-shadow:0 5px 14px rgba(61,72,180,.18);
+    overflow:hidden;
+    padding:2px;
+}
+
+.brand-logo svg{
+    display:block;
+    width:100%;
+    height:100%;
+}
+
+.brand-logo svg[hidden]{
+    display:none;
+}
+
+.brand-logo .brand-logo-image{
+    display:block;
+    width:100%;
+    height:100%;
+    object-fit:contain;
 }
 
 .modern-app-header h1{
@@ -12910,7 +12929,14 @@ html[data-theme="corporate"] .theme-picker-wrap *{
 <header class="header modern-app-header">
 
     <a class="brand-block" href="./" title="Home" aria-label="Back to home">
-        <div class="brand-logo">▤</div>
+        <div class="brand-logo" role="img" aria-label="CSCEC">
+            <img class="brand-logo-image" src="./logo.png" alt="CSCEC" onerror="const fallback=this.nextElementSibling; this.remove(); fallback.hidden=false;">
+            <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false" hidden>
+                <rect x="1" y="1" width="46" height="46" rx="6" fill="#0B4EA2"/>
+                <path fill="#FFFFFF" d="M10 10h28v5H10zm0 8h19v5H10zm0 8h28v5H10zm0 8h19v5H10z"/>
+                <path fill="#FFFFFF" d="M31 18h7v20h-7z"/>
+            </svg>
+        </div>
         <div>
             <h1>CSCECMEP-PAYMENT</h1>
             <div class="brand-subtitle">Payment Management</div>
@@ -37400,6 +37426,17 @@ function getHeaderColumnFilterCopy(){
     };
 }
 
+// Carry-month markers are useful for the database, but not useful as filter
+// choices.  Show staff only the human reason (e.g. 项目回款未到账).
+function getHeaderColumnRemarkFilterValue(value){
+    return String(value || "")
+        .replace(/\[\[CARRY_FROM:\d{4}-\d{2}\]\]\s*/gi,"")
+        .replace(/\[(?:Chuyển\s+(?:từ|tới)|Carried\s+(?:from|to))\s+\d{4}-\d{2}\]\s*/gi,"")
+        .replace(/\[从\s*\d{4}-\d{2}\s*转入\]\s*/gi,"")
+        .replace(/^\s*[·|,;]\s*|\s*[·|,;]\s*$/g,"")
+        .trim();
+}
+
 function getHeaderColumnRawValue(item,index){
     switch(index){
         case 2: return item.paymentMonth;
@@ -37413,7 +37450,7 @@ function getHeaderColumnRawValue(item,index){
         case 10: return item.costType;
         case 11: return getPaymentContractType(item);
         case 12: return Number.isFinite(Number(item.amount)) ? Number(item.amount) : "";
-        case 13: return item.remark;
+        case 13: return getHeaderColumnRemarkFilterValue(item.remark);
         case 14: return isDone(item.processPlatformPlan) ? "done" : "pending";
         case 15: return normalizePaperStatus(item.processPaper) || "pending";
         case 16: return isDone(item.processSettlement) ? "done" : "pending";
@@ -37510,7 +37547,12 @@ function getHeaderColumnAvailableValues(index){
                 )
         );
 
-    return [...unique].sort(
+    const values = [...unique]
+        // A blank remark is not a meaningful carry-forward filter choice.
+        // Keeping it out here still leaves blank rows visible by default.
+        .filter(value=>!(index === 13 && value === HEADER_FILTER_BLANK));
+
+    return values.sort(
         (a,b) => {
             if(a === HEADER_FILTER_BLANK) return 1;
             if(b === HEADER_FILTER_BLANK) return -1;
@@ -44157,6 +44199,22 @@ html.paid-result-view #paymentTable td:nth-child(22){
     .enterprise-filter-main{
         grid-template-columns:1fr !important;
     }
+}
+
+
+html[data-theme] .brand-logo{
+    background:transparent !important;
+    padding:0 !important;
+    border:none !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+    overflow:visible !important;
+}
+
+html[data-theme] .brand-logo .brand-logo-image{
+    width:100% !important;
+    height:100% !important;
+    object-fit:contain !important;
 }
 </style>
 
