@@ -19919,6 +19919,41 @@ function updateActualPaymentMonthVisibility(){
     }
 }
 
+function paidResultContractContentLabel(){
+    if(currentLanguage === "zh") return "合同内容";
+    if(currentLanguage === "en") return "Contract Content";
+    return "Nội dung hợp đồng";
+}
+
+function updatePaidResultHeaderLabels(paidMode){
+    const contractContentHeader =
+        paymentTable?.querySelector("thead th:nth-child(9)");
+
+    if(!contractContentHeader){
+        return;
+    }
+
+    setOwnText(
+        contractContentHeader,
+        paidMode
+            ? paidResultContractContentLabel()
+            : (COLUMN_LABELS[8] || t("contractName"))
+    );
+
+    const menuButton =
+        contractContentHeader.querySelector(":scope > .column-menu-trigger");
+
+    if(menuButton){
+        menuButton.setAttribute(
+            "aria-label",
+            t("columnOptions") + " " +
+                (paidMode
+                    ? paidResultContractContentLabel()
+                    : (COLUMN_LABELS[8] || t("contractName")))
+        );
+    }
+}
+
 
 function applyPaymentStatusView(){
 
@@ -19938,13 +19973,11 @@ function applyPaymentStatusView(){
     if(paidMode){
 
         /*
-           Paid result view keeps only the useful lookup columns:
-           Person in Charge, Project only in All Projects, Company,
-           Bank Account, Contract No., IPC, Cost Type, Contract Type,
-           Actual Amount, Payment Date and Actions.
+           Paid result view keeps the useful lookup columns, including
+           STT and contract content. Contract type is not needed here.
         */
         autoHiddenIndexes = [
-            0,1,8,12,13,
+            0,11,12,13,
             14,15,16,17,18,19,20
         ];
 
@@ -19961,6 +19994,8 @@ function applyPaymentStatusView(){
         "paid-result-view",
         paidMode
     );
+
+    updatePaidResultHeaderLabels(paidMode);
 
     let style =
         document.getElementById("paymentStatusAutoColumns");
