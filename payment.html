@@ -12188,6 +12188,27 @@ html[data-theme] .import-confidence.medium{
   .history26-statgrid{grid-template-columns:1fr 1fr}
   .history26-filterbar{grid-template-columns:1fr}
 }
+
+
+
+
+
+html[data-theme] .brand-logo{
+    background:transparent !important;
+    padding:0 !important;
+    border:none !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+    overflow:visible !important;
+}
+
+html[data-theme] .brand-logo .brand-logo-image{
+    width:100% !important;
+    height:100% !important;
+    object-fit:contain !important;
+}
+
+
 </style>
 
 
@@ -23091,6 +23112,7 @@ onAuthStateChanged(
 
             applyRoleUI();
             showLoginModal();
+            await revealReadyApp();
 
             return;
         }
@@ -23125,6 +23147,7 @@ onAuthStateChanged(
                 "block";
 
             showLoginModal();
+            await revealReadyApp();
 
             return;
         }
@@ -23160,6 +23183,8 @@ onAuthStateChanged(
             paymentMonthFilter.value || CURRENT_MONTH,
             {force:true}
         );
+
+        await revealReadyApp();
     }
 );
 
@@ -39487,6 +39512,8 @@ const appBootScreen =
 const appBootText =
     document.getElementById("appBootText");
 
+let appBootRevealed = false;
+
 function updateAppBootLanguage(){
 
     if(!appBootText){
@@ -39502,6 +39529,12 @@ function updateAppBootLanguage(){
 }
 
 async function revealReadyApp(){
+
+    if(appBootRevealed){
+        return;
+    }
+
+    appBootRevealed = true;
 
     updateAppBootLanguage();
 
@@ -39747,9 +39780,10 @@ updateProjectFilter();
 renderPayments();
 
 /*
-   Everything needed for the first visible frame is now ready.
+   The Firebase auth callback reveals the app only after it has determined
+   whether to show the login gate or the authenticated workspace. This avoids
+   flashing raw buttons such as “Dòng ẩn (0)” between pages.
 */
-await revealReadyApp();
 
 
 
@@ -44199,22 +44233,6 @@ html.paid-result-view #paymentTable td:nth-child(22){
     .enterprise-filter-main{
         grid-template-columns:1fr !important;
     }
-}
-
-
-html[data-theme] .brand-logo{
-    background:transparent !important;
-    padding:0 !important;
-    border:none !important;
-    border-radius:0 !important;
-    box-shadow:none !important;
-    overflow:visible !important;
-}
-
-html[data-theme] .brand-logo .brand-logo-image{
-    width:100% !important;
-    height:100% !important;
-    object-fit:contain !important;
 }
 </style>
 
