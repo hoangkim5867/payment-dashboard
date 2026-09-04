@@ -43140,6 +43140,16 @@ async function extractBulkUncPdfText(file){
 const BULK_UNC_MONEY_TOKEN =
     "([0-9]{1,3}(?:[.,][0-9]{3})+(?:[.,][0-9]{2})?|[0-9]{4,}(?:[.,][0-9]{2})?)";
 
+const BULK_UNC_DATE_TOKEN =
+    "(\\d{8}|\\d{1,2}[\\/.-]\\d{1,2}[\\/.-]\\d{2,4}|\\d{1,2}\\s*[-.]?\\s*(?:JAN(?:UARY)?|FEB(?:RUARY)?|MAR(?:CH)?|APR(?:IL)?|MAY|JUN(?:E)?|JUL(?:Y)?|AUG(?:UST)?|SEP(?:TEMBER)?|OCT(?:OBER)?|NOV(?:EMBER)?|DEC(?:EMBER)?)\\s*[-.,]?\\s*\\d{2,4}|(?:JAN(?:UARY)?|FEB(?:RUARY)?|MAR(?:CH)?|APR(?:IL)?|MAY|JUN(?:E)?|JUL(?:Y)?|AUG(?:UST)?|SEP(?:TEMBER)?|OCT(?:OBER)?|NOV(?:EMBER)?|DEC(?:EMBER)?)\\s+\\d{1,2},?\\s+\\d{4})";
+
+const BULK_UNC_MONTH_NAMES = {
+    JAN:1, JANUARY:1, FEB:2, FEBRUARY:2, MAR:3, MARCH:3,
+    APR:4, APRIL:4, MAY:5, JUN:6, JUNE:6, JUL:7, JULY:7,
+    AUG:8, AUGUST:8, SEP:9, SEPTEMBER:9, OCT:10, OCTOBER:10,
+    NOV:11, NOVEMBER:11, DEC:12, DECEMBER:12
+};
+
 function parseBulkUncMoney(value){
     let raw = String(value || "")
         .replace(/\s+/g,"")
@@ -43164,35 +43174,56 @@ function firstBulkUncMatch(text,patterns){
 }
 
 function normalizeBulkUncDate(value){
-    const raw = String(value || "").trim().toUpperCase();
+    const raw = String(value || "")
+        .replace(/\u00a0/g," ")
+        .replace(/\s+/g," ")
+        .trim()
+        .toUpperCase();
     if(!raw) return "";
 
     let match = raw.match(/^(\d{4})(\d{2})(\d{2})$/);
     if(match) return `${match[1]}-${match[2]}-${match[3]}`;
 
-    match = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+    match = raw.match(/^(\d{4})[\/.-](\d{1,2})[\/.-](\d{1,2})$/);
     if(match){
-        return `${match[3]}-${String(match[2]).padStart(2,"0")}-${String(match[1]).padStart(2,"0")}`;
+        return `${match[1]}-${String(match[2]).padStart(2,"0")}-${String(match[3]).padStart(2,"0")}`;
     }
 
-    match = raw.match(/^(\d{1,2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d{4})$/);
+    match = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
     if(match){
-        const month = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"].indexOf(match[2]) + 1;
-        return `${match[3]}-${String(month).padStart(2,"0")}-${String(match[1]).padStart(2,"0")}`;
+        const shortYear = Number(match[3]);
+        const year = match[3].length === 2 ? 2000 + shortYear : shortYear;
+        return `${year}-${String(match[2]).padStart(2,"0")}-${String(match[1]).padStart(2,"0")}`;
+    }
+
+    match = raw.match(/^(\d{1,2})\s*[-.]?\s*([A-Z]+)\s*[-.,]?\s*(\d{2,4})$/);
+    if(match && BULK_UNC_MONTH_NAMES[match[2]]){
+        const shortYear = Number(match[3]);
+        const year = match[3].length === 2 ? 2000 + shortYear : shortYear;
+        return `${year}-${String(BULK_UNC_MONTH_NAMES[match[2]]).padStart(2,"0")}-${String(match[1]).padStart(2,"0")}`;
+    }
+
+    match = raw.match(/^([A-Z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
+    if(match && BULK_UNC_MONTH_NAMES[match[1]]){
+        return `${match[3]}-${String(BULK_UNC_MONTH_NAMES[match[1]]).padStart(2,"0")}-${String(match[2]).padStart(2,"0")}`;
     }
 
     return "";
 }
 
 function extractBulkUncInfo(text){
-    const source = String(text || "").replace(/\u00a0/g," ");
+    const source = String(text || "")
+        .replace(/\u00a0/g," ")
+        .replace(/：/g,":");
     const normalizedText = normalize(source);
     const moneyPatterns = [
         new RegExp(`(?:telex\\s+transfer)\\s*(?:VND|USD)?\\s*${BULK_UNC_MONEY_TOKEN}`,"i"),
-        new RegExp(`(?:debit\\s+ccy\\s*-\\s*amt|debit\\s+amount)\\)?\\s*:?\\s*(?:VND|USD)?\\s*${BULK_UNC_MONEY_TOKEN}`,"i"),
-        new RegExp(`(?:transaction\\s+amount|transfer\\s+amount|amount\\s+transferred|remittance\\s+amount)\\s*:?\\s*(?:VND|USD)?\\s*${BULK_UNC_MONEY_TOKEN}`,"i"),
+        new RegExp(`(?:debit\\s+ccy\\s*-\\s*amt|debit\\s+amount|credit\\s+amount)\\)?\\s*:?\\s*(?:VND|USD)?\\s*${BULK_UNC_MONEY_TOKEN}`,"i"),
+        new RegExp(`(?:transaction\\s+amount|transfer\\s+amount|amount\\s+transferred|remittance\\s+amount|payment\\s+amount|汇款金额|支付金额|交易金额|金额)\\s*:?\\s*(?:VND|USD)?\\s*${BULK_UNC_MONEY_TOKEN}`,"i"),
         new RegExp(`(?:so\\s+tien\\s+(?:giao\\s+dich|chuyen|ghi\\s+no)|số\\s+tiền\\s+(?:giao\\s+dịch|chuyển|ghi\\s+nợ))\\s*:?\\s*(?:VND|USD)?\\s*${BULK_UNC_MONEY_TOKEN}`,"i"),
-        new RegExp(`(?:VND|USD)\\s*${BULK_UNC_MONEY_TOKEN}`,"i")
+        new RegExp(`(?:^|\\n)\\s*amount\\s*:?\\s*(?:VND|USD)?\\s*${BULK_UNC_MONEY_TOKEN}`,"im"),
+        new RegExp(`${BULK_UNC_MONEY_TOKEN}\\s*(?:\\n|\\s){1,30}amount\\b`,"i"),
+        new RegExp(`(?:VND|USD)\\s+${BULK_UNC_MONEY_TOKEN}`,"i")
     ];
 
     let amount = NaN;
@@ -43206,18 +43237,23 @@ function extractBulkUncInfo(text){
     }
 
     const dateRaw = firstBulkUncMatch(source,[
-        /(?:transaction\s+date|value\s+date|ng[aà]y\s+giao\s+d[iị]ch)\s*:?\s*(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4}|\d{8}|\d{1,2}[A-Z]{3}\d{4})/i,
-        /(?:date)\s*:?\s*(\d{8}|\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/i
+        new RegExp(`(?:debit\\s+date|booking\\s+date|posting\\s+date|记账日期|ng[aà]y\\s+ghi\\s+nợ)\\s*:?\\s*${BULK_UNC_DATE_TOKEN}`,"i"),
+        new RegExp(`(?:transaction\\s+date|value\\s+date|payment\\s+date|advice\\s+sending\\s+date|ng[aà]y\\s+giao\\s+d[iị]ch|ng[aà]y\\s+thanh\\s+to[aá]n)\\s*:?\\s*${BULK_UNC_DATE_TOKEN}`,"i"),
+        new RegExp(`(?:date|日期)\\s*:?\\s*${BULK_UNC_DATE_TOKEN}`,"i")
     ]);
 
-    const beneficiary = firstBulkUncMatch(source,[
-        /(?:beneficiary|ten\s+nguoi\s+thu\s+huong|tên\s+người\s+thụ\s+hưởng)\s*\)?\s*:?\s*([^\n]{3,160})/i,
+    let beneficiary = firstBulkUncMatch(source,[
+        /(?:beneficiary(?:'s)?\s+name|ten\s+nguoi\s+thu\s+huong|tên\s+người\s+thụ\s+hưởng|对方户名)\s*\)?\s*:?\s*([^\n]{3,160}?)(?=\s{2,}(?:debit\s+amount|beneficiary(?:'s)?\s+bank|remittance\s+amount)\b|\n|$)/i,
         /favouring\s+(.{3,180}?)\s+A\/C\s+[0-9-]{6,}/i
     ]).replace(/\s+/g," ").trim();
 
+    if(/(?:^[-–]|payment\s+method|beneficiary\s+details)/i.test(beneficiary)){
+        beneficiary = "";
+    }
+
     const bankReference = firstBulkUncMatch(source,[
-        /(?:business\s+ref\s+no|our\s+ref|transaction\s+ref(?:erence)?|ma\s+nghiep\s+vu|mã\s+nghiệp\s+vụ)\s*\)?\s*:?\s*([A-Z0-9][A-Z0-9 _.-]{4,50})/i,
-        /(?:your\s+ref)\s*:?\s*([A-Z0-9][A-Z0-9 _.-]{4,50})/i
+        /(?:bank\s+(?:payment\s+)?reference|business\s+ref\s+no|instruction\s+reference|our\s+ref(?:erence)?|transaction\s+ref(?:erence)?|customer\s+reference|ma\s+nghiep\s+vu|mã\s+nghiệp\s+vụ|回单编号|会计流水号)\s*\)?\s*:?\s*([A-Z0-9][A-Z0-9._-]{4,50})/i,
+        /(?:\byour\s+ref(?:erence)?\b)\s*\)?\s*:?\s*([A-Z0-9][A-Z0-9._-]{4,50})/i
     ]).replace(/\s+/g," ").trim();
 
     const accountNumbers = [...new Set(
