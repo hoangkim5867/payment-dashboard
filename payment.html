@@ -18446,22 +18446,45 @@ function getAvailableProjectNames(){
     const selectedMonth =
         String(paymentMonthFilter.value || "").trim();
 
-    return [
-        ...new Set(
-            allPayments
-            .filter(item =>
-                item.deleted !== true &&
-                !isIndirectCostPayment(item) &&
-                (
-                    !selectedMonth ||
-                    item.paymentMonth === selectedMonth
-                )
+    const projectsByCanonicalKey =
+        new Map();
+
+    allPayments
+        .filter(item =>
+            item.deleted !== true &&
+            !isIndirectCostPayment(item) &&
+            (
+                !selectedMonth ||
+                item.paymentMonth === selectedMonth
             )
-            .map(item => item.project)
-            .map(value => String(value || "").trim())
-            .filter(Boolean)
         )
-    ].sort((a,b) => a.localeCompare(b));
+        .forEach(item => {
+            const rawProject = String(item.project || "").trim();
+            const canonicalKey = normalizeSmartProject(rawProject);
+
+            if(!rawProject || !canonicalKey){
+                return;
+            }
+
+            /* One workspace/tab for all spelling variants of a project. */
+            if(!projectsByCanonicalKey.has(canonicalKey)){
+                projectsByCanonicalKey.set(
+                    canonicalKey,
+                    canonicalProjectDisplay(rawProject)
+                );
+            }
+        });
+
+    return [...projectsByCanonicalKey.values()]
+        .sort((a,b) => a.localeCompare(b));
+}
+
+
+function isSamePaymentProject(left,right){
+    const leftKey = normalizeSmartProject(left);
+    const rightKey = normalizeSmartProject(right);
+
+    return !!leftKey && leftKey === rightKey;
 }
 
 function hasIndirectCostForSelectedMonth(){
@@ -19647,7 +19670,7 @@ function getFilteredPayments(skipHeaderColumnIndex = null, scopeOverride = null,
                     : (
                         !project ||
                         (
-                            item.project === project &&
+                            isSamePaymentProject(item.project,project) &&
                             !indirectCost
                         )
                     );
@@ -19812,7 +19835,7 @@ function getPaymentStatusContextRows(){
                 : (
                     !project ||
                     (
-                        item.project === project &&
+                        isSamePaymentProject(item.project,project) &&
                         !isIndirectCostPayment(item)
                     )
                 )
@@ -25264,7 +25287,7 @@ function renderPayments(){
                         : (
                             !selectedProject ||
                             (
-                                item.project === selectedProject &&
+                                isSamePaymentProject(item.project,selectedProject) &&
                                 !isIndirectCostPayment(item)
                             )
                         )
@@ -33177,7 +33200,10 @@ function normalizeSmartProject(value){
        guesses: PHUHUNG / PHU HUNG and every EATON PARK form refer to the
        same project family in this system.
     */
-    if(compact.startsWith("phuhung")){
+    if(
+        compact === "ph" ||
+        compact.startsWith("phuhung")
+    ){
         return "phuhung";
     }
 
@@ -33262,9 +33288,20 @@ function findImportedContractMaster({project="",contractNo="",company="",bankAcc
 
 
 function normalizeSmartContractNo(value){
+    let compact =
+        normalizeSmartText(value)
+            .replace(/[^a-z0-9]/g,"");
 
-    return normalizeSmartText(value)
-        .replace(/[^a-z0-9]/g,"");
+    /*
+       Contract-number aliases from the source Excel.  These are not separate
+       contracts: staff often omit the "1" in EATON PARK P1, and older rows
+       may still carry PHU HUNG while Contract Master now uses PH.
+    */
+    compact = compact
+        .replace(/eatonparkp(?=mep)/g,"eatonparkp1")
+        .replace(/phuhung(?=mep)/g,"ph");
+
+    return compact;
 }
 
 
@@ -33303,6 +33340,15 @@ function canonicalProjectDisplay(value){
         return String(
             masterProject.project
         ).trim();
+    }
+
+    /* Stable display even if the Contract Master cache has not loaded yet. */
+    if(normalized === "phuhung"){
+        return "PHU HUNG";
+    }
+
+    if(normalized === "eaton"){
+        return "EATON";
     }
 
     /*
@@ -33354,7 +33400,7 @@ function paymentContractKey(project,contractNo){
     return (
         normalizeSmartProject(project) +
         "||" +
-        normalizeSmartCode(contractNo)
+        normalizeSmartContractNo(contractNo)
     );
 }
 
@@ -33463,7 +33509,7 @@ function findPossibleContractMasterMatch(data){
         );
 
     const contractNo =
-        normalizeSmartCode(
+        normalizeSmartContractNo(
             data.contractNo
         );
 
@@ -33514,7 +33560,7 @@ function findPossibleContractMasterMatch(data){
                 );
 
             const masterNo =
-                normalizeSmartCode(
+                normalizeSmartContractNo(
                     contract.contractNo
                 );
 
