@@ -32367,6 +32367,22 @@ function buildExcelImportRows(){
                             : getClipboardCell(row, headerMap, "contractType");
 
                     /*
+                       Final canonical lookup for both header and no-header
+                       imports.  It accepts project aliases and compares only
+                       the numeric account segment, then stores the canonical
+                       Contract Master values (including its bank label).
+                    */
+                    if(!contract){
+                        contract =
+                            findImportedContractMaster({
+                                project:pastedProject,
+                                contractNo,
+                                company:pastedCompany,
+                                bankAccount:pastedBankAccount
+                            });
+                    }
+
+                    /*
                        FINAL MASTER CHECK:
                        Before declaring a contract new, verify again by
                        normalized Project + normalized Contract No.
@@ -33151,9 +33167,97 @@ function normalizeSmartCode(value){
 
 
 function normalizeSmartProject(value){
+    const compact =
+        normalizeSmartText(value)
+            .replace(/[^a-z0-9]/g,"");
 
-    return normalizeSmartText(value)
-        .replace(/[^a-z0-9]/g,"");
+    /*
+       Excel users often abbreviate a project while Contract Master keeps
+       the formal name.  These are intentional business aliases, not fuzzy
+       guesses: PHUHUNG / PHU HUNG and every EATON PARK form refer to the
+       same project family in this system.
+    */
+    if(compact.startsWith("phuhung")){
+        return "phuhung";
+    }
+
+    if(compact.startsWith("eaton")){
+        return "eaton";
+    }
+
+    return compact;
+}
+
+
+function importBankAccountDigits(value){
+    const candidates =
+        String(value ?? "")
+            .match(/\d{6,}/g) || [];
+
+    /*
+       A bank display may say "STK - Bank - Branch" in many different ways.
+       The account-number segment is the stable identifier; keep the longest
+       one so a branch code cannot win over the account number.
+    */
+    return candidates
+        .sort((a,b) => b.length - a.length)[0] || "";
+}
+
+
+function findImportedContractMaster({project="",contractNo="",company="",bankAccount=""}={}){
+    const contractKey = normalizeSmartContractNo(contractNo);
+
+    if(!contractKey){
+        return null;
+    }
+
+    const projectKey = normalizeSmartProject(project);
+    const accountDigits = importBankAccountDigits(bankAccount);
+
+    let candidates =
+        allContracts.filter(
+            master =>
+                normalizeSmartContractNo(master.contractNo) === contractKey
+        );
+
+    if(!candidates.length){
+        return null;
+    }
+
+    if(projectKey){
+        const sameProject = candidates.filter(
+            master =>
+                normalizeSmartProject(master.project) === projectKey
+        );
+
+        if(sameProject.length){
+            candidates = sameProject;
+        }
+    }
+
+    if(accountDigits){
+        const sameAccount = candidates.filter(
+            master =>
+                importBankAccountDigits(master.bankAccount) === accountDigits
+        );
+
+        if(sameAccount.length){
+            candidates = sameAccount;
+        }
+    }
+
+    if(candidates.length > 1 && normalize(company)){
+        const sameCompany = candidates.filter(
+            master => normalize(master.company) === normalize(company)
+        );
+
+        if(sameCompany.length){
+            candidates = sameCompany;
+        }
+    }
+
+    /* Never guess when Contract Master still has more than one candidate. */
+    return candidates.length === 1 ? candidates[0] : null;
 }
 
 
@@ -34055,6 +34159,7 @@ confirmExcelImportBtn.addEventListener(
 
             // Firestore batch max is safely respected by splitting imports.
             const CHUNK_SIZE = 400;
+            const importAuditEntries = [];
 
             for(
                 let start = 0;
@@ -34086,6 +34191,15 @@ confirmExcelImportBtn.addEventListener(
 
                         delete paymentData.__newContractMaster;
 
+                        /* Keep the generated document ID for its audit row. */
+                        importAuditEntries.push({
+                            payment:{
+                                ...paymentData,
+                                id:paymentDoc.id
+                            },
+                            crossMonthDuplicate:item.crossMonthDuplicate
+                        });
+
                         batch.set(
                             paymentDoc,
                             {
@@ -34104,26 +34218,23 @@ confirmExcelImportBtn.addEventListener(
                     }
                 );
 
-                            await batch.commit();
+                await batch.commit();
+            }
 
-            for(
-                const item of validRows
-            ){
-                const activityData =
-                    {
-                        ...item.data
-                    };
-
-                delete activityData.__newContractMaster;
-
+            /*
+               One audit row per imported payment, written once after every
+               payment batch is safely committed.  Previously this loop sat
+               inside the chunk loop, so an import over 400 rows duplicated
+               audit entries.
+            */
+            for(const entry of importAuditEntries){
                 await logActivity(
                     "ADD",
-                    activityData,
-                    item.crossMonthDuplicate
-                        ? `Excel Import Supplemental|${item.crossMonthDuplicate.paymentMonth || "—"}`
+                    entry.payment,
+                    entry.crossMonthDuplicate
+                        ? `Excel Import Supplemental|${entry.crossMonthDuplicate.paymentMonth || "—"}`
                         : "Excel Import"
                 );
-            }
             }
 
             /*
