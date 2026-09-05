@@ -2057,10 +2057,11 @@ body.operator-required-lock .container, body.operator-required-lock .header{
 
 
 .staff-setup-list{border:1px solid #e2e7ef;border-radius:9px;overflow:auto;max-height:580px}
-.staff-setup-row{display:grid;grid-template-columns:minmax(210px,1.5fr) minmax(140px,.9fr) 110px minmax(150px,.9fr) auto;gap:9px;align-items:center;padding:9px 11px;border-bottom:1px solid #edf0f4;font-size:11px}
+.staff-setup-row{display:grid;grid-template-columns:minmax(210px,1.5fr) minmax(140px,.9fr) 110px minmax(150px,.9fr) minmax(150px,auto);gap:9px;align-items:center;padding:9px 11px;border-bottom:1px solid #edf0f4;font-size:11px}
 .staff-setup-row.head{position:sticky;top:0;z-index:2;background:#f7f9fc;color:#667085;font-weight:800}
 .staff-status-active{color:#027a48;font-weight:800}.staff-status-new{color:#b54708;font-weight:800}
 .staff-temp-password{width:100%;padding:7px 8px;font-size:11px}.staff-create-btn{background:#17365d;color:#fff;white-space:nowrap}
+.staff-name-input{width:100%;padding:7px 8px;font-size:11px;font-weight:700}.staff-actions{display:flex;gap:6px;align-items:center;justify-content:flex-start;flex-wrap:wrap}.staff-save-name-btn{white-space:nowrap;background:#f8fafc;color:#344054;border:1px solid #d0d5dd}
 @media(max-width:760px){.staff-setup-row{grid-template-columns:1fr}.staff-setup-row.head{display:none}}
 
 
@@ -15480,6 +15481,15 @@ const authUsersRef =
         "authUsers"
     );
 
+/* Admin-only display-name overrides for the fixed Staff Setup list.
+   Username / Firebase login alias stay stable when a person's name changes. */
+const staffDirectoryConfigRef =
+    doc(
+        db,
+        "appSettings",
+        "staffDirectory"
+    );
+
 
 /* =====================================================
    VARIABLES
@@ -15492,6 +15502,16 @@ let contractsLoaded = false;
 let contractsLoadPromise = null;
 
 let allPayments = [];
+
+/*
+   The table intentionally listens to one month at a time.  This separate
+   cache is used only while an Admin previews a pasted Excel batch, so old
+   months can be checked for duplicate payments without turning the whole
+   app into an all-history realtime listener.
+*/
+let importDuplicateHistoryPayments = [];
+let importDuplicateHistoryLoaded = false;
+let importDuplicateHistoryPromise = null;
 
 let allVendors = [];
 
@@ -15554,6 +15574,8 @@ let currentUserProfile = null;
 let currentOperatorName = "";
 
 let currentUserRole = "";
+
+let staffNameOverrides = {};
 
 let authInitialized = false;
 
@@ -21764,6 +21786,72 @@ async function getExistingStaffMap(){
 }
 
 
+async function loadStaffNameOverrides(){
+    try{
+        const snapshot = await getDoc(staffDirectoryConfigRef);
+        const names = snapshot.exists()
+            ? snapshot.data()?.names
+            : {};
+
+        return names && typeof names === "object"
+            ? names
+            : {};
+    }catch(error){
+        /* Staff creation must remain available if this optional display
+           setting has not been created yet. */
+        console.warn("LOAD STAFF NAME OVERRIDES ERROR:",error);
+        return {};
+    }
+}
+
+
+async function saveStaffDisplayName(username, displayName, profileId=""){
+    if(!isAdmin()){
+        alert("🔒 " + t("adminOnly"));
+        return;
+    }
+
+    const cleanUsername = String(username || "").trim().toLowerCase();
+    const cleanName = String(displayName || "")
+        .trim()
+        .replace(/\s+/g," ");
+
+    if(!cleanUsername || !cleanName){
+        alert("⚠ Hãy nhập tên nhân viên.");
+        return;
+    }
+
+    await setDoc(
+        staffDirectoryConfigRef,
+        {
+            names:{
+                [cleanUsername]:cleanName
+            },
+            updatedAt:serverTimestamp(),
+            updatedBy:currentOperatorName || "",
+            updatedByUid:currentAuthUser?.uid || ""
+        },
+        {merge:true}
+    );
+
+    /* Keep the current employee profile in sync too, but do not touch the
+       authentication email or username. */
+    if(profileId){
+        await updateDoc(
+            doc(db,"authUsers",profileId),
+            {
+                displayName:cleanName,
+                updatedAt:serverTimestamp(),
+                updatedBy:currentOperatorName || "",
+                updatedByUid:currentAuthUser?.uid || ""
+            }
+        );
+    }
+
+    staffNameOverrides[cleanUsername] = cleanName;
+}
+
+
 function updateNewStaffUsernamePreview(){
 
     newStaffUsernameInput.value =
@@ -21996,8 +22084,15 @@ async function renderStaffSetup(){
     staffSetupList.innerHTML =
         `<div class="empty">⏳</div>`;
 
-    const existing =
-        await getExistingStaffMap();
+    const [
+        existing,
+        savedNames
+    ] = await Promise.all([
+        getExistingStaffMap(),
+        loadStaffNameOverrides()
+    ]);
+
+    staffNameOverrides = savedNames;
 
     /*
        Combine:
@@ -22015,15 +22110,22 @@ async function renderStaffSetup(){
                     name
                 );
 
+            const profile =
+                existing.get(username);
+
             staffByUsername.set(
                 username,
                 {
-                    name,
+                    name:
+                        staffNameOverrides[username] ||
+                        profile?.displayName ||
+                        name,
                     username,
                     active:
                         existing.has(
                             username
-                        )
+                        ),
+                    profileId:profile?.id || ""
                 }
             );
         }
@@ -22051,16 +22153,21 @@ async function renderStaffSetup(){
                 return;
             }
 
+            const prior = staffByUsername.get(username);
+
             staffByUsername.set(
                 username,
                 {
                     name:
+                        staffNameOverrides[username] ||
                         profile.displayName ||
+                        prior?.name ||
                         username,
 
                     username,
 
-                    active:true
+                    active:true,
+                    profileId:profile.id || ""
                 }
             );
         }
@@ -22078,20 +22185,27 @@ async function renderStaffSetup(){
 
     staffSetupList.innerHTML =
     `<div class="staff-setup-row head">
-        <div>Employee</div>
+        <div>Tên hiển thị</div>
         <div>Username</div>
         <div>Status</div>
         <div>Temporary Password</div>
-        <div>Action</div>
+        <div>Thao tác</div>
     </div>` +
     rows.map(
         item => `
             <div
                 class="staff-setup-row"
                 data-staff="${escapeHTML(item.username)}"
+                data-profile-id="${escapeHTML(item.profileId || "")}"
             >
                 <div>
-                    <strong>${escapeHTML(item.name)}</strong>
+                    <input
+                        class="staff-name-input"
+                        type="text"
+                        value="${escapeHTML(item.name)}"
+                        data-staff-name="${escapeHTML(item.username)}"
+                        aria-label="Tên hiển thị ${escapeHTML(item.username)}"
+                    >
                 </div>
 
                 <div>
@@ -22126,15 +22240,23 @@ async function renderStaffSetup(){
                     }
                 </div>
 
-                <div>
+                <div class="staff-actions">
+                    <button
+                        type="button"
+                        class="staff-save-name-btn"
+                        data-save-staff-name="${escapeHTML(item.username)}"
+                    >
+                        💾 Lưu tên
+                    </button>
                     ${
                         item.active
-                            ? "—"
+                            ? ""
                             : `
                                 <button
                                     type="button"
                                     class="staff-create-btn"
                                     data-create-staff="${escapeHTML(item.username)}"
+                                    data-create-staff-name="${escapeHTML(item.name)}"
                                 >
                                     ＋ Create
                                 </button>
@@ -22144,6 +22266,43 @@ async function renderStaffSetup(){
             </div>
         `
     ).join("");
+
+    staffSetupList
+        .querySelectorAll(
+            "[data-save-staff-name]"
+        )
+        .forEach(
+            button => {
+                button.addEventListener(
+                    "click",
+                    async () => {
+                        const row = button.closest(".staff-setup-row");
+                        const input = row?.querySelector(".staff-name-input");
+                        const username = button.dataset.saveStaffName;
+                        const profileId = row?.dataset.profileId || "";
+                        const displayName = input?.value || "";
+
+                        const oldText = button.textContent;
+                        button.disabled = true;
+                        button.textContent = "⏳";
+
+                        try{
+                            await saveStaffDisplayName(
+                                username,
+                                displayName,
+                                profileId
+                            );
+                            await renderStaffSetup();
+                        }catch(error){
+                            console.error("SAVE STAFF NAME ERROR:",error);
+                            alert("❌ Không lưu được tên: " + (error?.message || error));
+                            button.disabled = false;
+                            button.textContent = oldText;
+                        }
+                    }
+                );
+            }
+        );
 
     staffSetupList
         .querySelectorAll(
@@ -22169,21 +22328,30 @@ async function renderStaffSetup(){
                         const username =
                             button.dataset.createStaff;
 
-                        const staffName =
-                            STAFF_DIRECTORY.find(
-                                name =>
-                                    staffUsernameFromName(name) ===
-                                    username
-                            );
-
-                        if(!staffName){
-                            return;
-                        }
-
                         const row =
                             button.closest(
                                 ".staff-setup-row"
                             );
+
+                        const nameInput =
+                            row.querySelector(
+                                ".staff-name-input"
+                            );
+
+                        const staffName =
+                            String(
+                                nameInput?.value ||
+                                button.dataset.createStaffName ||
+                                ""
+                            )
+                                .trim()
+                                .replace(/\s+/g," ");
+
+                        if(!staffName){
+                            alert("⚠ Hãy nhập tên nhân viên.");
+                            nameInput?.focus();
+                            return;
+                        }
 
                         const input =
                             row.querySelector(
@@ -22205,9 +22373,12 @@ async function renderStaffSetup(){
                             return;
                         }
 
+                        /* The existing username is the login identity.
+                           Renaming a staff member must never create a new
+                           email alias or make their old login disappear. */
                         const email =
-                            staffEmailFromName(
-                                staffName
+                            usernameToAuthEmail(
+                                username
                             );
 
                         button.disabled =
@@ -30560,14 +30731,91 @@ function getClipboardCell(
 }
 
 
+function getImportDuplicateCandidates(){
+    const seen = new Set();
+    const combined = [];
+
+    [
+        ...importDuplicateHistoryPayments,
+        ...allPayments
+    ].forEach(payment => {
+        const id = String(payment?.id || "");
+        const fallback = [
+            payment?.paymentMonth,
+            payment?.project,
+            payment?.contractNo,
+            payment?.ipcNo,
+            payment?.amount
+        ].join("|");
+        const key = id || fallback;
+
+        if(key && !seen.has(key)){
+            seen.add(key);
+            combined.push(payment);
+        }
+    });
+
+    return combined;
+}
+
+
+async function ensureImportDuplicateHistory(){
+    if(importDuplicateHistoryLoaded){
+        return importDuplicateHistoryPayments;
+    }
+
+    if(importDuplicateHistoryPromise){
+        return importDuplicateHistoryPromise;
+    }
+
+    importDuplicateHistoryPromise = (async () => {
+        /*
+           Deliberately a one-off read at Excel Preview only.  The normal
+           table remains a single-month realtime listener, which keeps daily
+           reads low while still allowing all prior months/projects to be
+           checked before an import is committed.
+        */
+        const snapshot = await getDocs(paymentsRef);
+
+        importDuplicateHistoryPayments = [];
+
+        snapshot.forEach(item => {
+            importDuplicateHistoryPayments.push({
+                id:item.id,
+                ...normalizeLoadedPaymentData(item.data())
+            });
+        });
+
+        importDuplicateHistoryLoaded = true;
+        return importDuplicateHistoryPayments;
+    })();
+
+    try{
+        return await importDuplicateHistoryPromise;
+    }finally{
+        importDuplicateHistoryPromise = null;
+    }
+}
+
+
 function isLikelyDuplicateImport(data){
 
-    return allPayments.some(
+    return getImportDuplicateCandidates().some(
         payment =>
             payment.deleted !== true &&
             normalize(payment.paymentMonth) === normalize(data.paymentMonth) &&
-            normalize(payment.project) === normalize(data.project) &&
-            normalize(payment.contractNo) === normalize(data.contractNo) &&
+            /*
+               Use the same canonical key as Contract Master lookup.
+               This catches harmless Excel variations such as
+               EATON PARK P1 / EATONPARKP1 and PHU HUNG / PH.
+            */
+            paymentContractKey(
+                payment.project,
+                payment.contractNo
+            ) === paymentContractKey(
+                data.project,
+                data.contractNo
+            ) &&
             normalize(payment.ipcNo) === normalize(data.ipcNo)
     );
 }
@@ -30579,11 +30827,16 @@ function isLikelyDuplicateImport(data){
 */
 function findCrossMonthDuplicateImport(data){
 
-    const matches = allPayments.filter(
+    const matches = getImportDuplicateCandidates().filter(
         payment =>
             payment.deleted !== true &&
-            normalize(payment.project) === normalize(data.project) &&
-            normalize(payment.contractNo) === normalize(data.contractNo) &&
+            paymentContractKey(
+                payment.project,
+                payment.contractNo
+            ) === paymentContractKey(
+                data.project,
+                data.contractNo
+            ) &&
             normalize(payment.ipcNo) === normalize(data.ipcNo) &&
             normalize(payment.paymentMonth) !== normalize(data.paymentMonth)
     );
@@ -30655,7 +30908,17 @@ function normalizeContractCandidate(value){
 
     return String(value ?? "")
         .trim()
-        .replace(/\s+/g,"");
+        /*
+           Spaces inside a Contract No. can be meaningful for display.
+           Keep them when reading Excel; matching against Contract Master
+           is handled separately by normalizeSmartContractNo().
+
+           Example kept for the screen/new records:
+           EATON PARK P1  -> EATON PARK P1
+           while all equivalent variants still match the same Master row.
+        */
+        .replace(/\s+/g," ")
+        .replace(/\s*([‐‑‒–—−-])\s*/g,"$1");
 }
 
 
@@ -32636,8 +32899,10 @@ function buildExcelImportRows(){
                     const duplicateKey =
                         [
                             normalize(data.paymentMonth),
-                            normalize(data.project),
-                            normalize(data.contractNo),
+                            paymentContractKey(
+                                data.project,
+                                data.contractNo
+                            ),
                             normalize(data.ipcNo)
                         ].join("||");
 
@@ -32816,11 +33081,20 @@ function buildExcelImportRows(){
 }
 
 
-function renderExcelImportPreview(){
+async function renderExcelImportPreview(){
 
     let rows;
 
     try{
+
+        if(excelPasteArea.value.trim()){
+            previewExcelPasteBtn.disabled = true;
+            excelImportStatus.innerHTML = `
+                <span class="import-badge ok">⏳ Đang kiểm tra lịch sử thanh toán các tháng trước…</span>
+            `;
+
+            await ensureImportDuplicateHistory();
+        }
 
         rows =
             buildExcelImportRows();
@@ -32842,8 +33116,12 @@ function renderExcelImportPreview(){
         confirmExcelImportBtn.disabled =
             true;
 
+        previewExcelPasteBtn.disabled = false;
+
         return;
     }
+
+    previewExcelPasteBtn.disabled = false;
 
     excelImportRows =
         rows;
@@ -33006,7 +33284,7 @@ function renderExcelImportPreview(){
 }
 
 
-function openExcelPasteModal(){
+async function openExcelPasteModal(){
 
     importDefaultMonth.value =
         importDefaultMonth.value ||
@@ -33037,6 +33315,36 @@ function openExcelPasteModal(){
     excelImportPreview.innerHTML = "";
     excelImportPreview.style.display = "none";
     confirmExcelImportBtn.disabled = true;
+
+    /*
+       Paste-import depends on Contract Master to decide whether a row is
+       an existing contract.  Do not let the preview run against an empty
+       local cache just after sign-in; otherwise a valid EATON PARK P1 row
+       can be incorrectly labelled as a new contract.
+    */
+    previewExcelPasteBtn.disabled = true;
+
+    if(!contractsLoaded){
+        excelImportStatus.innerHTML = `
+            <span class="import-ok">⏳ Đang tải Danh mục hợp đồng để đối chiếu…</span>
+        `;
+
+        try{
+            await loadContracts();
+        }catch(error){
+            excelImportStatus.innerHTML = `
+                <span class="import-error">⚠ Không tải được Danh mục hợp đồng. Hãy thử lại.</span>
+            `;
+            return;
+        }
+    }
+
+    previewExcelPasteBtn.disabled = false;
+    excelImportStatus.innerHTML = "";
+
+    if(excelPasteArea.value.trim()){
+        renderExcelImportPreview();
+    }
 
     requestAnimationFrame(
         () =>
@@ -49595,6 +49903,32 @@ html[data-theme] #toolsMenu{
 .modern-app-header > .brand-block{
     color:inherit;
     text-decoration:none;
+}
+</style>
+
+<style id="brand-logo-image-only-final">
+/* The supplied PNG is the logo itself.  Never place it on a second rounded
+   theme tile, otherwise the tile protrudes behind the square image. */
+html .modern-app-header .brand-logo{
+    width:30px !important;
+    height:30px !important;
+    padding:0 !important;
+    background:transparent !important;
+    border:0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
+    overflow:visible !important;
+}
+
+html .modern-app-header .brand-logo .brand-logo-image{
+    display:block !important;
+    width:100% !important;
+    height:100% !important;
+    object-fit:contain !important;
+    background:transparent !important;
+    border:0 !important;
+    border-radius:0 !important;
+    box-shadow:none !important;
 }
 </style>
 
