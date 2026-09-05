@@ -43269,6 +43269,47 @@ function getArchiveMonthLabel(month){
         : "Kho chứng từ thanh toán";
 }
 
+/* One compact monthly snapshot lets Kho chứng từ render a table without
+   querying the historical payments collection row by row. */
+function buildPaymentArchiveDetails(month,payments){
+    const rows = payments.map((payment,index) => ({
+        stt:index + 1,
+        project:String(payment.project || ""),
+        company:String(payment.company || ""),
+        bankAccount:String(payment.bankAccount || payment.bank || ""),
+        contractNo:String(payment.contractNo || ""),
+        contractName:String(payment.contractName || ""),
+        ipcNo:String(payment.ipcNo || ""),
+        costType:String(payment.costType || ""),
+        actualAmount:Number(payment.processActualAmount) || 0,
+        paymentDate:String(payment.processPaymentDate || ""),
+        uncFileId:String(payment.uncDriveFileId || ""),
+        uncName:String(payment.uncName || "")
+    }));
+    const totalActualAmount = rows.reduce(
+        (total,row) => total + row.actualAmount,
+        0
+    );
+    const uncCount = rows.filter(row => !!row.uncFileId).length;
+
+    return {month,rows,rowCount:rows.length,totalActualAmount,uncCount};
+}
+
+async function savePaymentArchiveDetails(month,payments){
+    const details = buildPaymentArchiveDetails(month,payments);
+    await setDoc(
+        doc(db,"paymentArchiveDetails",month),
+        {
+            ...details,
+            updatedAt:serverTimestamp(),
+            updatedBy:currentOperatorName || "",
+            updatedByUid:currentAuthUser?.uid || ""
+        },
+        {merge:true}
+    );
+    return details;
+}
+
 async function ensurePaymentArchiveDriveFolder(){
     const cachedFolderId = uncLocalGet(PAYMENT_ARCHIVE_DRIVE_FOLDER_ID_KEY);
 
@@ -43592,6 +43633,7 @@ async function closeMonthToPaymentArchive(){
             },
             {merge:true}
         );
+        await savePaymentArchiveDetails(month,paidPayments);
 
         alert(
             `✅ Đã chốt ${getArchiveMonthLabel(month)}.\n\n` +
@@ -43604,6 +43646,89 @@ async function closeMonthToPaymentArchive(){
         toolsArchiveMonthBtn.disabled = false;
         toolsArchiveMonthBtn.textContent = originalLabel;
     }
+}
+
+/*
+   When an Admin adds/replaces an UNC after a month was already archived,
+   refresh that existing month report silently.  The report keeps the same
+   Drive file ID, so staff never receive a duplicate archive file/link.
+*/
+async function refreshExistingPaymentArchiveAfterUnc(updatedPayment){
+    const month = String(updatedPayment?.paymentMonth || "").trim();
+
+    if(
+        !/^\d{4}-\d{2}$/.test(month) ||
+        month >= CURRENT_MONTH ||
+        !updatedPayment?.id
+    ){
+        return {updated:false,reason:"not-closed-month"};
+    }
+
+    const archiveDocRef = doc(db,"paymentArchives",month);
+    const archiveSnapshot = await getDoc(archiveDocRef);
+
+    if(!archiveSnapshot.exists()){
+        return {updated:false,reason:"not-archived"};
+    }
+
+    const rows = allPayments
+        .map(payment =>
+            String(payment.id) === String(updatedPayment.id)
+                ? updatedPayment
+                : payment
+        )
+        .filter(payment =>
+            payment.deleted !== true &&
+            String(payment.paymentMonth || "") === month &&
+            isPaymentPaid(payment) &&
+            !isPaymentCarriedForward(payment) &&
+            !isPaymentCancelled(payment)
+        );
+
+    if(!rows.length){
+        return {updated:false,reason:"no-rows"};
+    }
+
+    const {workbook,actualTotal,uncCount} =
+        buildPaymentArchiveWorkbook(month,rows);
+    const fileBlob = new Blob(
+        [XLSX.write(workbook,{bookType:"xlsx",type:"array",cellStyles:true,compression:true})],
+        {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
+    );
+    const existingFileId = String(
+        archiveSnapshot.data()?.excelDriveFileId || ""
+    );
+    const folderId = await ensurePaymentArchiveDriveFolder();
+    const driveFile = await uploadPaymentArchiveWorkbook(
+        month,fileBlob,folderId,existingFileId
+    );
+
+    if(!driveFile?.id){
+        throw new Error("Google Drive không trả về file Excel sau khi cập nhật Kho chứng từ.");
+    }
+
+    await ensureAnyoneCanViewDriveFile(driveFile.id);
+    const urls = getUncDriveUrls(driveFile.id);
+
+    await setDoc(
+        archiveDocRef,
+        {
+            description:`${rows.length} khoản đã thanh toán · ${uncCount} UNC`,
+            excelDriveFileId:driveFile.id,
+            excelUrl:urls.view,
+            excelDownloadUrl:urls.download,
+            rowCount:rows.length,
+            totalActualAmount:actualTotal,
+            uncCount,
+            updatedAt:serverTimestamp(),
+            updatedBy:currentOperatorName || "",
+            updatedByUid:currentAuthUser?.uid || ""
+        },
+        {merge:true}
+    );
+    await savePaymentArchiveDetails(month,rows);
+
+    return {updated:true,month,uncCount};
 }
 
 uncFileInput.addEventListener("change",()=>{
@@ -43781,11 +43906,31 @@ uncUploadBtn.addEventListener("click",async()=>{
             uncUploadedByEmail:currentAuthUser?.email || ""
         });
 
+        let archiveMessage = "";
+        try{
+            const archiveRefresh =
+                await refreshExistingPaymentArchiveAfterUnc(payment);
+
+            if(archiveRefresh.updated){
+                archiveMessage = "\n\n✓ Kho chứng từ tháng này đã tự cập nhật link UNC.";
+            }
+        }catch(archiveError){
+            /* The UNC itself is already saved.  Do not present it as a failed
+               upload just because a later report refresh has a Drive issue. */
+            console.error("PAYMENT ARCHIVE AUTO-REFRESH ERROR:",archiveError);
+            archiveMessage =
+                "\n\n⚠ UNC đã lưu, nhưng Kho chứng từ chưa cập nhật. " +
+                "Mở tháng này và bấm Chốt tháng để cập nhật lại.";
+        }
+
         resetUncFileInput();
         resetUncPreview();
         renderUncModal();
         renderPayments();
-        alert("✅ Đã lưu UNC trên Google Drive. Upload lại sẽ thay đúng file này, không tạo bản trùng.");
+        alert(
+            "✅ Đã lưu UNC trên Google Drive. Upload lại sẽ thay đúng file này, không tạo bản trùng." +
+            archiveMessage
+        );
     }catch(error){
         console.error("UNC UPLOAD ERROR:",error);
         alert("❌ " + uncErrorMessage(error));
@@ -44935,9 +45080,39 @@ confirmBulkUncBtn.addEventListener("click",async()=>{
             row.checked = false;
         });
 
+        /* Refresh each already-closed month only once, even when that month's
+           UNC files were uploaded together in one batch. */
+        const archiveRefreshRows = new Map();
+        created.forEach(({payment})=>{
+            const month = String(payment?.paymentMonth || "").trim();
+            if(/^[0-9]{4}-[0-9]{2}$/.test(month) && month < CURRENT_MONTH){
+                archiveRefreshRows.set(month,payment);
+            }
+        });
+
+        let refreshedArchiveCount = 0;
+        let archiveRefreshFailed = false;
+        for(const payment of archiveRefreshRows.values()){
+            try{
+                const archiveRefresh =
+                    await refreshExistingPaymentArchiveAfterUnc(payment);
+                if(archiveRefresh.updated) refreshedArchiveCount += 1;
+            }catch(archiveError){
+                archiveRefreshFailed = true;
+                console.error("PAYMENT ARCHIVE BULK AUTO-REFRESH ERROR:",archiveError);
+            }
+        }
+
         renderPayments();
         renderBulkUncRows();
-        alert("✅ " + bulkUncText(copy.success,{n:created.length}));
+        let successMessage = "✅ " + bulkUncText(copy.success,{n:created.length});
+        if(refreshedArchiveCount){
+            successMessage += `\n\n✓ Đã tự cập nhật Kho chứng từ của ${refreshedArchiveCount} tháng.`;
+        }
+        if(archiveRefreshFailed){
+            successMessage += "\n\n⚠ UNC đã lưu, nhưng có Kho chứng từ chưa cập nhật. Mở tháng đó và bấm Chốt tháng để cập nhật lại.";
+        }
+        alert(successMessage);
     }catch(error){
         console.error("BULK UNC UPLOAD ERROR:",error);
 
