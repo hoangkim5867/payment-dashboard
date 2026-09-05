@@ -43272,7 +43272,20 @@ function getArchiveMonthLabel(month){
 /* One compact monthly snapshot lets Kho chứng từ render a table without
    querying the historical payments collection row by row. */
 function buildPaymentArchiveDetails(month,payments){
-    const rows = payments.map((payment,index) => ({
+    const orderedPayments = [...payments].sort((a,b) => {
+        const projectCompare = String(a.project || "").localeCompare(
+            String(b.project || ""),"vi",{sensitivity:"base"}
+        );
+        if(projectCompare) return projectCompare;
+
+        const dateCompare = String(b.processPaymentDate || "").localeCompare(
+            String(a.processPaymentDate || "")
+        );
+        if(dateCompare) return dateCompare;
+
+        return String(a.contractNo || "").localeCompare(String(b.contractNo || ""));
+    });
+    const rows = orderedPayments.map((payment,index) => ({
         stt:index + 1,
         project:String(payment.project || ""),
         company:String(payment.company || ""),
