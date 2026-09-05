@@ -23,14 +23,10 @@
   <main>
     <div class="heading">
       <div>
-        <p class="eyebrow">Closed payment records</p>
         <h1>Kho chứng từ thanh toán</h1>
-        <p>Báo cáo của các tháng đã chốt. File Excel có sẵn đường dẫn UNC theo từng khoản; trang này không tải dữ liệu Payment và không dùng realtime Firebase.</p>
       </div>
-      <span class="read-only"><span class="dot"></span> Báo cáo đã chốt</span>
     </div>
     <section class="archive-grid" id="archiveGrid" aria-label="Danh sách báo cáo theo tháng"></section>
-    <div class="note"><span>ℹ</span><span><strong>Cách dùng:</strong> Chọn tháng cần xem, mở PDF để đọc nhanh hoặc tải Excel để lọc/dò và bấm link UNC của từng khoản.</span></div>
   </main>
   <script type="module">
     import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -45,19 +41,20 @@
     const moneyMonth=month=>{const [year,value]=String(month||"").split("-");return value&&year?`Tháng ${Number(value)} / ${year}`:month||"Báo cáo"};
     const safeUrl=value=>/^https:\/\//i.test(String(value||"").trim())?String(value).trim():"";
     const showEmpty=(title,detail)=>{grid.innerHTML=`<div class="empty"><div><div class="empty-icon">${icon}</div><h2>${escapeHtml(title)}</h2><p>${escapeHtml(detail)}</p></div></div>`};
-    const renderArchives=archives=>{
-      if(!archives.length){showEmpty("Chưa có báo cáo lưu trữ","Sau khi Admin chốt một tháng, báo cáo Excel sẽ xuất hiện tại đây. Payment tháng hiện hành vẫn được xử lý ở Payment Management.");return;}
-      grid.innerHTML=archives.map(item=>{const excel=safeUrl(item.excelDownloadUrl||item.excelUrl),pdf=safeUrl(item.pdfUrl);return `<article class="archive-card"><div class="archive-top"><div class="month-icon">${icon}</div><div><h2>${escapeHtml(item.title||moneyMonth(item.month))}</h2><p>${escapeHtml(item.description||"Danh sách khoản đã thanh toán và UNC")}</p></div></div><span class="month-tag">${escapeHtml(moneyMonth(item.month))}</span><div class="archive-actions"><a class="pdf" ${pdf?`href="${escapeHtml(pdf)}" target="_blank" rel="noopener"`:"hidden"}>Xem PDF ↗</a><a class="excel" ${excel?`href="${escapeHtml(excel)}" target="_blank" rel="noopener"`:"hidden"}>Tải Excel ↗</a></div></article>`}).join("");
+    const renderArchives=(archives,isAdmin=false)=>{
+      if(!archives.length){showEmpty("Chưa có dữ liệu","Chưa có tháng nào được chốt.");return;}
+      grid.innerHTML=archives.map(item=>{const excel=safeUrl(item.excelDownloadUrl||item.excelUrl),pdf=safeUrl(item.pdfUrl);const actions=`<div class="archive-actions"><a class="pdf" ${pdf?`href="${escapeHtml(pdf)}" target="_blank" rel="noopener"`:"hidden"}>Xem PDF ↗</a>${isAdmin&&excel?`<a class="excel" href="${escapeHtml(excel)}" target="_blank" rel="noopener">Tải Excel ↗</a>`:""}</div>`;return `<article class="archive-card"><div class="archive-top"><div class="month-icon">${icon}</div><div><h2>${escapeHtml(item.title||moneyMonth(item.month))}</h2><p>${escapeHtml(item.description||"Danh sách khoản đã thanh toán")}</p></div></div><span class="month-tag">${escapeHtml(moneyMonth(item.month))}</span>${actions}</article>`}).join("");
     };
 
-    showEmpty("Đang tải Kho chứng từ...","Chỉ tải danh sách báo cáo theo tháng; không tải Payment hay UNC.");
+    showEmpty("Đang tải Kho chứng từ...","");
     onAuthStateChanged(auth,async user=>{
       if(!user){showEmpty("Cần đăng nhập","Hãy đăng nhập Payment Management trước, rồi mở lại Kho chứng từ.");return;}
       try{
         const profile=await getDoc(doc(db,"authUsers",user.uid));
         if(!profile.exists()){showEmpty("Không có quyền truy cập","Tài khoản này chưa được cấp quyền vào hệ thống Payment.");return;}
         const snapshot=await getDocs(query(collection(db,"paymentArchives"),orderBy("month","desc")));
-        renderArchives(snapshot.docs.map(item=>({id:item.id,...item.data()})));
+        const isAdmin=String(profile.data()?.role||"").trim().toLowerCase()==="admin";
+        renderArchives(snapshot.docs.map(item=>({id:item.id,...item.data()})),isAdmin);
       }catch(error){
         console.error("PAYMENT ARCHIVE LOAD ERROR:",error);
         showEmpty("Không tải được Kho chứng từ","Hãy đăng nhập lại Payment Management rồi thử lại.");
