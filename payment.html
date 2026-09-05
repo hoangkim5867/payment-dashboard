@@ -13150,6 +13150,7 @@ html[data-theme="corporate"] .theme-picker-wrap *{
                 <button type="button" data-tools-action="activity">🧾 Lịch sử thao tác</button>
                 <div class="tools-menu-section-title" id="adminPaymentToolsLabel" style="display:none;">Admin · Payment</div>
                 <button type="button" data-tools-action="bulk-unc" id="toolsBulkUncBtn" style="display:none;">📎 Up UNC hàng loạt</button>
+                <button type="button" data-tools-action="archive-month" id="toolsArchiveMonthBtn" style="display:none;">🗃 Chốt tháng vào Kho chứng từ</button>
                 <button type="button" data-tools-action="carry-payment" id="toolsCarryPaymentBtn" style="display:none;">→ Chuyển các dòng đã chọn sang tháng sau</button>
                 <button type="button" data-tools-action="repair-carry-progress" id="toolsRepairCarryProgressBtn" style="display:none;">↺ Khôi phục tiến trình dòng chuyển tháng</button>
                 <button type="button" data-tools-action="cancel-payment" id="toolsCancelPaymentBtn" style="display:none;">× Hủy khoản thanh toán đã chọn</button>
@@ -15045,10 +15046,6 @@ html[data-theme="corporate"] .theme-picker-wrap *{
                 </div>
             </div>
 
-            <div class="unc-storage-note">
-                PDF nằm trên Google Drive và chỉ tải khi bấm Xem. Payment không tải trước file; Firestore chỉ lưu mã file và vài thông tin nhỏ.
-            </div>
-
             <div class="unc-preview-panel" id="uncPreviewPanel" hidden>
                 <div class="unc-preview-head">
                     <strong>Xem ủy nhiệm chi</strong>
@@ -15473,6 +15470,14 @@ const activityLogsRef =
     collection(
         db,
         "activityLogs"
+    );
+
+/* The archive index stores only one compact document per closed month.
+   It never duplicates Payment rows or UNC PDFs. */
+const paymentArchivesRef =
+    collection(
+        db,
+        "paymentArchives"
     );
 
 const authUsersRef =
@@ -17354,6 +17359,7 @@ const toolsCarryPaymentBtn=document.getElementById("toolsCarryPaymentBtn");
 const toolsRepairCarryProgressBtn=document.getElementById("toolsRepairCarryProgressBtn");
 const toolsCancelPaymentBtn=document.getElementById("toolsCancelPaymentBtn");
 const toolsBulkUncBtn=document.getElementById("toolsBulkUncBtn");
+const toolsArchiveMonthBtn=document.getElementById("toolsArchiveMonthBtn");
 const toolsHistoryNormalizerBtn=document.getElementById("toolsHistory2026Btn");
 const toolsHistoryCleanupPicBtn=document.querySelector('[data-tools-action="cleanupHistoryPic"]');
 const toolsNormalizeMepFormatBtn=document.getElementById("toolsNormalizeMepFormatBtn");
@@ -18800,6 +18806,17 @@ function updatePaymentMonthFilters(){
         .sort()
         .reverse();
 
+    /*
+       Staff work only in the live monthly workspace.  Keeping historical
+       options out of the select prevents accidental full-history checking
+       and, more importantly, prevents extra Firestore listeners/reads.
+       Admin keeps the complete month list and the All-time option.
+    */
+    const visibleMonths =
+        isAdmin()
+            ? months
+            : [CURRENT_MONTH];
+
 
     const currentPlan =
         paymentMonthFilter.value;
@@ -18843,7 +18860,7 @@ function updatePaymentMonthFilters(){
     `;
 
 
-    months.forEach(
+    visibleMonths.forEach(
         month => {
 
             const option1 =
@@ -18888,7 +18905,7 @@ function updatePaymentMonthFilters(){
 
 
     if(
-        months.includes(
+        visibleMonths.includes(
             currentPlan
         )
     ){
@@ -19374,6 +19391,16 @@ function normalizePaymentListenerMonth(month){
 
 
 function authorizedPaymentListenerMonth(month){
+
+    /*
+       This is deliberately enforced before the Firestore query is built.
+       A Staff member cannot reach an old month by changing the select value
+       in DevTools; the client always subscribes to the live month instead.
+       Admin keeps all-history access.
+    */
+    if(!isAdmin()){
+        return CURRENT_MONTH;
+    }
 
     const normalizedMonth =
         normalizePaymentListenerMonth(month);
@@ -20269,9 +20296,10 @@ function applyRoleUI(){
         loggedIn &&
         isAdmin();
 
-    const mustLeaveAllTimeScope =
+    const mustLeaveRestrictedScope =
         !adminAccess &&
-        activePaymentsScopeKey === "ALL";
+        activePaymentsScopeKey &&
+        activePaymentsScopeKey !== CURRENT_MONTH;
 
     /*
        Staff:
@@ -20350,7 +20378,7 @@ function applyRoleUI(){
                 : "none";
     }
 
-    [adminPaymentToolsLabel,toolsBulkUncBtn,toolsCarryPaymentBtn,toolsRepairCarryProgressBtn,toolsCancelPaymentBtn]
+    [adminPaymentToolsLabel,toolsBulkUncBtn,toolsArchiveMonthBtn,toolsCarryPaymentBtn,toolsRepairCarryProgressBtn,toolsCancelPaymentBtn]
         .filter(Boolean)
         .forEach(element => {
             element.style.display = adminAccess ? "" : "none";
@@ -20398,7 +20426,7 @@ function applyRoleUI(){
     /* Rebuild the month choices after the authenticated role is known. */
     updatePaymentMonthFilters();
 
-    if(mustLeaveAllTimeScope){
+    if(mustLeaveRestrictedScope){
         startPaymentsRealtime(CURRENT_MONTH, {force:true});
     }
 
@@ -23072,6 +23100,15 @@ toolsMenu.addEventListener("click",async event=>{
             return;
         }
         openBulkUncPopup();
+        return;
+    }
+
+    if(action==="archive-month"){
+        if(!isAdmin()){
+            alert("🔒 "+t("adminOnly"));
+            return;
+        }
+        await closeMonthToPaymentArchive();
         return;
     }
 
@@ -35568,7 +35605,9 @@ paymentMonthFilter.addEventListener(
         let selectedMonth =
             String(paymentMonthFilter.value || "").trim();
 
-        if(!selectedMonth && !isAdmin()){
+        /* Staff always returns to the live month, even if a stale browser
+           value or DevTools tries to select a historical month. */
+        if(!isAdmin()){
             selectedMonth = CURRENT_MONTH;
             paymentMonthFilter.value = CURRENT_MONTH;
         }
@@ -42594,6 +42633,8 @@ const UNC_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const UNC_DRIVE_FOLDER_NAME = "Payment UNC";
 const UNC_DRIVE_CLIENT_ID_KEY = "paymentUncGoogleClientIdV1";
 const UNC_DRIVE_FOLDER_ID_KEY = "paymentUncGoogleFolderIdV1";
+const PAYMENT_ARCHIVE_DRIVE_FOLDER_NAME = "Payment Archive";
+const PAYMENT_ARCHIVE_DRIVE_FOLDER_ID_KEY = "paymentArchiveDriveFolderIdV1";
 
 let uncGoogleIdentityPromise = null;
 let uncDriveAccessToken = "";
@@ -43210,6 +43251,359 @@ function getUncDriveUrls(fileId){
         view:`https://drive.google.com/file/d/${safeId}/view`,
         download:`https://drive.usercontent.google.com/download?id=${safeId}&export=download&confirm=t`
     };
+}
+
+/* =====================================================
+   PAYMENT ARCHIVE — CLOSED MONTH REPORTS
+
+   The detailed Payment rows remain where they are.  This creates only:
+   - one Excel file in the Admin's Google Drive;
+   - one small Firestore index document for the archive page.
+   No PDF or UNC is copied to Firebase.
+===================================================== */
+
+function getArchiveMonthLabel(month){
+    const match = String(month || "").match(/^(\d{4})-(\d{2})$/);
+    return match
+        ? `Thanh toán tháng ${Number(match[2])} / ${match[1]}`
+        : "Kho chứng từ thanh toán";
+}
+
+async function ensurePaymentArchiveDriveFolder(){
+    const cachedFolderId = uncLocalGet(PAYMENT_ARCHIVE_DRIVE_FOLDER_ID_KEY);
+
+    if(cachedFolderId){
+        try{
+            const folder = await driveApi(
+                `/drive/v3/files/${encodeURIComponent(cachedFolderId)}` +
+                "?fields=id,name,mimeType,trashed"
+            );
+
+            if(
+                folder?.mimeType === "application/vnd.google-apps.folder" &&
+                !folder?.trashed
+            ){
+                return folder.id;
+            }
+        }catch(error){
+            if(![403,404].includes(Number(error?.status))){
+                throw error;
+            }
+        }
+
+        uncLocalSet(PAYMENT_ARCHIVE_DRIVE_FOLDER_ID_KEY,"");
+    }
+
+    const name = PAYMENT_ARCHIVE_DRIVE_FOLDER_NAME;
+    const queryText =
+        `name = '${name}' and ` +
+        "mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+    const found = await driveApi(
+        `/drive/v3/files?q=${encodeURIComponent(queryText)}` +
+        "&spaces=drive&pageSize=10&fields=files(id,name)"
+    );
+
+    if(found?.files?.[0]?.id){
+        uncLocalSet(PAYMENT_ARCHIVE_DRIVE_FOLDER_ID_KEY,found.files[0].id);
+        return found.files[0].id;
+    }
+
+    const created = await driveApi("/drive/v3/files?fields=id,name",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            name:PAYMENT_ARCHIVE_DRIVE_FOLDER_NAME,
+            mimeType:"application/vnd.google-apps.folder"
+        })
+    });
+
+    if(!created?.id){
+        throw new Error("Không tạo được thư mục Payment Archive trên Google Drive.");
+    }
+
+    uncLocalSet(PAYMENT_ARCHIVE_DRIVE_FOLDER_ID_KEY,created.id);
+    return created.id;
+}
+
+function paymentArchiveFileName(month){
+    return `Payment_Archive_${String(month || "").replace(/[^0-9-]/g,"") || "month"}.xlsx`;
+}
+
+function buildPaymentArchiveWorkbook(month,payments){
+    const headers = [
+        "STT",
+        "Dự án",
+        "Công ty",
+        "Số hợp đồng",
+        "Nội dung hợp đồng",
+        "Số IPC",
+        "Loại chi phí",
+        "Số tiền thực tế",
+        "Ngày thanh toán",
+        "UNC",
+        "Tên file UNC"
+    ];
+
+    const rows = payments.map((payment,index) => [
+        index + 1,
+        payment.project || "",
+        payment.company || "",
+        payment.contractNo || "",
+        payment.contractName || "",
+        payment.ipcNo || "",
+        payment.costType || "",
+        Number(payment.processActualAmount) || 0,
+        payment.processPaymentDate || "",
+        hasUncDriveFile(payment) ? "Xem UNC" : "Chưa có UNC",
+        payment.uncName || ""
+    ]);
+
+    const worksheet = XLSX.utils.aoa_to_sheet([headers,...rows]);
+    worksheet["!cols"] = [
+        {wch:7},{wch:15},{wch:31},{wch:34},{wch:43},{wch:13},
+        {wch:16},{wch:19},{wch:16},{wch:15},{wch:30}
+    ];
+    worksheet["!freeze"] = {xSplit:0,ySplit:1};
+    worksheet["!rows"] = [{hpt:27}];
+
+    const headerFill = {patternType:"solid",fgColor:{rgb:"17365D"}};
+    const headerFont = {bold:true,color:{rgb:"FFFFFF"},sz:11};
+    const border = {
+        top:{style:"thin",color:{rgb:"D9E2F3"}},
+        bottom:{style:"thin",color:{rgb:"D9E2F3"}},
+        left:{style:"thin",color:{rgb:"D9E2F3"}},
+        right:{style:"thin",color:{rgb:"D9E2F3"}}
+    };
+
+    headers.forEach((_,columnIndex) => {
+        const address = XLSX.utils.encode_cell({r:0,c:columnIndex});
+        worksheet[address].s = {
+            fill:headerFill,
+            font:headerFont,
+            border,
+            alignment:{horizontal:"center",vertical:"center",wrapText:true}
+        };
+    });
+
+    payments.forEach((payment,rowIndex) => {
+        const sheetRow = rowIndex + 1;
+        const uncCellAddress = XLSX.utils.encode_cell({r:sheetRow,c:9});
+
+        for(let columnIndex = 0; columnIndex < headers.length; columnIndex++){
+            const address = XLSX.utils.encode_cell({r:sheetRow,c:columnIndex});
+            if(!worksheet[address]) worksheet[address] = {t:"s",v:""};
+            worksheet[address].s = {
+                fill:{patternType:"solid",fgColor:{rgb:sheetRow % 2 ? "F8FBFD" : "FFFFFF"}},
+                border,
+                alignment:{
+                    horizontal:[0,5,7,8,9].includes(columnIndex) ? "center" : "left",
+                    vertical:"center",
+                    wrapText:columnIndex === 4
+                }
+            };
+        }
+
+        const amountCell = XLSX.utils.encode_cell({r:sheetRow,c:7});
+        worksheet[amountCell].t = "n";
+        worksheet[amountCell].z = "#,##0";
+
+        if(hasUncDriveFile(payment)){
+            worksheet[uncCellAddress].l = {
+                Target:getUncDriveUrls(payment.uncDriveFileId).view,
+                Tooltip:"Mở UNC trên trang Payment"
+            };
+            worksheet[uncCellAddress].s.font = {
+                color:{rgb:"0563C1"},
+                underline:true
+            };
+        }
+    });
+
+    const actualTotal = payments.reduce(
+        (total,payment) => total + (Number(payment.processActualAmount) || 0),
+        0
+    );
+    const uncCount = payments.filter(hasUncDriveFile).length;
+    const summaryRows = [
+        ["Kho chứng từ thanh toán",getArchiveMonthLabel(month)],
+        ["Tháng Payment",month],
+        ["Số khoản đã thanh toán",payments.length],
+        ["Tổng tiền thực tế",actualTotal],
+        ["Khoản có UNC",uncCount],
+        ["Ghi chú","Cột UNC có đường dẫn trực tiếp đến từng PDF."]
+    ];
+    const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
+    summarySheet["!cols"] = [{wch:28},{wch:48}];
+    summarySheet["!rows"] = [{hpt:27}];
+    summaryRows.forEach((_,rowIndex) => {
+        [0,1].forEach(columnIndex => {
+            const address = XLSX.utils.encode_cell({r:rowIndex,c:columnIndex});
+            if(!summarySheet[address]) summarySheet[address] = {t:"s",v:""};
+            summarySheet[address].s = {
+                fill:{patternType:"solid",fgColor:{rgb:rowIndex === 0 ? "17365D" : (rowIndex % 2 ? "F8FBFD" : "FFFFFF")}},
+                font:rowIndex === 0 ? headerFont : {bold:columnIndex === 0,color:{rgb:"243B53"}},
+                border,
+                alignment:{vertical:"center",wrapText:true}
+            };
+        });
+    });
+    summarySheet["B4"].t = "n";
+    summarySheet["B4"].z = "#,##0";
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook,worksheet,"Da_thanh_toan");
+    XLSX.utils.book_append_sheet(workbook,summarySheet,"Thong_tin");
+
+    return {workbook,actualTotal,uncCount};
+}
+
+async function uploadPaymentArchiveWorkbook(month,blob,folderId,existingFileId=""){
+    if(existingFileId){
+        try{
+            const replaced = await driveApi(
+                `/upload/drive/v3/files/${encodeURIComponent(existingFileId)}` +
+                "?uploadType=media&fields=id,name,size",
+                {
+                    method:"PATCH",
+                    headers:{
+                        "Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    },
+                    body:blob
+                }
+            );
+            if(replaced?.id) return replaced;
+        }catch(error){
+            if(![403,404].includes(Number(error?.status))){
+                throw error;
+            }
+        }
+    }
+
+    const boundary = `payment_archive_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const metadata = {
+        name:paymentArchiveFileName(month),
+        mimeType:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        parents:[folderId],
+        description:`Kho chứng từ thanh toán ${month}`,
+        appProperties:{source:"payment-archive",paymentMonth:String(month || "")}
+    };
+    const body = new Blob(
+        [
+            `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`,
+            JSON.stringify(metadata),
+            `\r\n--${boundary}\r\nContent-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n\r\n`,
+            blob,
+            `\r\n--${boundary}--`
+        ],
+        {type:`multipart/related; boundary=${boundary}`}
+    );
+
+    return driveApi(
+        "/upload/drive/v3/files?uploadType=multipart&fields=id,name,size",
+        {method:"POST",headers:{"Content-Type":`multipart/related; boundary=${boundary}`},body}
+    );
+}
+
+async function closeMonthToPaymentArchive(){
+    if(!requireAdminPermission()) return;
+
+    const month = String(paymentMonthFilter.value || "").trim();
+    if(!/^\d{4}-\d{2}$/.test(month) || month >= CURRENT_MONTH){
+        alert("⚠ Hãy chọn một tháng đã qua trước khi chốt vào Kho chứng từ.");
+        return;
+    }
+
+    const paidPayments = allPayments.filter(payment =>
+        payment.deleted !== true &&
+        String(payment.paymentMonth || "") === month &&
+        isPaymentPaid(payment) &&
+        !isPaymentCarriedForward(payment) &&
+        !isPaymentCancelled(payment)
+    );
+
+    if(!paidPayments.length){
+        alert("⚠ Tháng này chưa có khoản nào ở trạng thái Đã thanh toán để đưa vào Kho chứng từ.");
+        return;
+    }
+
+    const uncCount = paidPayments.filter(hasUncDriveFile).length;
+    const noUncCount = paidPayments.length - uncCount;
+    const confirmed = confirm(
+        `CHỐT ${getArchiveMonthLabel(month).toUpperCase()}?\n\n` +
+        `• ${paidPayments.length} khoản đã thanh toán\n` +
+        `• ${uncCount} khoản đã có UNC${noUncCount ? ` · ${noUncCount} khoản chưa có UNC` : ""}\n\n` +
+        "Hệ thống sẽ tạo/cập nhật Excel trên Google Drive và hiện tháng này trong Payment Archive."
+    );
+    if(!confirmed) return;
+
+    const originalLabel = toolsArchiveMonthBtn.textContent;
+    toolsArchiveMonthBtn.disabled = true;
+    toolsArchiveMonthBtn.textContent = "⏳ Đang chốt tháng...";
+
+    try{
+        if(typeof XLSX === "undefined"){
+            throw new Error("Không tải được thư viện Excel. Hãy kiểm tra mạng rồi thử lại.");
+        }
+
+        const {workbook,actualTotal,uncCount:finalUncCount} =
+            buildPaymentArchiveWorkbook(month,paidPayments);
+        const fileBlob = new Blob(
+            [XLSX.write(workbook,{bookType:"xlsx",type:"array",cellStyles:true,compression:true})],
+            {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
+        );
+        const archiveDocRef = doc(db,"paymentArchives",month);
+        const existingArchive = await getDoc(archiveDocRef);
+        const existingFileId = existingArchive.exists()
+            ? String(existingArchive.data()?.excelDriveFileId || "")
+            : "";
+        const folderId = await ensurePaymentArchiveDriveFolder();
+        const driveFile = await uploadPaymentArchiveWorkbook(
+            month,fileBlob,folderId,existingFileId
+        );
+
+        if(!driveFile?.id){
+            throw new Error("Google Drive không trả về file Excel sau khi tải lên.");
+        }
+
+        await ensureAnyoneCanViewDriveFile(driveFile.id);
+        const urls = getUncDriveUrls(driveFile.id);
+
+        await setDoc(
+            archiveDocRef,
+            {
+                month,
+                title:getArchiveMonthLabel(month),
+                description:`${paidPayments.length} khoản đã thanh toán · ${finalUncCount} UNC`,
+                excelDriveFileId:driveFile.id,
+                excelUrl:urls.view,
+                excelDownloadUrl:urls.download,
+                rowCount:paidPayments.length,
+                totalActualAmount:actualTotal,
+                uncCount:finalUncCount,
+                updatedAt:serverTimestamp(),
+                updatedBy:currentOperatorName || "",
+                updatedByUid:currentAuthUser?.uid || "",
+                createdAt:existingArchive.exists()
+                    ? existingArchive.data()?.createdAt || serverTimestamp()
+                    : serverTimestamp(),
+                createdBy:existingArchive.exists()
+                    ? existingArchive.data()?.createdBy || currentOperatorName || ""
+                    : currentOperatorName || ""
+            },
+            {merge:true}
+        );
+
+        alert(
+            `✅ Đã chốt ${getArchiveMonthLabel(month)}.\n\n` +
+            "Excel đã có link UNC trực tiếp theo từng khoản. Mở Payment Archive từ trang chủ để kiểm tra."
+        );
+    }catch(error){
+        console.error("PAYMENT ARCHIVE ERROR:",error);
+        alert("❌ Không chốt được Kho chứng từ:\n" + uncErrorMessage(error));
+    }finally{
+        toolsArchiveMonthBtn.disabled = false;
+        toolsArchiveMonthBtn.textContent = originalLabel;
+    }
 }
 
 uncFileInput.addEventListener("change",()=>{

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#15395f">
+  <title>CSCEC MEP · Payment Archive</title>
+  <style>
+    :root{--navy:#15395f;--blue:#2d6d9d;--text:#18283a;--muted:#718096;--line:#e3e9f0;--bg:#f4f7fa;--white:#fff;--soft:#edf4f9}
+    *{box-sizing:border-box}html,body{min-height:100%}body{margin:0;color:var(--text);background:var(--bg);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}a{color:inherit;text-decoration:none}button{font:inherit;cursor:pointer}
+    .topbar{height:68px;display:flex;align-items:center;padding:0 clamp(18px,4vw,54px);border-bottom:1px solid var(--line);background:rgba(255,255,255,.94);backdrop-filter:blur(14px)}.brand{display:flex;align-items:center;gap:11px;font-weight:800}.brand-mark{width:36px;height:36px;display:block;flex:0 0 36px;border-radius:9px;object-fit:contain;background:#0788c9}.back{margin-left:auto;display:inline-flex;align-items:center;gap:7px;color:#385b79;font-size:12px;font-weight:750}.back:hover{color:var(--navy)}
+    main{width:min(1040px,100%);margin:0 auto;padding:48px 20px 72px}.eyebrow{margin:0 0 8px;color:#54718c;font-size:11px;font-weight:850;letter-spacing:.1em;text-transform:uppercase}.heading{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:28px}.heading h1{margin:0;font-size:clamp(30px,5vw,44px);letter-spacing:-.04em}.heading p{max-width:510px;margin:9px 0 0;color:var(--muted);font-size:13px;line-height:1.55}.read-only{display:inline-flex;align-items:center;gap:7px;flex:0 0 auto;padding:8px 10px;border:1px solid #dbe6ef;border-radius:999px;color:#496781;background:#fff;font-size:11px;font-weight:750}.dot{width:7px;height:7px;border-radius:50%;background:#4bae73}
+    .archive-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:15px}.archive-card{display:flex;flex-direction:column;min-height:218px;padding:22px;border:1px solid var(--line);border-radius:18px;background:var(--white);box-shadow:0 10px 30px rgba(30,56,86,.06)}.archive-top{display:flex;align-items:flex-start;gap:12px}.month-icon{width:43px;height:43px;display:grid;place-items:center;flex:0 0 auto;border-radius:13px;color:var(--navy);background:var(--soft)}.month-icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.archive-card h2{margin:2px 0 4px;font-size:18px;letter-spacing:-.015em}.archive-card p{margin:0;color:var(--muted);font-size:11px;line-height:1.5}.month-tag{display:inline-flex;align-items:center;margin-top:17px;width:max-content;padding:5px 8px;border-radius:999px;color:#46647e;background:#eef4f8;font-size:10px;font-weight:800}.archive-actions{display:flex;gap:8px;margin-top:auto;padding-top:18px}.archive-actions a{display:inline-flex;align-items:center;justify-content:center;min-height:37px;padding:0 11px;border-radius:10px;font-size:11px;font-weight:800}.archive-actions .pdf{border:1px solid #d7e2eb;color:#385a78;background:#fff}.archive-actions .excel{border:1px solid var(--navy);color:#fff;background:var(--navy)}.archive-actions a:hover{filter:brightness(.97);transform:translateY(-1px)}.archive-actions a[hidden]{display:none}
+    .empty{display:grid;place-items:center;min-height:280px;padding:34px;border:1px dashed #ccd9e4;border-radius:18px;color:var(--muted);background:rgba(255,255,255,.62);text-align:center}.empty-icon{width:54px;height:54px;display:grid;place-items:center;margin:0 auto 13px;border-radius:16px;color:#64809a;background:#eaf1f6}.empty-icon svg{width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:1.7}.empty h2{margin:0 0 7px;color:#415b74;font-size:17px}.empty p{max-width:410px;margin:0;font-size:12px;line-height:1.6}.note{display:flex;gap:10px;margin-top:21px;padding:13px 15px;border-left:3px solid #2d6d9d;color:#587087;background:#edf4f9;font-size:11px;line-height:1.55}.note strong{color:#294b6a}
+    @media(max-width:620px){main{padding-top:34px}.heading{display:block}.read-only{margin-top:17px}.archive-grid{grid-template-columns:1fr}.topbar{padding:0 18px}.brand span{font-size:13px}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./"><img class="brand-mark" src="./logo.png" alt="CSCEC"><span>中建二局安装工程有限公司</span></a>
+    <a class="back" href="./">← Trang chủ</a>
+  </header>
+  <main>
+    <div class="heading">
+      <div>
+        <p class="eyebrow">Closed payment records</p>
+        <h1>Kho chứng từ thanh toán</h1>
+        <p>Báo cáo của các tháng đã chốt. File Excel có sẵn đường dẫn UNC theo từng khoản; trang này không tải dữ liệu Payment và không dùng realtime Firebase.</p>
+      </div>
+      <span class="read-only"><span class="dot"></span> Báo cáo đã chốt</span>
+    </div>
+    <section class="archive-grid" id="archiveGrid" aria-label="Danh sách báo cáo theo tháng"></section>
+    <div class="note"><span>ℹ</span><span><strong>Cách dùng:</strong> Chọn tháng cần xem, mở PDF để đọc nhanh hoặc tải Excel để lọc/dò và bấm link UNC của từng khoản.</span></div>
+  </main>
+  <script type="module">
+    import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {getFirestore,collection,query,orderBy,getDocs,getDoc,doc} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
+    const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
+    const grid=document.getElementById("archiveGrid");
+    const escapeHtml=value=>String(value??"").replace(/[&<>'"]/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"}[char]));
+    const icon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 16h6"/></svg>';
+    const moneyMonth=month=>{const [year,value]=String(month||"").split("-");return value&&year?`Tháng ${Number(value)} / ${year}`:month||"Báo cáo"};
+    const safeUrl=value=>/^https:\/\//i.test(String(value||"").trim())?String(value).trim():"";
+    const showEmpty=(title,detail)=>{grid.innerHTML=`<div class="empty"><div><div class="empty-icon">${icon}</div><h2>${escapeHtml(title)}</h2><p>${escapeHtml(detail)}</p></div></div>`};
+    const renderArchives=archives=>{
+      if(!archives.length){showEmpty("Chưa có báo cáo lưu trữ","Sau khi Admin chốt một tháng, báo cáo Excel sẽ xuất hiện tại đây. Payment tháng hiện hành vẫn được xử lý ở Payment Management.");return;}
+      grid.innerHTML=archives.map(item=>{const excel=safeUrl(item.excelDownloadUrl||item.excelUrl),pdf=safeUrl(item.pdfUrl);return `<article class="archive-card"><div class="archive-top"><div class="month-icon">${icon}</div><div><h2>${escapeHtml(item.title||moneyMonth(item.month))}</h2><p>${escapeHtml(item.description||"Danh sách khoản đã thanh toán và UNC")}</p></div></div><span class="month-tag">${escapeHtml(moneyMonth(item.month))}</span><div class="archive-actions"><a class="pdf" ${pdf?`href="${escapeHtml(pdf)}" target="_blank" rel="noopener"`:"hidden"}>Xem PDF ↗</a><a class="excel" ${excel?`href="${escapeHtml(excel)}" target="_blank" rel="noopener"`:"hidden"}>Tải Excel ↗</a></div></article>`}).join("");
+    };
+
+    showEmpty("Đang tải Kho chứng từ...","Chỉ tải danh sách báo cáo theo tháng; không tải Payment hay UNC.");
+    onAuthStateChanged(auth,async user=>{
+      if(!user){showEmpty("Cần đăng nhập","Hãy đăng nhập Payment Management trước, rồi mở lại Kho chứng từ.");return;}
+      try{
+        const profile=await getDoc(doc(db,"authUsers",user.uid));
+        if(!profile.exists()){showEmpty("Không có quyền truy cập","Tài khoản này chưa được cấp quyền vào hệ thống Payment.");return;}
+        const snapshot=await getDocs(query(collection(db,"paymentArchives"),orderBy("month","desc")));
+        renderArchives(snapshot.docs.map(item=>({id:item.id,...item.data()})));
+      }catch(error){
+        console.error("PAYMENT ARCHIVE LOAD ERROR:",error);
+        showEmpty("Không tải được Kho chứng từ","Hãy đăng nhập lại Payment Management rồi thử lại.");
+      }
+    });
+  </script>
+</body>
+</html>
