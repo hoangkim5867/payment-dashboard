@@ -49,6 +49,7 @@
     const archiveDownload=document.getElementById("archiveDownload");
     let archivesByMonth=new Map();
     let currentUserIsAdmin=false;
+    let expandedProjectOrder=[];
     const escapeHtml=value=>String(value??"").replace(/[&<>'"]/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"}[char]));
     const icon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 16h6"/></svg>';
     const moneyMonth=month=>{const [year,value]=String(month||"").split("-");return value&&year?`Tháng ${Number(value)} / ${year}`:month||"Báo cáo"};
@@ -73,6 +74,7 @@
       viewer.scrollIntoView({behavior:"smooth",block:"start"});
     };
     const renderDetails=details=>{
+      expandedProjectOrder=[];
       const rows=Array.isArray(details?.rows)?details.rows:[];
       const month=String(details?.month||"");
       const total=Number(details?.totalActualAmount||0);
@@ -99,7 +101,6 @@
         {label:"Thanh toán dự án",rows:sortedRows.filter(row=>!isIndirectRow(row))},
         {label:"间接费",rows:sortedRows.filter(isIndirectRow)}
       ].filter(section=>section.rows.length);
-      let rowNumber=0;
       const body=sections.map((section,sectionIndex)=>{
         const sectionId=`section-${sectionIndex}`;
         const sectionTotal=section.rows.reduce((sum,row)=>sum+(Number(row.actualAmount)||0),0);
@@ -115,7 +116,6 @@
           const subtotal=projectRows.reduce((sum,row)=>sum+(Number(row.actualAmount)||0),0);
           const divider=`<tr class="project-row section-child" data-section-parent="${sectionId}" data-project-group="${groupId}" aria-expanded="false" hidden><td colspan="8"><button type="button" class="project-toggle" data-project-group="${groupId}"><span class="project-chevron">›</span><span>${escapeHtml(project)}</span><span class="project-total">${projectRows.length} khoản · ${formatMoney(subtotal)} VND</span></button></td></tr>`;
           const detailRows=projectRows.map(row=>{
-            rowNumber+=1;
             const unc=String(row.uncFileId||"").trim();
             const paymentId=String(row.paymentId||"").trim();
             const uncAction=unc
@@ -123,7 +123,7 @@
               : currentUserIsAdmin&&paymentId
                 ? `<a class="unc-link" href="./payment.html?archiveUncPayment=${encodeURIComponent(paymentId)}&archiveMonth=${encodeURIComponent(month)}" target="_blank" rel="noopener">Bổ sung UNC</a>`
                 : `<span class="unc-missing">Chưa có</span>`;
-            return `<tr class="project-detail-row" data-project-parent="${groupId}" hidden><td class="center">${rowNumber}</td><td>${escapeHtml(row.company)}</td><td>${escapeHtml(row.contractNo)}</td><td>${escapeHtml(row.contractName)}</td><td class="center">${escapeHtml(row.ipcNo)}</td><td class="right">${formatMoney(row.actualAmount)}</td><td class="center">${escapeHtml(row.paymentDate)}</td><td class="center">${uncAction}</td></tr>`;
+            return `<tr class="project-detail-row" data-project-parent="${groupId}" hidden><td class="center visible-row-number"></td><td>${escapeHtml(row.company)}</td><td>${escapeHtml(row.contractNo)}</td><td>${escapeHtml(row.contractName)}</td><td class="center">${escapeHtml(row.ipcNo)}</td><td class="right">${formatMoney(row.actualAmount)}</td><td class="center">${escapeHtml(row.paymentDate)}</td><td class="center">${uncAction}</td></tr>`;
           }).join("");
           return divider+detailRows;
         }).join("");
@@ -132,6 +132,16 @@
       viewer.classList.add("show");
       viewer.innerHTML=`<div class="viewer-heading"><div><h2>${escapeHtml(moneyMonth(month))}</h2><p>Đã thanh toán</p></div><button class="viewer-close" type="button" id="closeArchiveViewer">Đóng</button></div><div class="viewer-summary"><span><b>${rows.length}</b>khoản</span><span><b>${formatMoney(total)}</b>VND</span><span><b>${uncCount}</b>UNC</span></div><div class="viewer-table-wrap"><table class="viewer-table"><thead><tr><th>STT</th><th>Công ty</th><th>Số hợp đồng</th><th>Nội dung hợp đồng</th><th>IPC</th><th>Số tiền thực tế</th><th>Ngày thanh toán</th><th>UNC</th></tr></thead><tbody>${body||`<tr><td colspan="8" class="center">Chưa có dữ liệu</td></tr>`}</tbody></table></div>`;
       viewer.scrollIntoView({behavior:"smooth",block:"start"});
+    };
+
+    const renumberExpandedRows=()=>{
+      viewer.querySelectorAll(".visible-row-number").forEach(cell=>{cell.textContent="";});
+      let number=1;
+      expandedProjectOrder.forEach(groupId=>{
+        viewer.querySelectorAll(`.project-detail-row[data-project-parent="${groupId}"]:not([hidden]) .visible-row-number`).forEach(cell=>{
+          cell.textContent=String(number++);
+        });
+      });
     };
 
     const openArchiveMonth=async month=>{
@@ -165,6 +175,7 @@
         const sectionId=String(sectionToggle.dataset.sectionGroup||"");
         const sectionRow=sectionToggle.closest(".section-row");
         const willOpen=!sectionRow.classList.contains("is-open");
+        const closingGroups=[];
         sectionRow.classList.toggle("is-open",willOpen);
         sectionRow.setAttribute("aria-expanded",String(willOpen));
         viewer.querySelectorAll(`.project-row[data-section-parent="${sectionId}"]`).forEach(projectRow=>{
@@ -173,9 +184,14 @@
             projectRow.classList.remove("is-open");
             projectRow.setAttribute("aria-expanded","false");
             const groupId=String(projectRow.dataset.projectGroup||"");
+            closingGroups.push(groupId);
             viewer.querySelectorAll(`[data-project-parent="${groupId}"]`).forEach(row=>{row.hidden=true;});
           }
         });
+        if(closingGroups.length){
+          expandedProjectOrder=expandedProjectOrder.filter(groupId=>!closingGroups.includes(groupId));
+          renumberExpandedRows();
+        }
         return;
       }
       const toggle=event.target.closest(".project-toggle");
@@ -186,9 +202,16 @@
         projectRow.classList.toggle("is-open",willOpen);
         projectRow.setAttribute("aria-expanded",String(willOpen));
         viewer.querySelectorAll(`[data-project-parent="${groupId}"]`).forEach(row=>{row.hidden=!willOpen;});
+        if(willOpen){
+          if(!expandedProjectOrder.includes(groupId)) expandedProjectOrder.push(groupId);
+        }else{
+          expandedProjectOrder=expandedProjectOrder.filter(id=>id!==groupId);
+        }
+        renumberExpandedRows();
         return;
       }
       if(event.target.closest("#closeArchiveViewer")){
+        expandedProjectOrder=[];
         viewer.classList.remove("show");
         viewer.innerHTML="";
       }
