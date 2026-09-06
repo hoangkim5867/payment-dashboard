@@ -13150,7 +13150,7 @@ html[data-theme="corporate"] .theme-picker-wrap *{
                 <button type="button" data-tools-action="activity">🧾 Lịch sử thao tác</button>
                 <div class="tools-menu-section-title" id="adminPaymentToolsLabel" style="display:none;">Admin · Payment</div>
                 <button type="button" data-tools-action="bulk-unc" id="toolsBulkUncBtn" style="display:none;">📎 Up UNC hàng loạt</button>
-                <button type="button" data-tools-action="archive-month" id="toolsArchiveMonthBtn" style="display:none;">🗃 Chốt tháng vào Kho chứng từ</button>
+                <button type="button" data-tools-action="archive-month" id="toolsArchiveMonthBtn" style="display:none;">🗃 Đưa mục đã chọn vào Kho chứng từ</button>
                 <button type="button" data-tools-action="carry-payment" id="toolsCarryPaymentBtn" style="display:none;">→ Chuyển các dòng đã chọn sang tháng sau</button>
                 <button type="button" data-tools-action="repair-carry-progress" id="toolsRepairCarryProgressBtn" style="display:none;">↺ Khôi phục tiến trình dòng chuyển tháng</button>
                 <button type="button" data-tools-action="cancel-payment" id="toolsCancelPaymentBtn" style="display:none;">× Hủy khoản thanh toán đã chọn</button>
@@ -19342,7 +19342,8 @@ function applyRealtimePaymentSnapshot(
             allPayments
                 .filter(
                     item =>
-                        item.deleted !== true
+                        item.deleted !== true &&
+                        (isAdmin() || !isPaymentArchived(item))
                 )
                 .map(
                     item => item.id
@@ -19370,6 +19371,7 @@ function applyRealtimePaymentSnapshot(
     updateProjectFilter();
     renderPayments();
     updateBatchSelectionUI();
+    openRequestedArchiveUncIfReady();
 
     if(
         recycleBinModal &&
@@ -19642,7 +19644,8 @@ function getFilteredPayments(skipHeaderColumnIndex = null, scopeOverride = null,
     return allPayments
         .filter(
             payment =>
-                payment.deleted !== true
+                payment.deleted !== true &&
+                (isAdmin() || !isPaymentArchived(payment))
         )
         .filter(payment => !isPaymentLocallyHidden(payment))
         .filter(
@@ -19876,6 +19879,7 @@ function getPaymentStatusContextRows(){
 
     return allPayments.filter(item =>
         item.deleted !== true &&
+        (isAdmin() || !isPaymentArchived(item)) &&
         !isPaymentLocallyHidden(item) &&
         (!month || item.paymentMonth === month) &&
         (
@@ -20352,8 +20356,9 @@ function applyRoleUI(){
                     item => String(item.id) === String(input.dataset.id)
                 );
 
-                // Terminal workflow rows stay locked even after role UI is reapplied.
-                input.disabled = isPaymentWorkflowLocked(payment);
+                // Admin may select a paid row only to move it into the Archive.
+                input.disabled = isPaymentWorkflowLocked(payment) &&
+                    !(adminAccess && isPaymentPaid(payment) && !isPaymentArchived(payment));
             }
         );
 
@@ -23445,8 +23450,15 @@ onAuthStateChanged(
            Recreate the current-month listener only after that profile has
            loaded, including when a pre-auth listener was previously denied.
         */
+        const archiveRequestMonth =
+            isAdmin() && /^\d{4}-\d{2}$/.test(requestedArchiveUncMonth)
+                ? requestedArchiveUncMonth
+                : "";
+        if(archiveRequestMonth){
+            paymentMonthFilter.value = archiveRequestMonth;
+        }
         await startPaymentsRealtime(
-            paymentMonthFilter.value || CURRENT_MONTH,
+            archiveRequestMonth || paymentMonthFilter.value || CURRENT_MONTH,
             {force:true}
         );
 
@@ -23479,6 +23491,13 @@ function isPaymentCancelled(payment){
     return String(payment?.monthOutcome || "")
         .trim()
         .toLowerCase() === "cancelled";
+}
+
+function isPaymentArchived(payment){
+    return payment?.archived === true ||
+        String(payment?.archiveState || "")
+            .trim()
+            .toLowerCase() === "archived";
 }
 
 function isPaymentWorkflowLocked(payment){
@@ -25484,6 +25503,7 @@ function renderPayments(){
         allPayments.filter(
             item =>
                 item.deleted !== true &&
+                (isAdmin() || !isPaymentArchived(item)) &&
                 (
                     !selectedPaymentMonth ||
                     item.paymentMonth ===
@@ -25611,13 +25631,19 @@ function renderPayments(){
             const workflowLocked =
                 isPaymentWorkflowLocked(item);
 
+            const selectablePaidForArchive =
+                isAdmin() && isPaymentPaid(item) && !isPaymentArchived(item);
+
+            const selectionLocked =
+                workflowLocked && !selectablePaidForArchive;
+
             const carriedForward =
                 isPaymentCarriedForward(item);
 
             const cancelled =
                 isPaymentCancelled(item);
 
-            if(workflowLocked){
+            if(selectionLocked){
                 selectedPaymentIds.delete(item.id);
             }
 
@@ -25644,7 +25670,7 @@ function renderPayments(){
                         class="payment-select"
                         data-id="${item.id}"
                         ${selectedPaymentIds.has(item.id) ? "checked" : ""}
-                        ${workflowLocked ? "disabled" : ""}
+                        ${selectionLocked ? "disabled" : ""}
                         title="${t("selectThis")}"
                     >
                 </td>
@@ -27057,7 +27083,9 @@ function updateBatchSelectAllState(filtered){
     }
 
     const selectableVisible = filtered.filter(
-        item => !isPaymentWorkflowLocked(item)
+        item =>
+            !isPaymentWorkflowLocked(item) ||
+            (isAdmin() && isPaymentPaid(item) && !isPaymentArchived(item))
     );
 
     const selectedVisible =
@@ -27191,7 +27219,10 @@ batchSelectAll.addEventListener(
         const filtered = getFilteredPayments();
 
         filtered
-        .filter(item => !isPaymentWorkflowLocked(item))
+        .filter(item =>
+            !isPaymentWorkflowLocked(item) ||
+            (isAdmin() && isPaymentPaid(item) && !isPaymentArchived(item))
+        )
         .forEach(item => {
             if(batchSelectAll.checked){
                 selectedPaymentIds.add(item.id);
@@ -42663,6 +42694,32 @@ const uncUploadBtn = document.getElementById("uncUploadBtn");
 
 let activeUncPaymentId = "";
 let uncBusy = false;
+const archiveUncRequestParams = new URLSearchParams(window.location.search);
+const requestedArchiveUncPaymentId = String(
+    archiveUncRequestParams.get("archiveUncPayment") || ""
+).trim();
+const requestedArchiveUncMonth = String(
+    archiveUncRequestParams.get("archiveMonth") || ""
+).trim();
+let requestedArchiveUncOpened = false;
+
+function openRequestedArchiveUncIfReady(){
+    if(
+        requestedArchiveUncOpened ||
+        !requestedArchiveUncPaymentId ||
+        !isAdmin()
+    ) return;
+
+    const payment = allPayments.find(item =>
+        String(item.id || "") === requestedArchiveUncPaymentId &&
+        isPaymentArchived(item)
+    );
+    if(!payment) return;
+
+    requestedArchiveUncOpened = true;
+    openUncPopup(payment);
+    window.history.replaceState({},"",window.location.pathname);
+}
 
 function uncCopy(){
     if(currentLanguage === "zh"){
@@ -43169,17 +43226,91 @@ async function ensureUncDriveFolder(){
     return created.id;
 }
 
+function getUncFileToken(value,maxLength=60){
+    return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g,"")
+        .replace(/[Đđ]/g,"D")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g,"-")
+        .replace(/^-+|-+$/g,"")
+        .replace(/-{2,}/g,"-")
+        .slice(0,maxLength)
+        .replace(/-+$/g,"");
+}
+
+function getUncContractToken(contractNo){
+    const normalized = getUncFileToken(contractNo,120);
+    const codeMatch = normalized.match(/(?:LAB|SUBP|SUPL|ADM)-?[A-Z0-9]+$/);
+    if(codeMatch){
+        return codeMatch[0].replace(/^(LAB|SUBP|SUPL|ADM)(?!-)/,"$1-");
+    }
+
+    const parts = normalized.split("-").filter(Boolean);
+    return parts.slice(-3).join("-").slice(0,45);
+}
+
 function getUncDriveFileName(payment){
-    const safeId = String(payment?.id || "payment")
-        .replace(/[^A-Za-z0-9_-]+/g,"-")
-        .slice(0,80);
-    return `UNC_${safeId || "payment"}.pdf`;
+    const date = String(payment?.processPaymentDate || "")
+        .replace(/[^0-9]/g,"")
+        .slice(0,8);
+    const project = getUncFileToken(payment?.project,36);
+    const contract = getUncContractToken(payment?.contractNo);
+    let ipc = getUncFileToken(payment?.ipcNo,18).replace(/-/g,"");
+    if(ipc && !ipc.startsWith("IPC")) ipc = `IPC${ipc}`;
+
+    const rawAmount = Number(payment?.processActualAmount);
+    const amount = Number.isFinite(rawAmount) && rawAmount > 0
+        ? String(Math.round(rawAmount))
+        : "";
+    const paymentFallback = getUncFileToken(payment?.id || "PAYMENT",24);
+    const parts = [
+        "UNC",
+        date,
+        project,
+        contract,
+        ipc,
+        amount
+    ].filter(Boolean);
+
+    if(parts.length === 1) parts.push(paymentFallback || "PAYMENT");
+    return `${parts.join("_").slice(0,190)}.pdf`;
+}
+
+const uncReservedDriveNames = new Set();
+
+function getUniqueUncDriveFileName(payment){
+    const baseName = getUncDriveFileName(payment);
+    const paymentId = String(payment?.id || "");
+    const usedNames = new Set(
+        allPayments
+            .filter(item => String(item?.id || "") !== paymentId)
+            .map(item => String(item?.uncName || ""))
+            .filter(Boolean)
+    );
+    uncReservedDriveNames.forEach(name => usedNames.add(name));
+
+    if(!usedNames.has(baseName)){
+        uncReservedDriveNames.add(baseName);
+        return baseName;
+    }
+
+    const stem = baseName.replace(/\.pdf$/i,"");
+    let sequence = 2;
+    let candidate = "";
+    do{
+        candidate = `${stem}_${String(sequence).padStart(2,"0")}.pdf`;
+        sequence += 1;
+    }while(usedNames.has(candidate));
+
+    uncReservedDriveNames.add(candidate);
+    return candidate;
 }
 
 async function createUncDriveFile(payment,file,folderId){
     const boundary = `payment_unc_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const metadata = {
-        name:getUncDriveFileName(payment),
+        name:getUniqueUncDriveFileName(payment),
         mimeType:"application/pdf",
         parents:[folderId],
         description:`UNC cho Payment ${String(payment?.id || "")}`,
@@ -43209,8 +43340,8 @@ async function createUncDriveFile(payment,file,folderId){
     );
 }
 
-function replaceUncDriveFile(fileId,file){
-    return driveApi(
+async function replaceUncDriveFile(fileId,file,payment){
+    const replaced = await driveApi(
         `/upload/drive/v3/files/${encodeURIComponent(fileId)}` +
         "?uploadType=media&fields=id,name,size",
         {
@@ -43219,6 +43350,24 @@ function replaceUncDriveFile(fileId,file){
             body:file
         }
     );
+
+    const desiredName = getUncDriveFileName(payment);
+    if(replaced?.id && desiredName && replaced.name !== desiredName){
+        try{
+            return await driveApi(
+                `/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,name,size`,
+                {
+                    method:"PATCH",
+                    headers:{"Content-Type":"application/json"},
+                    body:JSON.stringify({name:desiredName})
+                }
+            );
+        }catch(renameError){
+            console.warn("UNC DRIVE RENAME ERROR:",renameError);
+        }
+    }
+
+    return replaced;
 }
 
 async function ensureAnyoneCanViewDriveFile(fileId){
@@ -43286,6 +43435,7 @@ function buildPaymentArchiveDetails(month,payments){
         return String(a.contractNo || "").localeCompare(String(b.contractNo || ""));
     });
     const rows = orderedPayments.map((payment,index) => ({
+        paymentId:String(payment.id || ""),
         stt:index + 1,
         project:String(payment.project || ""),
         company:String(payment.company || ""),
@@ -43558,55 +43708,123 @@ async function uploadPaymentArchiveWorkbook(month,blob,folderId,existingFileId="
     );
 }
 
+function archivePaymentSemanticKey(payment){
+    return [
+        payment.project,
+        payment.company,
+        payment.contractNo,
+        payment.ipcNo,
+        Number(payment.processActualAmount) || 0,
+        payment.processPaymentDate
+    ].map(value => String(value || "").trim().toUpperCase()).join("|");
+}
+
+function archiveDetailRowToPayment(row,month,index){
+    return {
+        id:String(row?.paymentId || `archive-${month}-${index}`),
+        paymentMonth:month,
+        project:String(row?.project || ""),
+        company:String(row?.company || ""),
+        bankAccount:String(row?.bankAccount || ""),
+        contractNo:String(row?.contractNo || ""),
+        contractName:String(row?.contractName || ""),
+        ipcNo:String(row?.ipcNo || ""),
+        costType:String(row?.costType || ""),
+        processActualAmount:Number(row?.actualAmount) || 0,
+        processPaymentDate:String(row?.paymentDate || ""),
+        uncDriveFileId:String(row?.uncFileId || ""),
+        uncName:String(row?.uncName || ""),
+        archived:true,
+        archiveState:"archived"
+    };
+}
+
 async function closeMonthToPaymentArchive(){
     if(!requireAdminPermission()) return;
 
     const month = String(paymentMonthFilter.value || "").trim();
-    if(!/^\d{4}-\d{2}$/.test(month) || month >= CURRENT_MONTH){
-        alert("⚠ Hãy chọn một tháng đã qua trước khi chốt vào Kho chứng từ.");
+    if(!/^\d{4}-\d{2}$/.test(month)){
+        alert("⚠ Hãy chọn tháng thanh toán trước.");
         return;
     }
 
-    const paidPayments = allPayments.filter(payment =>
+    const selected = allPayments.filter(payment =>
         payment.deleted !== true &&
         String(payment.paymentMonth || "") === month &&
+        selectedPaymentIds.has(payment.id)
+    );
+    const paidPayments = selected.filter(payment =>
         isPaymentPaid(payment) &&
+        !isPaymentArchived(payment) &&
         !isPaymentCarriedForward(payment) &&
         !isPaymentCancelled(payment)
     );
 
-    if(!paidPayments.length){
-        alert("⚠ Tháng này chưa có khoản nào ở trạng thái Đã thanh toán để đưa vào Kho chứng từ.");
+    if(!selected.length){
+        alert("⚠ Hãy tick chọn các khoản đã thanh toán cần đưa vào Kho chứng từ.");
+        return;
+    }
+
+    if(paidPayments.length !== selected.length){
+        alert("⚠ Chỉ được chọn các khoản đã thanh toán và chưa nằm trong Kho chứng từ.");
         return;
     }
 
     const uncCount = paidPayments.filter(hasUncDriveFile).length;
     const noUncCount = paidPayments.length - uncCount;
     const confirmed = confirm(
-        `CHỐT ${getArchiveMonthLabel(month).toUpperCase()}?\n\n` +
-        `• ${paidPayments.length} khoản đã thanh toán\n` +
+        `ĐƯA ${paidPayments.length} KHOẢN VÀO KHO CHỨNG TỪ?\n\n` +
+        `• ${getArchiveMonthLabel(month)}\n` +
         `• ${uncCount} khoản đã có UNC${noUncCount ? ` · ${noUncCount} khoản chưa có UNC` : ""}\n\n` +
-        "Hệ thống sẽ tạo/cập nhật Excel trên Google Drive và hiện tháng này trong Payment Archive."
+        "Sau khi chuyển, các khoản này sẽ không còn hiện trong bảng Payment chính."
     );
     if(!confirmed) return;
 
     const originalLabel = toolsArchiveMonthBtn.textContent;
     toolsArchiveMonthBtn.disabled = true;
-    toolsArchiveMonthBtn.textContent = "⏳ Đang chốt tháng...";
+    toolsArchiveMonthBtn.textContent = "⏳ Đang đưa vào Kho...";
 
     try{
         if(typeof XLSX === "undefined"){
             throw new Error("Không tải được thư viện Excel. Hãy kiểm tra mạng rồi thử lại.");
         }
 
+        const archiveDocRef = doc(db,"paymentArchives",month);
+        const detailsDocRef = doc(db,"paymentArchiveDetails",month);
+        const [existingArchive,existingDetails] = await Promise.all([
+            getDoc(archiveDocRef),
+            getDoc(detailsDocRef)
+        ]);
+        const existingRows = existingDetails.exists() &&
+            Array.isArray(existingDetails.data()?.rows)
+            ? existingDetails.data().rows
+            : [];
+        const combinedMap = new Map();
+        existingRows.forEach((row,index) => {
+            const payment = archiveDetailRowToPayment(row,month,index);
+            combinedMap.set(archivePaymentSemanticKey(payment),payment);
+        });
+        allPayments
+            .filter(payment =>
+                payment.deleted !== true &&
+                String(payment.paymentMonth || "") === month &&
+                isPaymentArchived(payment) &&
+                isPaymentPaid(payment)
+            )
+            .forEach(payment =>
+                combinedMap.set(archivePaymentSemanticKey(payment),payment)
+            );
+        paidPayments.forEach(payment =>
+            combinedMap.set(archivePaymentSemanticKey(payment),payment)
+        );
+        const archivePayments = [...combinedMap.values()];
+
         const {workbook,actualTotal,uncCount:finalUncCount} =
-            buildPaymentArchiveWorkbook(month,paidPayments);
+            buildPaymentArchiveWorkbook(month,archivePayments);
         const fileBlob = new Blob(
             [XLSX.write(workbook,{bookType:"xlsx",type:"array",cellStyles:true,compression:true})],
             {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
         );
-        const archiveDocRef = doc(db,"paymentArchives",month);
-        const existingArchive = await getDoc(archiveDocRef);
         const existingFileId = existingArchive.exists()
             ? String(existingArchive.data()?.excelDriveFileId || "")
             : "";
@@ -43627,11 +43845,11 @@ async function closeMonthToPaymentArchive(){
             {
                 month,
                 title:getArchiveMonthLabel(month),
-                description:`${paidPayments.length} khoản đã thanh toán · ${finalUncCount} UNC`,
+                description:`${archivePayments.length} khoản đã thanh toán · ${finalUncCount} UNC`,
                 excelDriveFileId:driveFile.id,
                 excelUrl:urls.view,
                 excelDownloadUrl:urls.download,
-                rowCount:paidPayments.length,
+                rowCount:archivePayments.length,
                 totalActualAmount:actualTotal,
                 uncCount:finalUncCount,
                 updatedAt:serverTimestamp(),
@@ -43646,11 +43864,35 @@ async function closeMonthToPaymentArchive(){
             },
             {merge:true}
         );
-        await savePaymentArchiveDetails(month,paidPayments);
+        await savePaymentArchiveDetails(month,archivePayments);
+
+        const archiveBatch = writeBatch(db);
+        paidPayments.forEach(payment => {
+            archiveBatch.update(doc(db,"payments",payment.id),{
+                archived:true,
+                archiveState:"archived",
+                archiveMonth:month,
+                archivedAt:serverTimestamp(),
+                archivedBy:currentOperatorName || "",
+                archivedByUid:currentAuthUser?.uid || "",
+                updatedAt:serverTimestamp(),
+                updatedBy:currentOperatorName || "",
+                updatedByUid:currentAuthUser?.uid || "",
+                updatedByEmail:currentAuthUser?.email || ""
+            });
+        });
+        await archiveBatch.commit();
+        paidPayments.forEach(payment => {
+            payment.archived = true;
+            payment.archiveState = "archived";
+            payment.archiveMonth = month;
+        });
+        selectedPaymentIds.clear();
+        renderPayments();
+        updateBatchSelectionUI();
 
         alert(
-            `✅ Đã chốt ${getArchiveMonthLabel(month)}.\n\n` +
-            "Excel đã có link UNC trực tiếp theo từng khoản. Mở Payment Archive từ trang chủ để kiểm tra."
+            `✅ Đã đưa ${paidPayments.length} khoản vào Kho chứng từ · ${getArchiveMonthLabel(month)}.`
         );
     }catch(error){
         console.error("PAYMENT ARCHIVE ERROR:",error);
@@ -43671,10 +43913,10 @@ async function refreshExistingPaymentArchiveAfterUnc(updatedPayment){
 
     if(
         !/^\d{4}-\d{2}$/.test(month) ||
-        month >= CURRENT_MONTH ||
-        !updatedPayment?.id
+        !updatedPayment?.id ||
+        !isPaymentArchived(updatedPayment)
     ){
-        return {updated:false,reason:"not-closed-month"};
+        return {updated:false,reason:"not-archived-payment"};
     }
 
     const archiveDocRef = doc(db,"paymentArchives",month);
@@ -43693,6 +43935,7 @@ async function refreshExistingPaymentArchiveAfterUnc(updatedPayment){
         .filter(payment =>
             payment.deleted !== true &&
             String(payment.paymentMonth || "") === month &&
+            isPaymentArchived(payment) &&
             isPaymentPaid(payment) &&
             !isPaymentCarriedForward(payment) &&
             !isPaymentCancelled(payment)
@@ -43862,7 +44105,7 @@ uncUploadBtn.addEventListener("click",async()=>{
 
         if(existingFileId){
             try{
-                driveFile = await replaceUncDriveFile(existingFileId,file);
+                driveFile = await replaceUncDriveFile(existingFileId,file,payment);
             }catch(error){
                 if(Number(error?.status) !== 404){
                     throw error;
@@ -43876,6 +44119,10 @@ uncUploadBtn.addEventListener("click",async()=>{
             createdNewFile = true;
         }
 
+        const storedUncName = String(
+            driveFile?.name || getUncDriveFileName(payment)
+        );
+
         await ensureAnyoneCanViewDriveFile(driveFile.id);
 
         try{
@@ -43885,7 +44132,7 @@ uncUploadBtn.addEventListener("click",async()=>{
                 uncStorageProvider:"google-drive",
                 uncDriveFileId:driveFile.id,
                 uncPath:"",
-                uncName:file.name,
+                uncName:storedUncName,
                 uncSize:file.size,
                 uncUploadedAt:serverTimestamp(),
                 uncUploadedBy:currentOperatorName,
@@ -43911,7 +44158,7 @@ uncUploadBtn.addEventListener("click",async()=>{
             uncStorageProvider:"google-drive",
             uncDriveFileId:driveFile.id,
             uncPath:"",
-            uncName:file.name,
+            uncName:storedUncName,
             uncSize:file.size,
             uncUploadedAt:new Date(),
             uncUploadedBy:currentOperatorName,
@@ -45038,23 +45285,35 @@ confirmBulkUncBtn.addEventListener("click",async()=>{
             const setDate =
                 !isPaymentPaid(payment) &&
                 !String(payment.processPaymentDate || "").trim();
+            const namingPayment = {
+                ...payment,
+                processActualAmount:setActual
+                    ? Number(row.info.amount)
+                    : payment.processActualAmount,
+                processPaymentDate:setDate
+                    ? String(row.info.date)
+                    : payment.processPaymentDate
+            };
             bulkUncProgress.textContent = bulkUncText(copy.uploading,{
                 current:index + 1,total:selected.length,name:row.file.name
             });
 
-            const driveFile = await createUncDriveFile(payment,row.file,folderId);
+            const driveFile = await createUncDriveFile(namingPayment,row.file,folderId);
             if(!driveFile?.id) throw new Error(`Không tạo được file Drive cho ${row.file.name}.`);
-            created.push({row,payment,driveFile,setActual,setDate});
+            const storedUncName = String(
+                driveFile.name || getUncDriveFileName(namingPayment)
+            );
+            created.push({row,payment,driveFile,setActual,setDate,storedUncName});
             await ensureAnyoneCanViewDriveFile(driveFile.id);
         }
 
         const firestoreBatch = writeBatch(db);
-        created.forEach(({row,payment,driveFile,setActual,setDate})=>{
+        created.forEach(({row,payment,driveFile,setActual,setDate,storedUncName})=>{
             const updateData = {
                 uncStorageProvider:"google-drive",
                 uncDriveFileId:driveFile.id,
                 uncPath:"",
-                uncName:row.file.name,
+                uncName:storedUncName,
                 uncSize:row.file.size,
                 uncUploadedAt:serverTimestamp(),
                 uncUploadedBy:currentOperatorName,
@@ -45075,12 +45334,12 @@ confirmBulkUncBtn.addEventListener("click",async()=>{
         await firestoreBatch.commit();
 
         const uploadedAt = new Date();
-        created.forEach(({row,payment,driveFile,setActual,setDate})=>{
+        created.forEach(({row,payment,driveFile,setActual,setDate,storedUncName})=>{
             Object.assign(payment,{
                 uncStorageProvider:"google-drive",
                 uncDriveFileId:driveFile.id,
                 uncPath:"",
-                uncName:row.file.name,
+                uncName:storedUncName,
                 uncSize:row.file.size,
                 uncUploadedAt:uploadedAt,
                 uncUploadedBy:currentOperatorName,
