@@ -15472,8 +15472,9 @@ const activityLogsRef =
         "activityLogs"
     );
 
-/* The archive index stores only one compact document per closed month.
-   It never duplicates Payment rows or UNC PDFs. */
+/* The archive index stores only one compact document per closed month,
+   including a lightweight company/project lookup for cross-month search.
+   It never duplicates full Payment rows or UNC PDFs. */
 const paymentArchivesRef =
     collection(
         db,
@@ -43458,6 +43459,42 @@ function buildPaymentArchiveDetails(month,payments){
     return {month,rows,rowCount:rows.length,totalActualAmount,uncCount};
 }
 
+/* Compact lookup saved with the existing monthly archive metadata.
+   Kho chứng từ already loads those documents, so typing a company name
+   can search every month locally without another Firestore read. */
+function buildPaymentArchiveCompanyIndex(payments){
+    const indexMap = new Map();
+
+    payments.forEach(payment => {
+        const company = String(payment?.company || "").trim();
+        if(!company) return;
+
+        const project = String(payment?.project || "").trim();
+        const key = `${normalize(company)}||${normalize(project)}`;
+        const existing = indexMap.get(key);
+
+        if(existing){
+            existing.paymentCount += 1;
+            return;
+        }
+
+        indexMap.set(key,{
+            company,
+            companySearch:normalize(company),
+            project,
+            paymentCount:1
+        });
+    });
+
+    return [...indexMap.values()].sort((a,b) => {
+        const companyCompare = a.company.localeCompare(
+            b.company,"vi",{sensitivity:"base"}
+        );
+        if(companyCompare) return companyCompare;
+        return a.project.localeCompare(b.project,"vi",{sensitivity:"base"});
+    });
+}
+
 async function savePaymentArchiveDetails(month,payments){
     const details = buildPaymentArchiveDetails(month,payments);
     await setDoc(
@@ -43538,6 +43575,7 @@ function buildPaymentArchiveWorkbook(month,payments){
         "STT",
         "Dự án",
         "Công ty",
+        "STK ngân hàng",
         "Số hợp đồng",
         "Nội dung hợp đồng",
         "Số IPC",
@@ -43552,6 +43590,7 @@ function buildPaymentArchiveWorkbook(month,payments){
         index + 1,
         payment.project || "",
         payment.company || "",
+        payment.bankAccount || payment.bank || "",
         payment.contractNo || "",
         payment.contractName || "",
         payment.ipcNo || "",
@@ -43564,8 +43603,8 @@ function buildPaymentArchiveWorkbook(month,payments){
 
     const worksheet = XLSX.utils.aoa_to_sheet([headers,...rows]);
     worksheet["!cols"] = [
-        {wch:7},{wch:15},{wch:31},{wch:34},{wch:43},{wch:13},
-        {wch:16},{wch:19},{wch:16},{wch:15},{wch:30}
+        {wch:7},{wch:15},{wch:31},{wch:28},{wch:34},{wch:43},
+        {wch:13},{wch:16},{wch:19},{wch:16},{wch:15},{wch:30}
     ];
     worksheet["!freeze"] = {xSplit:0,ySplit:1};
     worksheet["!rows"] = [{hpt:27}];
@@ -43591,7 +43630,7 @@ function buildPaymentArchiveWorkbook(month,payments){
 
     payments.forEach((payment,rowIndex) => {
         const sheetRow = rowIndex + 1;
-        const uncCellAddress = XLSX.utils.encode_cell({r:sheetRow,c:9});
+        const uncCellAddress = XLSX.utils.encode_cell({r:sheetRow,c:10});
 
         for(let columnIndex = 0; columnIndex < headers.length; columnIndex++){
             const address = XLSX.utils.encode_cell({r:sheetRow,c:columnIndex});
@@ -43600,14 +43639,14 @@ function buildPaymentArchiveWorkbook(month,payments){
                 fill:{patternType:"solid",fgColor:{rgb:sheetRow % 2 ? "F8FBFD" : "FFFFFF"}},
                 border,
                 alignment:{
-                    horizontal:[0,5,7,8,9].includes(columnIndex) ? "center" : "left",
+                    horizontal:[0,6,8,9,10].includes(columnIndex) ? "center" : "left",
                     vertical:"center",
-                    wrapText:columnIndex === 4
+                    wrapText:columnIndex === 5
                 }
             };
         }
 
-        const amountCell = XLSX.utils.encode_cell({r:sheetRow,c:7});
+        const amountCell = XLSX.utils.encode_cell({r:sheetRow,c:8});
         worksheet[amountCell].t = "n";
         worksheet[amountCell].z = "#,##0";
 
@@ -43852,6 +43891,8 @@ async function closeMonthToPaymentArchive(){
                 rowCount:archivePayments.length,
                 totalActualAmount:actualTotal,
                 uncCount:finalUncCount,
+                companyIndex:buildPaymentArchiveCompanyIndex(archivePayments),
+                companyIndexVersion:1,
                 updatedAt:serverTimestamp(),
                 updatedBy:currentOperatorName || "",
                 updatedByUid:currentAuthUser?.uid || "",
@@ -43976,6 +44017,8 @@ async function refreshExistingPaymentArchiveAfterUnc(updatedPayment){
             rowCount:rows.length,
             totalActualAmount:actualTotal,
             uncCount,
+            companyIndex:buildPaymentArchiveCompanyIndex(rows),
+            companyIndexVersion:1,
             updatedAt:serverTimestamp(),
             updatedBy:currentOperatorName || "",
             updatedByUid:currentAuthUser?.uid || ""
