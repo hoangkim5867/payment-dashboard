@@ -7,7 +7,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Payment System - Payment History</title>
+<title>Payment Tracking</title>
 
 <!-- =====================================================
      XLSX / SHEETJS
@@ -15816,7 +15816,7 @@ if(!["en","zh","vi"].includes(currentLanguage)) currentLanguage = "vi";
 
 const I18N = {
     en:{
-        language:"Language", paymentsCount:"{shown} / {total} payments", appTitle:"Payment System — Payment History", history:"Payment Plan", loading:"Loading data...",
+        language:"Language", paymentsCount:"{shown} / {total} payments", appTitle:"Payment Tracking", history:"Payment Plan", loading:"Loading data...",
         batchPayment:"Batch Payment", exportExcel:"Export Excel", columns:"Columns", addPayment:"Add Payment", refresh:"Refresh", refreshing:"Refreshing...",
         paymentPlan:"TOTAL TO PROCESS", planAmount:"PAID", actualPaid:"IN PROGRESS", completedPayment:"COMPLETED PAYMENT", unpaidAmount:"CARRIED TO NEXT MONTH", completedShort:"{n} payment(s)",
         paymentMonth:"Payment Month", allMonths:"All time", search:"Search...", allProjects:"All Projects", allIPC:"All IPC",
@@ -15843,7 +15843,7 @@ const I18N = {
         lockedEdit:"This payment has already been paid and is locked.\n\nPaid payments cannot be edited.", reqMonth:"Please select Payment Month.", reqPerson:"Please enter Person in Charge.", reqProject:"Please select Project.", reqContract:"Please select Contract No.", reqIPC:"Please enter IPC number.", reqAmount:"Please enter a valid Amount.", contractMissing:"Matching Contract Master was not found.", updated:"Payment updated.", added:"New payment added.", saveError:"Could not save Payment:\n", conflictEdit:"This payment was changed by another user after you opened it. Please close and reopen Edit to review the latest data.", realtimeError:"Realtime update connection error:\n", duplicatePayment:"A payment with the same Payment Month + Project + Contract No. + IPC already exists.", contractPayment:"Contract Payment", mepPayment:"MEP Payment", savedVendor:"Saved Vendor", newVendor:"-- Enter New Vendor --", mepNo:"MEP No.", paymentContent:"Payment Content", mepAutoFields:"IPC / Budget No.", reqMEP:"Please enter a valid MEP number.", reqMEPCompany:"Please enter Company.", reqMEPContent:"Please enter Payment Content.", reqMEPCostType:"Please enter Cost Type."
     },
     zh:{
-        language:"语言", paymentsCount:"显示 {shown} / 共 {total} 笔", appTitle:"付款系统 — 付款记录", history:"付款计划", loading:"正在加载数据...",
+        language:"语言", paymentsCount:"显示 {shown} / 共 {total} 笔", appTitle:"付款跟踪", history:"付款计划", loading:"正在加载数据...",
         batchPayment:"批量付款", exportExcel:"导出 Excel", columns:"显示列", addPayment:"新增付款", refresh:"刷新", refreshing:"刷新中...",
         paymentPlan:"本月待处理总额", planAmount:"已付款", actualPaid:"跟进中", completedPayment:"已完成付款", unpaidAmount:"转至下月", completedShort:"{n} 笔",
         paymentMonth:"付款月份", allMonths:"全部期间", search:"搜索...", allProjects:"全部项目", allIPC:"全部 IPC",
@@ -15870,7 +15870,7 @@ const I18N = {
         lockedEdit:"该付款已更新为已付款并被锁定。\n\n已付款记录不能编辑。", reqMonth:"请选择付款月份。", reqPerson:"请输入负责人。", reqProject:"请选择项目。", reqContract:"请选择合同编号。", reqIPC:"请输入 IPC 编号。", reqAmount:"请输入有效金额。", contractMissing:"找不到对应的合同主数据。", updated:"付款已更新。", added:"新付款已添加。", saveError:"无法保存付款：\n", conflictEdit:"你打开此记录后，其他用户已经修改了它。请关闭并重新打开编辑，确认最新数据后再保存。", realtimeError:"实时更新连接错误：\n", duplicatePayment:"相同付款月份 + 项目 + 合同编号 + IPC 的付款已存在。", contractPayment:"合同付款", mepPayment:"MEP 付款", savedVendor:"已保存供应商", newVendor:"-- 录入新供应商 --", mepNo:"MEP 编号", paymentContent:"付款内容", mepAutoFields:"IPC / 预算编号", reqMEP:"请输入有效的 MEP 编号。", reqMEPCompany:"请输入公司名称。", reqMEPContent:"请输入付款内容。", reqMEPCostType:"请输入费用类别。"
     },
     vi:{
-        language:"Ngôn ngữ", paymentsCount:"{shown} / {total} khoản thanh toán", appTitle:"Hệ thống thanh toán — Lịch sử thanh toán", history:"Kế hoạch thanh toán", loading:"Đang tải dữ liệu...",
+        language:"Ngôn ngữ", paymentsCount:"{shown} / {total} khoản thanh toán", appTitle:"Theo dõi thanh toán", history:"Kế hoạch thanh toán", loading:"Đang tải dữ liệu...",
         batchPayment:"Thanh toán hàng loạt", exportExcel:"Xuất Excel", columns:"Hiển thị cột", addPayment:"Thêm thanh toán", refresh:"Làm mới", refreshing:"Đang làm mới...",
         paymentPlan:"TỔNG CẦN XỬ LÝ", planAmount:"ĐÃ THANH TOÁN", actualPaid:"ĐANG THEO DÕI", completedPayment:"THANH TOÁN HOÀN TẤT", unpaidAmount:"CHUYỂN THÁNG SAU", completedShort:"{n} khoản",
         paymentMonth:"Tháng thanh toán", allMonths:"Toàn bộ thời gian", search:"Tìm kiếm...", allProjects:"Tất cả dự án", allIPC:"Tất cả IPC",
