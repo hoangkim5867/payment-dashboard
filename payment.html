@@ -20051,10 +20051,11 @@ function applyPaymentStatusView(){
 
         /*
            Paid result view keeps the useful lookup columns, including
-           STT and contract content. Contract type is not needed here.
+           the selection checkbox so Admin can move paid rows to the
+           document archive. Contract type is not needed here.
         */
         autoHiddenIndexes = [
-            0,11,12,13,
+            11,12,13,
             14,15,16,17,18,19,20
         ];
 
