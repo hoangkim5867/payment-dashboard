@@ -15221,8 +15221,8 @@ html[data-theme="corporate"] .theme-picker-wrap *{
 .bulk-unc-payment-select{display:block;width:100%;min-width:320px;padding:7px 8px;border:1px solid var(--theme-border,#d5dce5);border-radius:6px;background:var(--theme-surface,#fff);color:var(--theme-text,#172033);font-size:9.5px}
 .bulk-unc-payment-hint{margin-top:5px;color:var(--theme-muted,#667085);font-size:8.8px;line-height:1.4}
 .bulk-unc-badge{display:inline-block;padding:4px 7px;border-radius:999px;font-size:8.5px;font-weight:850;white-space:nowrap}
-.bulk-unc-badge.green{background:#d1fadf;color:#05603a}.bulk-unc-badge.yellow{background:#fef0c7;color:#93370d}.bulk-unc-badge.red{background:#fee4e2;color:#b42318}.bulk-unc-badge.done{background:#dbeafe;color:#1d4ed8}
-.bulk-unc-row-error td{background:#fff7f6}.bulk-unc-row-done td{background:#f5faff}
+.bulk-unc-badge.green{background:#d1fadf;color:#05603a}.bulk-unc-badge.yellow{background:#fef0c7;color:#93370d}.bulk-unc-badge.red{background:#fee4e2;color:#b42318}.bulk-unc-badge.replace{background:#fff1cc;color:#8a4b08}.bulk-unc-badge.done{background:#dbeafe;color:#1d4ed8}
+.bulk-unc-row-error td{background:#fff7f6}.bulk-unc-row-replace td{background:#fffaf0}.bulk-unc-row-done td{background:#f5faff}
 .bulk-unc-empty{padding:30px!important;text-align:center!important;color:var(--theme-muted,#667085)!important}
 .bulk-unc-preview{display:flex;flex:0 0 42%;flex-direction:column;min-width:360px;min-height:0;border:1px solid var(--theme-border,#d5dce5);border-radius:8px;overflow:hidden;background:#fff}
 .bulk-unc-preview[hidden]{display:none!important}
@@ -44447,11 +44447,13 @@ function bulkUncCopy(){
             ready:"{files} 个文件 · 自动匹配 {green} · 已有凭证 {existing} · 待确认 {yellow} · 未匹配 {red} · 已选 {selected}",
             reading:"正在读取 {current}/{total}：{name}",
             uploading:"正在上传 {current}/{total}：{name}",
-            green:"已匹配", yellow:"请选择", red:"未找到", manual:"手动选择", existing:"已有凭证", done:"已上传",
+            green:"已匹配", yellow:"请选择", red:"未找到", manual:"手动选择", existing:"已有凭证 · 勾选替换", done:"已上传",
+            hasVoucher:"已有凭证", currentVoucher:"当前凭证", replaceHint:"勾选“选择”以替换现有凭证；Drive 链接保持不变。",
+            replaceConfirm:"即将用新文件替换 {n} 个现有凭证。是否继续？",
             choose:"— 选择已付款项目 —", close:"关闭", clear:"清空列表",
             confirm:"确认付款并保存凭证", duplicate:"同一付款项目不能同时绑定两个凭证。",
             noSelected:"请先确认至少一个匹配结果。", invalid:"仅支持有效 PDF，每个文件不超过 5 MB。",
-            success:"已上传 {n} 个付款凭证。"
+            success:"已保存 {n} 个付款凭证。"
         };
     }
 
@@ -44463,11 +44465,13 @@ function bulkUncCopy(){
             ready:"{files} files · reliable {green} · existing voucher {existing} · review {yellow} · unmatched {red} · selected {selected}",
             reading:"Reading {current}/{total}: {name}",
             uploading:"Uploading {current}/{total}: {name}",
-            green:"Matched", yellow:"Choose Payment", red:"Not found", manual:"Selected manually", existing:"Already has voucher", done:"Uploaded",
+            green:"Matched", yellow:"Choose Payment", red:"Not found", manual:"Selected manually", existing:"Has voucher · tick to replace", done:"Uploaded",
+            hasVoucher:"Has voucher", currentVoucher:"Current voucher", replaceHint:"Tick Select to replace the current voucher; the Drive link stays unchanged.",
+            replaceConfirm:"You are about to replace {n} existing vouchers with new files. Continue?",
             choose:"— Choose a paid Payment —", close:"Close", clear:"Clear list",
             confirm:"Confirm payment and save vouchers", duplicate:"The same Payment cannot receive two vouchers in one batch.",
             noSelected:"Confirm at least one match first.", invalid:"Only valid PDFs up to 5 MB each are accepted.",
-            success:"Uploaded {n} payment vouchers."
+            success:"Saved {n} payment vouchers."
         };
     }
 
@@ -44478,11 +44482,13 @@ function bulkUncCopy(){
         ready:"{files} file · khớp {green} · đã có UNC {existing} · cần chọn {yellow} · không tìm thấy {red} · đã chọn {selected}",
         reading:"Đang đọc {current}/{total}: {name}",
         uploading:"Đang tải {current}/{total}: {name}",
-        green:"Khớp", yellow:"Cần chọn", red:"Không tìm thấy", manual:"Đã chọn tay", existing:"Đã có UNC · bỏ qua", done:"Đã tải",
+        green:"Khớp", yellow:"Cần chọn", red:"Không tìm thấy", manual:"Đã chọn tay", existing:"Đã có UNC · tick để thay", done:"Đã tải",
+        hasVoucher:"Có UNC", currentVoucher:"UNC hiện có", replaceHint:"Tick Chọn để thay UNC hiện có; hệ thống giữ nguyên liên kết Drive.",
+        replaceConfirm:"Bạn sắp thay {n} UNC đã có bằng file mới. Tiếp tục?",
         choose:"— Chọn Payment đã thanh toán —", close:"Đóng", clear:"Xóa danh sách",
         confirm:"Xác nhận thanh toán & lưu UNC", duplicate:"Không thể gắn hai UNC vào cùng một Payment trong một lần tải.",
         noSelected:"Hãy xác nhận ít nhất một kết quả trước.", invalid:"Chỉ nhận PDF hợp lệ, tối đa 5 MB mỗi file.",
-        success:"Đã tải {n} UNC."
+        success:"Đã lưu {n} UNC."
     };
 }
 
@@ -44895,7 +44901,8 @@ function bulkUncPaymentLabel(payment){
         payment.project || "—",
         payment.company || "—",
         `${paid ? "Đã trả" : "KH"} ${formatMoney(displayAmount)}`,
-        payment.contractNo || payment.processPaymentNo || ""
+        payment.contractNo || payment.processPaymentNo || "",
+        hasUncDriveFile(payment) ? `[${bulkUncCopy().hasVoucher}]` : ""
     ].filter(Boolean).join(" · ");
 }
 
@@ -44905,14 +44912,24 @@ function bulkUncAvailablePayments(){
             payment &&
             payment.deleted !== true &&
             !isPaymentCancelled(payment) &&
-            !isPaymentCarriedForward(payment) &&
-            !hasUncDriveFile(payment)
+            !isPaymentCarriedForward(payment)
         )
         .sort((a,b)=>{
             const dateDiff = String(b.processPaymentDate || "").localeCompare(String(a.processPaymentDate || ""));
             if(dateDiff) return dateDiff;
             return String(a.company || "").localeCompare(String(b.company || ""));
         });
+}
+
+function bulkUncTargetPayment(row){
+    const paymentId = String(row?.paymentId || "");
+    return paymentId
+        ? allPayments.find(payment=>String(payment.id) === paymentId) || null
+        : null;
+}
+
+function bulkUncIsReplacement(row){
+    return hasUncDriveFile(bulkUncTargetPayment(row));
 }
 
 function renderBulkUncRows(){
@@ -44933,10 +44950,14 @@ function renderBulkUncRows(){
 
     bulkUncBody.innerHTML = bulkUncRows.map(row=>{
         const info = row.info || {};
-        const level = row.uploaded ? "done" : (row.existing ? "done" : (row.manual ? "yellow" : (row.level || "red")));
+        const selectedId = String(row.paymentId || "");
+        const targetPayment = bulkUncTargetPayment(row);
+        const replacingExisting = hasUncDriveFile(targetPayment);
+        row.existing = replacingExisting;
+        const level = row.uploaded ? "done" : (replacingExisting ? "replace" : (row.manual ? "yellow" : (row.level || "red")));
         const badgeText = row.uploaded
             ? copy.done
-            : row.existing
+            : replacingExisting
                 ? copy.existing
             : row.manual
                 ? copy.manual
@@ -44954,18 +44975,16 @@ function renderBulkUncRows(){
             info.beneficiary || "",
             info.bankReference ? `Ref: ${info.bankReference}` : ""
         ].filter(Boolean).join(" · ");
-        const selectedId = String(row.paymentId || "");
         const reasonText = row.error
             ? row.error
             : row.reasons?.length
                 ? `Khớp: ${row.reasons.join(", ")}`
                 : "Hãy mở PDF và chọn Payment nếu cần.";
 
-        const targetPayment = selectedId
-            ? allPayments.find(payment=>String(payment.id) === selectedId)
-            : null;
-        const resultActionText = targetPayment && !row.existing
-            ? isPaymentPaid(targetPayment)
+        const resultActionText = targetPayment
+            ? replacingExisting
+                ? `${copy.currentVoucher}: ${targetPayment.uncName || "PDF"}. ${copy.replaceHint}`
+                : isPaymentPaid(targetPayment)
                 ? "Payment đã hoàn tất: chỉ gắn UNC, không đổi tiền/ngày."
                 : Number.isFinite(info.amount) && info.date
                     ? `Sẽ điền thực trả ${formatMoney(info.amount)} và ngày ${info.date}.`
@@ -44973,25 +44992,17 @@ function renderBulkUncRows(){
             : "";
         const fullHint = [reasonText,resultActionText].filter(Boolean).join(" · ");
 
-        const existingPayment = row.existing
-            ? allPayments.find(payment=>String(payment.id) === String(row.paymentId))
-            : null;
-        const paymentControl = existingPayment
-            ? `
-                <div class="bulk-unc-file-name">${escapeHTML(bulkUncPaymentLabel(existingPayment))}</div>
-                <div class="bulk-unc-payment-hint">${escapeHTML(reasonText)} · UNC hiện có: ${escapeHTML(existingPayment.uncName || "PDF")}</div>
-            `
-            : `
-                <select class="bulk-unc-payment-select" ${row.uploaded || bulkUncBusy ? "disabled" : ""}>
-                    <option value="">${escapeHTML(copy.choose)}</option>
-                    ${paymentOptions}
-                </select>
-                <div class="bulk-unc-payment-hint">${escapeHTML(fullHint)}</div>
-            `;
+        const paymentControl = `
+            <select class="bulk-unc-payment-select" ${row.uploaded || bulkUncBusy ? "disabled" : ""}>
+                <option value="">${escapeHTML(copy.choose)}</option>
+                ${paymentOptions}
+            </select>
+            <div class="bulk-unc-payment-hint">${escapeHTML(fullHint)}</div>
+        `;
 
         return `
-            <tr data-bulk-unc-id="${escapeHTML(row.id)}" class="${row.error ? "bulk-unc-row-error" : ""} ${row.uploaded ? "bulk-unc-row-done" : ""}">
-                <td><input type="checkbox" class="bulk-unc-check" ${row.checked ? "checked" : ""} ${(!selectedId || row.existing || row.uploaded || bulkUncBusy) ? "disabled" : ""}></td>
+            <tr data-bulk-unc-id="${escapeHTML(row.id)}" class="${row.error ? "bulk-unc-row-error" : ""} ${row.uploaded ? "bulk-unc-row-done" : ""} ${replacingExisting && !row.uploaded ? "bulk-unc-row-replace" : ""}">
+                <td><input type="checkbox" class="bulk-unc-check" ${row.checked ? "checked" : ""} ${(!selectedId || row.uploaded || bulkUncBusy) ? "disabled" : ""}></td>
                 <td>
                     <div class="bulk-unc-file-name">${escapeHTML(row.file.name)}</div>
                     <div class="bulk-unc-detected">${escapeHTML(detected)}</div>
@@ -45013,10 +45024,10 @@ function renderBulkUncRows(){
 
     const counts = {
         files:bulkUncRows.length,
-        green:bulkUncRows.filter(row=>!row.uploaded && row.level === "green" && !row.manual).length,
-        existing:bulkUncRows.filter(row=>row.existing && !row.uploaded).length,
-        yellow:bulkUncRows.filter(row=>!row.uploaded && (row.level === "yellow" || row.manual)).length,
-        red:bulkUncRows.filter(row=>!row.uploaded && !row.existing && row.level === "red" && !row.manual).length,
+        green:bulkUncRows.filter(row=>!row.uploaded && !bulkUncIsReplacement(row) && row.level === "green" && !row.manual).length,
+        existing:bulkUncRows.filter(row=>!row.uploaded && bulkUncIsReplacement(row)).length,
+        yellow:bulkUncRows.filter(row=>!row.uploaded && !bulkUncIsReplacement(row) && (row.level === "yellow" || row.manual)).length,
+        red:bulkUncRows.filter(row=>!row.uploaded && !bulkUncIsReplacement(row) && row.level === "red" && !row.manual).length,
         selected:bulkUncRows.filter(row=>row.checked && row.paymentId && !row.uploaded).length
     };
     bulkUncSummary.textContent = bulkUncText(copy.ready,counts);
@@ -45210,13 +45221,18 @@ bulkUncFileInput.addEventListener("change",async()=>{
 bulkUncBody.addEventListener("change",event=>{
     const tr = event.target.closest("tr[data-bulk-unc-id]");
     const row = bulkUncRows.find(item=>item.id === tr?.dataset.bulkUncId);
-    if(!row || row.existing || row.uploaded || bulkUncBusy) return;
+    if(!row || row.uploaded || bulkUncBusy) return;
 
     if(event.target.classList.contains("bulk-unc-payment-select")){
         const previousId = String(row.paymentId || "");
         row.paymentId = String(event.target.value || "");
         row.manual = !!row.paymentId && row.paymentId !== previousId;
-        row.checked = !!row.paymentId;
+        row.existing = hasUncDriveFile(bulkUncTargetPayment(row));
+        if(row.manual) row.level = "yellow";
+        if(!row.paymentId) row.level = "red";
+        /* Replacing an existing voucher always requires a separate, explicit
+           tick after choosing the Payment. */
+        row.checked = !!row.paymentId && !row.existing;
         if(row.validPdf) row.error = "";
         renderBulkUncRows();
         return;
@@ -45250,7 +45266,7 @@ confirmBulkUncBtn.addEventListener("click",async()=>{
 
     const copy = bulkUncCopy();
     const selected = bulkUncRows.filter(row=>
-        row.checked && row.paymentId && !row.existing && !row.uploaded && !row.error
+        row.checked && row.paymentId && !row.uploaded && !row.error
     );
 
     if(!selected.length){
@@ -45268,13 +45284,18 @@ confirmBulkUncBtn.addEventListener("click",async()=>{
 
     for(const row of selected){
         const payment = allPayments.find(item=>String(item.id) === String(row.paymentId));
+        const currentlyHasUnc = hasUncDriveFile(payment);
         if(
             !payment ||
             isPaymentCancelled(payment) ||
-            isPaymentCarriedForward(payment) ||
-            hasUncDriveFile(payment)
+            isPaymentCarriedForward(payment)
         ){
-            alert(`⚠ Payment của file ${row.file.name} không còn hợp lệ hoặc đã có UNC. Hãy tải lại danh sách.`);
+            alert(`⚠ Payment của file ${row.file.name} không còn hợp lệ. Hãy tải lại danh sách.`);
+            return;
+        }
+
+        if(currentlyHasUnc !== !!row.existing){
+            alert(`⚠ UNC của Payment gắn với file ${row.file.name} vừa thay đổi. Hãy chọn lại file để tránh ghi đè nhầm.`);
             return;
         }
 
@@ -45300,6 +45321,14 @@ confirmBulkUncBtn.addEventListener("click",async()=>{
                 return;
             }
         }
+    }
+
+    const replacementCount = selected.filter(row=>row.existing).length;
+    if(
+        replacementCount &&
+        !confirm(bulkUncText(copy.replaceConfirm,{n:replacementCount}))
+    ){
+        return;
     }
 
     if(!getConfiguredDriveClientId()){
@@ -45342,12 +45371,41 @@ confirmBulkUncBtn.addEventListener("click",async()=>{
                 current:index + 1,total:selected.length,name:row.file.name
             });
 
-            const driveFile = await createUncDriveFile(namingPayment,row.file,folderId);
+            let driveFile = null;
+            let createdNewFile = false;
+            const existingFileId = String(payment.uncDriveFileId || "").trim();
+
+            if(row.existing && existingFileId){
+                try{
+                    driveFile = await replaceUncDriveFile(
+                        existingFileId,
+                        row.file,
+                        namingPayment
+                    );
+                }catch(error){
+                    if(Number(error?.status) !== 404) throw error;
+                }
+            }
+
+            if(!driveFile?.id){
+                driveFile = await createUncDriveFile(namingPayment,row.file,folderId);
+                createdNewFile = true;
+            }
+
             if(!driveFile?.id) throw new Error(`Không tạo được file Drive cho ${row.file.name}.`);
             const storedUncName = String(
                 driveFile.name || getUncDriveFileName(namingPayment)
             );
-            created.push({row,payment,driveFile,setActual,setDate,storedUncName});
+            created.push({
+                row,
+                payment,
+                driveFile,
+                setActual,
+                setDate,
+                storedUncName,
+                createdNewFile,
+                replacedExisting:row.existing
+            });
             await ensureAnyoneCanViewDriveFile(driveFile.id);
         }
 
@@ -45422,6 +45480,10 @@ confirmBulkUncBtn.addEventListener("click",async()=>{
         renderPayments();
         renderBulkUncRows();
         let successMessage = "✅ " + bulkUncText(copy.success,{n:created.length});
+        const replacedCount = created.filter(item=>item.replacedExisting).length;
+        if(replacedCount){
+            successMessage += `\n\n✓ Đã thay ${replacedCount} UNC cũ trên đúng liên kết Drive.`;
+        }
         if(refreshedArchiveCount){
             successMessage += `\n\n✓ Đã tự cập nhật Kho chứng từ của ${refreshedArchiveCount} tháng.`;
         }
@@ -45433,7 +45495,7 @@ confirmBulkUncBtn.addEventListener("click",async()=>{
         console.error("BULK UNC UPLOAD ERROR:",error);
 
         for(const item of created){
-            if(item.driveFile?.id){
+            if(item.createdNewFile && item.driveFile?.id){
                 await driveApi(
                     `/drive/v3/files/${encodeURIComponent(item.driveFile.id)}`,
                     {method:"DELETE"}
@@ -45441,7 +45503,13 @@ confirmBulkUncBtn.addEventListener("click",async()=>{
             }
         }
 
-        alert("❌ " + uncErrorMessage(error));
+        const replacedBeforeFailure = created.filter(item=>
+            item.replacedExisting && !item.createdNewFile
+        ).length;
+        const partialReplaceNote = replacedBeforeFailure
+            ? `\n\n⚠ ${replacedBeforeFailure} UNC cũ đã được thay trực tiếp trên Drive trước khi lỗi xảy ra; liên kết cũ vẫn mở đúng file mới.`
+            : "";
+        alert("❌ " + uncErrorMessage(error) + partialReplaceNote);
     }finally{
         setBulkUncBusy(false);
         bulkUncProgress.textContent = "";
