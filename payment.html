@@ -20358,9 +20358,10 @@ function applyRoleUI(){
                     item => String(item.id) === String(input.dataset.id)
                 );
 
-                // Admin may select a paid row only to move it into the Archive.
-                input.disabled = isPaymentWorkflowLocked(payment) &&
-                    !(adminAccess && isPaymentPaid(payment) && !isPaymentArchived(payment));
+                /* Use the same row-selection rule as render + Select all.
+                   This keeps current-month paid rows available to Admin for
+                   Archive instead of a later role refresh locking them again. */
+                input.disabled = !canSelectPaymentRow(payment);
             }
         );
 
@@ -23510,6 +23511,28 @@ function isPaymentWorkflowLocked(payment){
     );
 }
 
+function canAdminSelectPaidForArchive(payment){
+    return !!(
+        payment &&
+        payment.deleted !== true &&
+        isAdmin() &&
+        isPaymentPaid(payment) &&
+        !isPaymentCarriedForward(payment) &&
+        !isPaymentCancelled(payment)
+    );
+}
+
+function canSelectPaymentRow(payment){
+    return !!(
+        payment &&
+        payment.deleted !== true &&
+        (
+            !isPaymentWorkflowLocked(payment) ||
+            canAdminSelectPaidForArchive(payment)
+        )
+    );
+}
+
 function getPaymentWorkflowStatusLabel(payment){
     if(isPaymentCancelled(payment)){
         return t("cancelledPayment");
@@ -25633,11 +25656,8 @@ function renderPayments(){
             const workflowLocked =
                 isPaymentWorkflowLocked(item);
 
-            const selectablePaidForArchive =
-                isAdmin() && isPaymentPaid(item) && !isPaymentArchived(item);
-
             const selectionLocked =
-                workflowLocked && !selectablePaidForArchive;
+                !canSelectPaymentRow(item);
 
             const carriedForward =
                 isPaymentCarriedForward(item);
@@ -26101,6 +26121,17 @@ function renderPayments(){
                 checkbox.addEventListener(
                     "change",
                     () => {
+                        const payment = allPayments.find(
+                            item => String(item.id) === String(checkbox.dataset.id)
+                        );
+
+                        if(!canSelectPaymentRow(payment)){
+                            checkbox.checked = false;
+                            selectedPaymentIds.delete(checkbox.dataset.id);
+                            updateBatchSelectionUI();
+                            return;
+                        }
+
                         if(checkbox.checked){
                             selectedPaymentIds.add(checkbox.dataset.id);
                         }else{
@@ -27085,9 +27116,7 @@ function updateBatchSelectAllState(filtered){
     }
 
     const selectableVisible = filtered.filter(
-        item =>
-            !isPaymentWorkflowLocked(item) ||
-            (isAdmin() && isPaymentPaid(item) && !isPaymentArchived(item))
+        item => canSelectPaymentRow(item)
     );
 
     const selectedVisible =
@@ -27221,10 +27250,7 @@ batchSelectAll.addEventListener(
         const filtered = getFilteredPayments();
 
         filtered
-        .filter(item =>
-            !isPaymentWorkflowLocked(item) ||
-            (isAdmin() && isPaymentPaid(item) && !isPaymentArchived(item))
-        )
+        .filter(item => canSelectPaymentRow(item))
         .forEach(item => {
             if(batchSelectAll.checked){
                 selectedPaymentIds.add(item.id);
@@ -43793,11 +43819,19 @@ async function closeMonthToPaymentArchive(){
         String(payment.paymentMonth || "") === month &&
         selectedPaymentIds.has(payment.id)
     );
+    /* Admin may also select rows already marked archived.  Re-selecting them
+       is an idempotent re-sync: the archive is rebuilt through a semantic-key
+       Map and the existing Drive workbook is updated in place. */
     const paidPayments = selected.filter(payment =>
         isPaymentPaid(payment) &&
-        !isPaymentArchived(payment) &&
         !isPaymentCarriedForward(payment) &&
         !isPaymentCancelled(payment)
+    );
+    const newlyArchivedPayments = paidPayments.filter(payment =>
+        !isPaymentArchived(payment)
+    );
+    const resyncedPayments = paidPayments.filter(payment =>
+        isPaymentArchived(payment)
     );
 
     if(!selected.length){
@@ -43806,17 +43840,18 @@ async function closeMonthToPaymentArchive(){
     }
 
     if(paidPayments.length !== selected.length){
-        alert("⚠ Chỉ được chọn các khoản đã thanh toán và chưa nằm trong Kho chứng từ.");
+        alert("⚠ Admin chỉ được chọn các khoản có trạng thái Đã thanh toán để đưa vào Kho chứng từ.");
         return;
     }
 
     const uncCount = paidPayments.filter(hasUncDriveFile).length;
     const noUncCount = paidPayments.length - uncCount;
     const confirmed = confirm(
-        `ĐƯA ${paidPayments.length} KHOẢN VÀO KHO CHỨNG TỪ?\n\n` +
+        `ĐỒNG BỘ ${paidPayments.length} KHOẢN VÀO KHO CHỨNG TỪ?\n\n` +
         `• ${getArchiveMonthLabel(month)}\n` +
+        `• ${newlyArchivedPayments.length} khoản đưa mới · ${resyncedPayments.length} khoản đồng bộ lại\n` +
         `• ${uncCount} khoản đã có UNC${noUncCount ? ` · ${noUncCount} khoản chưa có UNC` : ""}\n\n` +
-        "Sau khi chuyển, các khoản này sẽ không còn hiện trong bảng Payment chính."
+        "Kho tháng này sẽ được cập nhật trên cùng file Google Drive, không tạo file trùng."
     );
     if(!confirmed) return;
 
@@ -43908,23 +43943,25 @@ async function closeMonthToPaymentArchive(){
         );
         await savePaymentArchiveDetails(month,archivePayments);
 
-        const archiveBatch = writeBatch(db);
-        paidPayments.forEach(payment => {
-            archiveBatch.update(doc(db,"payments",payment.id),{
-                archived:true,
-                archiveState:"archived",
-                archiveMonth:month,
-                archivedAt:serverTimestamp(),
-                archivedBy:currentOperatorName || "",
-                archivedByUid:currentAuthUser?.uid || "",
-                updatedAt:serverTimestamp(),
-                updatedBy:currentOperatorName || "",
-                updatedByUid:currentAuthUser?.uid || "",
-                updatedByEmail:currentAuthUser?.email || ""
+        if(newlyArchivedPayments.length){
+            const archiveBatch = writeBatch(db);
+            newlyArchivedPayments.forEach(payment => {
+                archiveBatch.update(doc(db,"payments",payment.id),{
+                    archived:true,
+                    archiveState:"archived",
+                    archiveMonth:month,
+                    archivedAt:serverTimestamp(),
+                    archivedBy:currentOperatorName || "",
+                    archivedByUid:currentAuthUser?.uid || "",
+                    updatedAt:serverTimestamp(),
+                    updatedBy:currentOperatorName || "",
+                    updatedByUid:currentAuthUser?.uid || "",
+                    updatedByEmail:currentAuthUser?.email || ""
+                });
             });
-        });
-        await archiveBatch.commit();
-        paidPayments.forEach(payment => {
+            await archiveBatch.commit();
+        }
+        newlyArchivedPayments.forEach(payment => {
             payment.archived = true;
             payment.archiveState = "archived";
             payment.archiveMonth = month;
@@ -43934,7 +43971,8 @@ async function closeMonthToPaymentArchive(){
         updateBatchSelectionUI();
 
         alert(
-            `✅ Đã đưa ${paidPayments.length} khoản vào Kho chứng từ · ${getArchiveMonthLabel(month)}.`
+            `✅ Đã đồng bộ ${paidPayments.length} khoản vào Kho chứng từ · ${getArchiveMonthLabel(month)}.\n` +
+            `Đưa mới: ${newlyArchivedPayments.length} · Đồng bộ lại: ${resyncedPayments.length}.`
         );
     }catch(error){
         console.error("PAYMENT ARCHIVE ERROR:",error);
