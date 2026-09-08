@@ -498,6 +498,15 @@ body{
 .pf-load-status.loaded{
     color:#079455;
 }
+.pf-name-wrap{min-width:0;display:flex;flex-direction:column;gap:3px}
+.pf-name-wrap .pf-name{display:block}
+.pf-balance{font-size:10px;font-weight:900;color:#173556;white-space:nowrap;text-align:right}
+.pf-balance.negative{color:#b42318}
+.pf-balance.missing{color:#98a2b3;font-weight:700}
+.snapshot-chip{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 10px;border:1px solid #dce5ef;border-radius:9px;background:#fff;color:#667085;font-size:9px;font-weight:800;white-space:nowrap}
+.snapshot-chip::before{content:'';width:7px;height:7px;border-radius:50%;background:#f0b429}
+.snapshot-chip.ready::before{background:#12a675}
+.snapshot-chip.error::before{background:#d64545}
 
 /* Project header */
 .pf-head{
@@ -680,6 +689,27 @@ body{
     gap:7px;
     color:#78879a;
 }
+.pf-empty-select.has-summary{display:block;padding:14px;text-align:left;overflow:hidden}
+.pf-empty-intro{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center}
+.pf-empty-select.has-summary .pf-empty-intro{min-height:112px;padding:4px 0 13px;border-bottom:1px solid #e7edf4}
+.pf-balance-overview{display:none}
+.pf-empty-select.has-summary .pf-balance-overview{display:block}
+.pf-overview-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 2px 9px}
+.pf-overview-head b{font-size:12px;color:#173556}
+.pf-overview-head span{font-size:9px;color:#7a8797}
+.pf-overview-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-bottom:9px}
+.pf-overview-kpi{border:1px solid #e2e8f0;background:#f9fbfd;border-radius:9px;padding:9px}
+.pf-overview-kpi label{display:block;font-size:8px;font-weight:900;color:#7a8797;text-transform:uppercase}
+.pf-overview-kpi b{display:block;margin-top:5px;font-size:13px;color:#173556}
+.pf-overview-table-wrap{max-height:330px;overflow:auto;border:1px solid #e2e8f0;border-radius:9px}
+.pf-overview-table{width:100%;border-collapse:collapse}
+.pf-overview-table th{position:sticky;top:0;background:#173556;color:#fff;text-align:left;font-size:8px;padding:8px 10px}
+.pf-overview-table th:last-child,.pf-overview-table td:last-child{text-align:right}
+.pf-overview-table td{padding:8px 10px;border-bottom:1px solid #edf1f5;font-size:9px;color:#344054}
+.pf-overview-table tr{cursor:pointer}
+.pf-overview-table tbody tr:hover td{background:#f4f8ff}
+.pf-overview-table .amount{font-weight:900;color:#173556}
+.pf-overview-table .amount.negative{color:#b42318}
 .pf-empty-select .empty-mark{
     width:46px;height:46px;border-radius:14px;
     display:grid;place-items:center;
@@ -957,7 +987,9 @@ body{
       <p id="cashMainSub">Chọn dự án để xem dòng tiền thực tế, Payment đã trả và khoản sắp phải trả.</p>
     </div>
     <div class="acts">
+      <span class="snapshot-chip" id="pfSnapshotStatus">Đang lấy số dư tổng hợp…</span>
       <select id="commandMonth" class="btn"></select>
+      <button class="btn" id="pfSyncAllBtn" title="Tải lại Payment của tất cả dự án và lưu số dư tổng hợp">↻ Đồng bộ tất cả</button>
       <button class="btn" data-go="expenses">Sổ giao dịch</button>
       <button class="btn primary" id="addTxnBtn">＋ Thu / Chi</button>
       <button class="btn" id="openingBtn">Số dư đầu kỳ</button>
@@ -973,9 +1005,12 @@ body{
 
     <div class="pf-workspace no-project">
       <div class="pf-empty-select" id="pfEmptySelect">
-        <div class="empty-mark">₫</div>
-        <b id="pfEmptyTitle">Chọn một dự án</b>
-        <span id="pfEmptySub">Payment chỉ được đọc khi bạn mở project đó.</span>
+        <div class="pf-empty-intro">
+          <div class="empty-mark">₫</div>
+          <b id="pfEmptyTitle">Số dư tất cả dự án</b>
+          <span id="pfEmptySub">Số dư tổng hợp hiện ngay; chỉ đọc Payment khi bạn mở một dự án.</span>
+        </div>
+        <div id="pfBalanceOverview" class="pf-balance-overview"></div>
       </div>
       <div class="pf-core">
         <div class="pf-head">
@@ -1933,11 +1968,6 @@ function applyCashLanguage(){
 
   if($('pfProjectSearch'))$('pfProjectSearch').placeholder=zh?'搜索项目...':'Tìm dự án...';
 
-  if($('pfEmptyTitle'))$('pfEmptyTitle').textContent=zh?'请选择项目':'Chọn một dự án';
-  if($('pfEmptySub'))$('pfEmptySub').textContent=zh
-    ?'只有打开项目时才读取该项目的 Payment。'
-    :'Payment chỉ được đọc khi bạn mở project đó.';
-
   if($('accClassTitle'))$('accClassTitle').textContent=zh?'会计分类':'PHÂN LOẠI KẾ TOÁN';
   if($('majorLabel'))$('majorLabel').textContent=zh?'一级分类':'Nhóm lớn / 一级分类';
   if($('subLabel'))$('subLabel').textContent=zh?'二级分类':'Phân nhóm / 二级分类';
@@ -1946,7 +1976,7 @@ function applyCashLanguage(){
     $('txnTitle').textContent=zh?'新增交易':'Thêm giao dịch';
   }
 
-  pfRenderProjectList();
+  renderProjectFirst();
 
   if($('fMajorCategory')){
     renderAccSelectors(
@@ -1964,10 +1994,169 @@ let payments=[],editingId=null,editingSource='manual',ledgerProject='';
 let currentAuthUser=null;
 const paymentMonths=new Map(); /* session-only: PROJECT -> Payment rows */
 const paymentLoads=new Map();
+const projectBalanceSnapshots=new Map(); /* month -> compact saved balance summary */
+const projectBalanceSnapshotLoads=new Map();
+const projectBalanceSnapshotFetched=new Set();
+const PROJECT_BALANCE_CACHE_KEY='cashCtlProjectBalanceSummariesV1';
 const publishedBalanceHashes=new Map();
 let balanceSnapshotPublishChain=Promise.resolve();
 let activePaymentMonth=CURRENT;
 let paymentLoadGeneration=0;
+let cashCalcRevision=0;
+let projectCatalogRevision=0;
+const cashCalcCache=new Map();
+
+function invalidateCashCalculations(){
+    cashCalcRevision++;
+    cashCalcCache.clear();
+}
+
+function cachedCashCalculation(key,builder){
+    const cached=cashCalcCache.get(key);
+    if(cached&&cached.revision===cashCalcRevision)return cached.value;
+    const value=builder();
+    cashCalcCache.set(key,{revision:cashCalcRevision,value});
+    return value;
+}
+
+function snapshotIso(value){
+    try{
+        if(value?.toDate)return value.toDate().toISOString();
+        if(Number.isFinite(Number(value?.seconds)))return new Date(Number(value.seconds)*1000).toISOString();
+        const d=new Date(value||'');
+        return Number.isNaN(d.getTime())?'':d.toISOString();
+    }catch{return ''}
+}
+
+function normalizeProjectBalanceSnapshot(month,raw={}){
+    const balances={};
+    Object.entries(raw?.balances||{}).forEach(([key,value])=>{
+        if(!value||typeof value!=='object')return;
+        const project=normProject(value.project||key);
+        if(!project)return;
+        balances[project]={
+            month,
+            project,
+            balance:Number(value.balance)||0,
+            opening:Number(value.opening)||0,
+            cashIn:Number(value.cashIn)||0,
+            cashOut:Number(value.cashOut)||0,
+            internalIn:Number(value.internalIn)||0,
+            internalOut:Number(value.internalOut)||0,
+            updatedAt:snapshotIso(value.updatedAt)||snapshotIso(raw.cashUpdatedAt)
+        };
+    });
+    return {
+        month,
+        balances,
+        updatedAt:snapshotIso(raw.cashUpdatedAt)||Object.values(balances).map(x=>x.updatedAt).filter(Boolean).sort().at(-1)||'',
+        updatedBy:String(raw.cashUpdatedBy||''),
+        fromLocal:!!raw.fromLocal
+    };
+}
+
+function persistProjectBalanceSnapshotCache(){
+    try{
+        const compact={};
+        projectBalanceSnapshots.forEach((value,key)=>{compact[key]=value});
+        localStorage.setItem(PROJECT_BALANCE_CACHE_KEY,JSON.stringify(compact));
+    }catch(error){console.warn('Cannot save local balance summary cache',error)}
+}
+
+function hydrateProjectBalanceSnapshotCache(){
+    try{
+        const cached=JSON.parse(localStorage.getItem(PROJECT_BALANCE_CACHE_KEY)||'{}')||{};
+        Object.entries(cached).forEach(([month,value])=>{
+            projectBalanceSnapshots.set(month,normalizeProjectBalanceSnapshot(month,{...value,fromLocal:true}));
+        });
+        projectCatalogRevision++;
+    }catch(error){console.warn('Cannot read local balance summary cache',error)}
+}
+
+function snapshotMomentLabel(value){
+    const iso=snapshotIso(value);
+    if(!iso)return '';
+    const d=new Date(iso);
+    return d.toLocaleString(cashLang==='zh'?'zh-CN':'vi-VN',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+
+function setProjectSnapshotStatus(status,message){
+    const el=$('pfSnapshotStatus');
+    if(!el)return;
+    el.classList.toggle('ready',status==='ready');
+    el.classList.toggle('error',status==='error');
+    el.textContent=message;
+}
+
+function projectSnapshotRow(month,project){
+    return projectBalanceSnapshots.get(month)?.balances?.[normProject(project)]||null;
+}
+
+function mergeProjectBalanceSnapshotRows(month,rows,updatedAt='',updatedBy=''){
+    const old=projectBalanceSnapshots.get(month)||{month,balances:{},updatedAt:'',updatedBy:''};
+    const merged=normalizeProjectBalanceSnapshot(month,{
+        balances:{...(old.balances||{}),...(rows||{})},
+        cashUpdatedAt:updatedAt||old.updatedAt,
+        cashUpdatedBy:updatedBy||old.updatedBy
+    });
+    projectBalanceSnapshots.set(month,merged);
+    projectCatalogRevision++;
+    persistProjectBalanceSnapshotCache();
+    setProjectSnapshotStatus('ready',`${cashLang==='zh'?'余额汇总':'Số dư tổng hợp'} · ${snapshotMomentLabel(merged.updatedAt)||month}`);
+    if(($('commandMonth')?.value||CURRENT)===month){
+        const visibleRows=pfBalanceRows(month);
+        pfRenderProjectList(visibleRows);
+        if(!pfSelectedProject)renderProjectBalanceOverview(month,visibleRows);
+    }
+    return merged;
+}
+
+async function loadProjectBalanceSnapshot(month,{force=false}={}){
+    month=/^\d{4}-\d{2}$/.test(String(month||''))?month:CURRENT;
+    const cached=projectBalanceSnapshots.get(month);
+    if(cached){
+        setProjectSnapshotStatus('ready',`${cashLang==='zh'?'余额汇总':'Số dư tổng hợp'} · ${snapshotMomentLabel(cached.updatedAt)||month}`);
+    }
+    if(!currentAuthUser||!isCashControlOwner())return cached||null;
+    if(!force&&projectBalanceSnapshotFetched.has(month))return cached||null;
+    if(projectBalanceSnapshotLoads.has(month))return projectBalanceSnapshotLoads.get(month);
+
+    setProjectSnapshotStatus('loading',cashLang==='zh'?'正在更新余额汇总…':'Đang cập nhật số dư tổng hợp…');
+    const task=(async()=>{
+        try{
+            const snap=await getDoc(doc(db,CASH_MONTHLY_SNAPSHOT_COLLECTION,month));
+            projectBalanceSnapshotFetched.add(month);
+            if(snap.exists()){
+                const normalized=normalizeProjectBalanceSnapshot(month,snap.data());
+                projectBalanceSnapshots.set(month,normalized);
+                projectCatalogRevision++;
+                persistProjectBalanceSnapshotCache();
+                setProjectSnapshotStatus('ready',`${cashLang==='zh'?'余额汇总':'Số dư tổng hợp'} · ${snapshotMomentLabel(normalized.updatedAt)||month}`);
+                renderProjectFirst();
+                return normalized;
+            }
+            if(!cached){
+                const empty=normalizeProjectBalanceSnapshot(month,{});
+                projectBalanceSnapshots.set(month,empty);
+                projectCatalogRevision++;
+            }
+            setProjectSnapshotStatus('error',cashLang==='zh'?'尚未同步余额':'Chưa có bản đồng bộ số dư');
+            renderProjectFirst();
+            return cached||null;
+        }catch(error){
+            console.warn('Cannot read project balance summary',error);
+            setProjectSnapshotStatus(cached?'ready':'error',cached
+                ? (cashLang==='zh'?'正在使用浏览器缓存':'Đang dùng bản đã lưu trên máy')
+                : (cashLang==='zh'?'无法读取余额汇总':'Không đọc được số dư tổng hợp'));
+            renderProjectFirst();
+            return cached||null;
+        }finally{
+            projectBalanceSnapshotLoads.delete(month);
+        }
+    })();
+    projectBalanceSnapshotLoads.set(month,task);
+    return task;
+}
 
 let cashCloudUnsubscribe=null;
 let cashCloudReady=false;
@@ -2164,6 +2353,7 @@ async function persistCashCloud(action="Cập nhật Cash Control"){
 
     cashCloudState.revision=Number(cashCloudState.revision||0)+1;
     cashCloudState.updatedBy=currentAuthUser.email||"lehoangoanh";
+    invalidateCashCalculations();
 
     setCashCloudConnection('loading','Cash Control: đang lưu online...');
 
@@ -2193,6 +2383,7 @@ async function persistCashCloud(action="Cập nhật Cash Control"){
         );
 
         setCashCloudConnection('ok','Cash Control: đã lưu online');
+        scheduleProjectBalanceSnapshot();
         return true;
     }catch(error){
         console.error("CASH CLOUD SAVE ERROR",error);
@@ -2267,6 +2458,7 @@ async function subscribeCashCloud(){
         cashPrivateRef,
         snap=>{
             cashCloudState=normalizeCashCloudState(snap.exists()?snap.data():{});
+            invalidateCashCalculations();
             cashCloudReady=true;
             setCashCloudConnection('ok','Cash Control: online · đã đồng bộ');
             updateCloudMigrationButton();
@@ -2345,6 +2537,7 @@ function rebuildPaymentsFromLoadedMonths(){
     });
 
     payments=[...map.values()];
+    invalidateCashCalculations();
 }
 
 function stopPaymentsRealtime(){
@@ -2435,7 +2628,10 @@ async function loadProjectPayments(project,{force=false,quiet=false,refresh=true
                 );
             }
 
-            if(refresh)renderAll();
+            if(refresh){
+                renderAll();
+                scheduleProjectBalanceSnapshot();
+            }
             return true;
 
         }catch(error){
@@ -2584,29 +2780,31 @@ function getDeleted(){return new Set(cashCloudState.deletedLegacy||[])}
 function getOverrides(){return cashCloudState.legacyOverrides||{}}
 function manual(){return cashCloudState.manualRecords||[]}
 function applyLegacy(base){const del=getDeleted(),ov=getOverrides();return base.filter(x=>!del.has(x.id)).map(x=>({...x,...(ov[x.id]||{})}))}
-function legacySalary(){return applyLegacy(LEGACY_SALARY)}
-function legacyFinance(){return applyLegacy(LEGACY_FINANCE)}
+function legacySalary(){return cachedCashCalculation('legacySalary',()=>applyLegacy(LEGACY_SALARY))}
+function legacyFinance(){return cachedCashCalculation('legacyFinance',()=>applyLegacy(LEGACY_FINANCE))}
 function legacyCashSpecial(){
-    const rows=applyLegacy(LEGACY_CASH_SPECIAL);
-    /* Safety: if a special row is ever put into Payment later,
-       do not count it twice in Cash Control. */
-    return rows.filter(x=>!payments.some(p=>{
-        if(p.deleted===true)return false;
-        const paidDate=String(p.processPaymentDate||'');
-        const paidAmount=Number(
-            p.processActualAmount!=='' &&
-            p.processActualAmount!=null
-                ? p.processActualAmount
-                : p.amount||0
-        );
-        return (
-            normProject(p.project)===normProject(x.project) &&
-            paidDate===x.actualDate &&
-            Math.abs(paidAmount-Number(x.actualAmount||x.amount||0))<0.01
-        );
-    }));
+    return cachedCashCalculation('legacyCashSpecial',()=>{
+        const rows=applyLegacy(LEGACY_CASH_SPECIAL);
+        /* Safety: if a special row is ever put into Payment later,
+           do not count it twice in Cash Control. */
+        return rows.filter(x=>!payments.some(p=>{
+            if(p.deleted===true)return false;
+            const paidDate=String(p.processPaymentDate||'');
+            const paidAmount=Number(
+                p.processActualAmount!=='' &&
+                p.processActualAmount!=null
+                    ? p.processActualAmount
+                    : p.amount||0
+            );
+            return (
+                normProject(p.project)===normProject(x.project) &&
+                paidDate===x.actualDate &&
+                Math.abs(paidAmount-Number(x.actualAmount||x.amount||0))<0.01
+            );
+        }));
+    });
 }
-function legacyVnb(){return applyLegacy(LEGACY_VNB)}
+function legacyVnb(){return cachedCashCalculation('legacyVnb',()=>applyLegacy(LEGACY_VNB))}
 function normalizePayment(p){
     const actualDate=String(p.processPaymentDate||'');
     const plannedMonth=String(p.paymentMonth||'');
@@ -2669,28 +2867,35 @@ function normalizePayment(p){
             : 'Read-only từ Payment · dự kiến/chưa trả'
     };
 }
-function allExpenses(){return [...payments.filter(p=>p.deleted!==true).map(normalizePayment),...legacySalary(),...legacyFinance(),...legacyCashSpecial(),...manual().filter(x=>x.kind!=='transfer')]}
-function allTransfers(){return [...legacyVnb(),...manual().filter(x=>x.kind==='transfer')]}
+function allExpenses(){return cachedCashCalculation('allExpenses',()=>[...payments.filter(p=>p.deleted!==true).map(normalizePayment),...legacySalary(),...legacyFinance(),...legacyCashSpecial(),...manual().filter(x=>x.kind!=='transfer')])}
+function allTransfers(){return cachedCashCalculation('allTransfers',()=>[...legacyVnb(),...manual().filter(x=>x.kind==='transfer')])}
 function allProjects(){
-    const s=new Set(DEFAULT_PROJECTS.map(normProject));
-    (cashCloudState.projectMasters||[]).forEach(x=>{if(x.code)s.add(normProject(x.code))});
-    allExpenses().forEach(x=>{if(x.project)s.add(normProject(x.project))});
-    allTransfers().forEach(x=>{if(x.fromProject)s.add(normProject(x.fromProject));if(x.toProject)s.add(normProject(x.toProject))});
-    (cashCloudState.inflowRecords||[]).forEach(x=>{if(x.project)s.add(normProject(x.project))});
-    (cashCloudState.paymentRequests||[]).forEach(x=>{if(x.project)s.add(normProject(x.project))});
-    (cashCloudState.salaryRecords||[]).forEach(x=>{if(x.project)s.add(normProject(x.project))});
-    (cashCloudState.guarantees||[]).forEach(x=>{if(x.project)s.add(normProject(x.project))});
-    return [...s].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+    return cachedCashCalculation(`allProjects:${projectCatalogRevision}`,()=>{
+        const s=new Set(DEFAULT_PROJECTS.map(normProject));
+        projectBalanceSnapshots.forEach(snapshot=>{
+            Object.keys(snapshot?.balances||{}).forEach(project=>s.add(normProject(project)));
+        });
+        (cashCloudState.projectMasters||[]).forEach(x=>{if(x.code)s.add(normProject(x.code))});
+        allExpenses().forEach(x=>{if(x.project)s.add(normProject(x.project))});
+        allTransfers().forEach(x=>{if(x.fromProject)s.add(normProject(x.fromProject));if(x.toProject)s.add(normProject(x.toProject))});
+        (cashCloudState.inflowRecords||[]).forEach(x=>{if(x.project)s.add(normProject(x.project))});
+        (cashCloudState.paymentRequests||[]).forEach(x=>{if(x.project)s.add(normProject(x.project))});
+        (cashCloudState.salaryRecords||[]).forEach(x=>{if(x.project)s.add(normProject(x.project))});
+        (cashCloudState.guarantees||[]).forEach(x=>{if(x.project)s.add(normProject(x.project))});
+        return [...s].filter(Boolean).sort((a,b)=>a.localeCompare(b));
+    });
 }
 function months(){
-    const s=new Set([CURRENT,START]);
-    allExpenses().forEach(x=>{if(x.period)s.add(x.period);if(x.recognizedMonth)s.add(x.recognizedMonth);if(x.actualDate)s.add(monthOf(x.actualDate))});
-    allTransfers().forEach(x=>{if(x.actualDate)s.add(monthOf(x.actualDate))});
-    (cashCloudState.inflowRecords||[]).forEach(x=>{if(x.expectedDate)s.add(monthOf(x.expectedDate));if(x.actualDate)s.add(monthOf(x.actualDate))});
-    (cashCloudState.paymentRequests||[]).forEach(x=>{if(x.dueDate)s.add(monthOf(x.dueDate));if(x.actualDate)s.add(monthOf(x.actualDate))});
-    (cashCloudState.salaryRecords||[]).forEach(x=>{if(x.payrollMonth)s.add(x.payrollMonth);if(x.actualDate)s.add(monthOf(x.actualDate))});
-    for(let i=0,m=CURRENT;i<12;i++,m=nextMonthValue(m))s.add(m);
-    return [...s].filter(Boolean).sort().reverse();
+    return cachedCashCalculation('months',()=>{
+        const s=new Set([CURRENT,START]);
+        allExpenses().forEach(x=>{if(x.period)s.add(x.period);if(x.recognizedMonth)s.add(x.recognizedMonth);if(x.actualDate)s.add(monthOf(x.actualDate))});
+        allTransfers().forEach(x=>{if(x.actualDate)s.add(monthOf(x.actualDate))});
+        (cashCloudState.inflowRecords||[]).forEach(x=>{if(x.expectedDate)s.add(monthOf(x.expectedDate));if(x.actualDate)s.add(monthOf(x.actualDate))});
+        (cashCloudState.paymentRequests||[]).forEach(x=>{if(x.dueDate)s.add(monthOf(x.dueDate));if(x.actualDate)s.add(monthOf(x.actualDate))});
+        (cashCloudState.salaryRecords||[]).forEach(x=>{if(x.payrollMonth)s.add(x.payrollMonth);if(x.actualDate)s.add(monthOf(x.actualDate))});
+        for(let i=0,m=CURRENT;i<12;i++,m=nextMonthValue(m))s.add(m);
+        return [...s].filter(Boolean).sort().reverse();
+    });
 }
 
 function parseVNDInput(value){
@@ -2718,7 +2923,60 @@ function monthFromIndex(idx){
     return `${y}-${String(m).padStart(2,'0')}`;
 }
 
+function compareCashMovements(a,b){
+    const dateOrder=String(a.date).localeCompare(String(b.date));
+    if(dateOrder!==0)return dateOrder;
+    const priority=Number(a.dayOrder||0)-Number(b.dayOrder||0);
+    if(priority!==0)return priority;
+    const directionOrder=(a.in>0?0:1)-(b.in>0?0:1);
+    if(directionOrder!==0)return directionOrder;
+    return String(a.desc||'').localeCompare(String(b.desc||''));
+}
+
+function cashMovementIndex(){
+    return cachedCashCalculation('cashMovementIndex',()=>{
+        const byMonth=new Map(),byMonthProject=new Map(),totalsByMonth=new Map(),allRows=[];
+        const add=row=>{
+            const month=monthOf(row.date),project=normProject(row.project);
+            if(!month||!project)return;
+            const item={...row,project};
+            if(!byMonth.has(month))byMonth.set(month,[]);
+            byMonth.get(month).push(item);
+            const detailKey=`${month}|${project}`;
+            if(!byMonthProject.has(detailKey))byMonthProject.set(detailKey,[]);
+            byMonthProject.get(detailKey).push(item);
+            if(!totalsByMonth.has(month))totalsByMonth.set(month,new Map());
+            const monthTotals=totalsByMonth.get(month);
+            const totals=monthTotals.get(project)||{inc:0,out:0,internalIn:0,internalOut:0};
+            totals.inc+=Number(item.in||0);
+            totals.out+=Number(item.out||0);
+            if(/←/.test(String(item.desc||'')))totals.internalIn+=Number(item.in||0);
+            if(/→/.test(String(item.desc||'')))totals.internalOut+=Number(item.out||0);
+            monthTotals.set(project,totals);
+            allRows.push(item);
+        };
+
+        allExpenses().forEach(x=>{
+            if(x.isAllocation||x.direction==='adjustment'||x.status!=='paid'||!x.actualDate)return;
+            const amount=Number(x.actualAmount||x.amount||0);
+            add({date:x.actualDate,project:x.project,in:x.direction==='in'?amount:0,out:x.direction==='out'?amount:0,desc:x.description,source:x.source,category:x.category,recordId:x.id||'',editable:x.source!=='payment',dayOrder:Number(x.dayOrder||0)});
+        });
+        allTransfers().forEach(x=>{
+            if(x.status!=='paid'||!x.actualDate)return;
+            const amount=Number(x.actualAmount||x.amount||0);
+            if(x.fromProject)add({date:x.actualDate,project:x.fromProject,in:0,out:amount,desc:`${x.transferType==='repayment'?'Hoàn vay':'Chuyển'} → ${x.toProject}`,source:x.source,category:x.category,recordId:x.id||'',editable:false,dayOrder:0});
+            if(x.toProject)add({date:x.actualDate,project:x.toProject,in:amount,out:0,desc:`${x.transferType==='repayment'?'Nhận hoàn':'Nhận'} ← ${x.fromProject}`,source:x.source,category:x.category,recordId:x.id||'',editable:false,dayOrder:0});
+        });
+
+        byMonth.forEach(rows=>rows.sort(compareCashMovements));
+        byMonthProject.forEach(rows=>rows.sort(compareCashMovements));
+        allRows.sort(compareCashMovements);
+        return {byMonth,byMonthProject,totalsByMonth,allRows};
+    });
+}
+
 function opening(project,month){
+    project=normProject(project);
     const startMap=openingStartMap();
     let balance=Number(startMap[project]||0);
 
@@ -2735,97 +2993,136 @@ function opening(project,month){
     }
 
     /* Carry forward: start opening + all actual movements before target month. */
+    const index=cashMovementIndex();
     for(let idx=startIdx;idx<targetIdx;idx++){
         const m=monthFromIndex(idx);
-        const mv=movements(m,project);
-        balance += mv.reduce((s,x)=>s+Number(x.in||0)-Number(x.out||0),0);
+        const totals=index.totalsByMonth.get(m)?.get(project);
+        if(totals)balance+=Number(totals.inc||0)-Number(totals.out||0);
     }
 
     return balance;
 }
 
-function movements(month='',project=''){const out=[];allExpenses().forEach(x=>{if(x.isAllocation||x.direction==='adjustment')return;if(x.status!=='paid'||!x.actualDate)return;const m=monthOf(x.actualDate);if(month&&m!==month)return;if(project&&x.project!==project)return;const a=Number(x.actualAmount||x.amount||0);out.push({date:x.actualDate,project:x.project,in:x.direction==='in'?a:0,out:x.direction==='out'?a:0,desc:x.description,source:x.source,category:x.category,recordId:x.id||'',editable:x.source!=='payment',dayOrder:Number(x.dayOrder||0)})});allTransfers().forEach(x=>{if(x.status!=='paid'||!x.actualDate)return;if(month&&monthOf(x.actualDate)!==month)return;const a=Number(x.actualAmount||x.amount||0);if(!project||x.fromProject===project)out.push({date:x.actualDate,project:x.fromProject,in:0,out:a,desc:`${x.transferType==='repayment'?'Hoàn vay':'Chuyển'} → ${x.toProject}`,source:x.source,category:x.category,recordId:x.id||'',editable:false,dayOrder:0});if(!project||x.toProject===project)out.push({date:x.actualDate,project:x.toProject,in:a,out:0,desc:`${x.transferType==='repayment'?'Nhận hoàn':'Nhận'} ← ${x.fromProject}`,source:x.source,category:x.category,recordId:x.id||'',editable:false,dayOrder:0})});return out.sort((a,b)=>{const d=String(a.date).localeCompare(String(b.date));if(d!==0)return d;const p=Number(a.dayOrder||0)-Number(b.dayOrder||0);if(p!==0)return p;const ai=a.in>0?0:1,bi=b.in>0?0:1;if(ai!==bi)return ai-bi;return String(a.desc||'').localeCompare(String(b.desc||''))})}
+function movements(month='',project=''){
+    const index=cashMovementIndex(),normalizedProject=normProject(project);
+    if(month&&normalizedProject)return index.byMonthProject.get(`${month}|${normalizedProject}`)||[];
+    if(month)return index.byMonth.get(month)||[];
+    if(normalizedProject)return index.allRows.filter(row=>row.project===normalizedProject);
+    return index.allRows;
+}
 function debtPositions(){const pos={};allTransfers().filter(x=>x.transferType==='loan'||x.transferType==='repayment').forEach(x=>{const lender=x.lender||(x.transferType==='loan'?x.fromProject:x.toProject),borrower=x.borrower||(x.transferType==='loan'?x.toProject:x.fromProject);if(!lender||!borrower)return;const pair=[lender,borrower].sort();const key=pair.join('|||');const sign=lender===pair[0]?1:-1;const delta=Number(x.amount||0)*(x.transferType==='loan'?1:-1)*sign;pos[key]=(pos[key]||0)+delta});return Object.entries(pos).map(([k,v])=>{const[a,b]=k.split('|||');if(Math.abs(v)<1)return null;return v>0?{lender:a,borrower:b,amount:v}:{lender:b,borrower:a,amount:-v}}).filter(Boolean).sort((a,b)=>b.amount-a.amount)}
+function updateOptionMarkup(el,html,fallback=''){
+    if(!el||el.__cashOptionMarkup===html)return false;
+    const old=el.value;
+    el.innerHTML=html;
+    el.__cashOptionMarkup=html;
+    if(old&&[...el.options].some(option=>option.value===old))el.value=old;
+    else if(fallback&&[...el.options].some(option=>option.value===fallback))el.value=fallback;
+    return true;
+}
+
+function updateStaticMarkup(el,html){
+    if(!el||el.__cashStaticMarkup===html)return false;
+    el.innerHTML=html;
+    el.__cashStaticMarkup=html;
+    return true;
+}
+
 function setOptions(){
     const ms=months(),ps=allProjects();
+    const monthOptions=ms.map(m=>`<option value="${m}">${fmtMonth(m)}</option>`).join('');
     ['commandMonth','eMonth','pMonth','rMonth'].forEach(id=>{
         const el=$(id);if(!el)return;
-        const old=el.value;
-        el.innerHTML=(id==='eMonth'?'<option value="">Tất cả tháng</option>':'')+ms.map(m=>`<option value="${m}">${fmtMonth(m)}</option>`).join('');
-        el.value=old||((id==='eMonth')?'':CURRENT);
+        updateOptionMarkup(el,(id==='eMonth'?'<option value="">Tất cả tháng</option>':'')+monthOptions,id==='eMonth'?'':CURRENT);
         if(!el.value&&id!=='eMonth')el.value=ms[0]||CURRENT;
     });
-    ['eProject','rProject','overviewProject','inflowProject','requestProject','debtProject','salaryProject'].forEach(id=>{
-        const el=$(id);if(!el)return;
-        const old=el.value;
-        el.innerHTML='<option value="">Tất cả dự án</option>'+ps.map(p=>`<option>${esc(p)}</option>`).join('');
-        el.value=old;
+
+    const projectOptions='<option value="">Tất cả dự án</option>'+ps.map(p=>`<option>${esc(p)}</option>`).join('');
+    ['eProject','rProject','overviewProject','inflowProject','requestProject','debtProject','salaryProject','loanProject'].forEach(id=>{
+        updateOptionMarkup($(id),projectOptions,'');
     });
-    if($('projectList'))$('projectList').innerHTML=ps.map(p=>`<option value="${esc(p)}">`).join('');
-    if($('partnerList'))$('partnerList').innerHTML=(cashCloudState.partnerMasters||[]).map(p=>`<option value="${esc(p.name||'')}">${esc(p.code||'')}</option>`).join('');
+    updateStaticMarkup($('projectList'),ps.map(p=>`<option value="${esc(p)}">`).join(''));
+    updateStaticMarkup($('partnerList'),(cashCloudState.partnerMasters||[]).map(p=>`<option value="${esc(p.name||'')}">${esc(p.code||'')}</option>`).join(''));
+
     if($('cashAccountList')){
         const accounts=[...new Set(['Tiền mặt','Tài khoản ngân hàng công ty','Tài khoản ký quỹ',...allExpenses().map(x=>String(x.account||'').trim()).filter(Boolean)])];
-        $('cashAccountList').innerHTML=accounts.map(x=>`<option value="${esc(x)}">`).join('');
-    }
-    if($('loanProject')){
-        const old=$('loanProject').value;
-        $('loanProject').innerHTML='<option value="">Tất cả dự án</option>'+ps.map(p=>`<option>${esc(p)}</option>`).join('');
-        $('loanProject').value=old;
+        updateStaticMarkup($('cashAccountList'),accounts.map(x=>`<option value="${esc(x)}">`).join(''));
     }
     if($('salaryPeriod')){
-        const old=$('salaryPeriod').value;
         const salaryMonths=[...new Set((cashCloudState.salaryRecords||[]).map(x=>x.payrollMonth).filter(Boolean))].sort().reverse();
-        $('salaryPeriod').innerHTML='<option value="">Tất cả kỳ lương</option>'+salaryMonths.map(m=>`<option value="${m}">${fmtMonth(m)}</option>`).join('');
-        $('salaryPeriod').value=old;
+        updateOptionMarkup($('salaryPeriod'),'<option value="">Tất cả kỳ lương</option>'+salaryMonths.map(m=>`<option value="${m}">${fmtMonth(m)}</option>`).join(''),'');
     }
     if($('salaryQuarter')){
-        const old=$('salaryQuarter').value;
         const quarters=[...new Set((cashCloudState.salaryRecords||[]).map(x=>payrollQuarter(x.payrollMonth)).filter(x=>x!=='Chưa rõ kỳ'))].sort().reverse();
-        $('salaryQuarter').innerHTML='<option value="">Tất cả quý</option>'+quarters.map(q=>`<option value="${esc(q)}">${esc(q)}</option>`).join('');
-        $('salaryQuarter').value=old;
+        updateOptionMarkup($('salaryQuarter'),'<option value="">Tất cả quý</option>'+quarters.map(q=>`<option value="${esc(q)}">${esc(q)}</option>`).join(''),'');
     }
     const cats=[...new Set(allExpenses().map(x=>x.category).filter(Boolean))].sort();
-    if($('eCategory'))$('eCategory').innerHTML='<option value="">Tất cả loại</option>'+cats.map(c=>`<option>${esc(c)}</option>`).join('');
+    updateOptionMarkup($('eCategory'),'<option value="">Tất cả loại</option>'+cats.map(c=>`<option>${esc(c)}</option>`).join(''),'');
 }
 
 let pfSelectedProject='';
 
 function pfProjectData(month,project){
     if(project){
+        const snapshot=projectSnapshotRow(month,project);
+        if(!paymentMonths.has(normProject(project))&&snapshot){
+            return {p:project,op:snapshot.opening,inc:snapshot.cashIn,out:snapshot.cashOut,bal:snapshot.balance,internalIn:snapshot.internalIn,internalOut:snapshot.internalOut};
+        }
         return projectStats(month).find(x=>x.p===project) || {p:project,op:opening(project,month),inc:0,out:0,bal:opening(project,month),internalIn:0,internalOut:0};
     }
     return projectStats(month).reduce((a,x)=>{a.op+=Number(x.op||0);a.inc+=Number(x.inc||0);a.out+=Number(x.out||0);a.bal+=Number(x.bal||0);a.internalIn+=Number(x.internalIn||0);a.internalOut+=Number(x.internalOut||0);return a},{op:0,inc:0,out:0,bal:0,internalIn:0,internalOut:0});
 }
 
-function pfRenderProjectList(){
+function pfBalanceRows(month){
+    const snapshot=projectBalanceSnapshots.get(month);
+    return allProjects().map(project=>{
+        const key=normProject(project);
+        const loaded=paymentMonths.has(key);
+        const saved=snapshot?.balances?.[key]||null;
+        return {
+            project,
+            loaded,
+            saved:!!saved,
+            hasBalance:!!saved,
+            balance:saved?Number(saved.balance||0):0
+        };
+    });
+}
+
+async function selectPfProject(project){
+    pfSelectedProject=normProject(project);
+    localStorage.setItem('cashCtlLastProject',pfSelectedProject);
+    renderProjectFirst();
+    if(currentAuthUser&&pfSelectedProject){
+        await loadProjectPayments(pfSelectedProject);
+        renderProjectFirst();
+    }
+}
+
+function pfRenderProjectList(balanceRows=null){
     const q=String($('pfProjectSearch')?.value||'').trim().toLowerCase();
-    const projects=allProjects().filter(p=>!q||p.toLowerCase().includes(q));
+    const month=$('commandMonth')?.value||CURRENT;
+    const rows=(balanceRows||pfBalanceRows(month)).filter(row=>!q||row.project.toLowerCase().includes(q));
+    const snapshotTime=snapshotMomentLabel(projectBalanceSnapshots.get(month)?.updatedAt);
 
     $('pfProjectList').innerHTML=
-        projects.map(p=>{
-            const loaded=paymentMonths.has(normProject(p));
-            const status=loaded
-                ? (cashLang==='zh'?'已加载':'Đã tải')
-                : (cashLang==='zh'?'未加载':'Chưa tải');
-
-            return `<button class="pf-item ${pfSelectedProject===p?'active':''}" data-pf-project="${esc(p)}">
-                <span class="pf-name">${esc(p)}</span>
-                <span class="pf-load-status ${loaded?'loaded':''}">${status}</span>
+        rows.map(row=>{
+            const status=row.loaded
+                ? (cashLang==='zh'?'详细数据已加载':'Đã mở chi tiết')
+                : row.saved
+                    ? (cashLang==='zh'?`汇总 ${snapshotTime||month}`:`Tổng hợp ${snapshotTime||month}`)
+                    : (cashLang==='zh'?'尚未同步':'Chưa đồng bộ');
+            return `<button class="pf-item ${pfSelectedProject===row.project?'active':''}" data-pf-project="${esc(row.project)}">
+                <span class="pf-name-wrap">
+                  <span class="pf-name">${esc(row.project)}</span>
+                  <span class="pf-load-status ${row.loaded?'loaded':''}">${status}</span>
+                </span>
+                <span class="pf-balance ${row.hasBalance?(row.balance<0?'negative':''):'missing'}">${row.hasBalance?money(row.balance):'—'}</span>
             </button>`;
         }).join('');
 
     document.querySelectorAll('[data-pf-project]').forEach(btn=>{
-        btn.onclick=async()=>{
-            pfSelectedProject=btn.dataset.pfProject||'';
-            localStorage.setItem('cashCtlLastProject',pfSelectedProject);
-
-            renderProjectFirst();
-
-            if(currentAuthUser && pfSelectedProject){
-                await loadProjectPayments(pfSelectedProject);
-                renderProjectFirst();
-            }
-        };
+        btn.onclick=()=>selectPfProject(btn.dataset.pfProject||'');
     });
 }
 
@@ -2900,17 +3197,55 @@ function renderPfDetail(id){
     if(edit)edit.onclick=()=>editTxn(x.id);
 }
 
+function renderProjectBalanceOverview(month,balanceRows){
+    const box=$('pfEmptySelect'),body=$('pfBalanceOverview');
+    if(!box||!body)return;
+    const rows=balanceRows||pfBalanceRows(month);
+    const known=rows.filter(row=>row.hasBalance);
+    const total=known.reduce((sum,row)=>sum+row.balance,0);
+    const positive=known.filter(row=>row.balance>=0).length;
+    const negative=known.filter(row=>row.balance<0).length;
+    const updated=snapshotMomentLabel(projectBalanceSnapshots.get(month)?.updatedAt);
+    box.classList.toggle('has-summary',known.length>0);
+
+    if($('pfEmptyTitle'))$('pfEmptyTitle').textContent=known.length
+        ? (cashLang==='zh'?'全部项目余额':'Số dư tất cả dự án')
+        : (cashLang==='zh'?'尚无余额汇总':'Chưa có số dư tổng hợp');
+    if($('pfEmptySub'))$('pfEmptySub').textContent=known.length
+        ? (cashLang==='zh'?'点击项目后才读取该项目的 Payment 明细。':'Bấm vào dự án mới tải chi tiết Payment của riêng dự án đó.')
+        : (cashLang==='zh'?'请执行一次“全部同步”以建立余额汇总。':'Bấm “Đồng bộ tất cả” một lần để tạo bản tổng hợp ban đầu.');
+
+    if(!known.length){body.innerHTML='';return}
+    body.innerHTML=`
+      <div class="pf-overview-head">
+        <b>${cashLang==='zh'?`${fmtMonth(month)} 项目余额`:`Bảng số dư · ${fmtMonth(month)}`}</b>
+        <span>${updated?(cashLang==='zh'?`更新 ${updated}`:`Cập nhật ${updated}`):(cashLang==='zh'?'浏览器缓存':'Bản đã lưu')}</span>
+      </div>
+      <div class="pf-overview-kpis">
+        <div class="pf-overview-kpi"><label>${cashLang==='zh'?'已有余额':'Đã có số dư'}</label><b>${known.length}/${rows.length} ${cashLang==='zh'?'项目':'dự án'}</b></div>
+        <div class="pf-overview-kpi"><label>${cashLang==='zh'?'余额合计':'Tổng số dư'}</label><b class="${total<0?'neg':''}">${money(total)}</b></div>
+        <div class="pf-overview-kpi"><label>${cashLang==='zh'?'正数 / 负数':'Dương / Âm'}</label><b>${positive} / ${negative}</b></div>
+      </div>
+      <div class="pf-overview-table-wrap">
+        <table class="pf-overview-table">
+          <thead><tr><th>${cashLang==='zh'?'项目':'Dự án'}</th><th>${cashLang==='zh'?'数据状态':'Trạng thái dữ liệu'}</th><th>${cashLang==='zh'?'期末余额':'Số dư cuối kỳ'}</th></tr></thead>
+          <tbody>${rows.map(row=>`<tr data-pf-overview-project="${esc(row.project)}"><td><b>${esc(row.project)}</b></td><td>${row.loaded?(cashLang==='zh'?'已加载明细':'Đã mở chi tiết'):row.saved?(cashLang==='zh'?'已保存汇总':'Đã có bản tổng hợp'):(cashLang==='zh'?'尚未同步':'Chưa đồng bộ')}</td><td class="amount ${row.hasBalance&&row.balance<0?'negative':''}">${row.hasBalance?money(row.balance):'—'}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>`;
+    document.querySelectorAll('[data-pf-overview-project]').forEach(row=>{
+        row.onclick=()=>selectPfProject(row.dataset.pfOverviewProject||'');
+    });
+}
+
 function renderProjectFirst(){
     const month=$('commandMonth').value||CURRENT, project=pfSelectedProject;
+    const balanceRows=pfBalanceRows(month);
 
-    pfRenderProjectList();
+    pfRenderProjectList(balanceRows);
 
     if(!project){
         document.querySelector('.pf-workspace')?.classList.add('no-project');
-        if($('pfEmptyTitle'))$('pfEmptyTitle').textContent=cashLang==='zh'?'请选择项目':'Chọn một dự án';
-        if($('pfEmptySub'))$('pfEmptySub').textContent=cashLang==='zh'
-            ?'只有打开项目时才读取该项目的 Payment。'
-            :'Payment chỉ được đọc khi bạn mở project đó.';
+        renderProjectBalanceOverview(month,balanceRows);
         return;
     }
 
@@ -2945,7 +3280,16 @@ function renderProjectFirst(){
 }
 function renderCommand(){renderProjectFirst()}
 function renderExpenses(){const q=$('eSearch').value.toLowerCase(),mo=$('eMonth').value,pr=$('eProject').value,cat=$('eCategory').value,src=$('eSource').value,st=$('eStatus').value;let arr=allExpenses().filter(x=>(!q||[x.project,x.description,x.subCode,x.category,x.account].join(' ').toLowerCase().includes(q))&&(!mo||x.period===mo||x.recognizedMonth===mo||monthOf(x.actualDate)===mo)&&(!pr||x.project===pr)&&(!cat||x.category===cat)&&(!src||x.source===src)&&(!st||x.status===st)).sort((a,b)=>String(b.actualDate||b.period).localeCompare(String(a.actualDate||a.period)));$('expenseBody').innerHTML=arr.slice(0,1500).map(x=>`<tr class="${x.category==='Chưa phân loại'?'review-row':''}"><td class="${x.source==='payment'?'source-payment':(x.source==='legacy_salary'||x.source==='legacy_finance'||x.source==='history_cash')?'source-legacy':'source-manual'}"><b>${sourceName(x.source)}</b></td><td><b>${esc(x.project)}</b></td><td class="${x.category==='Chưa phân loại'?'unclass':''}">${esc(x.category)}</td><td>${esc(x.subCode||'')}</td><td title="${esc(x.description)}">${esc(x.description)}</td><td>${fmtMonth(x.period)}</td><td>${fmtMonth(monthOf(x.actualDate))}</td><td>${fmtDate(x.actualDate)}</td><td><span class="pill ${x.isAllocation?'violet':x.status==='paid'?'green':'amber'}">${x.isAllocation?'Điều chuyển':x.status==='paid'?'Đã trả':'Chưa trả'}</span></td><td>${esc(x.account||'—')}</td><td class="amt ${Number(x.amount)<0?'neg':''}">${money(x.status==='paid'?(x.actualAmount||x.amount):x.amount)}</td><td>${x.source==='payment'?'<span class="muted">Chỉ đọc</span>':`<button class="btn" data-edit="${esc(x.id)}">Sửa</button> <button class="btn danger" data-del="${esc(x.id)}">Xóa</button>`}</td></tr>`).join('')||'<tr><td colspan="12" class="empty">Không có dữ liệu phù hợp.</td></tr>';document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editTxn(b.dataset.edit));document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>deleteTxn(b.dataset.del))}
-function projectStats(m){return allProjects().map(p=>{const a=movements(m,p),inc=a.reduce((s,x)=>s+x.in,0),out=a.reduce((s,x)=>s+x.out,0),op=opening(p,m),bal=op+inc-out,internalIn=a.filter(x=>/←/.test(x.desc)).reduce((s,x)=>s+x.in,0),internalOut=a.filter(x=>/→/.test(x.desc)).reduce((s,x)=>s+x.out,0);return{p,inc,out,op,bal,internalIn,internalOut}}).sort((a,b)=>b.bal-a.bal)}
+function projectStats(m){
+    return cachedCashCalculation(`projectStats:${m}:${projectCatalogRevision}`,()=>{
+        const monthTotals=cashMovementIndex().totalsByMonth.get(m)||new Map();
+        return allProjects().map(p=>{
+            const totals=monthTotals.get(normProject(p))||{inc:0,out:0,internalIn:0,internalOut:0};
+            const op=opening(p,m),inc=Number(totals.inc||0),out=Number(totals.out||0);
+            return {p,inc,out,op,bal:op+inc-out,internalIn:Number(totals.internalIn||0),internalOut:Number(totals.internalOut||0)};
+        }).sort((a,b)=>b.bal-a.bal);
+    });
+}
 
 function renderProjectListOnly(){
     const q=String($('pdProjectSearch')?.value||'').trim().toLowerCase();
@@ -4035,9 +4379,11 @@ function excelBuildProjectCashSheet(project,month){
     return ws;
 }
 
-async function loadAllProjectsForBalanceExport(){
+async function loadAllProjectsForBalanceExport({force=false}={}){
     const projects=allProjects();
-    const pending=projects.filter(project=>!paymentMonths.has(normProject(project)));
+    const pending=force
+        ? projects
+        : projects.filter(project=>!paymentMonths.has(normProject(project)));
     if(!pending.length)return {loaded:0,failed:0};
 
     let loaded=0,failed=0;
@@ -4046,7 +4392,7 @@ async function loadAllProjectsForBalanceExport(){
         const batch=pending.slice(i,i+batchSize);
         setPayConnection('loading',`Đang lấy Payment để chốt số dư · ${Math.min(i+batch.length,pending.length)}/${pending.length} dự án...`);
         const results=await Promise.all(batch.map(project=>
-            loadProjectPayments(project,{quiet:true,refresh:false})
+            loadProjectPayments(project,{force,quiet:true,refresh:false})
         ));
         results.forEach(ok=>ok?loaded++:failed++);
     }
@@ -4054,7 +4400,7 @@ async function loadAllProjectsForBalanceExport(){
     renderAll();
     setPayConnection(failed?'error':'ok',failed
         ?`Đã tải ${loaded} dự án · ${failed} dự án không đọc được`
-        :`Đã cập nhật Payment của ${loaded} dự án để xuất số dư`
+        :`Đã cập nhật Payment của ${loaded} dự án để chốt số dư`
     );
     return {loaded,failed};
 }
@@ -4255,6 +4601,51 @@ if(exportCurrentBalancesBtn){
     };
 }
 
+const pfSyncAllBtn=$('pfSyncAllBtn');
+if(pfSyncAllBtn){
+    pfSyncAllBtn.onclick=async()=>{
+        if(!currentAuthUser||!isCashControlOwner()){
+            alert('Chỉ tài khoản quản trị Cash Control mới được đồng bộ.');
+            return;
+        }
+        const projects=allProjects();
+        if(!confirm(
+            `Đồng bộ lại toàn bộ ${projects.length} dự án?\n\n`+
+            'Thao tác này sẽ đọc lại tất cả hồ sơ Payment của các dự án, sau đó lưu một bản tổng hợp số dư theo tháng. '+
+            'Chỉ nên bấm khi Payment vừa có thay đổi hoặc cần chốt lại số dư.\n\n'+
+            'Việc mở trang và xem bản tổng hợp sau đó không cần đọc lại toàn bộ Payment.'
+        ))return;
+
+        const oldText=pfSyncAllBtn.textContent;
+        pfSyncAllBtn.disabled=true;
+        pfSyncAllBtn.textContent='Đang đồng bộ…';
+        setProjectSnapshotStatus('loading','Đang đồng bộ toàn bộ Payment…');
+        try{
+            const result=await loadAllProjectsForBalanceExport({force:true});
+            clearTimeout(window.__cashSnapshotTimer);
+            await publishProjectBalanceSnapshot();
+            const month=$('commandMonth')?.value||CURRENT;
+            const saved=projectBalanceSnapshots.get(month);
+            setProjectSnapshotStatus(result.failed?'error':'ready',result.failed
+                ? `Đồng bộ thiếu ${result.failed} dự án`
+                : `Số dư tổng hợp · ${snapshotMomentLabel(saved?.updatedAt)||month}`
+            );
+            renderProjectFirst();
+            alert(result.failed
+                ? `Đã cập nhật ${result.loaded} dự án; ${result.failed} dự án không đọc được. Bản tổng hợp chỉ gồm dữ liệu đọc thành công.`
+                : `✅ Đã đồng bộ ${result.loaded} dự án và lưu bản tổng hợp số dư. Từ lần mở sau, bảng số dư sẽ hiện ngay.`
+            );
+        }catch(error){
+            console.error('FULL BALANCE SYNC ERROR',error);
+            setProjectSnapshotStatus('error','Đồng bộ thất bại');
+            alert(`Không hoàn tất đồng bộ. ${String(error?.message||error||'').trim()}`);
+        }finally{
+            pfSyncAllBtn.disabled=false;
+            pfSyncAllBtn.textContent=oldText;
+        }
+    };
+}
+
 const exportProjectLedgerExcelBtn=$('exportProjectLedgerExcelBtn');
 if(exportProjectLedgerExcelBtn){
     exportProjectLedgerExcelBtn.onclick=async()=>{
@@ -4435,40 +4826,46 @@ function buildDailyProjectBalances(month,project,openingAmount){
 }
 
 function internalDebtPositionAt(project,cutoffDate){
-  const pairs={};
-  allTransfers().forEach(item=>{
-    if(item.status!=='paid'||!item.actualDate||String(item.actualDate).slice(0,10)>cutoffDate)return;
-    if(item.transferType!=='loan'&&item.transferType!=='repayment')return;
-    const lender=item.lender||(item.transferType==='loan'?item.fromProject:item.toProject);
-    const borrower=item.borrower||(item.transferType==='loan'?item.toProject:item.fromProject);
-    if(!lender||!borrower||lender===borrower)return;
-    const pair=[lender,borrower].sort(), key=pair.join('|||'), sign=lender===pair[0]?1:-1;
-    const amount=Number(item.actualAmount||item.amount||0);
-    pairs[key]=(pairs[key]||0)+amount*(item.transferType==='loan'?1:-1)*sign;
+  const normalizedProject=normProject(project);
+  return cachedCashCalculation(`internalDebt:${normalizedProject}:${cutoffDate}`,()=>{
+    const pairs={};
+    allTransfers().forEach(item=>{
+      if(item.status!=='paid'||!item.actualDate||String(item.actualDate).slice(0,10)>cutoffDate)return;
+      if(item.transferType!=='loan'&&item.transferType!=='repayment')return;
+      const lender=item.lender||(item.transferType==='loan'?item.fromProject:item.toProject);
+      const borrower=item.borrower||(item.transferType==='loan'?item.toProject:item.fromProject);
+      if(!lender||!borrower||lender===borrower)return;
+      const pair=[lender,borrower].sort(), key=pair.join('|||'), sign=lender===pair[0]?1:-1;
+      const amount=Number(item.actualAmount||item.amount||0);
+      pairs[key]=(pairs[key]||0)+amount*(item.transferType==='loan'?1:-1)*sign;
+    });
+    const receivables=[],payables=[];
+    Object.entries(pairs).forEach(([key,value])=>{
+      if(Math.abs(value)<1)return;
+      const [a,b]=key.split('|||'), lender=value>0?a:b, borrower=value>0?b:a, amount=Math.abs(value);
+      if(normProject(lender)===normalizedProject)receivables.push({project:borrower,amount});
+      if(normProject(borrower)===normalizedProject)payables.push({project:lender,amount});
+    });
+    receivables.sort((a,b)=>b.amount-a.amount);payables.sort((a,b)=>b.amount-a.amount);
+    return {
+      receivables,payables,
+      receivableTotal:receivables.reduce((sum,row)=>sum+row.amount,0),
+      payableTotal:payables.reduce((sum,row)=>sum+row.amount,0)
+    };
   });
-  const receivables=[],payables=[];
-  Object.entries(pairs).forEach(([key,value])=>{
-    if(Math.abs(value)<1)return;
-    const [a,b]=key.split('|||'), lender=value>0?a:b, borrower=value>0?b:a, amount=Math.abs(value);
-    if(normProject(lender)===normProject(project))receivables.push({project:borrower,amount});
-    if(normProject(borrower)===normProject(project))payables.push({project:lender,amount});
-  });
-  receivables.sort((a,b)=>b.amount-a.amount);payables.sort((a,b)=>b.amount-a.amount);
-  return {
-    receivables,payables,
-    receivableTotal:receivables.reduce((sum,row)=>sum+row.amount,0),
-    payableTotal:payables.reduce((sum,row)=>sum+row.amount,0)
-  };
 }
 
 function buildProjectInternalDebtTimeline(month,project){
-  const opening=internalDebtPositionAt(project,`${month}-00`),daily={};
-  const dates=[...new Set(allTransfers()
-    .filter(item=>item.status==='paid'&&(item.transferType==='loan'||item.transferType==='repayment')&&String(item.actualDate||'').slice(0,7)===month)
-    .filter(item=>[item.fromProject,item.toProject,item.lender,item.borrower].some(value=>normProject(value)===normProject(project)))
-    .map(item=>String(item.actualDate).slice(0,10)))].sort();
-  dates.forEach(date=>{daily[date]=internalDebtPositionAt(project,date)});
-  return {opening,daily};
+  const normalizedProject=normProject(project);
+  return cachedCashCalculation(`internalDebtTimeline:${month}:${normalizedProject}`,()=>{
+    const opening=internalDebtPositionAt(normalizedProject,`${month}-00`),daily={};
+    const dates=[...new Set(allTransfers()
+      .filter(item=>item.status==='paid'&&(item.transferType==='loan'||item.transferType==='repayment')&&String(item.actualDate||'').slice(0,7)===month)
+      .filter(item=>[item.fromProject,item.toProject,item.lender,item.borrower].some(value=>normProject(value)===normalizedProject))
+      .map(item=>String(item.actualDate).slice(0,10)))].sort();
+    dates.forEach(date=>{daily[date]=internalDebtPositionAt(normalizedProject,date)});
+    return {opening,daily};
+  });
 }
 
 async function publishProjectBalanceSnapshot(){
@@ -4556,6 +4953,12 @@ async function publishProjectBalanceSnapshot(){
     if(debtChanged){payload.internalDebtByProject=internalDebtByProject;payload.internalDebtSource=debtSource}
     if(catalogChanged)payload.projectCatalog=projectCatalog;
     await setDoc(doc(db,CASH_MONTHLY_SNAPSHOT_COLLECTION,month),payload,{merge:true});
+    mergeProjectBalanceSnapshotRows(
+      month,
+      changedBalances,
+      new Date().toISOString(),
+      currentAuthUser.email||''
+    );
 
     changedHashes.forEach((hash,key)=>publishedBalanceHashes.set(key,hash));
     if(debtChanged)publishedBalanceHashes.set(debtHashKey,debtHash);
@@ -4575,6 +4978,19 @@ function queueProjectBalanceSnapshot(){
       }
     });
   return balanceSnapshotPublishChain;
+}
+
+function scheduleProjectBalanceSnapshot(){
+  if(!currentAuthUser||!isCashControlOwner()||paymentMonths.size===0)return;
+  clearTimeout(window.__cashSnapshotTimer);
+  window.__cashSnapshotTimer=setTimeout(()=>{
+    const run=()=>queueProjectBalanceSnapshot();
+    if('requestIdleCallback' in window){
+      window.requestIdleCallback(run,{timeout:1800});
+    }else{
+      run();
+    }
+  },650);
 }
 
 /* =========================================================
@@ -5230,11 +5646,6 @@ function renderAll(){
     else if(active==='partnersView')renderPartners();
     else if(active==='healthView')renderHealth();
     else if(active==='reportsView')renderReport();
-
-    clearTimeout(window.__cashSnapshotTimer);
-    window.__cashSnapshotTimer=setTimeout(()=>{
-        queueProjectBalanceSnapshot();
-    },300);
 }
 
 function parseTxnMoney(value){
@@ -5677,6 +6088,7 @@ $('saveOpening').onclick=async()=>{
 ['commandMonth'].forEach(id=>$(id).onchange=async()=>{
         const m=$(id).value||CURRENT;
         activePaymentMonth=m;
+        await loadProjectBalanceSnapshot(m);
         if(currentAuthUser && pfSelectedProject){
             await ensureCashFlowPaymentMonths(m,{project:pfSelectedProject});
         }
@@ -5924,6 +6336,7 @@ onAuthStateChanged(auth,user=>{
 
         updateCloudMigrationButton();
         subscribeCashCloud();
+        loadProjectBalanceSnapshot($('commandMonth')?.value||CURRENT,{force:true});
         setPayConnection(
             'idle',
             cashLang==='zh'
@@ -5931,8 +6344,6 @@ onAuthStateChanged(auth,user=>{
                 : 'Chọn dự án để link Payment'
         );
     }else{
-        window.location.replace('./index.html');
-        return;
         stopPaymentsRealtime();
 
         if(cashCloudUnsubscribe){
@@ -5945,14 +6356,18 @@ onAuthStateChanged(auth,user=>{
         paymentMonths.clear();
         publishedBalanceHashes.clear();
         payments=[];
+        invalidateCashCalculations();
 
         setPayConnection('idle','Cần đăng nhập để đọc Payment');
         setCashCloudConnection('idle','Cash Control: chưa đăng nhập');
         updateCloudMigrationButton();
         renderAll();
+        window.location.replace('./index.html');
+        return;
     }
 });
 
+hydrateProjectBalanceSnapshotCache();
 renderAll();
 applyCashLanguage();
 </script></body></html>
