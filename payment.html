@@ -32912,15 +32912,26 @@ function buildExcelImportRows(){
                             )
                         );
 
-                    const resolvedProject =
-                        contract
-                            ? contract.project
-                            : pastedProject;
-
                     const resolvedContractNo =
                         contract
                             ? contract.contractNo
                             : contractNo;
+
+                    /*
+                       FOXCONN contracts use FSCPCB in their contract number.
+                       Keep the business project name FOXCONN even when an old
+                       Contract Master row still says 中建厂房.
+                    */
+                    const resolvedProject =
+                        normalizeSmartContractNo(
+                            resolvedContractNo
+                        ).includes("fscpcb")
+                            ? "FOXCONN"
+                            : canonicalProjectDisplay(
+                                contract
+                                    ? contract.project
+                                    : pastedProject
+                            );
 
                     data =
                         (
@@ -33690,9 +33701,18 @@ function normalizeSmartCode(value){
 
 
 function normalizeSmartProject(value){
+    const normalizedText =
+        normalizeSmartText(value);
+
+    /*
+       Keep Unicode letters/numbers.  The old ASCII-only cleanup erased
+       Chinese project names completely; several different projects then
+       became the same empty key and the first one in Contract Master
+       (often 中建厂房) was selected as a false fallback.
+    */
     const compact =
-        normalizeSmartText(value)
-            .replace(/[^a-z0-9]/g,"");
+        normalizedText
+            .replace(/[^\p{L}\p{N}]/gu,"");
 
     /*
        Excel users often abbreviate a project while Contract Master keeps
@@ -33709,6 +33729,15 @@ function normalizeSmartProject(value){
 
     if(compact.startsWith("eaton")){
         return "eaton";
+    }
+
+    /* FSCPCB is the contract/project code used for FOXCONN. */
+    if(
+        compact === "foxconn" ||
+        compact === "fscpcb" ||
+        normalizedText.includes("中建厂房")
+    ){
+        return "foxconn";
     }
 
     return compact;
@@ -33823,6 +33852,16 @@ function canonicalProjectDisplay(value){
 
     const normalized =
         normalizeSmartProject(raw);
+
+    /* Never search Contract Master with an empty project key. */
+    if(!normalized){
+        return raw;
+    }
+
+    /* Business display name for both FOXCONN and its FSCPCB/Chinese alias. */
+    if(normalized === "foxconn"){
+        return "FOXCONN";
+    }
 
     const masterProject =
         allContracts.find(
