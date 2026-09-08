@@ -22941,8 +22941,6 @@ async function purgeSelectedPaymentsFromFirebase(){
                 chunk.length;
         }
 
-        selectedPaymentIds.clear();
-
         /*
            Remove deleted rows locally immediately.
            Realtime listener will confirm the same Firebase state.
@@ -22959,6 +22957,16 @@ async function purgeSelectedPaymentsFromFirebase(){
                         payment.id
                     )
             );
+
+        /* If a deleted Payment was already archived, remove the exact
+           paymentId from that month's compact snapshot and replace the
+           existing Drive workbook in place. */
+        const archiveSync =
+            await removePaymentsFromArchivesAfterPurge(
+                selectedPayments
+            );
+
+        selectedPaymentIds.clear();
 
         updateBatchSelectionUI();
         renderPayments();
@@ -22992,11 +23000,26 @@ async function purgeSelectedPaymentsFromFirebase(){
             }
         }
 
-        alert(
+        let successMessage =
             "✅ Đã xóa vĩnh viễn " +
             deletedCount +
-            " thanh toán đã chọn khỏi Firebase."
-        );
+            " thanh toán đã chọn khỏi Firebase.";
+
+        if(archiveSync.updatedMonths.length){
+            successMessage +=
+                "\n\n✓ Đã tự gỡ khỏi Kho chứng từ: " +
+                archiveSync.updatedMonths.join(", ") +
+                ".";
+        }
+
+        if(archiveSync.failedMonths.length){
+            successMessage +=
+                "\n\n⚠ Payment đã xóa nhưng chưa cập nhật được Kho: " +
+                archiveSync.failedMonths.join(", ") +
+                ". Hãy kết nối lại Google Drive rồi thử đồng bộ Kho.";
+        }
+
+        alert(successMessage);
 
     }catch(error){
 
@@ -43843,6 +43866,110 @@ function archiveDetailRowToPayment(row,month,index){
     };
 }
 
+async function removePaymentsFromArchivesAfterPurge(deletedPayments=[]){
+    const byMonth = new Map();
+
+    deletedPayments.forEach(payment => {
+        if(!payment || !isPaymentArchived(payment)) return;
+        const month = String(payment.archiveMonth || payment.paymentMonth || "").trim();
+        if(!/^\d{4}-\d{2}$/.test(month)) return;
+        if(!byMonth.has(month)) byMonth.set(month,[]);
+        byMonth.get(month).push(payment);
+    });
+
+    const updatedMonths = [];
+    const failedMonths = [];
+
+    for(const [month,paymentsToRemove] of byMonth){
+        try{
+            if(typeof XLSX === "undefined"){
+                throw new Error("Không tải được thư viện Excel.");
+            }
+
+            const archiveDocRef = doc(db,"paymentArchives",month);
+            const detailsDocRef = doc(db,"paymentArchiveDetails",month);
+            const [archiveSnapshot,detailsSnapshot] = await Promise.all([
+                getDoc(archiveDocRef),
+                getDoc(detailsDocRef)
+            ]);
+
+            if(!archiveSnapshot.exists() && !detailsSnapshot.exists()) continue;
+            if(!detailsSnapshot.exists()){
+                throw new Error("Kho tháng này chưa có dữ liệu chi tiết để cập nhật.");
+            }
+
+            const deletedIds = new Set(
+                paymentsToRemove.map(payment => String(payment.id || "")).filter(Boolean)
+            );
+            const deletedKeys = new Set(
+                paymentsToRemove.map(archivePaymentSemanticKey)
+            );
+            const oldRows = Array.isArray(detailsSnapshot.data()?.rows)
+                ? detailsSnapshot.data().rows
+                : [];
+            const remainingRows = oldRows.filter((row,index) => {
+                const rowId = String(row?.paymentId || "");
+                if(rowId) return !deletedIds.has(rowId);
+                return !deletedKeys.has(
+                    archivePaymentSemanticKey(
+                        archiveDetailRowToPayment(row,month,index)
+                    )
+                );
+            });
+
+            if(remainingRows.length === oldRows.length) continue;
+
+            const remainingPayments = remainingRows.map((row,index) =>
+                archiveDetailRowToPayment(row,month,index)
+            );
+            const {workbook,actualTotal,uncCount} =
+                buildPaymentArchiveWorkbook(month,remainingPayments);
+            const fileBlob = new Blob(
+                [XLSX.write(workbook,{bookType:"xlsx",type:"array",cellStyles:true,compression:true})],
+                {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
+            );
+            const existingFileId = archiveSnapshot.exists()
+                ? String(archiveSnapshot.data()?.excelDriveFileId || "")
+                : "";
+            const folderId = await ensurePaymentArchiveDriveFolder();
+            const driveFile = await uploadPaymentArchiveWorkbook(
+                month,fileBlob,folderId,existingFileId
+            );
+
+            if(!driveFile?.id){
+                throw new Error("Google Drive không trả về file Excel đã cập nhật.");
+            }
+
+            await ensureAnyoneCanViewDriveFile(driveFile.id);
+            const urls = getUncDriveUrls(driveFile.id);
+
+            await setDoc(archiveDocRef,{
+                month,
+                title:getArchiveMonthLabel(month),
+                description:`${remainingPayments.length} khoản đã thanh toán · ${uncCount} UNC`,
+                excelDriveFileId:driveFile.id,
+                excelUrl:urls.view,
+                excelDownloadUrl:urls.download,
+                rowCount:remainingPayments.length,
+                totalActualAmount:actualTotal,
+                uncCount,
+                companyIndex:buildPaymentArchiveCompanyIndex(remainingPayments),
+                companyIndexVersion:1,
+                updatedAt:serverTimestamp(),
+                updatedBy:currentOperatorName || "",
+                updatedByUid:currentAuthUser?.uid || ""
+            },{merge:true});
+            await savePaymentArchiveDetails(month,remainingPayments);
+            updatedMonths.push(month);
+        }catch(error){
+            console.error("PURGE ARCHIVE SYNC ERROR:",month,error);
+            failedMonths.push(month);
+        }
+    }
+
+    return {updatedMonths,failedMonths};
+}
+
 async function closeMonthToPaymentArchive(){
     if(!requireAdminPermission()) return;
 
@@ -43908,15 +44035,10 @@ async function closeMonthToPaymentArchive(){
             getDoc(archiveDocRef),
             getDoc(detailsDocRef)
         ]);
-        const existingRows = existingDetails.exists() &&
-            Array.isArray(existingDetails.data()?.rows)
-            ? existingDetails.data().rows
-            : [];
         const combinedMap = new Map();
-        existingRows.forEach((row,index) => {
-            const payment = archiveDetailRowToPayment(row,month,index);
-            combinedMap.set(archivePaymentSemanticKey(payment),payment);
-        });
+        /* Rebuild from the live Payment rows of this month.  This deliberately
+           drops archive rows whose Payment was deleted, instead of carrying
+           stale rows forward from paymentArchiveDetails. */
         allPayments
             .filter(payment =>
                 payment.deleted !== true &&
