@@ -793,8 +793,8 @@ body.is-resizing{cursor:col-resize!important;user-select:none!important}
         </colgroup>
         <thead><tr>
           <th data-i18n="fundingProject">DỰ ÁN</th><th data-i18n="fundingInternal">CÔNG NỢ NỘI BỘ</th><th data-i18n="fundingOpening">SỐ DƯ ĐẾN NGÀY</th>
-          <th data-i18n="fundingExpectedIn">THU KẾ HOẠCH</th><th data-i18n="fundingActualIn">THỰC THU ĐẾN NGÀY</th><th data-i18n="fundingPayroll">LƯƠNG / BH</th>
-          <th data-i18n="fundingIndirect">间接费</th><th data-i18n="fundingDirect">CHI CÔNG TRÌNH</th><th data-i18n="fundingInternalRepay">DỰ KIẾN HOÀN NỘI BỘ</th><th data-i18n="fundingReserve">KHOẢN GIỮ LẠI</th>
+          <th data-i18n="fundingExpectedIn">THU KẾ HOẠCH</th><th data-i18n="fundingActualIn">THỰC THU TRONG THÁNG</th><th data-i18n="fundingPayroll">LƯƠNG / BH</th>
+          <th data-i18n="fundingIndirect">CHI PHÍ GIÁN TIẾP</th><th data-i18n="fundingDirect">CHI CÔNG TRÌNH</th><th data-i18n="fundingInternalRepay">DỰ KIẾN HOÀN NỘI BỘ</th><th data-i18n="fundingReserve">KHOẢN GIỮ LẠI</th>
           <th data-i18n="fundingActualOut">THỰC CHI ĐẾN NGÀY</th><th data-i18n="fundingRemaining">CÒN ĐƯỢC DÙNG</th>
         </tr></thead>
         <tbody id="fundingBody"></tbody>
@@ -912,7 +912,7 @@ vi:{
 appTitle:"DUYỆT KẾ HOẠCH THANH TOÁN",appSub:"Duyệt kế hoạch thanh toán theo tháng",signOut:"Đăng xuất",paymentMonth:"THÁNG THANH TOÁN",
 totalProposal:"TỔNG TIỀN ĐỀ XUẤT",keepInPlan:"TỔNG TIỀN ĐƯỢC DUYỆT",excludeFromPlan:"TỔNG TIỀN LOẠI / GIẢM",keepRate:"TỶ LỆ ĐƯỢC DUYỆT",
 fundingView:"TỔNG QUAN DUYỆT THÁNG",paymentView:"DUYỆT TỪNG KHOẢN",fundingTitle:"Hạn mức theo dự án",fundingFormula:"Số dư đến ngày + thu kế hoạch − kế hoạch còn chi − dự kiến hoàn nội bộ − khoản giữ lại = hạn mức dự kiến",
-syncCash:"↻ Cập nhật từ Dòng tiền",reviewPayments:"Duyệt từng khoản →",fundingSearchPlaceholder:"Tìm dự án...",fundingCutoff:"CHỐT SỐ DƯ ĐẾN NGÀY",fundingProject:"DỰ ÁN",fundingOpening:"SỐ DƯ ĐẾN NGÀY",fundingInternal:"CÔNG NỢ NỘI BỘ",fundingExpectedIn:"THU KẾ HOẠCH",fundingActualIn:"THỰC THU ĐẾN NGÀY",fundingPayroll:"LƯƠNG / BH",fundingIndirect:"间接费",fundingDirect:"CHI CÔNG TRÌNH",fundingInternalRepay:"DỰ KIẾN HOÀN NỘI BỘ",fundingReserve:"KHOẢN GIỮ LẠI",fundingActualOut:"THỰC CHI ĐẾN NGÀY",
+syncCash:"↻ Cập nhật từ Dòng tiền",reviewPayments:"Duyệt từng khoản →",fundingSearchPlaceholder:"Tìm dự án...",fundingCutoff:"CHỐT SỐ DƯ ĐẾN NGÀY",fundingProject:"DỰ ÁN",fundingOpening:"SỐ DƯ ĐẾN NGÀY",fundingInternal:"CÔNG NỢ NỘI BỘ",fundingExpectedIn:"THU KẾ HOẠCH",fundingActualIn:"THỰC THU TRONG THÁNG",fundingPayroll:"LƯƠNG / BH",fundingIndirect:"CHI PHÍ GIÁN TIẾP",fundingDirect:"CHI CÔNG TRÌNH",fundingInternalRepay:"DỰ KIẾN HOÀN NỘI BỘ",fundingReserve:"KHOẢN GIỮ LẠI",fundingActualOut:"THỰC CHI ĐẾN NGÀY",
 fundingRemaining:"HẠN MỨC DỰ KIẾN",fundingNote:"Công nợ nội bộ chỉ để theo dõi ai còn nợ ai. Chỉ số tiền nhập tại Dự kiến hoàn nội bộ mới được trừ khỏi hạn mức tháng.",
 fundingFilterAll:"Tất cả dự án",fundingFilterActivity:"Có thanh toán tháng này",fundingFilterInactive:"Không có thanh toán tháng này",fundingFilterDebt:"Có công nợ nội bộ",fundingFilterMissing:"Chưa có số dư",fundingSortActivity:"Thanh toán tháng này trước",fundingSortProject:"Dự án A → Z",fundingSortBalance:"Số dư cao → thấp",fundingSortRemaining:"Hạn mức cao → thấp",fundingSortDebt:"Phải trả nội bộ cao → thấp",fundingRowHeight:"Độ cao dòng",
 projectsInPlan:"DỰ ÁN TRONG KẾ HOẠCH",allProjects:"Tất cả dự án",keepAllVisible:"✓ Duyệt tất cả đang hiển thị",excludeAllVisible:"⊘ Loại tất cả đang hiển thị",
@@ -925,7 +925,7 @@ zh:{
 appTitle:"付款计划审核",appSub:"按月审核付款计划",signOut:"退出登录",paymentMonth:"付款月份",
 totalProposal:"提报总金额",keepInPlan:"核准总金额",excludeFromPlan:"移出 / 调减金额",keepRate:"核准比例",
 fundingView:"月度审核总览",paymentView:"逐笔审核",fundingTitle:"项目月度可用额度",fundingFormula:"截止日余额 + 预计收款 − 待支付计划 − 预计内部还款 − 预留款 = 预计额度",
-syncCash:"↻ 从资金页面更新",reviewPayments:"逐笔审核 →",fundingSearchPlaceholder:"搜索项目...",fundingCutoff:"余额截止日期",fundingProject:"项目",fundingOpening:"截止日余额",fundingInternal:"内部往来欠款",fundingExpectedIn:"预计收款",fundingActualIn:"截止日实收",fundingPayroll:"工资 / 社保",fundingIndirect:"间接费",fundingDirect:"工程直接费",fundingInternalRepay:"预计内部还款",fundingReserve:"预留款",fundingActualOut:"截止日实支",
+syncCash:"↻ 从资金页面更新",reviewPayments:"逐笔审核 →",fundingSearchPlaceholder:"搜索项目...",fundingCutoff:"余额截止日期",fundingProject:"项目",fundingOpening:"截止日余额",fundingInternal:"内部往来欠款",fundingExpectedIn:"预计收款",fundingActualIn:"本月累计实收",fundingPayroll:"工资 / 社保",fundingIndirect:"间接费",fundingDirect:"工程直接费",fundingInternalRepay:"预计内部还款",fundingReserve:"预留款",fundingActualOut:"截止日实支",
 fundingRemaining:"预计可用额度",fundingNote:"内部欠款仅用于查看项目间债权债务。只有填入预计内部还款的金额才会从本月额度中扣除。",
 fundingFilterAll:"全部项目",fundingFilterActivity:"本月有付款",fundingFilterInactive:"本月无付款",fundingFilterDebt:"有内部欠款",fundingFilterMissing:"缺少余额",fundingSortActivity:"本月付款项目优先",fundingSortProject:"项目 A → Z",fundingSortBalance:"余额从高到低",fundingSortRemaining:"额度从高到低",fundingSortDebt:"内部应付从高到低",fundingRowHeight:"行高",
 projectsInPlan:"计划内项目",allProjects:"全部项目",keepAllVisible:"✓ 核准当前显示全部",excludeAllVisible:"⊘ 移出当前显示全部",
