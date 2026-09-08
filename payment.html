@@ -26014,8 +26014,8 @@ function renderPayments(){
                                     <button
                                         class="action-icon-btn edit-icon-btn paid-result-edit-btn"
                                         data-id="${item.id}"
-                                        title="${escapeHTML(t("edit"))}: ${escapeHTML(t("actualAmount"))} / ${escapeHTML(t("paymentDate"))}"
-                                        aria-label="${escapeHTML(t("edit"))}: ${escapeHTML(t("actualAmount"))} / ${escapeHTML(t("paymentDate"))}"
+                                        title="${escapeHTML(t("edit"))}: ${escapeHTML(t("actualAmount"))} / ${escapeHTML(t("paymentDate"))} / ${escapeHTML(t("costType"))}"
+                                        aria-label="${escapeHTML(t("edit"))}: ${escapeHTML(t("actualAmount"))} / ${escapeHTML(t("paymentDate"))} / ${escapeHTML(t("costType"))}"
                                     >
                                         <svg viewBox="0 0 24 24" aria-hidden="true">
                                             <path d="M12 20h9"></path>
@@ -28981,6 +28981,8 @@ async function editPaidPaymentResult(paymentId){
             ? {
                 amount:"修改实际付款金额：",
                 date:"修改付款日期（YYYY-MM-DD）：",
+                costType:"修改费用类型（例如：分包款）：",
+                invalidCostType:"请输入费用类型。",
                 invalidAmount:"请输入有效的实际付款金额。",
                 invalidDate:"请输入有效日期，格式为 YYYY-MM-DD。",
                 confirm:"确认修改已付款结果？",
@@ -28991,8 +28993,10 @@ async function editPaidPaymentResult(paymentId){
             }
             : currentLanguage === "en"
                 ? {
-                    amount:"Edit actual paid amount:",
-                    date:"Edit payment date (YYYY-MM-DD):",
+                amount:"Edit actual paid amount:",
+                date:"Edit payment date (YYYY-MM-DD):",
+                costType:"Edit cost type (for example: 分包款):",
+                invalidCostType:"Enter a cost type.",
                     invalidAmount:"Enter a valid actual paid amount.",
                     invalidDate:"Enter a valid date in YYYY-MM-DD format.",
                     confirm:"Update this paid result?",
@@ -29002,8 +29006,10 @@ async function editPaidPaymentResult(paymentId){
                     error:"Could not update payment result:\n"
                 }
                 : {
-                    amount:"Sửa số tiền thực trả:",
-                    date:"Sửa ngày thanh toán (YYYY-MM-DD):",
+                amount:"Sửa số tiền thực trả:",
+                date:"Sửa ngày thanh toán (YYYY-MM-DD):",
+                costType:"Sửa loại chi phí (ví dụ: 分包款):",
+                invalidCostType:"Hãy nhập loại chi phí.",
                     invalidAmount:"Hãy nhập số tiền thực trả hợp lệ.",
                     invalidDate:"Ngày không hợp lệ, phải theo dạng YYYY-MM-DD.",
                     confirm:"Xác nhận sửa kết quả đã thanh toán?",
@@ -29059,17 +29065,38 @@ async function editPaidPaymentResult(paymentId){
         return;
     }
 
+    const costTypeInput = prompt(
+        copy.costType,
+        payment.costType || ""
+    );
+
+    if(costTypeInput === null){
+        return;
+    }
+
+    const nextCostType = String(costTypeInput || "").trim();
+
+    if(!nextCostType){
+        alert("⚠ " + copy.invalidCostType);
+        return;
+    }
+
     const previousAmount = Number(payment.processActualAmount);
     const previousDate = payment.processPaymentDate || "";
+    const previousCostType = String(payment.costType || "");
 
-    if(nextAmount === previousAmount && nextDate === previousDate){
+    if(
+        nextAmount === previousAmount &&
+        nextDate === previousDate &&
+        nextCostType === previousCostType
+    ){
         return;
     }
 
     const confirmed = confirm(
         `${copy.confirm}\n\n` +
-        `${copy.before}: ${formatMoney(previousAmount)} · ${previousDate}\n` +
-        `${copy.after}: ${formatMoney(nextAmount)} · ${nextDate}`
+        `${copy.before}: ${formatMoney(previousAmount)} · ${previousDate} · ${previousCostType || "—"}\n` +
+        `${copy.after}: ${formatMoney(nextAmount)} · ${nextDate} · ${nextCostType}`
     );
 
     if(!confirmed){
@@ -29083,6 +29110,7 @@ async function editPaidPaymentResult(paymentId){
             {
                 processActualAmount:nextAmount,
                 processPaymentDate:nextDate,
+                costType:nextCostType,
                 updatedAt:serverTimestamp(),
                 updatedBy:currentOperatorName,
                 updatedByUid:currentAuthUser.uid,
@@ -29092,10 +29120,20 @@ async function editPaidPaymentResult(paymentId){
 
         payment.processActualAmount = nextAmount;
         payment.processPaymentDate = nextDate;
+        payment.costType = nextCostType;
 
-        /* Admin correction only: intentionally do not create an Audit entry. */
+        let archiveWarning = "";
+        if(isPaymentArchived(payment)){
+            try{
+                await refreshExistingPaymentArchiveAfterUnc(payment);
+            }catch(archiveError){
+                console.error("PAID PAYMENT ARCHIVE RESYNC ERROR:",archiveError);
+                archiveWarning = "\n\n⚠ Payment đã sửa, nhưng Kho chưa đồng bộ được. Hãy chọn lại dòng này rồi bấm ‘Đưa vào Kho chứng từ’ để đồng bộ lại.";
+            }
+        }
+
         renderPayments();
-        alert("✅ " + copy.done);
+        alert("✅ " + copy.done + archiveWarning);
 
     }catch(error){
         console.error("PAID RESULT CORRECTION ERROR:",error);
