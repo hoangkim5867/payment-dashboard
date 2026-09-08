@@ -1502,6 +1502,11 @@ html[data-theme] .column-header-menu .column-filter-actions .column-filter-apply
     color:#b42318;
     border:1px solid #fecdca;
 }
+.import-badge.warning{
+    background:#fffaeb;
+    color:#b54708;
+    border:1px solid #fedf89;
+}
 .import-error-text{
     color:#b42318;
     font-weight:600;
@@ -14475,10 +14480,10 @@ html[data-theme="corporate"] .theme-picker-wrap *{
 .cross-month-import-summary{
     margin:4px 0 12px;
     padding:10px 12px;
-    border:1px solid #f5b8ad;
+    border:1px solid #fedf89;
     border-radius:9px;
-    background:#fff4f1;
-    color:#8f1d16;
+    background:#fffaeb;
+    color:#7a2e0e;
     font-size:12px;
     line-height:1.45;
 }
@@ -14489,8 +14494,8 @@ html[data-theme="corporate"] .theme-picker-wrap *{
     overflow:auto;
 }
 .cross-month-import-item{
-    border:1px solid #f0c8c1;
-    border-left:4px solid #d92d20;
+    border:1px solid #fedf89;
+    border-left:4px solid #f79009;
     border-radius:8px;
     padding:10px 12px;
     background:#fff;
@@ -14498,22 +14503,22 @@ html[data-theme="corporate"] .theme-picker-wrap *{
     font-size:11px;
     line-height:1.45;
 }
-.cross-month-import-item strong{display:block;margin-bottom:4px;color:#7a271a}
-.cross-month-import-existing{color:#b42318;font-weight:700}
+.cross-month-import-item strong{display:block;margin-bottom:4px;color:#7a2e0e}
+.cross-month-import-existing{color:#b54708;font-weight:700}
 .cross-month-import-incoming{color:#475467;margin-top:3px}
 .import-duplicate-risk{
-    color:#b42318;
+    color:#b54708;
     font-weight:700;
     line-height:1.35;
 }
 #continueCrossMonthImportBtn{
-    background:#b42318;
+    background:#b54708;
     color:#fff;
     border-color:#b42318;
 }
 #continueCrossMonthImportBtn:hover{
-    background:#912018;
-    border-color:#912018;
+    background:#93370d;
+    border-color:#93370d;
 }
 </style>
 
@@ -16951,18 +16956,18 @@ Object.assign(I18N.en,{
     importIPCMissing:"Missing IPC No.",
     importAmountInvalid:"Invalid Amount",
     importContractNotFound:"Contract not found in Contract Master",
-    importDuplicate:"Possible duplicate payment",
+    importDuplicate:"Exact duplicate row in the pasted data",
     importCrossMonthDuplicate:"Same Project + Contract No. + IPC already exists in another payment month: {month}. Please review before importing.",
-    importDuplicateRiskCount:"{n} row(s) match payments in another month",
+    importDuplicateRiskCount:"{n} row(s) have an existing IPC payment",
     importDuplicateConfirmTitle:"Possible duplicate payments",
-    importDuplicateConfirmSummary:"These rows match payments from another month. Continue only when this is a supplemental or split payment.",
+    importDuplicateConfirmSummary:"These IPCs already have a payment record. Continue only when this is a supplemental or split payment.",
     importDuplicateExisting:"Existing: {month} · {amount} · {status} · Payment date: {date}",
     importDuplicateIncoming:"Importing: {month} · {amount}",
     importDuplicateCancel:"Cancel import",
     importDuplicateContinue:"Still import — supplemental payment",
     importSupplementalNote:"Supplemental payment after {month}",
     importRow:"Row",
-    importError:"Error",
+    importError:"Error / warning",
     importing:"Importing...",
     importDone:"Imported {n} payment(s).",
     importFixErrors:"Fix all error rows before importing.", bulkEdit:"Bulk Edit", bulkEditDesc:"Only fields you enable below will be changed for selected payments.", applySelected:"Apply to Selected", bulkNoSelection:"Select at least one payment first.", bulkNoField:"Choose at least one field to update.", bulkDone:"Updated {n} payment(s).", undoLastImport:"Undo Last Import", undoConfirm:"Delete all payments from the most recent import batch?", undoNone:"No recent import batch found.", undoDone:"Removed {n} imported payment(s).", undoFailed:"Could not undo the import:\n", bulkProcess:"Bulk Process Update", bulkProcessDesc:"Enable only the process fields you want to change for selected payments.", applyProcess:"Apply Process Update", processNoField:"Choose at least one process field to update.", processDone:"Updated process for {n} payment(s).", processLockedSkipped:"{n} paid/locked payment(s) were skipped.", inlineUpdateError:"Could not update process:\n"
@@ -16988,18 +16993,18 @@ Object.assign(I18N.zh,{
     importIPCMissing:"缺少 IPC 编号",
     importAmountInvalid:"金额无效",
     importContractNotFound:"合同主数据中找不到该合同",
-    importDuplicate:"可能存在重复付款",
+    importDuplicate:"粘贴内容中有完全相同的重复行",
     importCrossMonthDuplicate:"相同项目 + 合同编号 + IPC 已在其他付款月份存在：{month}。请在导入前检查。",
-    importDuplicateRiskCount:"{n} 行与其他月份的付款相同",
+    importDuplicateRiskCount:"{n} 行的 IPC 已有付款记录",
     importDuplicateConfirmTitle:"可能重复付款",
-    importDuplicateConfirmSummary:"以下记录与其他月份的付款相同。仅当本次为补充付款或分次付款时才继续导入。",
+    importDuplicateConfirmSummary:"以下 IPC 已有付款记录。仅当本次为补充付款或分次付款时才继续导入。",
     importDuplicateExisting:"已有：{month} · {amount} · {status} · 付款日期：{date}",
     importDuplicateIncoming:"本次导入：{month} · {amount}",
     importDuplicateCancel:"取消导入",
     importDuplicateContinue:"仍然导入 — 补充付款",
     importSupplementalNote:"{month} 后续补充付款",
     importRow:"行",
-    importError:"错误",
+    importError:"错误 / 提醒",
     importing:"正在导入...",
     importDone:"已导入 {n} 笔付款。",
     importFixErrors:"请先修正所有错误行再导入。", bulkEdit:"批量编辑", bulkEditDesc:"仅会修改下方已启用的字段。", applySelected:"应用到所选", bulkNoSelection:"请先选择至少一笔付款。", bulkNoField:"请至少选择一个要更新的字段。", bulkDone:"已更新 {n} 笔付款。", undoLastImport:"撤销最近一次导入", undoConfirm:"删除最近一次导入批次的全部付款？", undoNone:"未找到最近的导入批次。", undoDone:"已删除 {n} 笔导入付款。", undoFailed:"无法撤销导入：\n", bulkProcess:"批量流程更新", bulkProcessDesc:"只启用需要修改的流程字段。", applyProcess:"应用流程更新", processNoField:"请至少选择一个流程字段。", processDone:"已更新 {n} 笔付款流程。", processLockedSkipped:"已跳过 {n} 笔已付款/锁定记录。", inlineUpdateError:"无法更新流程：\n"
@@ -17025,18 +17030,18 @@ Object.assign(I18N.vi,{
     importIPCMissing:"Thiếu IPC",
     importAmountInvalid:"Số tiền không hợp lệ",
     importContractNotFound:"Không tìm thấy hợp đồng trong Contract Master",
-    importDuplicate:"Có thể trùng khoản thanh toán đã có",
+    importDuplicate:"Dòng bị lặp trong chính dữ liệu vừa dán",
     importCrossMonthDuplicate:"Có cùng Dự án + Số HĐ + IPC ở tháng thanh toán khác: {month}. Vui lòng kiểm tra lại trước khi nhập.",
-    importDuplicateRiskCount:"{n} dòng trùng với khoản ở tháng khác",
+    importDuplicateRiskCount:"{n} dòng có IPC đã từng phát sinh thanh toán",
     importDuplicateConfirmTitle:"Có thể nhập trùng khoản thanh toán",
-    importDuplicateConfirmSummary:"Các dòng dưới đây trùng với khoản ở tháng khác. Chỉ tiếp tục nếu đây là lần thanh toán bổ sung hoặc chia nhiều đợt.",
+    importDuplicateConfirmSummary:"Các IPC dưới đây đã có khoản thanh toán. Chỉ tiếp tục nếu đây là lần thanh toán bổ sung hoặc chia nhiều đợt.",
     importDuplicateExisting:"Đã có: {month} · {amount} · {status} · Ngày trả: {date}",
     importDuplicateIncoming:"Đang nhập: {month} · {amount}",
     importDuplicateCancel:"Hủy nhập",
     importDuplicateContinue:"Vẫn nhập — thanh toán bổ sung",
     importSupplementalNote:"Thanh toán bổ sung sau tháng {month}",
     importRow:"Dòng",
-    importError:"Lỗi",
+    importError:"Lỗi / cảnh báo",
     importing:"Đang nhập...",
     importDone:"Đã nhập {n} khoản thanh toán.",
     importFixErrors:"Hãy sửa hết các dòng lỗi trước khi nhập.", bulkEdit:"Sửa hàng loạt", bulkEditDesc:"Chỉ những trường được bật bên dưới mới bị thay đổi.", applySelected:"Áp dụng cho mục đã chọn", bulkNoSelection:"Hãy chọn ít nhất một payment trước.", bulkNoField:"Hãy chọn ít nhất một trường cần sửa.", bulkDone:"Đã cập nhật {n} payment.", undoLastImport:"Hoàn tác lần import gần nhất", undoConfirm:"Xóa toàn bộ payment thuộc lần import gần nhất?", undoNone:"Không tìm thấy lần import gần đây.", undoDone:"Đã xóa {n} payment đã import.", undoFailed:"Không thể hoàn tác import:\n", bulkProcess:"Cập nhật tiến trình hàng loạt", bulkProcessDesc:"Chỉ bật những bước tiến trình bạn muốn thay đổi.", applyProcess:"Áp dụng cập nhật tiến trình", processNoField:"Hãy chọn ít nhất một bước tiến trình cần cập nhật.", processDone:"Đã cập nhật tiến trình cho {n} payment.", processLockedSkipped:"Đã bỏ qua {n} payment đã thanh toán/đã khóa.", inlineUpdateError:"Không thể cập nhật tiến trình:\n"
@@ -30955,9 +30960,9 @@ async function ensureImportDuplicateHistory(){
 }
 
 
-function isLikelyDuplicateImport(data){
+function findSameMonthDuplicateImport(data){
 
-    return getImportDuplicateCandidates().some(
+    return getImportDuplicateCandidates().find(
         payment =>
             payment.deleted !== true &&
             normalize(payment.paymentMonth) === normalize(data.paymentMonth) &&
@@ -30965,6 +30970,9 @@ function isLikelyDuplicateImport(data){
                Use the same canonical key as Contract Master lookup.
                This catches harmless Excel variations such as
                EATON PARK P1 / EATONPARKP1 and PHU HUNG / PH.
+
+               An existing matching IPC is a review warning, not a hard
+               error: one IPC can legitimately be paid in several parts.
             */
             paymentContractKey(
                 payment.project,
@@ -30974,7 +30982,7 @@ function isLikelyDuplicateImport(data){
                 data.contractNo
             ) &&
             normalize(payment.ipcNo) === normalize(data.ipcNo)
-    );
+    ) || null;
 }
 
 /*
@@ -31758,27 +31766,48 @@ function smartDetectRow(row){
 
     if(moneyCandidates.length){
 
-        // Payment tables usually contain one main requested-payment amount.
-        // Choose the largest numeric-looking value, avoiding obvious bank account strings.
-        const sorted =
+        /*
+           In no-header paste rows, tax IDs and bank account numbers can be
+           numerically larger than the payment amount.  The payment amount is
+           normally the right-most numeric cell after Contract / IPC, so use
+           position instead of magnitude.  This prevents values such as
+           12755477603 from winning over a trailing 500,000,000 payment.
+        */
+        const structuralStart =
+            Math.max(
+                contractCellIndex,
+                ipcCellIndex
+            );
+
+        const tailCandidates =
             moneyCandidates
                 .filter(
                     item =>
                         item.index !== contractCellIndex &&
-                        item.index !== ipcCellIndex
-                )
-                .sort(
-                    (a,b) =>
-                        Math.abs(b.number) -
-                        Math.abs(a.number)
+                        item.index !== ipcCellIndex &&
+                        item.index > structuralStart
                 );
 
-        if(sorted.length){
+        const usableCandidates =
+            tailCandidates.length
+                ? tailCandidates
+                : moneyCandidates.filter(
+                    item =>
+                        item.index !== contractCellIndex &&
+                        item.index !== ipcCellIndex
+                );
+
+        if(usableCandidates.length){
+            const selected =
+                usableCandidates[
+                    usableCandidates.length - 1
+                ];
+
             amount =
-                sorted[0].number;
+                selected.number;
 
             amountCellIndex =
-                sorted[0].index;
+                selected.index;
         }
     }
 
@@ -33053,6 +33082,11 @@ function buildExcelImportRows(){
 
                 if(data){
 
+                    /*
+                       Only block a row duplicated inside this exact paste.
+                       Include Amount so two legitimate instalments for the
+                       same IPC are not treated as the same pasted row.
+                    */
                     const duplicateKey =
                         [
                             normalize(data.paymentMonth),
@@ -33060,14 +33094,14 @@ function buildExcelImportRows(){
                                 data.project,
                                 data.contractNo
                             ),
-                            normalize(data.ipcNo)
+                            normalize(data.ipcNo),
+                            Number(data.amount) || 0
                         ].join("||");
 
                     if(
                         seenInPaste.has(
                             duplicateKey
-                        ) ||
-                        isLikelyDuplicateImport(data)
+                        )
                     ){
                         errors.push(
                             t("importDuplicate")
@@ -33075,7 +33109,8 @@ function buildExcelImportRows(){
                     }
 
                     crossMonthDuplicate =
-                        findCrossMonthDuplicateImport(data);
+                        findCrossMonthDuplicateImport(data) ||
+                        findSameMonthDuplicateImport(data);
 
                     seenInPaste.add(
                         duplicateKey
@@ -33336,7 +33371,7 @@ async function renderExcelImportPreview(){
         }
         ${
             crossMonthDuplicateCount
-                ? `<span class="import-badge error">⚠ ${escapeHTML(t("importDuplicateRiskCount",{n:crossMonthDuplicateCount}))}</span>`
+                ? `<span class="import-badge warning">⚠ ${escapeHTML(t("importDuplicateRiskCount",{n:crossMonthDuplicateCount}))}</span>`
                 : ""
         }
         `;
