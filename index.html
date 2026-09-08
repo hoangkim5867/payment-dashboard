@@ -144,7 +144,7 @@
           await signOut(auth);showLoginError("Tài khoản chưa có hồ sơ hoặc chưa được cấp quyền.");return;
         }
         accountName.textContent=String(profile.displayName?profile.displayName:user.email||"User");
-        accountRole.textContent=role==="admin"?"Quản trị viên":"Nhân viên";
+        accountRole.textContent=role==="admin"?"Quản trị viên":"";
         accountBar.hidden=false;authGate.hidden=true;
         const privateAccess=isPrivateOwner(user,profile);
         document.querySelectorAll("[data-private-card]").forEach(card=>card.hidden=!privateAccess);
