@@ -1,0 +1,2051 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Duyệt kế hoạch thanh toán</title>
+<style>
+*{box-sizing:border-box}
+:root{
+  --navy:#0B2D4D;
+  --navy2:#123F6B;
+  --navy3:#1B527F;
+  --blue-soft:#EEF5FB;
+  --line:#D9E2EC;
+  --line2:#C7D3DF;
+  --text:#172033;
+  --muted:#6C7888;
+  --green:#19734D;
+  --green-soft:#ECF7F1;
+  --red:#B53D48;
+  --red-soft:#FFF0F1;
+  --amber:#A86C00;
+  --amber-soft:#FFF7E7;
+}
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  background:#fff;
+  color:var(--text)
+}
+button,input,select{font:inherit}
+button{cursor:pointer}
+
+/* ===== TOP BAR ===== */
+.app-header{
+  height:58px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:0 14px;
+  background:var(--navy);
+  color:#fff;
+  border-bottom:1px solid #08243E;
+}
+.header-left,.header-right{display:flex;align-items:center;gap:8px;min-width:0}
+.brand-mark{
+  width:36px;height:36px;border-radius:9px;
+  display:grid;place-items:center;
+  background:#fff;color:var(--navy);
+  font-weight:950;font-size:12px;letter-spacing:.05em
+}
+.brand-copy{min-width:0}
+.eyebrow{font-size:9px;font-weight:850;letter-spacing:.105em;color:#BFD2E2;text-transform:uppercase}
+.brand-copy h1{
+  margin:2px 0 0;
+  color:#fff;
+  font-size:16px;
+  line-height:1.1;
+  font-weight:850;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis
+}
+.language-switch{
+  display:inline-flex;
+  padding:2px;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:7px;
+  background:rgba(255,255,255,.06)
+}
+.language-switch button{
+  border:0;background:transparent;color:#C9D8E6;
+  padding:4px 7px;border-radius:5px;font-size:9px;font-weight:900
+}
+.language-switch button.active{background:#fff;color:var(--navy)}
+.user-chip,.state-chip{
+  display:inline-flex;align-items:center;
+  min-height:30px;
+  padding:0 10px;
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:7px;
+  color:#E7EEF5;
+  font-size:9.5px;font-weight:850;
+  white-space:nowrap;
+}
+.state-chip.open{background:rgba(54,177,116,.15);color:#BEE9D2}
+.state-chip.locked{background:rgba(255,255,255,.10);color:#E4EBF2}
+.app-header .btn{
+  height:30px;padding:0 10px;border-radius:7px;
+  border:1px solid rgba(255,255,255,.22);
+  background:transparent;color:#fff;font-size:9.5px;font-weight:850
+}
+.app-header .btn:hover{background:rgba(255,255,255,.10)}
+
+/* ===== WORKSPACE ===== */
+.workspace{
+  height:calc(100vh - 58px);
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+  background:#fff
+}
+
+/* ===== SUMMARY STRIP ===== */
+.summary-bar{
+  min-height:70px;
+  display:flex;
+  align-items:stretch;
+  border-bottom:1px solid var(--line);
+  background:#fff;
+}
+.month-box{
+  width:175px;
+  flex:0 0 175px;
+  padding:10px 12px;
+  border-right:1px solid var(--line);
+  background:#F8FAFC
+}
+.month-box label{
+  display:block;
+  margin-bottom:4px;
+  color:var(--muted);
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.05em;
+  text-transform:uppercase
+}
+.month-box select{
+  width:100%;
+  height:32px;
+  border:1px solid var(--line2);
+  border-radius:6px;
+  background:#fff;
+  color:var(--navy);
+  padding:0 8px;
+  outline:none;
+  font-size:11px;
+  font-weight:850
+}
+.summary-grid{
+  flex:1;
+  min-width:0;
+  display:grid;
+  grid-template-columns:1.2fr 1fr 1fr .7fr;
+}
+.summary-card{
+  position:relative;
+  min-width:0;
+  padding:11px 14px 8px;
+  border-right:1px solid var(--line);
+  background:#fff
+}
+.summary-card:last-child{border-right:0}
+.summary-card::before{
+  content:"";
+  position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:var(--navy3)
+}
+.summary-card.keep::before{background:var(--green)}
+.summary-card.exclude::before{background:var(--red)}
+.summary-label{
+  color:var(--muted);
+  font-size:8.8px;
+  line-height:1.1;
+  font-weight:900;
+  letter-spacing:.055em;
+  text-transform:uppercase;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis
+}
+.summary-value{
+  margin-top:4px;
+  color:var(--navy);
+  font-size:17px;
+  line-height:1.05;
+  font-weight:950;
+  letter-spacing:-.015em;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis
+}
+.summary-card.keep .summary-value{color:var(--green)}
+.summary-card.exclude .summary-value{color:var(--red)}
+.summary-meta{margin-top:3px;color:#7A8795;font-size:8.7px;font-weight:700}
+
+/* ===== PROJECT STRIP ===== */
+.project-bar{
+  height:60px;
+  flex:0 0 60px;
+  display:flex;
+  align-items:stretch;
+  gap:0;
+  border-bottom:1px solid var(--line);
+  background:#F8FAFC;
+  overflow:hidden
+}
+.all-projects-btn{
+  flex:0 0 120px;
+  border:0;
+  border-right:1px solid var(--line);
+  background:#fff;
+  color:var(--navy);
+  font-size:10px;
+  font-weight:900
+}
+.all-projects-btn:hover{background:var(--blue-soft)}
+.project-strip{
+  flex:1;
+  min-width:0;
+  display:flex!important;
+  gap:5px!important;
+  align-items:center;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  padding:5px 7px!important;
+  scrollbar-width:thin
+}
+.project-pill{
+  flex:0 0 190px!important;
+  width:190px!important;
+  min-width:190px!important;
+  height:48px;
+  border:1px solid var(--line)!important;
+  border-radius:7px!important;
+  background:#fff!important;
+  padding:6px 9px!important;
+  text-align:left;
+  box-shadow:none!important
+}
+.project-pill:hover{border-color:#AFC1D2!important;background:#FCFDFE!important}
+.project-pill.active{border-color:var(--navy)!important;background:var(--blue-soft)!important}
+.project-pill strong{
+  display:block;
+  color:var(--navy);
+  font-size:10px!important;
+  line-height:1.05!important;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.project-pill .project-total,
+.project-pill .project-keep{
+  display:inline!important;
+  margin:0!important;
+  font-size:8.3px!important;
+  line-height:1.15!important;
+  white-space:nowrap
+}
+.project-pill .project-total{color:#7A8795!important}
+.project-pill .project-total + .project-total::before{content:" · "}
+.project-pill .project-keep{
+  display:block!important;
+  color:var(--green)!important;
+  font-weight:850!important;
+  margin-top:2px!important
+}
+
+/* ===== NOTICE ===== */
+.notice{
+  display:none;
+  flex:0 0 auto;
+  padding:6px 12px;
+  border-bottom:1px solid #EBD8A3;
+  background:var(--amber-soft);
+  color:#765200;
+  font-size:9px
+}
+.notice.show{display:block}
+
+/* ===== SHEET TOOLBAR ===== */
+.sheet-toolbar{
+  min-height:44px;
+  flex:0 0 44px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:5px 9px;
+  border-bottom:1px solid var(--line2);
+  background:#fff
+}
+.toolbar-left,.toolbar-right{display:flex;align-items:center;gap:5px;min-width:0}
+.toolbar-btn{
+  height:32px;
+  border:1px solid var(--line2);
+  border-radius:6px;
+  padding:0 10px;
+  background:#fff;
+  color:#344054;
+  font-size:9.5px;
+  font-weight:850
+}
+.toolbar-btn:hover{background:#F7F9FB;border-color:#B7C5D3}
+.keep-btn{color:var(--green);border-color:#B9DEC9;background:var(--green-soft)}
+.exclude-btn{color:var(--red);border-color:#E8C3C7;background:var(--red-soft)}
+.keep-btn:hover{background:#DFF2E8;border-color:#94C9AB}
+.exclude-btn:hover{background:#FDE3E6;border-color:#DDA6AC}
+.sort-select{
+  height:32px;
+  max-width:205px;
+  border:1px solid var(--line2);
+  border-radius:6px;
+  background:#fff;
+  color:#344054;
+  padding:0 7px;
+  outline:none;
+  font-size:9.5px;
+  font-weight:750
+}
+.search-box{
+  width:330px;
+  height:32px;
+  display:flex;align-items:center;gap:5px;
+  padding:0 8px;
+  border:1px solid var(--line2);
+  border-radius:6px;
+  background:#fff
+}
+.search-box span{color:#8190A0;font-size:13px}
+.search-box input{
+  width:100%;border:0;outline:none;background:transparent;color:var(--text);font-size:10px
+}
+.filter-status{
+  display:none;
+  align-items:center;gap:5px;
+  height:29px;padding:0 7px;
+  border:1px solid #B9CADD;
+  border-radius:6px;
+  background:var(--blue-soft);
+  color:var(--navy);
+  font-size:8.5px;font-weight:850
+}
+.filter-status.show{display:inline-flex}
+.filter-status button{border:0;background:transparent;color:var(--navy);font-weight:950}
+
+/* ===== SHEET ===== */
+.table-wrap{
+  flex:1;
+  min-height:0;
+  width:100%;
+  overflow:auto!important;
+  margin:0!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  background:#fff!important;
+  position:relative!important
+}
+.review-table{
+  width:max-content!important;
+  min-width:100%!important;
+  table-layout:fixed;
+  border-collapse:separate;
+  border-spacing:0
+}
+.review-table thead th{
+  position:sticky!important;
+  top:0!important;
+  z-index:20!important;
+  height:40px!important;
+  padding:0!important;
+  background:var(--navy)!important;
+  color:#fff!important;
+  border-right:1px solid rgba(255,255,255,.13)!important;
+  border-bottom:1px solid #06223B!important;
+  box-shadow:none!important;
+  overflow:visible!important
+}
+.review-table thead th *,
+.review-table .th-label{
+  color:#fff!important;
+}
+.th-inner{
+  position:relative;
+  display:flex;
+  align-items:center;
+  height:40px;
+  min-width:0;
+  padding:0 25px 0 8px
+}
+.th-label{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:9px!important;
+  line-height:1;
+  font-weight:900!important;
+  letter-spacing:.035em
+}
+.col-filter-btn{
+  position:absolute;
+  right:5px;top:50%;
+  transform:translateY(-50%);
+  width:16px;height:18px;
+  display:grid;place-items:center;
+  border:0;border-radius:4px;
+  background:transparent;
+  color:#D5E3EF!important;
+  font-size:8px;
+  padding:0
+}
+.col-filter-btn:hover,.col-filter-btn.active{background:rgba(255,255,255,.15);color:#fff!important}
+.col-resizer{
+  position:absolute;
+  top:0;right:-3px;
+  width:7px;height:100%;
+  cursor:col-resize;
+  z-index:25
+}
+.col-resizer::after{
+  content:"";
+  position:absolute;right:3px;top:7px;bottom:7px;
+  width:1px;background:rgba(255,255,255,.15)
+}
+.col-resizer:hover::after{width:2px;background:#7DB4E1}
+body.is-resizing{cursor:col-resize!important;user-select:none!important}
+
+.review-table tbody td{
+  height:38px;
+  padding:7px 8px!important;
+  border-right:1px solid #EEF1F4!important;
+  border-bottom:1px solid #E9EDF2!important;
+  background:#fff!important;
+  color:#2F3A48;
+  font-size:10px!important;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  vertical-align:middle
+}
+.review-table tbody tr:nth-child(even) td{background:#FCFDFE!important}
+.review-table tbody tr:hover td{background:#F1F6FA!important}
+.review-table tbody tr.excluded td{background:#FFF7F8!important;color:#73666A}
+.review-table tbody tr.excluded:hover td{background:#FFF0F2!important}
+.review-table tbody td:first-child{
+  position:sticky;
+  left:0;
+  z-index:8;
+  background:#fff!important
+}
+.review-table tbody tr:nth-child(even) td:first-child{background:#FCFDFE!important}
+.review-table tbody tr:hover td:first-child{background:#F1F6FA!important}
+.review-table tbody tr.excluded td:first-child{background:#FFF7F8!important}
+.review-table thead th:first-child{
+  left:0;
+  z-index:24!important
+}
+.project-name{font-weight:900;color:var(--navy)!important}
+.person{font-weight:800}
+.amount{text-align:right;font-weight:900;color:#1B344F!important;font-variant-numeric:tabular-nums}
+
+/* decision */
+.decision{
+  display:flex;
+  width:100%;
+  border:1px solid var(--line2);
+  border-radius:6px;
+  padding:2px;
+  background:#fff!important
+}
+.decision button{
+  flex:1;
+  min-height:25px;
+  border:0;
+  border-radius:4px;
+  padding:4px 7px;
+  background:transparent;
+  color:#7A8694;
+  font-size:8.7px;
+  font-weight:900
+}
+.decision button.keep.active{background:#DDF3E7;color:#11663F;box-shadow:inset 0 0 0 1px #B9DEC9}
+.decision button.exclude.active{background:#FDE3E6;color:#A12F3B;box-shadow:inset 0 0 0 1px #E8C3C7}
+.status-badge{
+  display:inline-flex;
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:8.3px;
+  font-weight:900
+}
+.status-badge.keep{background:var(--green-soft);color:var(--green)}
+.status-badge.exclude{background:var(--red-soft);color:var(--red)}
+.status-badge.reduced{background:var(--amber-soft);color:var(--amber)}
+
+/* approved amount */
+.approved-input{
+  width:100%;
+  min-width:80px;
+  height:25px;
+  border:1px solid transparent;
+  border-radius:5px;
+  background:transparent;
+  color:var(--navy);
+  text-align:right;
+  padding:0 5px;
+  font-size:9.5px;
+  font-weight:900;
+  font-variant-numeric:tabular-nums
+}
+.approved-input:hover{border-color:#C8D5E1;background:#F8FBFD}
+.approved-input:focus{
+  outline:none;
+  border-color:var(--navy)!important;
+  background:#fff!important;
+  box-shadow:0 0 0 2px rgba(11,45,77,.10)!important
+}
+.approved-input.reduced-amount{color:var(--amber)!important}
+.approved-input:disabled{opacity:1;color:#7A8591}
+
+/* ===== FOOTER ===== */
+.footer-bar{
+  min-height:46px;
+  flex:0 0 46px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:5px 9px;
+  border-top:1px solid var(--line2);
+  background:#F8FAFC
+}
+.footer-summary{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:#667383;
+  font-size:9.5px
+}
+.footer-summary strong{color:var(--navy)}
+.footer-actions{display:flex;align-items:center;gap:6px}
+.confirm-btn{
+  height:34px;
+  padding:0 15px;
+  border:1px solid var(--navy);
+  border-radius:6px;
+  background:var(--navy);
+  color:#fff;
+  font-size:9.5px;
+  font-weight:900
+}
+.confirm-btn:hover{background:#082640}
+
+/* ===== FILTER POPUP ===== */
+.sheet-filter-pop{
+  position:fixed;
+  z-index:9999;
+  width:255px;
+  max-height:400px;
+  display:none;
+  background:#fff;
+  border:1px solid #BFCBD8;
+  border-radius:9px;
+  box-shadow:0 16px 45px rgba(8,35,59,.22);
+  overflow:hidden
+}
+.sheet-filter-pop.show{display:block}
+.sheet-filter-head{padding:9px;background:#F6F9FC;border-bottom:1px solid #E1E8EF}
+.sheet-filter-title{margin-bottom:6px;color:var(--navy);font-size:10px;font-weight:900}
+.sheet-filter-search{width:100%;height:30px;border:1px solid #C9D5E0;border-radius:6px;padding:0 7px;outline:none;font-size:9px}
+.sheet-filter-actions{display:flex;gap:5px;padding:6px 8px;border-bottom:1px solid #EDF1F5}
+.sheet-filter-actions button{border:0;background:transparent;color:var(--navy);font-size:8.5px;font-weight:900}
+.sheet-filter-list{max-height:245px;overflow:auto;padding:5px 7px}
+.sheet-filter-item{display:flex;align-items:center;gap:6px;padding:5px 4px;border-radius:5px;font-size:9px}
+.sheet-filter-item:hover{background:#F4F7FA}
+.sheet-filter-item input{accent-color:var(--navy)}
+.sheet-filter-foot{display:flex;justify-content:flex-end;gap:5px;padding:7px 8px;border-top:1px solid #E7EDF3;background:#FAFCFE}
+.sheet-filter-foot button{height:27px;border:1px solid #CBD7E3;border-radius:6px;background:#fff;padding:0 8px;font-size:8.5px;font-weight:900}
+.sheet-filter-foot .apply{background:var(--navy);border-color:var(--navy);color:#fff}
+
+/* ===== MODALS ===== */
+.modal{
+  position:fixed;inset:0;z-index:10000;
+  display:none;align-items:center;justify-content:center;
+  padding:18px;background:rgba(5,22,38,.60)
+}
+.modal.show{display:flex}
+.modal-box{
+  width:min(560px,96vw);
+  max-height:90vh;
+  overflow:auto;
+  padding:17px;
+  border:1px solid #CBD7E3;
+  border-radius:10px;
+  background:#fff;
+  box-shadow:0 24px 70px rgba(0,0,0,.24)
+}
+.modal-box h3{margin:0 0 8px;color:var(--navy);font-size:15px}
+.modal-box p{color:#687584;font-size:10px;line-height:1.5}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:10px 0}
+.modal-stat{padding:9px;border:1px solid var(--line);border-radius:7px;background:#F9FBFD}
+.modal-stat span{display:block;color:#7B8795;font-size:8px}
+.modal-stat strong{display:block;margin-top:3px;color:var(--navy);font-size:12px}
+.modal-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:12px}
+.modal-actions .btn,.login-box .btn{
+  height:30px;border:1px solid var(--line2);border-radius:6px;background:#fff;padding:0 10px;font-size:9px;font-weight:850
+}
+.modal-actions .btn-primary{background:var(--navy);border-color:var(--navy);color:#fff}
+.login-box{width:min(400px,96vw)}
+.login-box input{width:100%;height:34px;margin-top:6px;border:1px solid var(--line2);border-radius:6px;padding:0 8px;outline:none}
+.error{display:none;margin-top:7px;padding:7px;border:1px solid #EEC4C7;border-radius:6px;background:#FFF2F3;color:#A8323B;font-size:9px}
+.empty{padding:32px;text-align:center;color:#8A95A3;font-size:9px}
+
+@media(max-width:900px){
+  .user-chip{display:none}
+  .summary-value{font-size:13px}
+  .project-pill{flex-basis:165px!important;width:165px!important;min-width:165px!important}
+  .search-box{width:210px}
+}
+
+/* ===== REVIEW VIEWS ===== */
+.view-switchbar{
+  height:42px;flex:0 0 42px;display:flex;align-items:center;justify-content:space-between;
+  gap:8px;padding:4px 9px;border-bottom:1px solid var(--line);background:#F7F9FC
+}
+.view-tabs{display:inline-flex;border:1px solid var(--line2);border-radius:6px;background:#fff;padding:2px}
+.view-tab{height:29px;border:0;border-radius:4px;background:transparent;color:#657384;padding:0 12px;font-size:9.5px;font-weight:900}
+.view-tab.active{background:var(--navy);color:#fff}
+.funding-global-status{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#536273;font-size:9.3px;font-weight:800}
+
+.funding-view{flex:1;min-height:0;display:flex;flex-direction:column;background:#fff}
+.payment-detail-view{flex:1;min-height:0;display:flex;flex-direction:column}
+.hidden-view{display:none!important}
+.funding-toolbar{
+  min-height:46px;display:flex;align-items:center;justify-content:space-between;
+  gap:12px;padding:5px 10px;border-bottom:1px solid var(--line);background:#fff
+}
+.funding-toolbar strong{display:inline-block;color:var(--navy);font-size:10.5px;margin-right:8px}
+.funding-toolbar span{color:#667585;font-size:9px}
+.funding-actions{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap}
+.funding-cutoff{display:flex;align-items:center;gap:6px;height:30px;padding:0 7px;border:1px solid var(--line2);border-radius:6px;background:#fff;color:#5F6E7F}
+.funding-cutoff span{font-size:7.5px!important;font-weight:900;letter-spacing:.03em;color:#657383!important;white-space:nowrap}
+.funding-cutoff input{width:112px;border:0;background:transparent;color:var(--navy);font-size:9px;font-weight:900;outline:none}
+.funding-cutoff:focus-within{border-color:var(--navy3);box-shadow:0 0 0 2px rgba(27,82,127,.10)}
+.funding-cutoff input:disabled{color:#7B8793}
+.funding-search{width:185px;height:30px;border:1px solid var(--line2);border-radius:6px;background:#fff;padding:0 9px;color:var(--navy);font-size:9px;outline:none}
+.funding-search:focus{border-color:var(--navy3);box-shadow:0 0 0 2px rgba(27,82,127,.10)}
+.funding-control{height:30px;border:1px solid var(--line2);border-radius:6px;background:#fff;color:var(--navy);padding:0 7px;font-size:8.5px;font-weight:850;outline:none}
+.funding-row-size{display:flex;align-items:center;gap:4px;height:30px;padding:0 7px;border:1px solid var(--line2);border-radius:6px;background:#fff;color:#657383;font-size:7.8px;font-weight:900;white-space:nowrap}
+.funding-row-size input{width:64px;accent-color:var(--navy)}
+.funding-table-wrap{flex:1;min-height:0;overflow:auto;background:#fff}
+.funding-table{min-width:1850px;width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
+.funding-table thead th{
+  position:sticky;top:0;z-index:12;height:40px;padding:0 8px;background:var(--navy);color:#fff;
+  border-right:1px solid rgba(255,255,255,.13);border-bottom:1px solid #07233B;text-align:left;
+  font-size:8.8px;font-weight:900;letter-spacing:.03em;white-space:nowrap
+}
+.funding-table tbody td{
+  height:var(--funding-row-height,58px);padding:7px 8px;border-right:1px solid #E3E8EE;border-bottom:1px solid #E3E8EE;
+  background:#fff;color:#344054;font-size:9.2px;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.funding-table tbody tr:nth-child(even) td{background:#FCFDFE}
+.funding-table tbody tr:hover td{background:#F2F7FB}
+.funding-table .project-cell{color:var(--navy)}
+.funding-table .money-cell{text-align:right;font-variant-numeric:tabular-nums;font-weight:850}
+.funding-table .available{color:#1D4E75}.funding-table .approved{color:var(--green)}
+.funding-table .remaining.positive{color:var(--green)}.funding-table .remaining.negative{color:var(--red)}
+.funding-main{display:block;color:var(--navy);font-size:10.5px;line-height:1.2;font-weight:950;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.funding-main.positive{color:var(--green)}.funding-main.negative{color:var(--red)}.funding-main.reserve{color:var(--amber)}
+.funding-sub{margin-top:3px;color:#788697;font-size:7.7px;line-height:1.3;overflow:hidden;text-overflow:ellipsis}
+.internal-debt-cell .funding-main{font-size:9.3px;text-align:left}
+.internal-debt-cell .funding-sub{text-align:left}
+.funding-sub strong{color:#536274;font-weight:850}
+.funding-line{display:flex;align-items:center;justify-content:space-between;gap:6px;white-space:nowrap}
+.funding-project-name{display:block;font-size:10px;font-weight:950;color:var(--navy)}
+.funding-project-meta{margin:3px 0;color:#7B8795;font-size:7.7px;overflow:hidden;text-overflow:ellipsis}
+.plan-chip{display:inline-flex;min-height:19px;align-items:center;padding:0 6px;border-radius:999px;background:#EEF3F7;color:#5E6E7F;font-size:7.6px;font-weight:900}
+.funding-editline{display:flex;align-items:center;justify-content:flex-end;gap:4px;color:#667585;font-size:8px;white-space:nowrap}
+.funding-input{
+  width:100%;height:28px;border:1px solid #D2DCE6;border-radius:5px;background:#fff;color:var(--navy);
+  text-align:right;padding:0 6px;font-size:9px;font-weight:850;font-variant-numeric:tabular-nums
+}
+.funding-input:hover{border-color:#C9D6E2;background:#F8FBFD}
+.funding-input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px rgba(11,45,77,.10);background:#fff}
+.funding-input:disabled{opacity:1;color:#667383}
+.cash-status{display:inline-flex;align-items:center;min-height:21px;padding:0 6px;border-radius:999px;font-size:7.8px;font-weight:900}
+.cash-status.ok{background:#fff;color:var(--green);border:1px solid #8FC7AC}
+.cash-status.bad{background:#fff;color:var(--red);border:1px solid #DDA3A8}
+.cash-status.empty{background:#fff;color:#758291;border:1px solid #C9D3DD;padding:0 6px}
+.detail-link{height:24px;border:1px solid var(--line2);border-radius:5px;background:#fff;color:var(--navy);padding:0 7px;font-size:8px;font-weight:900}
+.detail-link:hover{background:var(--blue-soft);border-color:#AFC1D2}
+.funding-table th:first-child,.funding-table td:first-child{position:sticky;left:0;z-index:8;border-right:1px solid #C9D4DE;box-shadow:4px 0 8px rgba(11,45,77,.04)}
+.funding-table thead th:first-child{z-index:14;background:var(--navy)}
+.funding-table tbody tr:nth-child(even) td:first-child{background:#FCFDFE}.funding-table tbody tr:hover td:first-child{background:#F2F7FB}
+.funding-table th:last-child,.funding-table td:last-child{position:sticky;right:0;z-index:8;border-left:1px solid #C9D4DE;box-shadow:-4px 0 8px rgba(11,45,77,.04)}
+.funding-table thead th:last-child{z-index:14;background:var(--navy)}
+.funding-table thead th{position:sticky}
+.funding-col-resizer{position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:col-resize;z-index:20}
+.funding-col-resizer:hover,.funding-col-resizer.dragging{background:rgba(255,255,255,.5)}
+.funding-table tbody tr:nth-child(even) td:last-child{background:#FCFDFE}.funding-table tbody tr:hover td:last-child{background:#F2F7FB}
+.funding-table tfoot td{position:sticky;bottom:0;z-index:10;height:40px;padding:7px 8px;background:#E8EEF4;color:#18384F;border-top:2px solid #9FB0C0;border-right:1px solid #CBD5DF;font-size:9px;font-weight:950;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.funding-table tfoot td:first-child{left:0;text-align:left;z-index:11}.funding-table tfoot td:nth-child(2){text-align:left;font-size:8.3px}.funding-table tfoot td:last-child{right:0;z-index:11}
+.funding-cell-in,.funding-cell-plan,.funding-cell-out,.funding-cell-remaining{background:inherit!important}
+.funding-note{
+  min-height:34px;flex:0 0 34px;display:flex;align-items:center;gap:6px;padding:5px 10px;border-top:1px solid var(--line);
+  background:#F8FAFC;color:#748190;font-size:8.3px;line-height:1.25
+}
+.funding-note b{color:#4B5968}
+.payment-detail-view .project-bar{flex:0 0 60px}
+.payment-detail-view .sheet-toolbar{flex:0 0 44px}
+.payment-detail-view .table-wrap{flex:1;min-height:0}
+.footer-bar{flex:0 0 46px}
+</style>
+</head>
+<body class="auth-checking">
+<style>body.auth-checking .app-header,body.auth-checking .workspace{visibility:hidden}</style>
+<header class="app-header">
+  <div class="header-left">
+    <div class="brand-mark">✓</div>
+    <div class="brand-copy">
+      <div class="eyebrow" data-i18n="appTitle">DUYỆT KẾ HOẠCH THANH TOÁN</div>
+      <h1 id="pageTitle">Kế hoạch thanh toán</h1>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="language-switch" id="languageSwitch">
+      <button type="button" data-lang="vi" class="active">VI</button>
+      <button type="button" data-lang="zh">中文</button>
+    </div>
+    <span id="monthStateChip" class="state-chip open">● ĐANG DUYỆT</span>
+    <span id="userChip" class="user-chip">Chưa đăng nhập</span>
+    <button id="signInBtn" class="btn">Đăng nhập</button>
+    <button id="signOutBtn" class="btn" style="display:none"><span data-i18n="signOut">Đăng xuất</span></button>
+  </div>
+</header>
+
+<main class="workspace">
+  <section class="summary-bar">
+    <div class="month-box">
+      <label data-i18n="paymentMonth">Tháng thanh toán</label>
+      <select id="monthSelect"></select>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-label" data-i18n="totalProposal">TỔNG TIỀN ĐỀ XUẤT</div>
+        <div class="summary-value" id="sumTotal">0 VND</div>
+        <div class="summary-meta" id="sumTotalMeta">0 khoản</div>
+      </div>
+      <div class="summary-card keep">
+        <div class="summary-label" data-i18n="keepInPlan">TỔNG TIỀN ĐƯỢC DUYỆT</div>
+        <div class="summary-value" id="sumKeep">0 VND</div>
+        <div class="summary-meta" id="sumKeepMeta">0 khoản</div>
+      </div>
+      <div class="summary-card exclude">
+        <div class="summary-label" data-i18n="excludeFromPlan">TỔNG TIỀN LOẠI / GIẢM</div>
+        <div class="summary-value" id="sumExclude">0 VND</div>
+        <div class="summary-meta" id="sumExcludeMeta">0 khoản</div>
+      </div>
+      <div class="summary-card rate">
+        <div class="summary-label" data-i18n="keepRate">TỶ LỆ ĐƯỢC DUYỆT</div>
+        <div class="summary-value" id="sumRate">0%</div>
+        <div class="summary-meta" id="sumRateMeta" data-i18n="rateByAmount">Theo số tiền</div>
+      </div>
+    </div>
+  </section>
+
+  
+  <section class="view-switchbar">
+    <div class="view-tabs">
+      <button id="fundingViewBtn" class="view-tab active" type="button" data-i18n="fundingView">TỔNG QUAN NGUỒN TIỀN</button>
+      <button id="paymentViewBtn" class="view-tab" type="button" data-i18n="paymentView">DUYỆT TỪNG KHOẢN</button>
+    </div>
+    <div id="fundingGlobalStatus" class="funding-global-status"></div>
+  </section>
+
+  <section id="fundingView" class="funding-view">
+    <div class="funding-toolbar">
+      <div>
+        <strong data-i18n="fundingTitle">Nguồn tiền theo dự án</strong>
+        <span data-i18n="fundingFormula">Nguồn khả dụng = Số dư hiện có + Thu dự kiến − Chi bắt buộc</span>
+      </div>
+      <div class="funding-actions">
+        <label class="funding-cutoff"><span data-i18n="fundingCutoff">CHỐT SỐ DƯ ĐẾN NGÀY</span><input id="fundingCutoffDate" type="date"></label>
+        <input id="fundingSearchInput" class="funding-search" placeholder="Tìm dự án..." data-i18n-placeholder="fundingSearchPlaceholder">
+        <select id="fundingFilterSelect" class="funding-control"><option value="all" data-i18n="fundingFilterAll">Tất cả dự án</option><option value="activity" data-i18n="fundingFilterActivity">Có thanh toán tháng này</option><option value="inactive" data-i18n="fundingFilterInactive">Không có thanh toán tháng này</option><option value="debt" data-i18n="fundingFilterDebt">Có công nợ nội bộ</option><option value="missingBalance" data-i18n="fundingFilterMissing">Chưa có số dư</option></select>
+        <select id="fundingSortSelect" class="funding-control"><option value="activity" data-i18n="fundingSortActivity">Thanh toán tháng này trước</option><option value="project" data-i18n="fundingSortProject">Dự án A → Z</option><option value="balance" data-i18n="fundingSortBalance">Số dư cao → thấp</option><option value="remaining" data-i18n="fundingSortRemaining">Hạn mức cao → thấp</option><option value="debtPay" data-i18n="fundingSortDebt">Phải trả nội bộ cao → thấp</option></select>
+        <label class="funding-row-size"><span data-i18n="fundingRowHeight">Độ cao dòng</span><input id="fundingRowHeight" type="range" min="46" max="96" step="2"></label>
+        <button id="importCashOpeningBtn" class="toolbar-btn" type="button" data-i18n="syncCash">↻ Cập nhật số dư từ Dòng tiền</button>
+        <button id="goPaymentAllBtn" class="toolbar-btn" type="button" data-i18n="reviewPayments">Duyệt từng khoản →</button>
+      </div>
+    </div>
+    <div class="funding-table-wrap">
+      <table class="funding-table" id="fundingTable">
+        <colgroup>
+          <col style="width:145px"><col style="width:260px"><col style="width:150px"><col style="width:155px"><col style="width:145px">
+          <col style="width:145px"><col style="width:140px"><col style="width:150px"><col style="width:155px"><col style="width:155px"><col style="width:155px"><col style="width:180px">
+        </colgroup>
+        <thead><tr>
+          <th data-i18n="fundingProject">DỰ ÁN</th><th data-i18n="fundingInternal">CÔNG NỢ NỘI BỘ</th><th data-i18n="fundingOpening">SỐ DƯ ĐẾN NGÀY</th>
+          <th data-i18n="fundingExpectedIn">THU KẾ HOẠCH</th><th data-i18n="fundingActualIn">THỰC THU ĐẾN NGÀY</th><th data-i18n="fundingPayroll">LƯƠNG / BH</th>
+          <th data-i18n="fundingIndirect">间接费</th><th data-i18n="fundingDirect">CHI CÔNG TRÌNH</th><th data-i18n="fundingInternalRepay">DỰ KIẾN HOÀN NỘI BỘ</th><th data-i18n="fundingReserve">KHOẢN GIỮ LẠI</th>
+          <th data-i18n="fundingActualOut">THỰC CHI ĐẾN NGÀY</th><th data-i18n="fundingRemaining">CÒN ĐƯỢC DÙNG</th>
+        </tr></thead>
+        <tbody id="fundingBody"></tbody>
+        <tfoot id="fundingFoot"></tfoot>
+      </table>
+    </div>
+    <div class="funding-note">
+      <span>ⓘ</span>
+      <span id="fundingNoteText" data-i18n="fundingNote">Công nợ nội bộ chỉ để theo dõi ai còn nợ ai. Chỉ số tiền dự kiến hoàn mới được trừ khỏi hạn mức.</span>
+    </div>
+  </section>
+
+  <section id="paymentDetailView" class="payment-detail-view hidden-view">
+
+<section class="project-bar">
+    <button id="clearProjectBtn" class="all-projects-btn" type="button" data-i18n="allProjects">Tất cả dự án</button>
+    <div id="projectStrip" class="project-strip"></div>
+  </section>
+
+  <div id="lockNotice" class="notice"></div>
+
+  <section class="sheet-toolbar">
+    <div class="toolbar-left">
+      <div id="filterStatus" class="filter-status"></div>
+      <button id="keepAllBtn" class="toolbar-btn keep-btn"><span data-i18n="keepAllVisible">✓ Duyệt tất cả đang hiển thị</span></button>
+      <button id="excludeAllBtn" class="toolbar-btn exclude-btn"><span data-i18n="excludeAllVisible">⊘ Loại tất cả đang hiển thị</span></button>
+    </div>
+    <div class="toolbar-right">
+      <select id="sortSelect" class="sort-select" title="Cách sắp xếp danh sách">
+        <option value="created" data-i18n="sortCreated">Theo thứ tự đề xuất</option>
+        <option value="amountDesc" data-i18n="sortAmountDesc">Số tiền: cao → thấp</option>
+        <option value="amountAsc" data-i18n="sortAmountAsc">Số tiền: thấp → cao</option>
+        <option value="project" data-i18n="sortProject">Dự án A → Z</option>
+        <option value="contract" data-i18n="sortContract">Số hợp đồng A → Z</option>
+        <option value="ipc" data-i18n="sortIPC">Số IPC A → Z</option>
+      </select>
+      <div class="search-box">
+        <span>⌕</span>
+        <input id="searchInput" placeholder="Tìm người phụ trách, dự án, công ty, hợp đồng hoặc IPC..." data-i18n-placeholder="searchPlaceholder">
+      </div>
+      <button id="refreshBtn" class="toolbar-btn" title="Làm mới dữ liệu"><span data-i18n="refresh">↻ Làm mới</span></button>
+    </div>
+  </section>
+
+  <div class="table-wrap">
+<table class="review-table" id="reviewTable">
+  <colgroup>
+    <col data-col="decision" style="width:126px">
+    <col data-col="project" style="width:110px">
+    <col data-col="personInCharge" style="width:125px">
+    <col data-col="company" style="width:190px">
+    <col data-col="contractNo" style="width:185px">
+    <col data-col="ipcNo" style="width:95px">
+    <col data-col="costType" style="width:120px">
+    <col data-col="contractName" style="width:230px">
+    <col data-col="amount" style="width:145px">
+    <col data-col="approvedAmount" style="width:155px">
+    <col data-col="remark" style="width:170px">
+    <col data-col="reviewStatus" style="width:110px">
+  </colgroup>
+  <thead><tr>
+    <th data-col="decision" data-filterable="0"><div class="th-inner"><span class="th-label" data-i18n="decision">DUYỆT / LOẠI</span><span class="col-resizer"></span></div></th>
+    <th data-col="project" data-filterable="1"><div class="th-inner"><span class="th-label" data-i18n="project">DỰ ÁN</span><button class="col-filter-btn" type="button">▼</button><span class="col-resizer"></span></div></th>
+    <th data-col="personInCharge" data-filterable="1"><div class="th-inner"><span class="th-label" data-i18n="person">NGƯỜI PHỤ TRÁCH</span><button class="col-filter-btn" type="button">▼</button><span class="col-resizer"></span></div></th>
+    <th data-col="company" data-filterable="1"><div class="th-inner"><span class="th-label" data-i18n="company">CÔNG TY</span><button class="col-filter-btn" type="button">▼</button><span class="col-resizer"></span></div></th>
+    <th data-col="contractNo" data-filterable="1"><div class="th-inner"><span class="th-label" data-i18n="contractNo">SỐ HỢP ĐỒNG</span><button class="col-filter-btn" type="button">▼</button><span class="col-resizer"></span></div></th>
+    <th data-col="ipcNo" data-filterable="1"><div class="th-inner"><span class="th-label" data-i18n="ipcNo">SỐ IPC</span><button class="col-filter-btn" type="button">▼</button><span class="col-resizer"></span></div></th>
+    <th data-col="costType" data-filterable="1"><div class="th-inner"><span class="th-label" data-i18n="costType">LOẠI CHI PHÍ</span><button class="col-filter-btn" type="button">▼</button><span class="col-resizer"></span></div></th>
+    <th data-col="contractName" data-filterable="1"><div class="th-inner"><span class="th-label" data-i18n="contractName">TÊN HỢP ĐỒNG / NỘI DUNG</span><button class="col-filter-btn" type="button">▼</button><span class="col-resizer"></span></div></th>
+    <th data-col="amount" data-filterable="1"><div class="th-inner"><span class="th-label" data-i18n="amount">SỐ TIỀN ĐỀ XUẤT</span><button class="col-filter-btn" type="button">▼</button><span class="col-resizer"></span></div></th>
+    <th data-col="approvedAmount" data-filterable="0"><div class="th-inner"><span class="th-label" data-i18n="approvedAmount">SỐ TIỀN DUYỆT</span><span class="col-resizer"></span></div></th>
+    <th data-col="remark" data-filterable="1"><div class="th-inner"><span class="th-label" data-i18n="remark">GHI CHÚ</span><button class="col-filter-btn" type="button">▼</button><span class="col-resizer"></span></div></th>
+    <th data-col="reviewStatus" data-filterable="1"><div class="th-inner"><span class="th-label" data-i18n="review">TRẠNG THÁI</span><button class="col-filter-btn" type="button">▼</button><span class="col-resizer"></span></div></th>
+  </tr></thead>
+  <tbody id="reviewBody"></tbody>
+</table>
+</div>
+<div id="sheetFilterPop" class="sheet-filter-pop">
+  <div class="sheet-filter-head">
+    <div id="sheetFilterTitle" class="sheet-filter-title"></div>
+    <input id="sheetFilterSearch" class="sheet-filter-search" placeholder="Tìm giá trị...">
+  </div>
+  <div class="sheet-filter-actions">
+    <button id="sheetSelectAll" type="button">Chọn tất cả</button>
+    <button id="sheetClearAll" type="button">Bỏ chọn</button>
+  </div>
+  <div id="sheetFilterList" class="sheet-filter-list"></div>
+  <div class="sheet-filter-foot">
+    <button id="sheetFilterCancel" type="button">Hủy</button>
+    <button id="sheetFilterApply" class="apply" type="button">Áp dụng</button>
+  </div>
+</div>
+
+  
+
+  </section>
+
+<div class="footer-bar">
+    <div class="footer-summary" id="footerSummary">Chưa có dữ liệu.</div>
+    <div class="footer-actions">
+      <button id="unlockBtn" class="toolbar-btn exclude-btn" style="display:none">Mở khóa kế hoạch</button>
+      <button id="confirmBtn" class="confirm-btn"><span data-i18n="confirmLock">XÁC NHẬN VÀ KHÓA KẾ HOẠCH</span></button>
+    </div>
+  </div>
+</main>
+
+<div id="confirmModal" class="modal"><div class="modal-box"><h3>Xác nhận và khóa kế hoạch tháng <span id="confirmMonthText"></span>?</h3><p>Quyết định Duyệt/Loại và số tiền duyệt sẽ được lưu vào từng khoản thanh toán.</p><div class="modal-grid"><div class="modal-stat"><span>Tổng tiền đề xuất</span><strong id="mTotal"></strong></div><div class="modal-stat"><span>Tổng tiền được duyệt</span><strong id="mKeep"></strong></div><div class="modal-stat"><span>Tổng tiền đã loại/giảm</span><strong id="mExclude"></strong></div><div class="modal-stat"><span>Tổng số khoản</span><strong id="mCount"></strong></div></div><p><strong>⚠ Lưu ý:</strong> Sau khi khóa, muốn điều chỉnh lại cần Admin mở khóa kế hoạch.</p><p id="fundingConfirmWarning" style="display:none;color:#B53D48;font-weight:800"></p><div class="modal-actions"><button id="cancelConfirmBtn" class="btn">Hủy</button><button id="doConfirmBtn" class="btn btn-primary">XÁC NHẬN KHÓA</button></div></div></div>
+
+<div id="loginModal" class="modal"><div class="modal-box login-box"><h3>Đăng nhập để duyệt kế hoạch</h3><p>Dùng cùng tài khoản với trang Theo dõi thanh toán. Chỉ Người duyệt hoặc Quản trị viên được thay đổi kế hoạch.</p><input id="usernameInput" autocomplete="username" placeholder="Tên đăng nhập"><input id="passwordInput" type="password" autocomplete="current-password" placeholder="Mật khẩu"><div id="loginError" class="error"></div><div class="modal-actions"><button id="closeLoginBtn" class="btn">Hủy</button><button id="doLoginBtn" class="btn btn-primary">Đăng nhập</button></div></div></div>
+
+
+<script>
+window.PLAN_REVIEW_I18N={
+vi:{
+appTitle:"DUYỆT KẾ HOẠCH THANH TOÁN",appSub:"Duyệt kế hoạch thanh toán theo tháng",signOut:"Đăng xuất",paymentMonth:"THÁNG THANH TOÁN",
+totalProposal:"TỔNG TIỀN ĐỀ XUẤT",keepInPlan:"TỔNG TIỀN ĐƯỢC DUYỆT",excludeFromPlan:"TỔNG TIỀN LOẠI / GIẢM",keepRate:"TỶ LỆ ĐƯỢC DUYỆT",
+fundingView:"TỔNG QUAN DUYỆT THÁNG",paymentView:"DUYỆT TỪNG KHOẢN",fundingTitle:"Hạn mức theo dự án",fundingFormula:"Số dư đến ngày + thu kế hoạch − kế hoạch còn chi − dự kiến hoàn nội bộ − khoản giữ lại = hạn mức dự kiến",
+syncCash:"↻ Cập nhật từ Dòng tiền",reviewPayments:"Duyệt từng khoản →",fundingSearchPlaceholder:"Tìm dự án...",fundingCutoff:"CHỐT SỐ DƯ ĐẾN NGÀY",fundingProject:"DỰ ÁN",fundingOpening:"SỐ DƯ ĐẾN NGÀY",fundingInternal:"CÔNG NỢ NỘI BỘ",fundingExpectedIn:"THU KẾ HOẠCH",fundingActualIn:"THỰC THU ĐẾN NGÀY",fundingPayroll:"LƯƠNG / BH",fundingIndirect:"间接费",fundingDirect:"CHI CÔNG TRÌNH",fundingInternalRepay:"DỰ KIẾN HOÀN NỘI BỘ",fundingReserve:"KHOẢN GIỮ LẠI",fundingActualOut:"THỰC CHI ĐẾN NGÀY",
+fundingRemaining:"HẠN MỨC DỰ KIẾN",fundingNote:"Công nợ nội bộ chỉ để theo dõi ai còn nợ ai. Chỉ số tiền nhập tại Dự kiến hoàn nội bộ mới được trừ khỏi hạn mức tháng.",
+fundingFilterAll:"Tất cả dự án",fundingFilterActivity:"Có thanh toán tháng này",fundingFilterInactive:"Không có thanh toán tháng này",fundingFilterDebt:"Có công nợ nội bộ",fundingFilterMissing:"Chưa có số dư",fundingSortActivity:"Thanh toán tháng này trước",fundingSortProject:"Dự án A → Z",fundingSortBalance:"Số dư cao → thấp",fundingSortRemaining:"Hạn mức cao → thấp",fundingSortDebt:"Phải trả nội bộ cao → thấp",fundingRowHeight:"Độ cao dòng",
+projectsInPlan:"DỰ ÁN TRONG KẾ HOẠCH",allProjects:"Tất cả dự án",keepAllVisible:"✓ Duyệt tất cả đang hiển thị",excludeAllVisible:"⊘ Loại tất cả đang hiển thị",
+refresh:"↻ Làm mới",confirmLock:"XÁC NHẬN VÀ KHÓA KẾ HOẠCH",sortCreated:"Theo thứ tự đề xuất",sortAmountDesc:"Số tiền: cao → thấp",sortAmountAsc:"Số tiền: thấp → cao",
+sortProject:"Dự án A → Z",sortContract:"Số hợp đồng A → Z",sortIPC:"Số IPC A → Z",searchPlaceholder:"Tìm người phụ trách, dự án, công ty, hợp đồng hoặc IPC...",
+proposal:"Đề xuất",items:"khoản",kept:"Duyệt",approvedStatus:"Đã duyệt",reducedStatus:"Đã duyệt giảm",excluded:"Loại",excludedStatus:"Đã loại",rateByAmount:"Theo số tiền",planOpen:"● ĐANG DUYỆT",planLocked:"🔒 ĐÃ KHÓA",
+showing:"Đang xem",wholeMonthKeep:"Toàn tháng đã duyệt",excludedCount:"Loại / giảm",decision:"DUYỆT / LOẠI",project:"DỰ ÁN",person:"NGƯỜI PHỤ TRÁCH",company:"CÔNG TY",contractNo:"SỐ HỢP ĐỒNG",ipcNo:"SỐ IPC",costType:"LOẠI CHI PHÍ",contractName:"TÊN HỢP ĐỒNG / NỘI DUNG",amount:"SỐ TIỀN ĐỀ XUẤT",approvedAmount:"SỐ TIỀN DUYỆT",remark:"GHI CHÚ",review:"TRẠNG THÁI"
+},
+zh:{
+appTitle:"付款计划审核",appSub:"按月审核付款计划",signOut:"退出登录",paymentMonth:"付款月份",
+totalProposal:"提报总金额",keepInPlan:"核准总金额",excludeFromPlan:"移出 / 调减金额",keepRate:"核准比例",
+fundingView:"月度审核总览",paymentView:"逐笔审核",fundingTitle:"项目月度可用额度",fundingFormula:"截止日余额 + 预计收款 − 待支付计划 − 预计内部还款 − 预留款 = 预计额度",
+syncCash:"↻ 从资金页面更新",reviewPayments:"逐笔审核 →",fundingSearchPlaceholder:"搜索项目...",fundingCutoff:"余额截止日期",fundingProject:"项目",fundingOpening:"截止日余额",fundingInternal:"内部往来欠款",fundingExpectedIn:"预计收款",fundingActualIn:"截止日实收",fundingPayroll:"工资 / 社保",fundingIndirect:"间接费",fundingDirect:"工程直接费",fundingInternalRepay:"预计内部还款",fundingReserve:"预留款",fundingActualOut:"截止日实支",
+fundingRemaining:"预计可用额度",fundingNote:"内部欠款仅用于查看项目间债权债务。只有填入预计内部还款的金额才会从本月额度中扣除。",
+fundingFilterAll:"全部项目",fundingFilterActivity:"本月有付款",fundingFilterInactive:"本月无付款",fundingFilterDebt:"有内部欠款",fundingFilterMissing:"缺少余额",fundingSortActivity:"本月付款项目优先",fundingSortProject:"项目 A → Z",fundingSortBalance:"余额从高到低",fundingSortRemaining:"额度从高到低",fundingSortDebt:"内部应付从高到低",fundingRowHeight:"行高",
+projectsInPlan:"计划内项目",allProjects:"全部项目",keepAllVisible:"✓ 核准当前显示全部",excludeAllVisible:"⊘ 移出当前显示全部",
+refresh:"↻ 刷新",confirmLock:"确认并锁定计划",sortCreated:"按提报顺序",sortAmountDesc:"金额：高 → 低",sortAmountAsc:"金额：低 → 高",
+sortProject:"项目 A → Z",sortContract:"合同编号 A → Z",sortIPC:"IPC A → Z",searchPlaceholder:"搜索负责人、项目、公司、合同或 IPC...",
+proposal:"提报",items:"笔",kept:"核准",approvedStatus:"已核准",reducedStatus:"调减后核准",excluded:"移出",excludedStatus:"已移出",rateByAmount:"按金额计算",planOpen:"● 审核中",planLocked:"🔒 已锁定",
+showing:"当前显示",wholeMonthKeep:"本月已核准",excludedCount:"移出 / 调减",decision:"核准 / 移出",project:"项目",person:"负责人",company:"公司",contractNo:"合同编号",ipcNo:"IPC编号",costType:"费用类型",contractName:"合同名称 / 内容",amount:"提报金额",approvedAmount:"核准金额",remark:"备注",review:"状态"
+}};
+window.PLAN_REVIEW_LANG=localStorage.getItem("paymentPlanReviewLanguageV1")||"vi";
+window.planReviewT=(k)=>(window.PLAN_REVIEW_I18N[window.PLAN_REVIEW_LANG]||window.PLAN_REVIEW_I18N.vi)[k]||k;
+window.applyPlanReviewLanguage=function(){
+ document.documentElement.lang=window.PLAN_REVIEW_LANG==="zh"?"zh-CN":"vi";
+ document.querySelectorAll("[data-i18n]").forEach(el=>el.textContent=window.planReviewT(el.dataset.i18n));
+ document.querySelectorAll("[data-i18n-placeholder]").forEach(el=>el.placeholder=window.planReviewT(el.dataset.i18nPlaceholder));
+ document.querySelectorAll("#languageSwitch button").forEach(btn=>btn.classList.toggle("active",btn.dataset.lang===window.PLAN_REVIEW_LANG));
+ document.dispatchEvent(new CustomEvent("planreviewlanguagechange"));
+};
+document.addEventListener("DOMContentLoaded",()=>{
+ document.querySelectorAll("#languageSwitch button").forEach(btn=>btn.onclick=()=>{
+  window.PLAN_REVIEW_LANG=btn.dataset.lang;
+  localStorage.setItem("paymentPlanReviewLanguageV1",window.PLAN_REVIEW_LANG);
+  window.applyPlanReviewLanguage();
+ });
+ window.applyPlanReviewLanguage();
+});
+</script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, getDocs, getDoc, doc, setDoc, updateDoc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
+const app=initializeApp(firebaseConfig);const db=getFirestore(app);const auth=getAuth(app);
+const paymentsRef=collection(db,"payments");
+const CASH_MONTHLY_SNAPSHOT_COLLECTION="cash_flow_monthly_snapshots";
+let allPayments=[];
+let currentUser=null;
+let currentProfile=null;
+let currentOperator="";
+let currentRole="";
+let authStateReady=false;
+let draftStatus=new Map();
+let draftApprovedAmount=new Map();
+let columnFilters=new Map();
+const monthlyFundingSnapshots=new Map();
+const monthlySnapshotLoads=new Map();
+const fundingSaveChains=new Map();
+const FUNDING_KEY="paymentPlanFundingV1";
+let currentReviewView="funding";
+
+const $=id=>document.getElementById(id);
+const monthSelect=$("monthSelect"),searchInput=$("searchInput"),sortSelect=$("sortSelect"),reviewBody=$("reviewBody");
+let activeProject="";
+function norm(v){return String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d").replace(/Đ/g,"D").trim().toLowerCase().replace(/\s+/g," ")}
+function money(v){return new Intl.NumberFormat("vi-VN",{maximumFractionDigits:0}).format(Number(v)||0)+" VND"}
+function isChineseUI(){return window.PLAN_REVIEW_LANG==="zh"}
+function monthValue(value){
+  const match=String(value||"").match(/^(\d{4})-(\d{2})$/);
+  if(!match)return String(value||"");
+  return isChineseUI()?`${match[1]}年${match[2]}月`:`${match[2]}/${match[1]}`;
+}
+function displayMonth(value){return isChineseUI()?monthValue(value):`Tháng ${monthValue(value)}`}
+function usernameToEmail(v){const u=norm(v).replace(/[^a-z0-9]/g,"");return u?`${u}@cscecmep.internal`:""}
+function isReviewOwner(){
+  const email=String(currentUser?.email||"").trim().toLowerCase();
+  return !!currentUser&&currentRole==="admin"&&email==="lehoangoanh@cscecmep.internal";
+}
+/* PLAN REVIEW is private to Admin LE HOANG OANH. */
+function canReview(){
+  return isReviewOwner();
+}
+function canConfirmPlan(){
+  return isReviewOwner();
+}
+function canUnlock(){
+  return isReviewOwner();
+}
+function monthEndDate(month){
+  const parts=String(month||"").split("-").map(Number), year=parts[0], value=parts[1];
+  if(!year||!value)return "";
+  const day=new Date(Date.UTC(year,value,0)).getUTCDate();
+  return `${year}-${String(value).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+}
+function localToday(){
+  const d=new Date(), y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), day=String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+function validFundingCutoff(date,month){return /^\d{4}-\d{2}-\d{2}$/.test(String(date||""))&&String(date).slice(0,7)===String(month||"")}
+function defaultFundingCutoff(month){const today=localToday();return today.slice(0,7)===month?today:monthEndDate(month)}
+function fundingCutoffValue(){
+  const month=monthSelect.value, input=$("fundingCutoffDate"), cloud=monthlyFundingSnapshots.get(month)?.reviewCutoffDate;
+  if(validFundingCutoff(input?.value,month))return input.value;
+  return validFundingCutoff(cloud,month)?cloud:defaultFundingCutoff(month);
+}
+function syncFundingCutoffInput(force=false){
+  const input=$("fundingCutoffDate"), month=monthSelect.value;
+  if(!input||!month)return;
+  input.min=`${month}-01`;input.max=monthEndDate(month);
+  const cloud=monthlyFundingSnapshots.get(month)?.reviewCutoffDate;
+  if(force||!validFundingCutoff(input.value,month))input.value=validFundingCutoff(cloud,month)?cloud:defaultFundingCutoff(month);
+  input.disabled=isMonthLocked()||!canReview();
+}
+async function saveFundingCutoff(date){
+  const month=monthSelect.value;
+  if(!canReview()||!validFundingCutoff(date,month))return;
+  const snapshot=monthlyFundingSnapshots.get(month)||emptyMonthlySnapshot(month);
+  snapshot.reviewCutoffDate=date;snapshot.exists=true;monthlyFundingSnapshots.set(month,snapshot);
+  try{
+    await setDoc(doc(db,CASH_MONTHLY_SNAPSHOT_COLLECTION,month),{
+      month,reviewCutoffDate:date,schemaVersion:2,planningUpdatedAt:serverTimestamp(),planningUpdatedBy:currentOperator||currentUser?.email||""
+    },{merge:true});
+  }catch(error){console.error("REVIEW CUTOFF SAVE ERROR",error);alert("❌ Chưa lưu được ngày chốt lên Firebase:\n"+error.message)}
+}
+function activeMonthPayments(){const m=monthSelect.value;return allPayments.filter(p=>p.deleted!==true&&p.paymentMonth===m)}
+function isPaidPayment(payment){
+  const date=String(payment?.processPaymentDate||"").slice(0,10), cutoff=fundingCutoffValue();
+  return /^\d{4}-\d{2}-\d{2}$/.test(date)&&(!cutoff||date<=cutoff);
+}
+function planningMonthPayments(){return activeMonthPayments().filter(p=>!isPaidPayment(p))}
+function isMonthLocked(){return activeMonthPayments().some(p=>p.planLocked===true)}
+function lockedAtText(){const p=activeMonthPayments().find(x=>x.planLockedAt);const v=p?.planLockedAt;if(!v)return"";try{return (typeof v.toDate==="function"?v.toDate():new Date(v)).toLocaleString("vi-VN")}catch{return""}}
+function seedDraft(){
+  draftStatus.clear();
+  draftApprovedAmount.clear();
+  activeMonthPayments().forEach(p=>{
+    const st=p.planReviewStatus==="excluded"?"excluded":"included";
+    draftStatus.set(p.id,st);
+    const base = p.planApprovedAmount !== "" && p.planApprovedAmount != null
+      ? Number(p.planApprovedAmount)
+      : Number(p.amount)||0;
+    draftApprovedAmount.set(p.id, st==="excluded" ? 0 : base);
+  });
+}
+function fillFilters(){
+  const months=[...new Set(allPayments.filter(p=>p.deleted!==true).map(p=>p.paymentMonth).filter(Boolean))].sort().reverse();
+  const prev=monthSelect.value;
+  monthSelect.innerHTML=months.map(m=>`<option value="${m}">${displayMonth(m)}</option>`).join("");
+  if(prev&&months.includes(prev))monthSelect.value=prev;
+  else if(months.length)monthSelect.value=months[0];
+}
+function escapeHtml(v){return String(v??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]))}
+function timeValue(v){
+  if(!v)return 0;
+  try{
+    if(typeof v.toDate==="function")return v.toDate().getTime();
+    if(typeof v.seconds==="number")return v.seconds*1000;
+    return new Date(v).getTime()||0;
+  }catch{return 0}
+}
+
+
+
+function loadFundingStore(){
+  try{return JSON.parse(localStorage.getItem(FUNDING_KEY)||"{}")||{}}catch{return{}}
+}
+function saveFundingStore(obj){localStorage.setItem(FUNDING_KEY,JSON.stringify(obj))}
+function fundingKey(project){return `${monthSelect.value}|${project}`}
+function emptyMonthlySnapshot(month){return {month,balances:{},planning:{},internalDebtByProject:{},internalDebtSource:{},projectCatalog:[],reviewCutoffDate:"",exists:false}}
+function normalizeMonthlySnapshot(month,raw,exists=true){
+  const value=raw&&typeof raw==="object"?raw:{};
+  return {
+    month,
+    balances:value.balances&&typeof value.balances==="object"?value.balances:{},
+    planning:value.planning&&typeof value.planning==="object"?value.planning:{},
+    internalDebtByProject:value.internalDebtByProject&&typeof value.internalDebtByProject==="object"?value.internalDebtByProject:{},
+    internalDebtSource:value.internalDebtSource&&typeof value.internalDebtSource==="object"?value.internalDebtSource:{},
+    projectCatalog:Array.isArray(value.projectCatalog)?value.projectCatalog:[],
+    reviewCutoffDate:String(value.reviewCutoffDate||""),
+    exists
+  };
+}
+function projectMapRecord(map,project){
+  if(!map||typeof map!=="object")return null;
+  if(map[project]&&typeof map[project]==="object")return map[project];
+  const target=norm(project);
+  return Object.values(map).find(row=>row&&typeof row==="object"&&norm(row.project)===target)||null;
+}
+function legacyPlanningForMonth(month){
+  const prefix=`${month}|`, out={};
+  Object.entries(loadFundingStore()).forEach(([key,row])=>{
+    if(!key.startsWith(prefix)||!row||typeof row!=="object")return;
+    const project=key.slice(prefix.length);
+    if(!project)return;
+    out[project]={
+      project,
+      expectedIn:Math.max(0,Number(row.expectedIn)||0),
+      mandatoryOut:Math.max(0,Number(row.mandatoryOut)||0),
+      internalRepayment:Math.max(0,Number(row.internalRepayment)||0),
+      updatedAt:new Date().toISOString(),
+      migratedFrom:"paymentPlanFundingV1"
+    };
+  });
+  return out;
+}
+async function migrateLegacyPlanning(month,snapshot){
+  if(!canReview())return snapshot;
+  const legacy=legacyPlanningForMonth(month), missing={};
+  Object.entries(legacy).forEach(([project,row])=>{
+    if(!projectMapRecord(snapshot.planning,project))missing[project]=row;
+  });
+  if(!Object.keys(missing).length)return snapshot;
+  await setDoc(doc(db,CASH_MONTHLY_SNAPSHOT_COLLECTION,month),{
+    month,
+    planning:missing,
+    schemaVersion:1,
+    planningUpdatedAt:serverTimestamp(),
+    planningUpdatedBy:currentOperator||currentUser?.email||""
+  },{merge:true});
+  snapshot.planning={...snapshot.planning,...missing};
+  snapshot.exists=true;
+  monthlyFundingSnapshots.set(month,snapshot);
+  return snapshot;
+}
+async function loadMonthlyFundingSnapshot(month,{force=false,quiet=false}={}){
+  if(!/^\d{4}-\d{2}$/.test(String(month||"")))return emptyMonthlySnapshot(month);
+  if(!force&&monthlyFundingSnapshots.has(month))return monthlyFundingSnapshots.get(month);
+  if(monthlySnapshotLoads.has(month))return monthlySnapshotLoads.get(month);
+  const task=(async()=>{
+    try{
+      const snap=await getDoc(doc(db,CASH_MONTHLY_SNAPSHOT_COLLECTION,month));
+      let value=normalizeMonthlySnapshot(month,snap.exists()?snap.data():{},snap.exists());
+      monthlyFundingSnapshots.set(month,value);
+      try{value=await migrateLegacyPlanning(month,value)}catch(error){console.warn("Không thể chuyển dữ liệu nguồn tiền cũ lên Firebase",error)}
+      return value;
+    }catch(error){
+      console.error("MONTHLY CASH SNAPSHOT LOAD ERROR",error);
+      if(!quiet)alert("❌ Không đọc được số dư online:\n"+error.message);
+      throw error;
+    }finally{
+      monthlySnapshotLoads.delete(month);
+    }
+  })();
+  monthlySnapshotLoads.set(month,task);
+  return task;
+}
+function fundingRecord(project){
+  const cloud=monthlyFundingSnapshots.get(monthSelect.value);
+  const online=projectMapRecord(cloud?.planning,project);
+  if(online)return {expectedIn:Number(online.expectedIn)||0,mandatoryOut:Number(online.mandatoryOut)||0,internalRepayment:Number(online.internalRepayment)||0};
+  const store=loadFundingStore();
+  return store[fundingKey(project)]||{expectedIn:0,mandatoryOut:0,internalRepayment:0};
+}
+async function persistFundingRecord(month,project,row){
+  if(!canReview())return;
+  const key=`${month}|${project}`;
+  const previous=fundingSaveChains.get(key)||Promise.resolve();
+  const task=previous.catch(()=>{}).then(()=>setDoc(doc(db,CASH_MONTHLY_SNAPSHOT_COLLECTION,month),{
+    month,
+    planning:{[project]:{project,...row,updatedAt:new Date().toISOString()}},
+    schemaVersion:1,
+    planningUpdatedAt:serverTimestamp(),
+    planningUpdatedBy:currentOperator||currentUser?.email||""
+  },{merge:true}));
+  fundingSaveChains.set(key,task);
+  try{await task}
+  catch(error){
+    console.error("MONTHLY FUNDING SAVE ERROR",error);
+    alert("❌ Chưa lưu được nguồn tiền lên Firebase. Dữ liệu vẫn được giữ trên máy này.\n"+error.message);
+  }finally{
+    if(fundingSaveChains.get(key)===task)fundingSaveChains.delete(key);
+  }
+}
+function setFundingField(project,field,value){
+  const month=monthSelect.value;
+  const store=loadFundingStore(), key=fundingKey(project);
+  store[key]={expectedIn:0,mandatoryOut:0,internalRepayment:0,...(store[key]||{}),[field]:Math.max(0,Number(value)||0)};
+  saveFundingStore(store);
+  const snapshot=monthlyFundingSnapshots.get(month)||emptyMonthlySnapshot(month);
+  const previous=projectMapRecord(snapshot.planning,project)||{expectedIn:0,mandatoryOut:0,internalRepayment:0};
+  const row={
+    expectedIn:Math.max(0,Number(previous.expectedIn)||0),
+    mandatoryOut:Math.max(0,Number(previous.mandatoryOut)||0),
+    internalRepayment:Math.max(0,Number(previous.internalRepayment)||0),
+    [field]:Math.max(0,Number(value)||0)
+  };
+  snapshot.planning={...snapshot.planning,[project]:{project,...row,updatedAt:new Date().toISOString()}};
+  snapshot.exists=true;
+  monthlyFundingSnapshots.set(month,snapshot);
+  void persistFundingRecord(month,project,row);
+}
+function projectPlanStats(){
+  const map=new Map();
+  activeMonthPayments().forEach(p=>{
+    const project=p.project||"—";
+    const s=map.get(project)||{project,count:0,paidCount:0,paidActual:0,proposal:0,approved:0,pendingApproved:0,direct:0,indirect:0,payroll:0,sources:[isChineseUI()?"本月 Payment":"Payment tháng này"]};
+    if(isPaidPayment(p)){
+      const raw=p.processActualAmount;
+      s.paidCount++;
+      s.paidActual+=raw!==""&&raw!=null&&Number.isFinite(Number(raw))?Number(raw):(Number(p.amount)||0);
+      map.set(project,s);
+      return;
+    }
+    const proposal=Number(p.amount)||0, st=draftStatus.get(p.id)||"included";
+    s.count++;s.proposal+=proposal;
+    if(st!=="excluded"){
+      const approved=Math.max(0,Number(draftApprovedAmount.get(p.id) ?? proposal)||0);
+      s.approved+=approved;
+      s.pendingApproved+=approved;
+      s[paymentPlanGroup(p)]+=approved;
+    }
+    map.set(project,s);
+  });
+  const cloud=monthlyFundingSnapshots.get(monthSelect.value)||{};
+  const ensureProject=(project,sources=[])=>{
+    project=String(project||"").trim();if(!project)return;
+    const existing=[...map.entries()].find(([key])=>norm(key)===norm(project));
+    if(existing){existing[1].sources=[...new Set([...(existing[1].sources||[]),...sources])];return}
+    map.set(project,{project,count:0,paidCount:0,paidActual:0,proposal:0,approved:0,pendingApproved:0,direct:0,indirect:0,payroll:0,sources:[...new Set(sources)]});
+  };
+  (cloud.projectCatalog||[]).forEach(row=>ensureProject(typeof row==="string"?row:row?.project,Array.isArray(row?.sources)?row.sources:[]));
+  Object.values(cloud.balances||{}).forEach(row=>ensureProject(row?.project,[isChineseUI()?"资金余额":"Số dư Dòng tiền"]));
+  const debtMap=cloud.internalDebtByProject||{};
+  Object.values(debtMap).forEach(row=>{
+    const project=String(row?.project||"").trim();
+    ensureProject(project,[isChineseUI()?"内部借款":"Vay nội bộ"]);
+  });
+  return [...map.values()];
+}
+
+function paymentPlanGroup(payment){
+  const text=norm([payment.costType,payment.contractType,payment.contractName].join(" "));
+  if(/间接|gian tiep|indirect|jianjie|hành chính|hanh chinh|行政|临建/i.test(text))return "indirect";
+  if(/lương|luong|工资|薪资|bảo hiểm|bao hiem|社保|保险|công đoàn|cong doan|工会/i.test(text))return "payroll";
+  return "direct";
+}
+
+function cashBalanceFor(project){
+  const row=projectMapRecord(monthlyFundingSnapshots.get(monthSelect.value)?.balances,project);
+  const cloud=monthlyFundingSnapshots.get(monthSelect.value);
+  const debtTimeline=projectMapRecord(cloud?.internalDebtByProject,project)||(row?.internalDebt&&typeof row.internalDebt==="object"?row.internalDebt:null);
+  const cutoff=fundingCutoffValue();
+  const debtDates=debtTimeline?.daily&&typeof debtTimeline.daily==="object"
+    ? Object.keys(debtTimeline.daily).filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date)&&(!cutoff||date<=cutoff)).sort()
+    : [];
+  const debtRaw=debtDates.length?debtTimeline.daily[debtDates[debtDates.length-1]]:(debtTimeline?.opening||{});
+  const internalDebt={
+    receivables:Array.isArray(debtRaw.receivables)?debtRaw.receivables:[],
+    payables:Array.isArray(debtRaw.payables)?debtRaw.payables:[],
+    receivableTotal:Number(debtRaw.receivableTotal)||0,
+    payableTotal:Number(debtRaw.payableTotal)||0
+  };
+  if(!row)return {balance:0,opening:0,cashIn:0,cashOut:0,internalIn:0,internalOut:0,internalDebt,debtPrecise:!!debtTimeline,detailed:false,found:false,precise:false,asOfDate:"",updatedAt:""};
+  const hasDaily=Object.prototype.hasOwnProperty.call(row,"daily")&&row.daily&&typeof row.daily==="object";
+  const dates=hasDaily?Object.keys(row.daily).filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date)&&(!cutoff||date<=cutoff)).sort():[];
+  const asOfDate=dates.length?dates[dates.length-1]:cutoff;
+  const selected=dates.length?row.daily[asOfDate]:(hasDaily?{
+    balance:Number(row.opening)||0,opening:Number(row.opening)||0,cashIn:0,cashOut:0,internalIn:0,internalOut:0
+  }:row);
+  return {
+    balance:Number(selected.balance)||0,
+    opening:Number(selected.opening ?? row.opening)||0,
+    cashIn:Number(selected.cashIn)||0,
+    cashOut:Number(selected.cashOut)||0,
+    internalIn:Number(selected.internalIn)||0,
+    internalOut:Number(selected.internalOut)||0,
+    internalDebt,
+    debtPrecise:!!debtTimeline,
+    detailed:hasDaily||["opening","cashIn","cashOut","internalIn","internalOut"].some(key=>row[key]!==undefined&&row[key]!==null),
+    found:true,
+    precise:!!hasDaily,
+    asOfDate,
+    updatedAt:String(row.updatedAt||"")
+  };
+}
+
+function projectCashStats(project,proposal,approved,paidActualFallback=0){
+  const f=fundingRecord(project);
+  const cash=cashBalanceFor(project);
+  const expectedIn=Number(f.expectedIn)||0;
+  const reserve=Number(f.mandatoryOut)||0;
+  const internalRepayment=Number(f.internalRepayment)||0;
+  const internalNet=cash.internalIn-cash.internalOut;
+  const actualIn=Math.max(0,cash.cashIn-cash.internalIn);
+  const snapshotActualOut=Math.max(0,cash.cashOut-cash.internalOut);
+  const countedActualOut=cash.found?Math.max(snapshotActualOut,Number(paidActualFallback)||0):(Number(paidActualFallback)||0);
+  const extraPaid=Math.max(0,countedActualOut-snapshotActualOut);
+  const opening=cash.found?(cash.balance-extraPaid):0;
+  const source=opening+expectedIn;
+  const remaining=source-approved-internalRepayment-reserve;
+  const hasFunding=cash.found||expectedIn!==0||reserve!==0||internalRepayment!==0;
+  return{
+    opening,actualIn,actualOut:countedActualOut,internalIn:cash.internalIn,internalOut:cash.internalOut,internalNet,
+    expectedIn,reserve,internalRepayment,internalDebt:cash.internalDebt,source,
+    proposal,
+    approved,
+    remaining,
+    hasFunding,
+    cashFound:cash.found,
+    cashPrecise:cash.precise,
+    debtPrecise:cash.debtPrecise,
+    cashAsOfDate:cash.asOfDate,
+    cashUpdatedAt:cash.updatedAt
+  };
+}
+function formatInputMoney(v){return new Intl.NumberFormat("vi-VN",{maximumFractionDigits:0}).format(Math.max(0,Number(v)||0))}
+function parseMoneyInput(v){return Math.max(0,Number(String(v||"").replace(/[^\d]/g,""))||0)}
+const FUNDING_COLUMN_WIDTHS_KEY="paymentPlanFundingColumnWidthsV1";
+const FUNDING_ROW_HEIGHT_KEY="paymentPlanFundingRowHeightV1";
+let fundingColumnResizeBound=false;
+function fundingColumnWidths(){try{return JSON.parse(localStorage.getItem(FUNDING_COLUMN_WIDTHS_KEY)||"{}")||{}}catch{return{}}}
+function setupFundingColumnResizers(){
+  const table=$("fundingTable");if(!table)return;
+  const cols=[...table.querySelectorAll("colgroup col")],saved=fundingColumnWidths();
+  cols.forEach((col,index)=>{if(saved[index])col.style.width=Math.max(80,Number(saved[index]))+"px"});
+  if(fundingColumnResizeBound)return;
+  fundingColumnResizeBound=true;
+  table.querySelectorAll("thead th").forEach((th,index)=>{
+    const handle=document.createElement("span");handle.className="funding-col-resizer";th.appendChild(handle);
+    handle.onmousedown=e=>{
+      e.preventDefault();e.stopPropagation();handle.classList.add("dragging");
+      const startX=e.clientX,startWidth=th.getBoundingClientRect().width,col=cols[index];
+      const move=event=>{col.style.width=Math.max(80,startWidth+event.clientX-startX)+"px"};
+      const up=()=>{
+        document.removeEventListener("mousemove",move);document.removeEventListener("mouseup",up);handle.classList.remove("dragging");
+        const widths=fundingColumnWidths();widths[index]=Math.round(parseFloat(col.style.width)||th.getBoundingClientRect().width);localStorage.setItem(FUNDING_COLUMN_WIDTHS_KEY,JSON.stringify(widths));
+      };
+      document.addEventListener("mousemove",move);document.addEventListener("mouseup",up);
+    };
+    handle.ondblclick=e=>{
+      e.preventDefault();e.stopPropagation();
+      const col=cols[index],cells=[th,...table.querySelectorAll(`tbody tr td:nth-child(${index+1})`)];
+      const width=Math.max(80,Math.min(420,Math.max(...cells.map(cell=>cell.scrollWidth+18))));
+      col.style.width=width+"px";const widths=fundingColumnWidths();widths[index]=width;localStorage.setItem(FUNDING_COLUMN_WIDTHS_KEY,JSON.stringify(widths));
+    };
+  });
+}
+function applyFundingRowHeight(value){
+  const height=Math.max(46,Math.min(96,Number(value)||58));
+  $("fundingTable")?.style.setProperty("--funding-row-height",height+"px");
+  if($("fundingRowHeight"))$("fundingRowHeight").value=String(height);
+  localStorage.setItem(FUNDING_ROW_HEIGHT_KEY,String(height));
+}
+function compactMoney(v){
+  const n=Math.abs(Number(v)||0);
+  if(n>=1e9)return `${new Intl.NumberFormat("vi-VN",{maximumFractionDigits:2}).format(n/1e9)} ${isChineseUI()?"十亿":"tỷ"}`;
+  if(n>=1e6)return `${new Intl.NumberFormat("vi-VN",{maximumFractionDigits:1}).format(n/1e6)} ${isChineseUI()?"百万":"triệu"}`;
+  return new Intl.NumberFormat("vi-VN",{maximumFractionDigits:0}).format(n);
+}
+function internalDebtCell(debt,precise=true){
+  if(!precise)return `<span class="funding-main">—</span><div class="funding-sub">${isChineseUI()?"需更新内部欠款":"Cần cập nhật công nợ"}</div>`;
+  const receivables=debt?.receivables||[],payables=debt?.payables||[],receive=Number(debt?.receivableTotal)||0,pay=Number(debt?.payableTotal)||0;
+  if(!receive&&!pay)return `<span class="funding-main">—</span><div class="funding-sub">${isChineseUI()?"无内部欠款":"Không còn công nợ"}</div>`;
+  const main=isChineseUI()?`应收 ${compactMoney(receive)} · 应付 ${compactMoney(pay)}`:`Thu ${compactMoney(receive)} · Trả ${compactMoney(pay)}`;
+  const details=[
+    ...receivables.map(row=>isChineseUI()?`${row.project} 欠 ${compactMoney(row.amount)}`:`${row.project} nợ ${compactMoney(row.amount)}`),
+    ...payables.map(row=>isChineseUI()?`欠 ${row.project} ${compactMoney(row.amount)}`:`Nợ ${row.project} ${compactMoney(row.amount)}`)
+  ];
+  return `<span class="funding-main">${escapeHtml(main)}</span><div class="funding-sub" title="${escapeHtml(details.join(" · "))}">${escapeHtml(details.slice(0,2).join(" · "))}${details.length>2?` · +${details.length-2}`:""}</div>`;
+}
+function renderFundingView(){
+  if(!$("fundingBody"))return;
+  setupFundingColumnResizers();
+  syncFundingCutoffInput(false);
+  const locked=isMonthLocked(), search=norm($("fundingSearchInput")?.value||"");
+  const allRows=projectPlanStats().map(s=>({...s,cash:projectCashStats(s.project,s.proposal,s.pendingApproved,s.paidActual)}));
+  const filter=$("fundingFilterSelect")?.value||"all",sort=$("fundingSortSelect")?.value||"activity";
+  let rows=allRows.filter(s=>!search||norm([s.project,...(s.sources||[])].join(" ")).includes(search));
+  rows=rows.filter(s=>{
+    const activity=s.count+s.paidCount>0,debt=(Number(s.cash.internalDebt?.receivableTotal)||0)+(Number(s.cash.internalDebt?.payableTotal)||0);
+    if(filter==="activity")return activity;
+    if(filter==="inactive")return !activity;
+    if(filter==="debt")return debt>0;
+    if(filter==="missingBalance")return !s.cash.cashFound;
+    return true;
+  });
+  rows.sort((a,b)=>{
+    if(sort==="project")return a.project.localeCompare(b.project,undefined,{numeric:true,sensitivity:"base"});
+    if(sort==="balance")return b.cash.opening-a.cash.opening||a.project.localeCompare(b.project);
+    if(sort==="remaining")return b.cash.remaining-a.cash.remaining||a.project.localeCompare(b.project);
+    if(sort==="debtPay")return (Number(b.cash.internalDebt?.payableTotal)||0)-(Number(a.cash.internalDebt?.payableTotal)||0)||a.project.localeCompare(b.project);
+    const aa=a.count+a.paidCount>0,ba=b.count+b.paidCount>0;
+    if(aa!==ba)return aa?-1:1;
+    if(aa&&a.proposal!==b.proposal)return b.proposal-a.proposal;
+    return a.project.localeCompare(b.project,undefined,{numeric:true,sensitivity:"base"});
+  });
+  let shortageProjects=0,totalShortage=0,totalSource=0,totalApproved=0,totalReserve=0,totalActualOut=0,totalRemaining=0,totalDebtReceive=0,totalDebtPay=0,totalInternalRepayment=0,withFunding=0,impreciseProjects=0;
+  let totalOpening=0,totalExpectedIn=0,totalActualIn=0,totalPayroll=0,totalIndirect=0,totalDirect=0;
+  $("fundingBody").innerHTML=rows.map(s=>{
+    const c=s.cash;
+    totalSource+=c.source;totalApproved+=c.approved;totalReserve+=c.reserve;totalActualOut+=c.actualOut;totalRemaining+=c.remaining;totalInternalRepayment+=c.internalRepayment;
+    totalDebtReceive+=Number(c.internalDebt?.receivableTotal)||0;totalDebtPay+=Number(c.internalDebt?.payableTotal)||0;
+    totalOpening+=c.opening;totalExpectedIn+=c.expectedIn;totalActualIn+=c.actualIn;totalPayroll+=s.payroll;totalIndirect+=s.indirect;totalDirect+=s.direct;
+    if(c.cashFound)withFunding++;
+    if(c.cashFound&&(!c.cashPrecise||!c.debtPrecise))impreciseProjects++;
+    if(c.cashFound&&c.remaining<0){shortageProjects++;totalShortage+=Math.abs(c.remaining)}
+    const inputDisabled=locked||!canReview()?"disabled":"";
+    const status=!c.cashFound
+      ? `<span class="cash-status empty">${isChineseUI()?"未更新余额":"CHƯA CÓ SỐ DƯ"}</span>`
+      : !c.cashPrecise||!c.debtPrecise
+        ? `<span class="cash-status empty">${isChineseUI()?"需更新资金数据":"CẦN CẬP NHẬT DÒNG TIỀN"}</span>`
+      : c.remaining>=0
+        ? `<span class="cash-status ok">${isChineseUI()?"资金充足":"ĐỦ NGUỒN"}</span>`
+        : `<span class="cash-status bad">${isChineseUI()?"缺口":"THIẾU"} ${money(Math.abs(c.remaining))}</span>`;
+    const hasActivity=s.count+s.paidCount>0;
+    const activityText=hasActivity?`${s.count} ${isChineseUI()?"笔待审核":"khoản chờ duyệt"}${s.paidCount?` · ${s.paidCount} ${isChineseUI()?"笔已支付":"đã trả"}`:""}`:(isChineseUI()?"本月无付款":"Không có thanh toán tháng này");
+    const sourceText=(s.sources||[]).join(" · ");
+    const projectAction=s.count?`<button class="detail-link" data-open-project="${escapeHtml(s.project)}">${isChineseUI()?"审核":"Duyệt"} →</button>`:s.paidCount?`<span class="plan-chip">${isChineseUI()?"已支付完":"ĐÃ TRẢ"}</span>`:`<span class="plan-chip">${isChineseUI()?"无发生":"KHÔNG PHÁT SINH"}</span>`;
+    return `<tr>
+      <td class="project-cell" title="${escapeHtml(sourceText)}"><span class="funding-project-name">${escapeHtml(s.project)}</span><div class="funding-project-meta">${activityText}</div><div class="funding-sub">${sourceText?`${isChineseUI()?"来源":"Nguồn"}: ${escapeHtml(sourceText)}`:""}</div>${projectAction}</td>
+      <td class="internal-debt-cell">${internalDebtCell(c.internalDebt,c.debtPrecise)}</td>
+      <td><span class="funding-main">${c.cashFound?money(c.opening):"—"}</span></td>
+      <td class="funding-cell-in"><input class="funding-input" data-funding-project="${escapeHtml(s.project)}" data-funding-field="expectedIn" value="${formatInputMoney(c.expectedIn)}" ${inputDisabled}></td>
+      <td class="funding-cell-in"><span class="funding-main positive">${c.cashFound?money(c.actualIn):"—"}</span></td>
+      <td class="funding-cell-plan"><span class="funding-main">${money(s.payroll)}</span></td>
+      <td class="funding-cell-plan"><span class="funding-main">${money(s.indirect)}</span></td>
+      <td class="funding-cell-plan" title="${isChineseUI()?"本月核准待支付":"Kế hoạch đã duyệt còn chờ chi"}"><span class="funding-main">${money(s.direct)}</span><div class="funding-sub">${isChineseUI()?"待支付计划":"KH còn chờ chi"}</div></td>
+      <td class="funding-cell-plan"><input class="funding-input" data-funding-project="${escapeHtml(s.project)}" data-funding-field="internalRepayment" value="${formatInputMoney(c.internalRepayment)}" ${inputDisabled}><div class="funding-sub">${isChineseUI()?"仅按本月决定扣除":"Chỉ trừ khi dự kiến hoàn"}</div></td>
+      <td class="funding-cell-plan"><input class="funding-input" data-funding-project="${escapeHtml(s.project)}" data-funding-field="mandatoryOut" value="${formatInputMoney(c.reserve)}" ${inputDisabled}></td>
+      <td class="funding-cell-out"><span class="funding-main negative">${c.cashFound||c.actualOut?money(c.actualOut):"—"}</span></td>
+      <td class="funding-cell-remaining ${c.remaining<0?"negative":"positive"}"><span class="funding-main ${c.remaining<0?"negative":"positive"}">${c.cashFound?money(c.remaining):"—"}</span><div class="funding-sub">${status}</div></td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="12" class="empty">${isChineseUI()?"本月没有待审核项目。":"Tháng này không còn khoản chờ duyệt."}</td></tr>`;
+
+  if($("fundingFoot"))$("fundingFoot").innerHTML=rows.length?`<tr>
+    <td>${rows.length===allRows.length&&!search&&filter==="all"?(isChineseUI()?"公司合计":"TỔNG CÔNG TY"):(isChineseUI()?"当前显示合计":"TỔNG ĐANG HIỂN THỊ")}</td><td title="${isChineseUI()?"内部资金在公司层面自动抵消":"Tiền nội bộ tự đối ứng trong cùng công ty"}">${isChineseUI()?"内部往来自动抵消":"NỘI BỘ TỰ CÂN BẰNG"}</td><td>${money(totalOpening)}</td><td>${money(totalExpectedIn)}</td><td>${money(totalActualIn)}</td>
+    <td>${money(totalPayroll)}</td><td>${money(totalIndirect)}</td><td>${money(totalDirect)}</td><td>${money(totalInternalRepayment)}</td><td>${money(totalReserve)}</td><td>${money(totalActualOut)}</td><td>${money(totalRemaining)}</td>
+  </tr>`:"";
+
+  const debtSource=monthlyFundingSnapshots.get(monthSelect.value)?.internalDebtSource||{};
+  if($("fundingNoteText"))$("fundingNoteText").textContent=isChineseUI()
+    ? `内部欠款仅供追踪；只有预计内部还款才扣减额度。数据来源：DATAVNB 历史 ${Number(debtSource.legacyRows)||0} 笔 + 手工录入 ${Number(debtSource.manualRows)||0} 笔，共 ${Number(debtSource.projectCount)||0} 个项目。`
+    : `Công nợ chỉ để theo dõi; chỉ Dự kiến hoàn nội bộ mới trừ hạn mức. Nguồn: ${Number(debtSource.legacyRows)||0} dòng DATAVNB lịch sử + ${Number(debtSource.manualRows)||0} giao dịch nhập tay, tổng hợp ${Number(debtSource.projectCount)||0} dự án.`;
+
+  document.querySelectorAll("[data-funding-project]").forEach(input=>{
+    input.onfocus=()=>input.select();
+    input.onchange=()=>{
+      const project=input.dataset.fundingProject, field=input.dataset.fundingField;
+      const value=parseMoneyInput(input.value);
+      setFundingField(project,field,value);
+      renderFundingView();
+    };
+  });
+  document.querySelectorAll("[data-open-project]").forEach(btn=>{
+    btn.onclick=()=>{activeProject=btn.dataset.openProject||"";setReviewView("payment");render()}
+  });
+  const cutoff=fundingCutoffValue(), cutoffText=cutoff?cutoff.split("-").reverse().join("/"):"—";
+  $("fundingGlobalStatus").textContent=impreciseProjects
+    ? (isChineseUI()
+        ? `${impreciseProjects} 个项目缺少每日余额 · 请在资金页面加载项目后更新`
+        : `${impreciseProjects} dự án chưa có số dư/công nợ mới · mở Dòng tiền, tải dự án rồi bấm Cập nhật`)
+    : shortageProjects
+    ? (isChineseUI()
+        ? `截至 ${cutoffText} · ${shortageProjects} 个项目资金不足 · 缺口 ${money(totalShortage)}`
+        : `Chốt ${cutoffText} · ${shortageProjects} dự án thiếu nguồn · Thiếu ${money(totalShortage)}`)
+    : withFunding
+      ? (isChineseUI()
+          ? `截至 ${cutoffText} · 资金 ${money(totalSource)} · 实际支出 ${money(totalActualOut)} · 待支付计划 ${money(totalApproved)} · 预计内部还款 ${money(totalInternalRepayment)} · 预留 ${money(totalReserve)} · 可用 ${money(totalRemaining)}`
+          : `Chốt ${cutoffText} · Nguồn ${money(totalSource)} · Thực chi ${money(totalActualOut)} · KH còn chi ${money(totalApproved)} · Dự kiến hoàn nội bộ ${money(totalInternalRepayment)} · Giữ lại ${money(totalReserve)} · Hạn mức ${money(totalRemaining)}`)
+      : (isChineseUI()?"尚未更新项目余额":"Chưa cập nhật số dư dự án");
+}
+function setReviewView(view){
+  currentReviewView=view==="payment"?"payment":"funding";
+  $("fundingView")?.classList.toggle("hidden-view",currentReviewView!=="funding");
+  $("paymentDetailView")?.classList.toggle("hidden-view",currentReviewView!=="payment");
+  $("fundingViewBtn")?.classList.toggle("active",currentReviewView==="funding");
+  $("paymentViewBtn")?.classList.toggle("active",currentReviewView==="payment");
+  if(currentReviewView==="funding")renderFundingView();
+}
+async function importOpeningFromCashControl(){
+  const button=$("importCashOpeningBtn"), month=monthSelect.value;
+  button.disabled=true;
+  button.textContent=isChineseUI()?"正在更新…":"Đang cập nhật…";
+  try{
+    const snapshot=await loadMonthlyFundingSnapshot(month,{force:true});
+    syncFundingCutoffInput(true);
+    const found=projectPlanStats().filter(({project})=>projectMapRecord(snapshot.balances,project)).length;
+    renderFundingView();
+    alert(found
+      ? `✅ Đã cập nhật số dư online của ${found} dự án · 1 lượt đọc Firebase.`
+      : "Chưa có số dư online cho tháng này. Hãy mở trang Dòng tiền và tải dự án cần duyệt một lần để hệ thống tạo bản tổng hợp.");
+  }catch(error){
+    console.error(error);
+  }finally{
+    button.disabled=false;
+    button.textContent=window.planReviewT("syncCash");
+  }
+}
+
+function rowFilterValue(p,key){
+  if(key==="reviewStatus"){
+    const status=draftStatus.get(p.id)||"included";
+    if(status==="excluded")return window.planReviewT("excludedStatus");
+    const approved=Math.max(0,Number(draftApprovedAmount.get(p.id) ?? p.amount)||0);
+    return approved<(Number(p.amount)||0)
+      ? window.planReviewT("reducedStatus")
+      : window.planReviewT("approvedStatus");
+  }
+  if(key==="amount")return money(p.amount);
+  return String(p?.[key] ?? "").trim() || "—";
+}
+function passesColumnFilters(p){
+  for(const [key,selected] of columnFilters.entries()){
+    if(!selected || selected.size===0)continue;
+    if(!selected.has(rowFilterValue(p,key)))return false;
+  }
+  return true;
+}
+function activeFilterCount(){
+  let n=0;
+  columnFilters.forEach(s=>{if(s&&s.size)n++});
+  return n;
+}
+function updateFilterStatus(){
+  const box=$("filterStatus");
+  const n=activeFilterCount();
+  if(!box)return;
+  if(!n){box.className="filter-status";box.innerHTML="";return}
+  box.className="filter-status show";
+  box.innerHTML=`${n} bộ lọc đang bật <button type="button" id="clearAllColumnFilters">×</button>`;
+  const b=$("clearAllColumnFilters");
+  if(b)b.onclick=()=>{columnFilters.clear();render()};
+}
+function getVisible(){
+  const q=norm(searchInput.value);
+  let rows=planningMonthPayments()
+    .filter(p=>!activeProject||p.project===activeProject)
+    .filter(p=>!q||norm([p.personInCharge,p.project,p.company,p.contractNo,p.contractName,p.ipcNo,p.costType,p.remark].join(" ")).includes(q))
+    .filter(p=>passesColumnFilters(p));
+
+  const mode=sortSelect?.value||"created";
+
+  if(mode==="created"){
+    rows=[...rows].sort((a,b)=>{
+      const av=timeValue(a.createdAt),bv=timeValue(b.createdAt);
+      if(av!==bv)return av-bv;
+      return String(a.id||"").localeCompare(String(b.id||""));
+    });
+  }else if(mode==="amountDesc"){
+    rows=[...rows].sort((a,b)=>(Number(b.amount)||0)-(Number(a.amount)||0));
+  }else if(mode==="amountAsc"){
+    rows=[...rows].sort((a,b)=>(Number(a.amount)||0)-(Number(b.amount)||0));
+  }else if(mode==="project"){
+    rows=[...rows].sort((a,b)=>String(a.project||"").localeCompare(String(b.project||""),undefined,{numeric:true,sensitivity:"base"}));
+  }else if(mode==="contract"){
+    rows=[...rows].sort((a,b)=>String(a.contractNo||"").localeCompare(String(b.contractNo||""),undefined,{numeric:true,sensitivity:"base"}));
+  }else if(mode==="ipc"){
+    rows=[...rows].sort((a,b)=>String(a.ipcNo||"").localeCompare(String(b.ipcNo||""),undefined,{numeric:true,sensitivity:"base"}));
+  }
+
+  return rows;
+}
+function calc(){
+  const ps=planningMonthPayments();
+  let total=0,keep=0,gap=0,kc=0,ec=0,rc=0;
+  ps.forEach(p=>{
+    const proposal=Number(p.amount)||0;
+    total+=proposal;
+    if((draftStatus.get(p.id)||"included")==="excluded"){
+      ec++;
+    }else{
+      const approved=Math.max(0,Number(draftApprovedAmount.get(p.id) ?? proposal)||0);
+      keep+=approved;
+      kc++;
+      if(approved<proposal)rc++;
+    }
+  });
+  gap=Math.max(0,total-keep);
+  return{total,keep,ex:gap,kc,ec,rc,count:ps.length,rate:total?keep/total*100:0};
+}
+function renderProjects(){
+  const map=new Map();
+
+  planningMonthPayments().forEach(p=>{
+    const key=p.project||"—";
+    const s=map.get(key)||{n:0,total:0,keep:0,excluded:0};
+    const a=Number(p.amount)||0;
+    s.n++;
+    s.total+=a;
+    if((draftStatus.get(p.id)||"included")==="excluded")s.excluded+=a;
+    else s.keep+=Math.max(0,Number(draftApprovedAmount.get(p.id) ?? a)||0);
+    map.set(key,s);
+  });
+
+  $("projectStrip").innerHTML=[...map.entries()]
+    .sort((a,b)=>b[1].total-a[1].total)
+    .map(([p,s])=>`
+      <button type="button" class="project-pill ${activeProject===p?"active":""}" data-project="${escapeHtml(p)}">
+        <strong>${escapeHtml(p)}</strong>
+        <span class="project-total">${window.planReviewT("proposal")} ${money(s.total)}</span>
+        <span class="project-total">${s.n} ${window.planReviewT("items")}</span>
+        <span class="project-keep">${window.planReviewT("kept")} ${money(s.keep)}</span>
+      </button>
+    `).join("");
+
+  document.querySelectorAll(".project-pill").forEach(btn=>{
+    btn.onclick=()=>{
+      const p=btn.dataset.project||"";
+      activeProject=activeProject===p?"":p;
+      render();
+    };
+  });
+}
+function render(){
+  const locked=isMonthLocked(),vis=getVisible(),c=calc();
+  const paidCount=activeMonthPayments().filter(isPaidPayment).length;
+
+  $("pageTitle").textContent=isChineseUI()
+    ? `${displayMonth(monthSelect.value)}付款计划`
+    : `Kế hoạch thanh toán · ${displayMonth(monthSelect.value)}`;
+  $("sumTotal").textContent=money(c.total);
+  $("sumKeep").textContent=money(c.keep);
+  $("sumExclude").textContent=money(c.ex);
+  $("sumRate").textContent=c.rate.toFixed(1)+"%";
+  $("sumTotalMeta").textContent=isChineseUI()
+    ? `${c.count} 笔待审核 · ${paidCount} 笔已支付另列`
+    : `${c.count} khoản chờ duyệt · ${paidCount} đã trả tách riêng`;
+  $("sumKeepMeta").textContent=`${c.kc} ${window.planReviewT("items")}`;
+  $("sumExcludeMeta").textContent=isChineseUI()
+    ? `${c.ec} 笔移出 · ${c.rc} 笔调减`
+    : `${c.ec} khoản loại · ${c.rc} khoản giảm`;
+
+  $("monthStateChip").textContent=locked?window.planReviewT("planLocked"):window.planReviewT("planOpen");
+  $("monthStateChip").className="state-chip "+(locked?"locked":"open");
+
+  $("confirmBtn").disabled=locked||!canConfirmPlan()||!c.count;
+  $("confirmBtn").title=!canConfirmPlan()&&!locked?"Đăng nhập bằng tài khoản Người duyệt hoặc Quản trị viên":"";
+  $("keepAllBtn").disabled=locked;
+  $("excludeAllBtn").disabled=locked;
+  $("unlockBtn").style.display=locked&&canUnlock()?"":"none";
+
+  const notice=$("lockNotice");
+  if(locked){
+    notice.className="notice show";
+    notice.textContent=`Kế hoạch tháng ${monthValue(monthSelect.value)} đã khóa${lockedAtText()?" lúc "+lockedAtText():""}. Chỉ Quản trị viên mới có thể mở khóa để điều chỉnh.`;
+  }else if(!canReview()){
+    notice.className="notice show";
+    notice.textContent="Bạn đang ở chế độ chỉ xem. Chỉ Người duyệt hoặc Quản trị viên được Duyệt, Loại và khóa kế hoạch.";
+  }else{
+    notice.className="notice";
+  }
+
+  reviewBody.innerHTML=vis.length?vis.map(p=>{
+    const st=draftStatus.get(p.id)||"included";
+    const proposal=Number(p.amount)||0;
+    const approved=Math.max(0,Number(draftApprovedAmount.get(p.id) ?? proposal)||0);
+    const disabled=locked?"disabled":"";
+    const approvedDisabled=locked||st==="excluded"?"disabled":"";
+    return`
+      <tr class="${st==="excluded"?"excluded":""}">
+        <td>
+          <div class="decision">
+            <button type="button" class="keep ${st!=="excluded"?"active":""}" data-decision="included" data-id="${p.id}" ${disabled}>${window.planReviewT("kept")}</button>
+            <button type="button" class="exclude ${st==="excluded"?"active":""}" data-decision="excluded" data-id="${p.id}" ${disabled}>${window.planReviewT("excluded")}</button>
+          </div>
+        </td>
+        <td class="project-name" title="${escapeHtml(p.project||"")}">${escapeHtml(p.project||"—")}</td>
+        <td class="person" title="${escapeHtml(p.personInCharge||"")}">${escapeHtml(p.personInCharge||"—")}</td>
+        <td title="${escapeHtml(p.company||"")}">${escapeHtml(p.company||"—")}</td>
+        <td title="${escapeHtml(p.contractNo||"")}"><strong>${escapeHtml(p.contractNo||"—")}</strong></td>
+        <td title="${escapeHtml(p.ipcNo||"")}">${escapeHtml(p.ipcNo||"—")}</td>
+        <td title="${escapeHtml(p.costType||"")}">${escapeHtml(p.costType||"—")}</td>
+        <td title="${escapeHtml(p.contractName||"")}">${escapeHtml(p.contractName||"—")}</td>
+        <td class="amount">${money(proposal)}</td>
+        <td>
+          <input class="approved-input ${approved<proposal&&st!=="excluded"?"reduced-amount":""}" data-approved-id="${p.id}"
+                 inputmode="numeric" value="${new Intl.NumberFormat("vi-VN",{maximumFractionDigits:0}).format(st==="excluded"?0:approved)}" ${approvedDisabled}>
+        </td>
+        <td class="subtle" title="${escapeHtml(p.remark||"")}">${escapeHtml(p.remark||"")}</td>
+        <td><span class="status-badge ${st==="excluded"?"exclude":approved<proposal?"reduced":"keep"}">${st==="excluded"?window.planReviewT("excludedStatus"):approved<proposal?window.planReviewT("reducedStatus"):window.planReviewT("approvedStatus")}</span></td>
+      </tr>`;
+  }).join(""):`<tr><td colspan="12" class="empty">Không có khoản thanh toán phù hợp.</td></tr>`;
+
+  document.querySelectorAll("[data-decision][data-id]").forEach(btn=>{
+    btn.onclick=()=>{
+      if(locked)return;
+      if(!canReview()){
+        $("loginModal").classList.add("show");
+        $("loginError").style.display="block";
+        $("loginError").textContent="Vui lòng đăng nhập bằng tài khoản Người duyệt hoặc Quản trị viên để thay đổi kế hoạch.";
+        return;
+      }
+      const id=btn.dataset.id;
+      const next=btn.dataset.decision;
+      draftStatus.set(id,next);
+      const p=allPayments.find(x=>x.id===id);
+      if(next==="excluded"){
+        draftApprovedAmount.set(id,0);
+      }else if((Number(draftApprovedAmount.get(id))||0)<=0){
+        draftApprovedAmount.set(id,Number(p?.planApprovedAmount ?? p?.amount)||0);
+      }
+      render();
+    };
+  });
+
+
+  document.querySelectorAll("[data-approved-id]").forEach(input=>{
+    input.onfocus=()=>input.select();
+    input.oninput=()=>{
+      const id=input.dataset.approvedId;
+      const raw=String(input.value||"").replace(/[^\d]/g,"");
+      const value=Math.max(0,Number(raw)||0);
+      draftApprovedAmount.set(id,value);
+      input.value=value?new Intl.NumberFormat("vi-VN",{maximumFractionDigits:0}).format(value):"0";
+      const p=allPayments.find(x=>x.id===id);
+      input.classList.toggle("reduced-amount",value<(Number(p?.amount)||0));
+      const c=calc();
+      $("sumKeep").textContent=money(c.keep);
+      $("sumExclude").textContent=money(c.ex);
+      $("sumRate").textContent=c.rate.toFixed(1)+"%";
+      renderProjects();
+    };
+  });
+
+  updateFilterStatus();
+  setupColumnResizers();
+  syncFilterButtons();
+
+  const visibleAmount=vis.reduce((sum,p)=>sum+(Number(p.amount)||0),0);
+  $("footerSummary").innerHTML=
+    `${activeProject?`<strong>${escapeHtml(activeProject)}</strong> · `:""}`+
+    `${window.planReviewT("showing")} <strong>${vis.length}</strong> ${window.planReviewT("items")} · <strong>${money(visibleAmount)}</strong> &nbsp; | &nbsp; `+
+    `${window.planReviewT("wholeMonthKeep")} <strong>${c.kc}/${c.count}</strong> ${window.planReviewT("items")} · <strong>${money(c.keep)}</strong> &nbsp; | &nbsp; `+
+    `${window.planReviewT("excludedCount")} <strong>${c.ec+c.rc}</strong> ${window.planReviewT("items")} · <strong>${money(c.ex)}</strong>`;
+
+  renderProjects();
+  if(currentReviewView==="funding")renderFundingView();
+}
+
+async function loadPayments(){
+  reviewBody.innerHTML='<tr><td colspan="12" class="empty">⏳ Đang tải dữ liệu...</td></tr>';
+  const snap=await getDocs(paymentsRef);
+  allPayments=snap.docs.map(d=>({id:d.id,...d.data()}));
+  fillFilters();
+  seedDraft();
+  if(authStateReady&&currentUser&&monthSelect.value){
+    try{await loadMonthlyFundingSnapshot(monthSelect.value,{quiet:true})}catch{}
+  }
+  syncFundingCutoffInput(true);
+  render();
+}
+async function loadProfile(user){if(!user){currentProfile=null;currentOperator="";currentRole="";return}const snap=await getDoc(doc(db,"authUsers",user.uid));if(!snap.exists()){currentProfile=null;currentOperator=user.email||"";currentRole="";return}currentProfile=snap.data();currentOperator=String(currentProfile.displayName||user.email||"").trim();currentRole=String(currentProfile.role||"").toLowerCase()}
+function roleDisplayName(role){
+  if(isChineseUI()){
+    if(role==="admin")return "管理员";
+    if(role==="reviewer")return "审核人";
+    if(role==="staff")return "仅查看";
+    return "访客";
+  }
+  if(role==="admin")return "QUẢN TRỊ VIÊN";
+  if(role==="reviewer")return "NGƯỜI DUYỆT";
+  if(role==="staff")return "CHỈ XEM";
+  return "KHÁCH XEM";
+}
+function updateUser(){
+  if(currentUser&&currentProfile){
+    $("userChip").textContent=`${currentOperator} · ${roleDisplayName(currentRole)}`;
+    $("signInBtn").style.display="none";
+    $("signOutBtn").style.display="";
+  }else{
+    $("userChip").textContent=isChineseUI()?"未登录":"Chưa đăng nhập";
+    $("signInBtn").style.display="";
+    $("signOutBtn").style.display="none";
+  }
+  render();
+}
+
+const COLUMN_WIDTHS_KEY="paymentPlanReviewColumnWidthsV1";
+function loadColumnWidths(){
+  let saved={};
+  try{saved=JSON.parse(localStorage.getItem(COLUMN_WIDTHS_KEY)||"{}")}catch{}
+  document.querySelectorAll("#reviewTable col[data-col]").forEach(col=>{
+    const key=col.dataset.col;
+    if(saved[key])col.style.width=Math.max(45,Number(saved[key]))+"px";
+  });
+}
+function saveColumnWidth(key,width){
+  let saved={};
+  try{saved=JSON.parse(localStorage.getItem(COLUMN_WIDTHS_KEY)||"{}")}catch{}
+  saved[key]=Math.round(width);
+  localStorage.setItem(COLUMN_WIDTHS_KEY,JSON.stringify(saved));
+}
+let resizeBound=false;
+function setupColumnResizers(){
+  if(resizeBound)return;
+  resizeBound=true;
+  loadColumnWidths();
+  document.querySelectorAll("#reviewTable th[data-col]").forEach(th=>{
+    const resizer=th.querySelector(".col-resizer");
+    if(!resizer)return;
+    resizer.addEventListener("mousedown",e=>{
+      e.preventDefault();e.stopPropagation();
+      const key=th.dataset.col;
+      const col=document.querySelector(`#reviewTable col[data-col="${CSS.escape(key)}"]`);
+      const startX=e.clientX;
+      const startW=th.getBoundingClientRect().width;
+      document.body.classList.add("is-resizing");
+      const move=ev=>{
+        const w=Math.max(45,startW+(ev.clientX-startX));
+        if(col)col.style.width=w+"px";
+      };
+      const up=()=>{
+        document.removeEventListener("mousemove",move);
+        document.removeEventListener("mouseup",up);
+        document.body.classList.remove("is-resizing");
+        if(col)saveColumnWidth(key,parseFloat(col.style.width)||th.getBoundingClientRect().width);
+      };
+      document.addEventListener("mousemove",move);
+      document.addEventListener("mouseup",up);
+    });
+    resizer.addEventListener("dblclick",e=>{
+      e.preventDefault();e.stopPropagation();
+      const key=th.dataset.col;
+      const col=document.querySelector(`#reviewTable col[data-col="${CSS.escape(key)}"]`);
+      const index=[...th.parentElement.children].indexOf(th);
+      let best=Math.max(55,Math.min(420,(th.querySelector(".th-label")?.scrollWidth||80)+38));
+      document.querySelectorAll("#reviewBody tr").forEach(tr=>{
+        const td=tr.children[index];
+        if(td)best=Math.max(best,Math.min(420,td.scrollWidth+20));
+      });
+      if(col){col.style.width=best+"px";saveColumnWidth(key,best)}
+    });
+  });
+}
+function syncFilterButtons(){
+  document.querySelectorAll("#reviewTable th[data-col]").forEach(th=>{
+    const b=th.querySelector(".col-filter-btn");
+    if(b)b.classList.toggle("active",!!columnFilters.get(th.dataset.col)?.size);
+  });
+}
+let currentFilterKey="";
+let currentFilterDraft=new Set();
+function allValuesForColumn(key){
+  return [...new Set(planningMonthPayments().map(p=>rowFilterValue(p,key)))].sort((a,b)=>String(a).localeCompare(String(b),undefined,{numeric:true,sensitivity:"base"}));
+}
+function renderFilterValues(){
+  const q=norm($("sheetFilterSearch").value);
+  const values=allValuesForColumn(currentFilterKey).filter(v=>!q||norm(v).includes(q));
+  $("sheetFilterList").innerHTML=values.map(v=>`
+    <label class="sheet-filter-item">
+      <input type="checkbox" data-sheet-value="${escapeHtml(v)}" ${currentFilterDraft.has(v)?"checked":""}>
+      <span title="${escapeHtml(v)}">${escapeHtml(v)}</span>
+    </label>`).join("") || `<div class="empty" style="padding:18px">Không có giá trị</div>`;
+  document.querySelectorAll("[data-sheet-value]").forEach(cb=>{
+    cb.onchange=()=>{if(cb.checked)currentFilterDraft.add(cb.dataset.sheetValue);else currentFilterDraft.delete(cb.dataset.sheetValue)};
+  });
+}
+function openSheetFilter(key,button){
+  currentFilterKey=key;
+  const existing=columnFilters.get(key);
+  currentFilterDraft=new Set(existing&&existing.size?existing:allValuesForColumn(key));
+  const pop=$("sheetFilterPop");
+  $("sheetFilterTitle").textContent=button.closest("th")?.querySelector(".th-label")?.textContent||key;
+  $("sheetFilterSearch").value="";
+  renderFilterValues();
+  const r=button.getBoundingClientRect();
+  const left=Math.min(window.innerWidth-260,Math.max(8,r.right-250));
+  const top=Math.min(window.innerHeight-400,r.bottom+5);
+  pop.style.left=left+"px";pop.style.top=top+"px";pop.classList.add("show");
+  $("sheetFilterSearch").focus();
+}
+function closeSheetFilter(){$("sheetFilterPop").classList.remove("show")}
+document.querySelectorAll("#reviewTable .col-filter-btn").forEach(btn=>{
+  btn.onclick=e=>{e.stopPropagation();openSheetFilter(btn.closest("th").dataset.col,btn)};
+});
+$("sheetFilterSearch").oninput=renderFilterValues;
+$("sheetSelectAll").onclick=()=>{currentFilterDraft=new Set(allValuesForColumn(currentFilterKey));renderFilterValues()};
+$("sheetClearAll").onclick=()=>{currentFilterDraft.clear();renderFilterValues()};
+$("sheetFilterCancel").onclick=closeSheetFilter;
+$("sheetFilterApply").onclick=()=>{
+  const all=allValuesForColumn(currentFilterKey);
+  if(currentFilterDraft.size===all.length)columnFilters.delete(currentFilterKey);
+  else columnFilters.set(currentFilterKey,new Set(currentFilterDraft));
+  closeSheetFilter();render();
+};
+document.addEventListener("click",e=>{
+  const pop=$("sheetFilterPop");
+  if(pop?.classList.contains("show")&&!pop.contains(e.target)&&!e.target.closest(".col-filter-btn"))closeSheetFilter();
+});
+window.addEventListener("resize",closeSheetFilter);
+loadColumnWidths();
+
+
+$("fundingViewBtn").onclick=()=>setReviewView("funding");
+$("paymentViewBtn").onclick=()=>setReviewView("payment");
+$("goPaymentAllBtn").onclick=()=>{activeProject="";setReviewView("payment");render()};
+$("importCashOpeningBtn").onclick=importOpeningFromCashControl;
+monthSelect.onchange=async()=>{
+  activeProject="";
+  seedDraft();
+  syncFundingCutoffInput(true);
+  render();
+  if(authStateReady&&currentUser){
+    try{await loadMonthlyFundingSnapshot(monthSelect.value,{quiet:true})}catch{}
+    syncFundingCutoffInput(true);
+    render();
+  }
+};
+searchInput.oninput=render;
+if($("fundingSearchInput"))$("fundingSearchInput").oninput=renderFundingView;
+if($("fundingFilterSelect"))$("fundingFilterSelect").onchange=renderFundingView;
+if($("fundingSortSelect"))$("fundingSortSelect").onchange=renderFundingView;
+if($("fundingRowHeight")){
+  $("fundingRowHeight").oninput=()=>applyFundingRowHeight($("fundingRowHeight").value);
+  applyFundingRowHeight(localStorage.getItem(FUNDING_ROW_HEIGHT_KEY)||58);
+}
+if($("fundingCutoffDate"))$("fundingCutoffDate").onchange=async()=>{
+  const date=$("fundingCutoffDate").value;
+  if(!validFundingCutoff(date,monthSelect.value)){syncFundingCutoffInput(true);return}
+  await saveFundingCutoff(date);
+  render();
+};
+sortSelect.onchange=render;
+$("clearProjectBtn").onclick=()=>{activeProject="";render()};
+$("refreshBtn").onclick=loadPayments;
+$("keepAllBtn").onclick=()=>{
+  if(!canReview()){
+    $("loginModal").classList.add("show");
+    $("loginError").style.display="block";
+    $("loginError").textContent="Vui lòng đăng nhập bằng tài khoản Người duyệt hoặc Quản trị viên.";
+    return;
+  }
+  getVisible().forEach(p=>{draftStatus.set(p.id,"included");if((Number(draftApprovedAmount.get(p.id))||0)<=0)draftApprovedAmount.set(p.id,Number(p.planApprovedAmount ?? p.amount)||0)});
+  render();
+};
+$("excludeAllBtn").onclick=()=>{
+  if(!canReview()){
+    $("loginModal").classList.add("show");
+    $("loginError").style.display="block";
+    $("loginError").textContent="Vui lòng đăng nhập bằng tài khoản Người duyệt hoặc Quản trị viên.";
+    return;
+  }
+  getVisible().forEach(p=>{draftStatus.set(p.id,"excluded");draftApprovedAmount.set(p.id,0)});
+  render();
+};
+$("confirmBtn").onclick=()=>{const c=calc();
+  const frows=projectPlanStats().map(s=>({...s,...projectCashStats(s.project,s.proposal,s.pendingApproved,s.paidActual)}));
+  const shortage=frows.filter(x=>x.hasFunding&&x.remaining<0);
+  const fw=$("fundingConfirmWarning");
+  if(fw){
+    const amt=shortage.reduce((sum,x)=>sum+Math.abs(x.remaining),0);
+    fw.style.display=shortage.length?"block":"none";
+    fw.textContent=shortage.length?`⚠ ${shortage.length} dự án vẫn đang thiếu nguồn dự kiến: ${money(amt)}`:"";
+  }$("confirmMonthText").textContent=monthValue(monthSelect.value);$("mTotal").textContent=money(c.total);$("mKeep").textContent=money(c.keep);$("mExclude").textContent=money(c.ex);$("mCount").textContent=`${c.count} ${window.planReviewT("items")}`;$("confirmModal").classList.add("show")};$("cancelConfirmBtn").onclick=()=>$("confirmModal").classList.remove("show");
+$("doConfirmBtn").onclick=async()=>{
+  if(!canConfirmPlan())return;
+  const ps=activeMonthPayments();
+  if(!ps.length)return;
+  $("doConfirmBtn").disabled=true;
+  $("doConfirmBtn").textContent="Đang khóa...";
+  try{
+    for(let i=0;i<ps.length;i+=400){
+      const batch=writeBatch(db);
+      ps.slice(i,i+400).forEach(p=>batch.update(doc(db,"payments",p.id),{
+        planReviewStatus:draftStatus.get(p.id)||"included",
+        planApprovedAmount:(draftStatus.get(p.id)||"included")==="excluded"
+          ?0
+          :Math.max(0,Number(draftApprovedAmount.get(p.id) ?? p.amount)||0),
+        planReviewMonth:monthSelect.value,
+        planLocked:true,
+        planLockedAt:serverTimestamp(),
+        planLockedBy:currentOperator||currentUser.email||"",
+        planLockedByUid:currentUser.uid,
+        planReviewedAt:serverTimestamp()
+      }));
+      await batch.commit();
+    }
+    $("confirmModal").classList.remove("show");
+    await loadPayments();
+    alert(`✅ Đã khóa kế hoạch tháng ${monthValue(monthSelect.value)}.`);
+  }catch(e){
+    console.error(e);
+    alert("❌ Không thể khóa kế hoạch:\n"+e.message);
+  }finally{
+    $("doConfirmBtn").disabled=false;
+    $("doConfirmBtn").textContent="XÁC NHẬN KHÓA";
+  }
+};
+$("unlockBtn").onclick=async()=>{
+  if(!canUnlock())return;
+  if(!confirm(`Mở khóa kế hoạch tháng ${monthValue(monthSelect.value)}?\n\nSau khi mở khóa, có thể điều chỉnh lại Duyệt/Loại và xác nhận lại.`))return;
+  const ps=activeMonthPayments();
+  try{
+    for(let i=0;i<ps.length;i+=400){
+      const batch=writeBatch(db);
+      ps.slice(i,i+400).forEach(p=>batch.update(doc(db,"payments",p.id),{
+        planLocked:false,
+        planUnlockedAt:serverTimestamp(),
+        planUnlockedBy:currentOperator||currentUser.email||"",
+        planUnlockedByUid:currentUser.uid
+      }));
+      await batch.commit();
+    }
+    await loadPayments();
+    alert("✅ Đã mở khóa kế hoạch.");
+  }catch(e){
+    alert("❌ Không thể mở khóa:\n"+e.message);
+  }
+};
+$("signInBtn").onclick=()=>$("loginModal").classList.add("show");$("closeLoginBtn").onclick=()=>$("loginModal").classList.remove("show");$("signOutBtn").onclick=()=>signOut(auth);$("doLoginBtn").onclick=async()=>{const email=usernameToEmail($("usernameInput").value),pw=$("passwordInput").value;$("loginError").style.display="none";try{await setPersistence(auth,browserLocalPersistence);await signInWithEmailAndPassword(auth,email,pw);$("loginModal").classList.remove("show")}catch(e){$("loginError").textContent="Đăng nhập thất bại: "+e.message;$("loginError").style.display="block"}};
+$("passwordInput").addEventListener("keydown",e=>{if(e.key==="Enter")$("doLoginBtn").click()});
+onAuthStateChanged(auth,async user=>{
+  currentUser=user||null;
+  authStateReady=true;
+  await loadProfile(currentUser);
+  if(!currentUser){
+    window.location.replace("./index.html");
+    return;
+  }
+  if(!isReviewOwner()){
+    alert("🔒 Review kế hoạch chỉ dành cho Admin LE HOANG OANH.");
+    window.location.replace("./index.html");
+    return;
+  }
+  document.body.classList.remove("auth-checking");
+  updateUser();
+  try{
+    await loadPayments();
+  }catch(e){
+    console.error(e);
+    reviewBody.innerHTML=`<tr><td colspan="12" class="empty">❌ Không tải được Payment: ${escapeHtml(e.message)}</td></tr>`;
+  }
+});
+setReviewView("funding");
+document.addEventListener("planreviewlanguagechange",()=>{
+  try{
+    fillFilters();
+    updateUser();
+  }catch(e){}
+});
+</script>
+</body>
+</html>
