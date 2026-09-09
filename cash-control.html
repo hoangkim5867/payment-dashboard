@@ -891,7 +891,7 @@ body{
   <div class="sidecap">MEP CASH CONTROL</div>
   <div class="cc-side-note">4 màn hình chính</div>
   <button class="nav active" data-view="funds"><span class="ico">▦</span><span class="nav-label">Tổng quan vốn</span></button>
-  <button class="nav" data-view="planHub"><span class="ico">≡</span><span class="nav-label">Kế hoạch tháng</span></button>
+  <button class="nav" data-view="planHub"><span class="ico">≡</span><span class="nav-label">Còn phải thu / chi</span></button>
   <button class="nav" data-view="expenses"><span class="ico">₫</span><span class="nav-label">Dòng tiền thực tế</span></button>
   <button class="nav" data-view="loans"><span class="ico">⇄</span><span class="nav-label">Vay nội bộ</span></button>
   <div class="cc-more" id="ccMore">
@@ -919,37 +919,37 @@ body{
 <section class="view active" id="fundsView">
   <div class="cc-page-head">
     <div><div class="cc-kicker">资金总览 · CASH POSITION</div><h2>Tổng quan vốn theo dự án</h2><p>Mỗi dự án một dòng: số dư thật, kế hoạch thu/chi và phần thiếu hoặc dư dự kiến.</p></div>
-    <div class="cc-head-actions"><input type="month" id="fundsMonth" class="mep-select"><button class="btn" id="fundsExport">⇩ Xuất báo cáo tháng</button><button class="btn primary" id="fundsAddTxn">＋ Thu / Chi thực tế</button></div>
+    <div class="cc-head-actions"><input type="month" id="fundsMonth" class="mep-select"><label class="funds-cutoff-control"><span>Chốt đến ngày</span><input type="date" id="fundsCutoffDate" class="mep-select"></label><button class="btn" id="fundsExport">⇩ Xuất báo cáo tháng</button><button class="btn primary" id="fundsAddTxn">＋ Thu / Chi thực tế</button></div>
   </div>
   <div class="cc-top-strip">
     <div><span>Số dư đầu kỳ</span><b id="fundsOpening">0</b></div>
     <div><span>Dự kiến thu</span><b id="fundsExpectedIn">0</b></div>
     <div><span>Kế hoạch chi</span><b id="fundsPlannedOut">0</b></div>
     <div><span>Nguồn sau kế hoạch</span><b id="fundsProjected">0</b></div>
-    <div><span>Số dư thực tế</span><b id="fundsActual">0</b></div>
+    <div><span>Số dư tại ngày chốt</span><b id="fundsActual">0</b></div>
     <div><span>Thuế chưa nộp</span><b id="fundsTaxOutstanding">0</b></div>
   </div>
   <div class="cc-sheet">
     <div class="cc-sheet-head"><div><b>资金情况表 · Tình hình vốn dự án</b><span>Click dự án để mở sổ dòng tiền thực tế.</span></div><input id="fundsSearch" placeholder="Tìm dự án..."></div>
-    <div class="cc-table-wrap"><table class="cc-table"><thead><tr><th>Dự án</th><th>Đầu kỳ</th><th>Dự kiến thu còn lại</th><th>KH Payment còn lại</th><th>间接费 còn lại</th><th>Lương còn chi</th><th>Thuế chưa nộp</th><th>Khác còn chi</th><th>Nguồn sau kế hoạch</th><th>Thực thu</th><th>Thực chi</th><th>Số dư thực tế</th><th>Trạng thái</th></tr></thead><tbody id="fundsBody"></tbody><tfoot id="fundsFoot"></tfoot></table></div>
+    <div class="cc-table-wrap"><table class="cc-table"><thead><tr><th>Dự án</th><th>Đầu kỳ</th><th>Dự kiến thu còn lại</th><th>KH Payment còn lại</th><th>间接费 còn lại</th><th>Lương còn chi</th><th>Thuế chưa nộp</th><th>Khác còn chi</th><th>Nguồn sau kế hoạch</th><th>Thực thu đến ngày</th><th>Thực chi đến ngày</th><th>Số dư tại ngày chốt</th><th>Trạng thái</th></tr></thead><tbody id="fundsBody"></tbody><tfoot id="fundsFoot"></tfoot></table></div>
   </div>
 </section>
 
 <section class="view" id="planHubView">
   <div class="cc-page-head">
-    <div><div class="cc-kicker">资金计划 · MONTHLY PLAN</div><h2>Kế hoạch dòng tiền tháng</h2><p>Chỉ để các khoản chưa xảy ra: dự kiến thu, Payment plan, lương, thuế và nghĩa vụ khác.</p></div>
-    <div class="cc-head-actions"><input type="month" id="planHubMonth" class="mep-select"><button class="btn" id="planHubExport">⇩ Xuất kế hoạch tháng</button></div>
+    <div><div class="cc-kicker">本月待收待付 · MONTHLY REMAINING</div><h2>Còn phải thu / chi trong tháng</h2><p>Chỉ hiện các khoản chưa thu, chưa chi hoặc chưa nộp tại tháng đang xem.</p></div>
+    <div class="cc-head-actions"><input type="month" id="planHubMonth" class="mep-select"><button class="btn" id="planHubExport">⇩ Xuất danh sách còn lại</button></div>
   </div>
   <div class="cc-plan-tabs">
-    <button class="cc-plan-tab active" data-plan-filter="all">Tất cả</button><button class="cc-plan-tab" data-plan-filter="receipt">Dự kiến thu</button><button class="cc-plan-tab" data-plan-filter="payment">Payment</button><button class="cc-plan-tab" data-plan-filter="indirect">间接费</button><button class="cc-plan-tab" data-plan-filter="payroll">Lương</button><button class="cc-plan-tab" data-plan-filter="tax">Thuế</button><button class="cc-plan-tab" data-plan-filter="other">Khác</button>
+    <button class="cc-plan-tab active" data-plan-filter="all">Tất cả</button><button class="cc-plan-tab" data-plan-filter="receipt">Chưa thu</button><button class="cc-plan-tab" data-plan-filter="payment">Payment</button><button class="cc-plan-tab" data-plan-filter="indirect">间接费</button><button class="cc-plan-tab" data-plan-filter="payroll">Lương / BH</button><button class="cc-plan-tab" data-plan-filter="tax">Thuế TNCN</button><button class="cc-plan-tab" data-plan-filter="other">Khác</button>
   </div>
   <div class="cc-plan-summary">
-    <button class="cc-mini-link" data-go="inflows"><span>Dự kiến thu</span><b id="planReceiptTotal">0</b><small>Quản lý IPC / khoản thu →</small></button>
-    <button class="cc-mini-link" data-go="payroll"><span>Lương & thuế</span><b id="planPayrollTaxTotal">0</b><small>Quản lý nghĩa vụ →</small></button>
-    <button class="cc-mini-link" data-go="requests"><span>Khoản chi khác</span><b id="planOtherTotal">0</b><small>Mở chi tiết →</small></button>
+    <button class="cc-mini-link" data-go="inflows"><span>Còn phải thu</span><b id="planReceiptTotal">0</b><small>Quản lý IPC / khoản thu →</small></button>
+    <button class="cc-mini-link" data-go="payroll"><span>Lương / BH / TNCN</span><b id="planPayrollTaxTotal">0</b><small>Mở Lương & thuế →</small></button>
+    <button class="cc-mini-link" data-go="requests"><span>Còn phải chi khác</span><b id="planOtherTotal">0</b><small>Mở chi tiết →</small></button>
   </div>
   <div class="cc-sheet">
-    <div class="cc-sheet-head"><div><b>Kế hoạch theo dự án</b><span>Không ghi vào actual cash flow cho tới khi có ngày thực thu / thực chi.</span></div><input id="planHubSearch" placeholder="Tìm dự án hoặc nội dung..."></div>
+    <div class="cc-sheet-head"><div><b>Chi tiết khoản còn lại theo dự án</b><span>Khoản đã thực thu / thực chi / nộp xong sẽ tự rời khỏi danh sách.</span></div><input id="planHubSearch" placeholder="Tìm dự án hoặc nội dung..."></div>
     <div class="cc-table-wrap"><table class="cc-table plan-table"><thead><tr><th>Dự án</th><th>Loại</th><th>Nội dung</th><th>Kỳ / dự kiến</th><th>Số tiền</th><th>Trạng thái</th><th>Nguồn</th></tr></thead><tbody id="planHubBody"></tbody></table></div>
   </div>
 </section>
@@ -1358,7 +1358,6 @@ body{
           <input id="debtSearch" placeholder="Tìm bên cho vay / bên vay...">
           <select id="debtLender"><option value="">Tất cả bên cho vay</option></select>
           <select id="debtBorrower"><option value="">Tất cả bên vay</option></select>
-          <select id="debtSort"><option value="amount_desc">Nợ lớn → nhỏ</option><option value="lender">Theo bên cho vay</option><option value="borrower">Theo bên vay</option></select>
         </div>
         <div class="tw loan-debt-table"><table class="tbl loan-compact-table"><thead><tr><th id="loanThLender">Bên cho vay</th><th id="loanThBorrower">Bên vay</th><th id="loanThOutstanding">Còn nợ</th></tr></thead><tbody id="debtGrid"></tbody><tfoot id="debtGridFoot"></tfoot></table></div>
       </div>
@@ -1366,7 +1365,7 @@ body{
       <div class="card loan-card">
         <div class="ctop loan-history-head"><div><div><span class="ctitle" id="loanHistoryTitle">Lịch sử giao dịch</span><span id="loanPairChip"></span></div><div class="csub" id="loanHistorySub">Cho vay · hoàn vay · điều chuyển. Click dòng để xem hồ sơ.</div></div></div>
         <div class="loan-filters compact-loan-filters"><input id="loanSearch" placeholder="Tìm dự án, nội dung..."><select id="loanProject"><option value="">Tất cả dự án</option></select><select id="loanType"><option value="">Tất cả loại</option><option value="loan">Cho vay</option><option value="repayment">Hoàn vay</option><option value="transfer">Điều chuyển</option></select></div>
-        <div class="tw"><table class="tbl loan-history-table"><thead><tr><th id="loanThDate">Ngày</th><th id="loanThType">Loại</th><th id="loanThFrom">Từ dự án</th><th id="loanThTo">Đến dự án</th><th id="loanThAmount">Số tiền</th><th id="loanThDesc">Nội dung</th><th></th></tr></thead><tbody id="loanBody"></tbody><tfoot id="loanBodyFoot"></tfoot></table></div>
+        <div class="tw"><table class="tbl loan-history-table"><thead><tr><th id="loanThDate">Ngày</th><th id="loanThType">Loại</th><th id="loanThFrom">Từ dự án</th><th id="loanThTo">Đến dự án</th><th id="loanThAmount">Số tiền</th><th id="loanThDesc">Nội dung</th><th id="loanThAction">Hồ sơ / sửa</th></tr></thead><tbody id="loanBody"></tbody><tfoot id="loanBodyFoot"></tfoot></table></div>
       </div>
     </div>
 
@@ -1385,7 +1384,7 @@ body{
     <div class="acts">
       <select id="rMonth" class="btn"></select>
       <select id="rProject" class="btn"><option value="">Tất cả dự án</option></select>
-      <label class="btn" style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="reportHideZero" checked> Ẩn dự án không phát sinh</label>
+      <label class="btn" style="display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="reportHideZero" checked> Ẩn dự án không phát sinh trong tháng</label>
       <button class="btn primary" id="exportCashExcelBtn">⇩ Excel quản trị</button>
       <button class="btn" id="exportModernCashExcelBtn">Excel dòng tiền mới</button>
       <button class="btn" id="exportLegacyCashExcelBtn">Excel dòng tiền cũ</button>
@@ -1561,33 +1560,29 @@ body{
 
 <div class="modal" id="loanDriveConfigModal"><div class="mbox"><div class="mhead"><div><h3 id="loanDriveConfigTitle">Cài Drive cho hồ sơ vay</h3><div class="csub">Dùng lại OAuth Client của UNC nếu cùng website.</div></div><button class="btn" data-close="loanDriveConfigModal">✕</button></div><div class="loan-config-help" id="loanDriveConfigHelp">Chỉ cần cài một lần trên máy này. Client ID có thể dùng chung với trang UNC. Folder ID là thư mục Drive riêng để chứa PDF hồ sơ vay nội bộ.</div><div class="fg"><div class="field full"><label>Google OAuth Client ID</label><input id="loanDriveClientId" placeholder="xxxx.apps.googleusercontent.com"></div><div class="field full"><label>Drive Folder ID</label><input id="loanDriveFolderId" placeholder="ID thư mục hồ sơ vay"></div></div><div class="mfoot"><button class="btn" data-close="loanDriveConfigModal">Hủy</button><button class="btn primary" id="saveLoanDriveConfig">Lưu cài đặt</button></div></div></div>
 
-<div class="modal" id="transferModal"><div class="mbox loan-modal-box"><div class="mhead"><div><h3>Giao dịch nội bộ</h3><div class="csub">Nhập một lần, hệ thống tự ghi tiền ra ở dự án chuyển và tiền vào ở dự án nhận.</div></div><button class="btn" data-close="transferModal">✕</button></div><div class="fg loan-form-grid"><div class="field full"><label>Loại giao dịch</label><select id="tType"><option value="loan">Cho vay</option><option value="repayment">Hoàn vay</option><option value="transfer">Điều chuyển</option></select></div><div class="field"><label>Ngày</label><input type="date" id="tDate"></div><div class="field"><label>Số tiền</label><input type="number" id="tAmount" min="0" placeholder="0"></div><div class="field"><label>Dự án chuyển tiền</label><input id="tFrom" list="projectList" placeholder="Chọn dự án"></div><div class="field"><label>Dự án nhận tiền</label><input id="tTo" list="projectList" placeholder="Chọn dự án"></div><div class="field full"><label>Ghi chú</label><input id="tDesc" placeholder="Không bắt buộc"></div></div><div class="mfoot"><button class="btn" data-close="transferModal">Hủy</button><button class="btn primary" id="saveTransfer">Lưu giao dịch</button></div></div></div>
+<div class="modal" id="transferModal"><div class="mbox loan-modal-box"><div class="mhead"><div><h3>Giao dịch nội bộ</h3><div class="csub">Nhập một lần, hệ thống tự ghi tiền ra ở dự án chuyển và tiền vào ở dự án nhận.</div></div><button class="btn" data-close="transferModal">✕</button></div><div class="fg loan-form-grid"><div class="field full"><label>Loại giao dịch</label><select id="tType"><option value="loan">Cho vay</option><option value="repayment">Hoàn vay</option><option value="transfer">Điều chuyển</option></select></div><div class="field"><label>Ngày</label><input type="date" id="tDate"></div><div class="field"><label>Số tiền</label><input type="number" id="tAmount" min="0" placeholder="0"></div><div class="field"><label>Dự án chuyển tiền</label><input id="tFrom" list="projectList" placeholder="Chọn dự án"></div><div class="field"><label>Dự án nhận tiền</label><input id="tTo" list="projectList" placeholder="Chọn dự án"></div><div class="field full"><label>Ghi chú</label><input id="tDesc" placeholder="Không bắt buộc"></div></div><div class="mfoot"><button class="btn" data-close="transferModal">Hủy</button><button class="btn danger hidden" id="deleteTransferInModal">Xóa giao dịch</button><button class="btn primary" id="saveTransfer">Lưu giao dịch</button></div></div></div>
 <div class="modal" id="openingModal"><div class="mbox"><div class="mhead"><h3>Số dư đầu kỳ tại 01/08/2026</h3><button class="btn" data-close="openingModal">✕</button></div><div class="note">Nhập số dư cuối ngày 31/07/2026 của từng dự án. Chỉ nhập một lần; từ tháng 09/2026 trở đi hệ thống tự chuyển số dư cuối tháng trước sang đầu tháng sau.</div><div id="openingSaveStatus" class="note hidden" style="margin-top:10px;border-color:#abefc6;background:#ecfdf3;color:#027a48"></div><div class="fg" id="openingFields" style="margin-top:10px"></div><div class="mfoot"><button class="btn" data-close="openingModal">Hủy</button><button class="btn primary" id="saveOpening">Lưu số dư</button></div></div></div>
 
 
 <div class="modal" id="exportRangeModal">
   <div class="mbox" style="max-width:620px">
     <div class="mhead">
-      <h3>Chọn thời gian xuất Excel</h3>
+      <div>
+        <h3>Chọn thời gian xuất Excel</h3>
+        <div class="csub" id="exportRangeSubtitle">Dòng tiền</div>
+      </div>
       <button class="btn" data-close="exportRangeModal">✕</button>
     </div>
     <div class="note">
-      Chỉ những tháng có phát sinh mới được xuất. Có thể gộp nhiều tháng vào 1 sheet hoặc tách mỗi tháng thành 1 sheet.
+      Chỉ xuất những tháng có phát sinh. Có thể xuất 1 tháng, một khoảng tháng hoặc toàn bộ từ khi phát sinh.
     </div>
     <div class="fg" style="margin-top:10px">
       <div class="field">
-        <label>Kiểu xuất</label>
+        <label>Thời gian xuất</label>
         <select id="exportRangeMode">
           <option value="single">Một tháng</option>
-          <option value="multi">Nhiều tháng</option>
-          <option value="all">Tất cả thời gian</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Định dạng</label>
-        <select id="exportLayoutMode">
-          <option value="modern">Hiện đại · 1 cột Chi + Loại chi phí</option>
-          <option value="legacy">Mẫu cũ · Tách từng cột chi phí</option>
+          <option value="range">Từ tháng → đến tháng</option>
+          <option value="all">Toàn bộ từ khi phát sinh</option>
         </select>
       </div>
       <div class="field">
@@ -1597,13 +1592,24 @@ body{
           <option value="monthly">Mỗi tháng 1 sheet</option>
         </select>
       </div>
-      <div class="field" id="exportSingleWrap">
+      <div class="field full" id="exportSingleWrap">
         <label>Tháng</label>
         <select id="exportSingleMonth"></select>
       </div>
-      <div class="field full hidden" id="exportMultiWrap">
-        <label>Chọn nhiều tháng</label>
-        <div id="exportMonthChecks" style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;max-height:260px;overflow:auto;border:1px solid #e3e8ef;border-radius:8px;padding:9px"></div>
+      <div class="field full hidden" id="exportRangeWrap">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="field">
+            <label>Từ tháng</label>
+            <select id="exportFromMonth"></select>
+          </div>
+          <div class="field">
+            <label>Đến tháng</label>
+            <select id="exportToMonth"></select>
+          </div>
+        </div>
+      </div>
+      <div class="field full hidden" id="exportAllHint">
+        <div class="note" style="margin:0">Sẽ xuất toàn bộ các tháng có phát sinh trong phạm vi dự án đang chọn.</div>
       </div>
     </div>
     <div class="mfoot">
@@ -1835,7 +1841,7 @@ body{
       <div><span>Số kỳ đang treo</span><b id="taxOutstandingPeriods">0</b></div>
       <div><span>Kỳ gần nhất phải nộp</span><b id="taxOutstandingNextDue">—</b></div>
     </div>
-    <div class="mep-table-wrap"><table class="tax-detail-table"><thead><tr><th>Kỳ thuế</th><th>Tháng lương / kỳ phát sinh</th><th>Dự kiến nộp</th><th>Nguồn</th><th style="text-align:right">Còn chưa nộp</th></tr></thead><tbody id="taxOutstandingDetailBody"></tbody></table></div>
+    <div class="tax-detail-wrap"><table class="tax-detail-table"><thead><tr><th>Kỳ thuế</th><th>Tháng lương / kỳ phát sinh</th><th>Dự kiến nộp</th><th>Nguồn</th><th class="money-head">Còn chưa nộp</th></tr></thead><tbody id="taxOutstandingDetailBody"></tbody><tfoot id="taxOutstandingDetailFoot"></tfoot></table></div>
   </div>
 </div>
 <script type="module">
@@ -1964,6 +1970,32 @@ function excelChineseCostType(value,direction=''){
   };
 
   return aliases[raw]||raw;
+}
+
+function excelIsHumanCostRow(x){
+    if(!x)return false;
+    if(x.source==='payroll'||x.source==='legacy_salary'||x.linkedModule==='payroll')return true;
+    const raw=[x.category,x.description,x.subCode].filter(Boolean).join(' ');
+    return /lương|luong|工资|奖金|thưởng|thuong|bảo hiểm|bao hiem|保险|社保|công đoàn|cong doan|工会|伙食|tiền ăn|tien an|个税|所得税|thuế\s*tncn|thue\s*tncn/i.test(raw);
+}
+function excelIsPersonalIncomeTaxRow(x){
+    if(!x)return false;
+    const raw=[x.category,x.description,x.subCode].filter(Boolean).join(' ');
+    return x.type==='tax'||x.subCode==='TH'||/个税|所得税|thuế\s*tncn|thue\s*tncn/i.test(raw);
+}
+function excelCashIpc(x){
+    return excelIsHumanCostRow(x)?'':(x?.ipcNo||x?.subCode||'');
+}
+function excelCashType(x){
+    // Company-wide payroll / insurance / bonus / union / TNCN are grouped as 职工薪酬.
+    // Project/import/VAT taxes remain 税费.
+    if(excelIsHumanCostRow(x))return '职工薪酬';
+    return excelChineseCostType(x?.category,x?.direction);
+}
+function excelCashContent(x){
+    let content=String(x?.contractName||x?.description||'').trim();
+    if(excelIsPersonalIncomeTaxRow(x)&&!/个人所得税/.test(content))content=content?`${content} · 个人所得税`:'个人所得税';
+    return content;
 }
 
 function inferAccGroup(category,direction='out'){
@@ -3616,6 +3648,7 @@ let loanSelectedId='';
 let loanPairFilter=null;
 let loanDriveTokenClient=null;
 let loanDriveAccessToken='';
+let editingTransferId='',editingTransferSource='manual';
 function loanDriveConfig(){return {clientId:localStorage.getItem('cashLoanDriveClientId')||'',folderId:localStorage.getItem('cashLoanDriveFolderId')||''}}
 function loanRecordById(id){return allTransfers().find(x=>String(x.id||'')===String(id||''))||null}
 function loanPdfForRecord(record){
@@ -3788,7 +3821,7 @@ function applyLoanLanguage(){
   if($('loanHistorySub'))$('loanHistorySub').textContent=loanPairFilter
     ? (zh?`已筛选：${loanPairFilter.lender} ↔ ${loanPairFilter.borrower} · 点击具体交易查看PDF附件。`:`Đang lọc: ${loanPairFilter.lender} ↔ ${loanPairFilter.borrower} · Click giao dịch cụ thể để xem PDF.`)
     : (zh?'借出 · 还款 · 调剂。点击具体交易查看PDF附件。':'Cho vay · hoàn vay · điều chuyển. Click giao dịch cụ thể để xem PDF.');
-  set('loanThLender','Bên cho vay','借出方');set('loanThBorrower','Bên vay','借入方');set('loanThOutstanding','Còn nợ','未归还');set('loanThDate','Ngày','日期');set('loanThType','Loại','类型');set('loanThFrom','Từ dự án','转出项目');set('loanThTo','Đến dự án','转入项目');set('loanThAmount','Số tiền','金额');set('loanThDesc','Nội dung','说明');set('loanDetailTitle','Hồ sơ giao dịch','交易附件');
+  set('loanThLender','Bên cho vay','借出方');set('loanThBorrower','Bên vay','借入方');set('loanThOutstanding','Còn nợ','未归还');set('loanThDate','Ngày','日期');set('loanThType','Loại','类型');set('loanThFrom','Từ dự án','转出项目');set('loanThTo','Đến dự án','转入项目');set('loanThAmount','Số tiền','金额');set('loanThDesc','Nội dung','说明');set('loanThAction','Hồ sơ / sửa','附件 / 编辑');set('loanDetailTitle','Hồ sơ giao dịch','交易附件');
   if($('loanDriveConfigBtn'))$('loanDriveConfigBtn').textContent=zh?'⚙ Drive设置':'⚙ Drive';
   if($('exportLoanExcelBtn'))$('exportLoanExcelBtn').textContent=zh?'⇩ 导出Excel':'⇩ Xuất Excel';
   if($('addTransferBtn'))$('addTransferBtn').textContent=zh?'＋ 新增交易':'＋ Thêm giao dịch';
@@ -3797,19 +3830,25 @@ function applyLoanLanguage(){
   if(loanSelectedId)renderLoanDetail();
 }
 
+function loanHistoryProjectRoleMatch(x, project, type){
+  if(!project)return true;
+  const fp=normProject(x.fromProject), tp=normProject(x.toProject), p=normProject(project);
+  if(!type)return fp===p || tp===p;
+  if(type==='loan' || type==='repayment' || type==='transfer')return fp===p;
+  return fp===p || tp===p;
+}
+
 function currentLoanFilteredData(){
   const full=allTransfers().sort((a,b)=>String(b.actualDate).localeCompare(String(a.actualDate)));
   const debts=debtPositions();
   const dq=String($('debtSearch')?.value||'').trim().toLowerCase();
-  const dl=$('debtLender')?.value||'', db=$('debtBorrower')?.value||'', ds=$('debtSort')?.value||'amount_desc';
+  const dl=$('debtLender')?.value||'', db=$('debtBorrower')?.value||'';
   let shownDebts=debts.filter(x=>(!dq||[x.lender,x.borrower].join(' ').toLowerCase().includes(dq))&&(!dl||x.lender===dl)&&(!db||x.borrower===db));
-  if(ds==='lender')shownDebts.sort((a,b)=>String(a.lender).localeCompare(String(b.lender))||b.amount-a.amount);
-  else if(ds==='borrower')shownDebts.sort((a,b)=>String(a.borrower).localeCompare(String(b.borrower))||b.amount-a.amount);
-  else shownDebts.sort((a,b)=>b.amount-a.amount);
+  shownDebts.sort((a,b)=>b.amount-a.amount);
 
   const q=($('loanSearch')?.value||'').toLowerCase(), pr=$('loanProject')?.value||'', ty=$('loanType')?.value||'';
   const pairOk=x=>!loanPairFilter||((normProject(x.fromProject)===normProject(loanPairFilter.lender)&&normProject(x.toProject)===normProject(loanPairFilter.borrower))||(normProject(x.fromProject)===normProject(loanPairFilter.borrower)&&normProject(x.toProject)===normProject(loanPairFilter.lender)));
-  const shownHistory=full.filter(x=>pairOk(x)&&(!q||[x.fromProject,x.toProject,x.description].join(' ').toLowerCase().includes(q))&&(!pr||x.fromProject===pr||x.toProject===pr)&&(!ty||x.transferType===ty));
+  const shownHistory=full.filter(x=>pairOk(x)&&(!q||[x.fromProject,x.toProject,x.description].join(' ').toLowerCase().includes(q))&&loanHistoryProjectRoleMatch(x,pr,ty)&&(!ty||x.transferType===ty));
   return {shownDebts,shownHistory};
 }
 
@@ -3891,19 +3930,17 @@ function renderLoans(){
   if($('debtBorrower'))updateOptionMarkup($('debtBorrower'),`<option value="">${cashLang==='zh'?'全部借入方':'Tất cả bên vay'}</option>`+borrowers.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join(''));
 
   const dq=String($('debtSearch')?.value||'').trim().toLowerCase();
-  const dl=$('debtLender')?.value||'',db=$('debtBorrower')?.value||'',ds=$('debtSort')?.value||'amount_desc';
+  const dl=$('debtLender')?.value||'',db=$('debtBorrower')?.value||'';
   let shown=debts.filter(x=>(!dq||[x.lender,x.borrower].join(' ').toLowerCase().includes(dq))&&(!dl||x.lender===dl)&&(!db||x.borrower===db));
-  if(ds==='lender')shown.sort((a,b)=>String(a.lender).localeCompare(String(b.lender))||b.amount-a.amount);
-  else if(ds==='borrower')shown.sort((a,b)=>String(a.borrower).localeCompare(String(b.borrower))||b.amount-a.amount);
-  else shown.sort((a,b)=>b.amount-a.amount);
+  shown.sort((a,b)=>b.amount-a.amount);
   if($('debtGrid'))$('debtGrid').innerHTML=shown.map(x=>`<tr class="loan-row-selectable" data-loan-lender="${esc(x.lender)}" data-loan-borrower="${esc(x.borrower)}" title="${cashLang==='zh'?'点击筛选下方交易历史':'Click để lọc lịch sử giao dịch bên dưới'}"><td><b>${esc(x.lender)}</b></td><td><b>${esc(x.borrower)}</b></td><td class="amt neg">${money(x.amount)}</td></tr>`).join('')||`<tr><td colspan="3" class="empty">${cashLang==='zh'?'没有符合筛选条件的未归还记录。':'Không có dư nợ phù hợp bộ lọc.'}</td></tr>`;
   const shownDebtTotal=shown.reduce((sum,x)=>sum+Number(x.amount||0),0);
   if($('debtGridFoot'))$('debtGridFoot').innerHTML=`<tr class="loan-total-row"><th colspan="2">${cashLang==='zh'?`当前显示合计 · ${shown.length}笔`:`Tổng đang hiển thị · ${shown.length} khoản`}</th><th class="amt neg">${money(shownDebtTotal)}</th></tr>`;
 
   const q=($('loanSearch')?.value||'').toLowerCase(),pr=$('loanProject')?.value||'',ty=$('loanType')?.value||'';
   const pairMatch=x=>!loanPairFilter||((normProject(x.fromProject)===normProject(loanPairFilter.lender)&&normProject(x.toProject)===normProject(loanPairFilter.borrower))||(normProject(x.fromProject)===normProject(loanPairFilter.borrower)&&normProject(x.toProject)===normProject(loanPairFilter.lender)));
-  const arr=full.filter(x=>pairMatch(x)&&(!q||[x.fromProject,x.toProject,x.description].join(' ').toLowerCase().includes(q))&&(!pr||x.fromProject===pr||x.toProject===pr)&&(!ty||x.transferType===ty));
-  if($('loanBody'))$('loanBody').innerHTML=arr.map(x=>`<tr class="loan-row-selectable ${String(x.id)===loanSelectedId?'selected':''}" data-loan-row="${esc(x.id)}"><td>${fmtDate(x.actualDate)}</td><td><span class="loan-type ${x.transferType==='loan'?'loan':x.transferType==='repayment'?'repayment':'transfer'}">${esc(loanTypeText(x.transferType).toUpperCase())}</span></td><td><b>${esc(x.fromProject)}</b></td><td><b>${esc(x.toProject)}</b></td><td class="amt">${money(x.amount)}</td><td class="wrap" title="${esc(x.description||'')}">${esc(x.description||'—')}${loanPdfForRecord(x)?'<span title="PDF" style="margin-left:6px">📎</span>':''}</td><td><button class="table-btn danger" data-del-transfer="${esc(x.id)}">${cashLang==='zh'?'删':'Xóa'}</button></td></tr>`).join('')||`<tr><td colspan="7" class="empty">${cashLang==='zh'?'没有符合条件的数据。':'Không có dữ liệu phù hợp.'}</td></tr>`;
+  const arr=full.filter(x=>pairMatch(x)&&(!q||[x.fromProject,x.toProject,x.description].join(' ').toLowerCase().includes(q))&&loanHistoryProjectRoleMatch(x,pr,ty)&&(!ty||x.transferType===ty));
+  if($('loanBody'))$('loanBody').innerHTML=arr.map(x=>{const hasPdf=!!loanPdfForRecord(x);return `<tr class="loan-row-selectable ${String(x.id)===loanSelectedId?'selected':''}" data-loan-row="${esc(x.id)}"><td>${fmtDate(x.actualDate)}</td><td><span class="loan-type ${x.transferType==='loan'?'loan':x.transferType==='repayment'?'repayment':'transfer'}">${esc(loanTypeText(x.transferType).toUpperCase())}</span></td><td><b>${esc(x.fromProject)}</b></td><td><b>${esc(x.toProject)}</b></td><td class="amt">${money(x.amount)}</td><td class="wrap" title="${esc(x.description||'')}">${esc(x.description||'—')}</td><td class="loan-action-cell"><div class="loan-action-stack">${hasPdf?`<span class="loan-pdf-badge" title="${cashLang==='zh'?'已上传PDF':'Đã có PDF'}">PDF</span>`:'<span class="loan-pdf-missing">—</span>'}<button class="table-btn icon-btn" data-edit-transfer="${esc(x.id)}" title="${cashLang==='zh'?'编辑':'Sửa'}" aria-label="${cashLang==='zh'?'编辑':'Sửa'}">✎</button></div></td></tr>`}).join('')||`<tr><td colspan="7" class="empty">${cashLang==='zh'?'没有符合条件的数据。':'Không có dữ liệu phù hợp.'}</td></tr>`;
   const shownLoanTotal=arr.reduce((sum,x)=>sum+Number(x.amount||0),0);
   if($('loanBodyFoot'))$('loanBodyFoot').innerHTML=`<tr class="loan-total-row"><th colspan="4">${cashLang==='zh'?`当前显示合计 · ${arr.length}笔交易`:`Tổng đang hiển thị · ${arr.length} giao dịch`}</th><th class="amt">${money(shownLoanTotal)}</th><th colspan="2"></th></tr>`;
   if($('loanPairChip'))$('loanPairChip').innerHTML=loanPairFilter?`<span class="loan-pair-chip">${esc(loanPairFilter.lender)} ↔ ${esc(loanPairFilter.borrower)} <button type="button" id="clearLoanPairHighlight" title="${cashLang==='zh'?'清除筛选':'Bỏ lọc'}">×</button></span>`:'';
@@ -3915,7 +3952,9 @@ function renderLoans(){
     renderLoans();
     document.querySelector('.loan-history-head')?.scrollIntoView({behavior:'smooth',block:'start'});
   });
-  document.querySelectorAll('[data-loan-row]').forEach(r=>r.onclick=e=>{if(e.target.closest('[data-del-transfer]'))return;openLoanDetail(r.dataset.loanRow)});document.querySelectorAll('[data-del-transfer]').forEach(b=>b.onclick=e=>{e.stopPropagation();deleteTxn(b.dataset.delTransfer)});if(loanSelectedId)renderLoanDetail();applyLoanLanguage();
+  document.querySelectorAll('[data-loan-row]').forEach(r=>r.onclick=e=>{if(e.target.closest('[data-edit-transfer]'))return;openLoanDetail(r.dataset.loanRow)});
+  document.querySelectorAll('[data-edit-transfer]').forEach(b=>b.onclick=e=>{e.stopPropagation();openTransferEditor(b.dataset.editTransfer)});
+  if(loanSelectedId)renderLoanDetail();applyLoanLanguage();
 }
 function renderHealth(){const sal=legacySalary(),fin=legacyFinance(),cash=legacyCashSpecial(),un=sal.filter(x=>x.category==='Chưa phân loại'),delay=sal.filter(x=>x.period&&x.actualDate&&x.period!==monthOf(x.actualDate)),vr=legacyVnb().filter(x=>x.needsReview),deleted=getDeleted().size,alloc=fin.filter(x=>x.isAllocation);$('hUnclass').textContent=un.length;$('hDelay').textContent=delay.length;$('hVnb').textContent=vr.length;$('hDeleted').textContent=deleted;$('healthIssues').innerHTML=`<div class="issue green"><b>DATALUONG mới đã sạch nhóm chi phí</b><br>${sal.length} dòng: lương Việt Nam/Trung Quốc, bảo hiểm, tiền ăn, công đoàn, thuế và thưởng.</div><div class="issue green"><b>${fin.length} khoản tài chính & bảo lãnh đã tách thành nguồn riêng</b><br>Không còn dùng tên CPTC trong hệ thống.</div><div class="issue green"><b>${cash.length} khoản lịch sử đã được phân luồng thẳng sang Cash Control</b><br>Gồm Thuế nhập khẩu & VAT khâu nhập khẩu, Thuế GTGT ngoại tỉnh và Tiền ký quỹ dự thầu; không làm bẩn Payment History.</div><div class="issue"><b>${alloc.length} dòng điều chuyển chi phí giữa dự án</b><br>Giữ nguyên dấu +/− để theo dõi phân bổ project nhưng không tính thành dòng tiền ngân hàng.</div><div class="issue"><b>${delay.length} khoản có tháng phát sinh khác tháng thực chi</b><br>Đây không nhất thiết là lỗi; app giữ cả hai mốc để báo cáo đúng.</div>`;$('reviewBody').innerHTML=fin.map(x=>`<tr><td><b>${esc(x.project)}</b></td><td>${esc(x.description)}${x.isAllocation?' <span class="pill violet">ĐIỀU CHUYỂN</span>':''}</td><td>${fmtDate(x.actualDate)}</td><td class="amt ${Number(x.amount)<0?'neg':''}">${money(x.amount)}</td><td><button class="btn" data-edit-review="${esc(x.id)}">Sửa phân loại</button></td></tr>`).join('');document.querySelectorAll('[data-edit-review]').forEach(b=>b.onclick=()=>editTxn(b.dataset.editReview))}
 function reportPayrollOutstanding(project,month){
@@ -3961,12 +4000,12 @@ function renderReport(){
         const internalOut=mv.filter(x=>x.out>0&&/→/.test(String(x.desc||''))).reduce((s,x)=>s+x.out,0);
         const otherOut=mv.filter(x=>x.out>0&&x.source!=='payment'&&!/→/.test(String(x.desc||''))).reduce((s,x)=>s+x.out,0);
         return {project,op,externalIn,internalIn,paymentOut,otherOut,internalOut,closing:op+externalIn+internalIn-paymentOut-otherOut-internalOut};
-    }).filter(x=>!hideZero||selected||[x.externalIn,x.internalIn,x.paymentOut,x.otherOut,x.internalOut].some(v=>Math.abs(v)>0)||Math.abs(x.op)>0);
+    }).filter(x=>!hideZero||selected||[x.externalIn,x.internalIn,x.paymentOut,x.otherOut,x.internalOut].some(v=>Math.abs(v)>0));
     const at=actualRows.reduce((a,x)=>{for(const k of ['op','externalIn','internalIn','paymentOut','otherOut','internalOut','closing'])a[k]+=num(x[k]);return a},{op:0,externalIn:0,internalIn:0,paymentOut:0,otherOut:0,internalOut:0,closing:0});
     if($('reportActualBody'))$('reportActualBody').innerHTML=actualRows.map(x=>`<tr><td><b>${esc(x.project)}</b></td><td class="money">${money(x.op)}</td><td class="money pos">${money(x.externalIn)}</td><td class="money pos">${money(x.internalIn)}</td><td class="money neg">${money(x.paymentOut)}</td><td class="money neg">${money(x.otherOut)}</td><td class="money neg">${money(x.internalOut)}</td><td class="money"><b>${money(x.closing)}</b></td></tr>`).join('')||'<tr><td colspan="8" class="mep-empty">Không có phát sinh thực tế trong kỳ.</td></tr>';
     if($('reportActualFoot'))$('reportActualFoot').innerHTML=`<tr><th>TỔNG</th><th class="money">${money(at.op)}</th><th class="money">${money(at.externalIn)}</th><th class="money">${money(at.internalIn)}</th><th class="money">${money(at.paymentOut)}</th><th class="money">${money(at.otherOut)}</th><th class="money">${money(at.internalOut)}</th><th class="money">${money(at.closing)}</th></tr>`;
 
-    const planData=projects.map(p=>ccPlanProjectStats(p,month,planRows,taxMap)).map(x=>({...x,current:x.actualBalance,totalNeed:x.payment+x.indirect+x.payroll+x.taxPlan+x.other})).filter(x=>!hideZero||selected||[x.expectedIn,x.totalNeed].some(v=>Math.abs(v)>0)||Math.abs(x.current)>0);
+    const planData=projects.map(p=>ccPlanProjectStats(p,month,planRows,taxMap)).map(x=>({...x,current:x.actualBalance,totalNeed:x.payment+x.indirect+x.payroll+x.taxPlan+x.other})).filter(x=>!hideZero||selected||[x.expectedIn,x.totalNeed].some(v=>Math.abs(v)>0));
     const pt=planData.reduce((a,x)=>{for(const k of ['current','expectedIn','payment','indirect','payroll','taxPlan','other','totalNeed','projected'])a[k]+=num(x[k]);return a},{current:0,expectedIn:0,payment:0,indirect:0,payroll:0,taxPlan:0,other:0,totalNeed:0,projected:0});
     if($('reportPlanBody'))$('reportPlanBody').innerHTML=planData.map(x=>{const cls=x.projected<0?'bad':x.projected<x.totalNeed*.1?'warn':'good';return `<tr><td><b>${esc(x.project)}</b></td><td class="money">${money(x.current)}</td><td class="money">${money(x.expectedIn)}</td><td class="money">${money(x.payment)}</td><td class="money">${money(x.indirect)}</td><td class="money">${money(x.payroll)}</td><td class="money">${money(x.taxPlan)}</td><td class="money">${money(x.other)}</td><td class="money"><b>${money(x.totalNeed)}</b></td><td class="money ${x.projected<0?'neg':'pos'}"><b>${money(x.projected)}</b></td><td><span class="cc-status ${cls}">${x.projected<0?'THIẾU':cls==='warn'?'SÁT NGƯỠNG':'ĐỦ'}</span></td></tr>`}).join('')||'<tr><td colspan="11" class="mep-empty">Không có kế hoạch trong kỳ.</td></tr>';
     if($('reportPlanFoot'))$('reportPlanFoot').innerHTML=`<tr><th>TỔNG</th><th class="money">${money(pt.current)}</th><th class="money">${money(pt.expectedIn)}</th><th class="money">${money(pt.payment)}</th><th class="money">${money(pt.indirect)}</th><th class="money">${money(pt.payroll)}</th><th class="money">${money(pt.taxPlan)}</th><th class="money">${money(pt.other)}</th><th class="money">${money(pt.totalNeed)}</th><th class="money">${money(pt.projected)}</th><th></th></tr>`;
@@ -4139,9 +4178,9 @@ function modernCashExportRows(month,project){
             date:x.actualDate,
             company:x.company||x.counterparty||'',
             contractNo:x.contractNo||'',
-            content:x.contractName||x.description||'',
-            ipc:x.ipcNo||x.subCode||'',
-            type:excelChineseCostType(x.category,x.direction),
+            content:excelCashContent(x),
+            ipc:excelCashIpc(x),
+            type:excelCashType(x),
             income:x.direction==='in'?amount:0,
             expense:x.direction==='out'?amount:0
         });
@@ -4461,31 +4500,53 @@ function exportLegacyCashFlowRange(monthList,selectedProject){
     );
 }
 
-function openExportRangeModal(){
-    const project=pfSelectedProject||'';
-    const ms=project
+let exportRangeTarget='legacy';
+let exportRangeProject='';
+let exportRangeCurrentMonth=CURRENT;
+let exportRangeMonths=[];
+
+function rangeExportAvailableMonths(project=''){
+    const list=project
         ? getAvailableMonthsForProject(project)
-        : months().filter(m=>allProjects().some(p=>projectHasActivityInMonth(p,m))).sort();
+        : months().filter(m=>allProjects().some(p=>projectHasActivityInMonth(p,m)));
+    return [...new Set(list)].filter(Boolean).sort();
+}
 
-    const current=$('commandMonth').value||CURRENT;
+function updateExportRangeModeUI(){
+    const mode=$('exportRangeMode')?.value||'single';
+    $('exportSingleWrap')?.classList.toggle('hidden',mode!=='single');
+    $('exportRangeWrap')?.classList.toggle('hidden',mode!=='range');
+    $('exportAllHint')?.classList.toggle('hidden',mode!=='all');
+}
 
-    $('exportSingleMonth').innerHTML=
-        ms.map(m=>`<option value="${m}">${fmtMonth(m)}</option>`).join('');
+function openExportRangeModal(target='legacy',project='',currentMonth=''){
+    exportRangeTarget=target;
+    exportRangeProject=normProject(project||'');
+    exportRangeCurrentMonth=currentMonth||CURRENT;
+    exportRangeMonths=rangeExportAvailableMonths(exportRangeProject);
 
-    if(ms.includes(current))$('exportSingleMonth').value=current;
+    const ms=exportRangeMonths;
+    const opts=ms.map(m=>`<option value="${m}">${fmtMonth(m)}</option>`).join('');
+    $('exportSingleMonth').innerHTML=opts;
+    $('exportFromMonth').innerHTML=opts;
+    $('exportToMonth').innerHTML=opts;
 
-    $('exportMonthChecks').innerHTML=
-        ms.map(m=>`
-            <label style="display:flex;align-items:center;gap:6px;font-size:11px">
-                <input type="checkbox" value="${m}">
-                ${fmtMonth(m)}
-            </label>
-        `).join('');
+    if(ms.includes(exportRangeCurrentMonth))$('exportSingleMonth').value=exportRangeCurrentMonth;
+    else if(ms.length)$('exportSingleMonth').value=ms[ms.length-1];
+
+    if(ms.length){
+        $('exportFromMonth').value=ms[0];
+        const todayMonth=isoToday().slice(0,7);
+        const eligible=ms.filter(m=>m<=todayMonth);
+        $('exportToMonth').value=eligible.length?eligible[eligible.length-1]:ms[ms.length-1];
+    }
+
+    const label=target==='modern'?'Excel dòng tiền mới':'Excel dòng tiền cũ';
+    if($('exportRangeSubtitle'))$('exportRangeSubtitle').textContent=
+        `${label}${exportRangeProject?` · ${exportRangeProject}`:' · Tất cả dự án'}`;
 
     $('exportRangeMode').value='single';
-    $('exportSingleWrap').classList.remove('hidden');
-    $('exportMultiWrap').classList.add('hidden');
-
+    updateExportRangeModeUI();
     openModal('exportRangeModal');
 }
 
@@ -4513,9 +4574,9 @@ function legacyCashExportRows(month,project){
             date:x.actualDate,
             company:x.company||x.counterparty||'',
             contractNo:x.contractNo||'',
-            content:x.contractName||x.description||'',
-            ipc:x.ipcNo||x.subCode||'',
-            type:excelChineseCostType(x.category,x.direction),
+            content:excelCashContent(x),
+            ipc:excelCashIpc(x),
+            type:excelCashType(x),
             income:x.direction==='in'?amount:0,
             subcontract:x.direction==='out'&&bucket==='subcontract'?amount:0,
             material:x.direction==='out'&&bucket==='material'?amount:0,
@@ -4750,9 +4811,9 @@ function excelProjectDailyRows(month,project){
             project,
             company:x.company||x.counterparty||'',
             contractNo:x.contractNo||'',
-            content:x.contractName||x.description||'',
-            ipc:x.ipcNo||x.subCode||'',
-            type:x.category||'',
+            content:excelCashContent(x),
+            ipc:excelCashIpc(x),
+            type:excelCashType(x),
             source:x.source||'',
             cashIn:isIn?amount:0,
             internal:0,
@@ -5028,26 +5089,24 @@ $('exportRangeMode').onchange=()=>{
 
 $('runRangeExport').onclick=async()=>{
     const mode=$('exportRangeMode').value;
-    const layout=$('exportLayoutMode').value;
-    const project=pfSelectedProject||'';
-
+    const project=exportRangeProject||'';
     let selected=[];
 
     if(mode==='single'){
         const m=$('exportSingleMonth').value;
         if(m)selected=[m];
-    }else if(mode==='multi'){
-        selected=[...document.querySelectorAll('#exportMonthChecks input:checked')]
-            .map(x=>x.value)
-            .sort();
+    }else if(mode==='range'){
+        const from=$('exportFromMonth').value,to=$('exportToMonth').value;
+        if(!from||!to){alert('Chọn Từ tháng và Đến tháng.');return;}
+        if(from>to){alert('Từ tháng không được lớn hơn Đến tháng.');return;}
+        selected=exportRangeMonths.filter(m=>m>=from&&m<=to);
     }else{
-        selected=project
-            ? getAvailableMonthsForProject(project)
-            : months().filter(m=>allProjects().some(p=>projectHasActivityInMonth(p,m))).sort();
+        const todayMonth=isoToday().slice(0,7);
+        selected=exportRangeMonths.filter(m=>m<=todayMonth);
     }
 
     if(!selected.length){
-        alert('Chưa chọn tháng có phát sinh.');
+        alert('Không có tháng phát sinh trong thời gian đã chọn.');
         return;
     }
 
@@ -5058,35 +5117,27 @@ $('runRangeExport').onclick=async()=>{
     }
 
     $('exportRangeModal').classList.remove('show');
-
     const sheetMode=$('exportSheetMode').value;
 
-    if(layout==='modern'){
-        if(sheetMode==='monthly'){
-            exportModernCashFlowMonthly(selected,project);
-        }else{
-            exportModernCashFlowExcel(selected,project);
-        }
+    if(exportRangeTarget==='modern'){
+        if(sheetMode==='monthly')exportModernCashFlowMonthly(selected,project);
+        else exportModernCashFlowExcel(selected,project);
     }else{
-        if(sheetMode==='monthly'){
-            exportLegacyCashFlowRange(selected,project);
-        }else{
-            exportLegacyCashFlowMerged(selected,project);
-        }
+        if(sheetMode==='monthly')exportLegacyCashFlowRange(selected,project);
+        else exportLegacyCashFlowMerged(selected,project);
     }
 };
 
 const exportLegacyCashExcelBtn=$('exportLegacyCashExcelBtn');
 if(exportLegacyCashExcelBtn){
-    exportLegacyCashExcelBtn.onclick=async()=>{
-        const month=$('rMonth').value||CURRENT;
-        const project=$('rProject').value||'';
-        if(currentAuthUser)await ensureCashFlowPaymentMonths(month,{project});
-        exportLegacyCashFlowExcel(month,project);
+    exportLegacyCashExcelBtn.onclick=()=>{
+        const month=$('rMonth')?.value||CURRENT;
+        const project=$('rProject')?.value||'';
+        openExportRangeModal('legacy',project,month);
     };
 }
 
-if($('pfLegacyExcelBtn')){$('pfLegacyExcelBtn').onclick=openExportRangeModal}
+if($('pfLegacyExcelBtn')){$('pfLegacyExcelBtn').onclick=()=>openExportRangeModal('legacy',pfSelectedProject||'', $('commandMonth')?.value||CURRENT)}
 
 const exportCurrentBalancesBtn=$('exportCurrentBalancesBtn');
 if(exportCurrentBalancesBtn){
@@ -5187,12 +5238,27 @@ function buildLegacyCombinedReportSheet(month,selectedProject){
     });
     const ws=XLSX.utils.aoa_to_sheet(rows);
     excelApplyBaseStyle(ws,ws['!ref']);
+    ws['!merges']=ws['!merges']||[];
     for(let r=0;r<rows.length;r++){
         if(rows[r]?.length===1 && String(rows[r][0]||'').includes('项目现金流')){
-            ws['!merges']=ws['!merges']||[];ws['!merges'].push({s:{r,c:0},e:{r,c:13}});
-            const c=ws[XLSX.utils.encode_cell({r,c:0})];if(c)c.s={font:{name:'Arial',sz:13,bold:true,color:{rgb:'17365D'}},fill:{patternType:'solid',fgColor:{rgb:'EAF2F8'}},alignment:{vertical:'center'}};
+            ws['!merges'].push({s:{r,c:0},e:{r,c:13}});
+            const c=ws[XLSX.utils.encode_cell({r,c:0})];
+            if(c)c.s={font:{name:'Arial',sz:13,bold:true,color:{rgb:'17365D'}},fill:{patternType:'solid',fgColor:{rgb:'EAF2F8'}},alignment:{vertical:'center',horizontal:'left'}};
+            continue;
         }
-        if(rows[r]?.[0]==='日期')excelStyleHeader(ws,r,13);
+        if(rows[r]?.[0]==='日期'){
+            excelStyleHeader(ws,r,13);
+            continue;
+        }
+        if(rows[r]?.[1]==='期初余额'){
+            for(let c=0;c<=13;c++){
+                const cell=ws[XLSX.utils.encode_cell({r,c})];
+                if(!cell)continue;
+                cell.s=cell.s||{};
+                cell.s.fill={patternType:'solid',fgColor:{rgb:'F3F7FB'}};
+                cell.s.font={...(cell.s.font||{}),bold:true,color:{rgb:'17365D'}};
+            }
+        }
     }
     excelFormatMoneyColumns(ws,[6,7,8,9,10,11,12,13],0,Math.max(0,rows.length-1));
     ws['!cols']=[{wch:13},{wch:30},{wch:36},{wch:44},{wch:12},{wch:14},{wch:17},{wch:17},{wch:17},{wch:19},{wch:17},{wch:17},{wch:17},{wch:19}];
@@ -5219,7 +5285,12 @@ function exportCashManagementExcel(){
     /* 02A · actual cash flow — new consolidated ledger. */
     const ledger=excelBuildLedger(month,project);
     const modernRows=[['Ngày','Dự án','Nguồn','Nhóm','Chi tiết','Nội dung','Thu','Chi','Biến động','Số dư sau giao dịch'],...ledger.map(x=>[x.date,x.project,excelSourceLabel(x.source),x.category,x.paymentSubtype||'',x.desc,x.cashIn||'',x.cashOut||'',x.movement,x.balance])];
-    const ws2a=XLSX.utils.aoa_to_sheet([[],[],[],...modernRows]);excelStyleTitle(ws2a,'实际现金流 · KIỂU MỚI',`${fmtMonth(month)} · ${scope} · chỉ tiền thật`,8);excelApplyBaseStyle(ws2a,ws2a['!ref']);excelStyleHeader(ws2a,3,8);excelFormatMoneyColumns(ws2a,[5,6,7,8],4,3+modernRows.length-1);ws2a['!cols']=[{wch:13},{wch:18},{wch:20},{wch:24},{wch:48},{wch:18},{wch:18},{wch:18},{wch:20}];ws2a['!autofilter']={ref:`A4:I${Math.max(4,3+modernRows.length)}`};ws2a['!freeze']={xSplit:2,ySplit:4};XLSX.utils.book_append_sheet(wb,ws2a,'02A_实际现金流_新');
+    const ws2a=XLSX.utils.aoa_to_sheet([[],[],[],...modernRows]);excelStyleTitle(ws2a,'实际现金流 · KIỂU MỚI',`${fmtMonth(month)} · ${scope} · chỉ tiền thật`,9);excelApplyBaseStyle(ws2a,ws2a['!ref']);excelStyleHeader(ws2a,3,9);excelFormatMoneyColumns(ws2a,[6,7,8,9],4,3+modernRows.length-1);ws2a['!cols']=[{wch:13},{wch:18},{wch:20},{wch:24},{wch:24},{wch:46},{wch:18},{wch:18},{wch:18},{wch:22}];ws2a['!autofilter']={ref:`A4:J${Math.max(4,3+modernRows.length)}`};ws2a['!freeze']={xSplit:2,ySplit:4};
+    for(let r=4;r<=3+modernRows.length-1;r++){
+        const c=ws2a[XLSX.utils.encode_cell({r,c:9})];
+        if(c){c.z='#,##0';c.s={...(c.s||{}),font:{...((c.s||{}).font||{}),bold:true},fill:{fgColor:{rgb:'F2F6FA'}},border:{...((c.s||{}).border||{}),left:{style:'thin',color:{rgb:'C7D3E0'}}},alignment:{...((c.s||{}).alignment||{}),horizontal:'right',vertical:'center'}};}
+    }
+    XLSX.utils.book_append_sheet(wb,ws2a,'02A_实际现金流_新');
 
     /* 02B · actual cash flow — old handed-over workbook layout. */
     const ws2b=buildLegacyCombinedReportSheet(month,project);XLSX.utils.book_append_sheet(wb,ws2b,'02B_实际现金流_旧');
@@ -5229,18 +5300,10 @@ function exportCashManagementExcel(){
     projects.forEach(p=>{const st=ccPlanProjectStats(p,month,planRows,taxMap),need=st.payment+st.indirect+st.payroll+st.taxPlan+st.other;planAOA.push([p,st.actualBalance,st.expectedIn,st.payment,st.indirect,st.payroll,st.taxPlan,st.other,need,st.projected,st.projected<0?'THIẾU NGUỒN':'ĐỦ NGUỒN']);});
     const ws3=XLSX.utils.aoa_to_sheet([[],[],[],...planAOA]);excelStyleTitle(ws3,'资金计划 · KẾ HOẠCH VỐN',`${fmtMonth(month)} · ${scope}`,10);excelApplyBaseStyle(ws3,ws3['!ref']);excelStyleHeader(ws3,3,10);excelFormatMoneyColumns(ws3,[1,2,3,4,5,6,7,8,9],4,3+planAOA.length-1);ws3['!cols']=[{wch:18},...Array(9).fill({wch:18}),{wch:16}];ws3['!autofilter']={ref:`A4:K${3+planAOA.length}`};ws3['!freeze']={xSplit:1,ySplit:4};XLSX.utils.book_append_sheet(wb,ws3,'03_资金计划');
 
-    /* 04 · 工资税费: outstanding taxes + payroll / insurance detail. */
-    const taxRows=outstandingTaxRows().filter(x=>!project||normProject(x.project)===normProject(project));
-    const salaryOpen=[];
-    (cashCloudState.salaryRecords||[]).forEach(x=>{if(project&&normProject(x.project)!==normProject(project))return;if(x.type==='tax'||x.actualDate)return;salaryOpen.push([x.project,PAYROLL_TYPE_LABELS[x.type]||x.type,x.payrollMonth,payrollPlannedMonth(x),num(x.amountVnd),x.note||'']);});
-    legacySalary().forEach(x=>{if(project&&normProject(x.project)!==normProject(project)||x.status==='paid')return;const isTax=x.subCode==='TH'||/个税|所得税|thuế\s*tncn|thue\s*tncn/i.test(String(x.description||x.category||''));if(isTax)return;salaryOpen.push([x.project,x.category||x.subCode||'',x.period||'',x.recognizedMonth||x.expectedDate||'',num(x.amount),x.description||'']);});
-    const ws4=XLSX.utils.aoa_to_sheet([[],[],[],['THUẾ CHƯA NỘP'],['Dự án','Kỳ thuế','Kỳ phát sinh','Dự kiến nộp','Còn chưa nộp','Nguồn'],...taxRows.map(x=>[x.project,x.quarter,x.period,x.dueMonth,x.amount,x.source]),[],['LƯƠNG / BH & KHOẢN KHÁC CHƯA CHI'],['Dự án','Khoản mục','Kỳ phát sinh','Dự kiến chi','Còn phải chi','Nội dung'],...salaryOpen]);
-    excelStyleTitle(ws4,'工资税费 · LƯƠNG & THUẾ',`${fmtMonth(month)} · ${scope}`,5);excelApplyBaseStyle(ws4,ws4['!ref']);excelStyleHeader(ws4,4,5);const salaryHeader=7+taxRows.length+1;excelStyleHeader(ws4,salaryHeader,5);excelFormatMoneyColumns(ws4,[4],5,5+taxRows.length);excelFormatMoneyColumns(ws4,[4],salaryHeader+1,salaryHeader+salaryOpen.length);ws4['!cols']=[{wch:18},{wch:24},{wch:18},{wch:18},{wch:20},{wch:44}];XLSX.utils.book_append_sheet(wb,ws4,'04_工资税费');
-
-    /* 05 · 内部拆借 */
+    /* 04 · 内部拆借 */
     const debts=debtPositions().filter(x=>!project||x.lender===project||x.borrower===project);const transfers=allTransfers().filter(x=>monthOf(x.actualDate)===month).filter(x=>!project||x.fromProject===project||x.toProject===project).sort((a,b)=>String(b.actualDate).localeCompare(String(a.actualDate)));
     const ws5=XLSX.utils.aoa_to_sheet([[],[],[],['DƯ NỢ HIỆN TẠI'],['Bên cho vay','Bên vay','Còn nợ'],...debts.map(x=>[x.lender,x.borrower,x.amount]),[],['LỊCH SỬ THÁNG'],['Ngày','Loại','Từ dự án','Đến dự án','Số tiền','Nội dung'],...transfers.map(x=>[x.actualDate,x.transferType==='loan'?'Cho vay':x.transferType==='repayment'?'Hoàn vay':'Điều chuyển',x.fromProject,x.toProject,x.amount,x.description||''])]);
-    excelStyleTitle(ws5,'内部拆借 · VAY NỘI BỘ',`${fmtMonth(month)} · ${scope}`,5);excelApplyBaseStyle(ws5,ws5['!ref']);excelStyleHeader(ws5,4,2);const histHeader=7+debts.length+1;excelStyleHeader(ws5,histHeader,5);excelFormatMoneyColumns(ws5,[2],5,5+debts.length);excelFormatMoneyColumns(ws5,[4],histHeader+1,histHeader+transfers.length);ws5['!cols']=[{wch:18},{wch:20},{wch:18},{wch:18},{wch:18},{wch:42}];XLSX.utils.book_append_sheet(wb,ws5,'05_内部拆借');
+    excelStyleTitle(ws5,'内部拆借 · VAY NỘI BỘ',`${fmtMonth(month)} · ${scope}`,5);excelApplyBaseStyle(ws5,ws5['!ref']);excelStyleHeader(ws5,4,2);const histHeader=7+debts.length+1;excelStyleHeader(ws5,histHeader,5);excelFormatMoneyColumns(ws5,[2],5,5+debts.length);excelFormatMoneyColumns(ws5,[4],histHeader+1,histHeader+transfers.length);ws5['!cols']=[{wch:18},{wch:20},{wch:18},{wch:18},{wch:18},{wch:42}];XLSX.utils.book_append_sheet(wb,ws5,'04_内部拆借');
 
     const fileScope=project?project.replace(/\s+/g,'_'):'ALL_PROJECTS';XLSX.writeFile(wb,`Cash_Management_${month}_${fileScope}.xlsx`);
 }
@@ -6108,20 +6171,28 @@ function exportMEPWorkbook(){
 
 
 let ccPlanFilter='all';
-function ccPlanRows(month){
+function ccPlanRows(month,cutoffDate=''){
     const rows=[];
+    const cutoff=String(cutoffDate||'').trim();
+    const afterCutoff=date=>!!(cutoff&&date&&String(date)>cutoff);
 
-    // Build the month plan in one pass. The previous version re-filtered the
-    // entire expense ledger once for every project, which became very slow
-    // with historical data embedded in Cash Control.
+    // Planned receipts remaining as of cutoff.
     (cashCloudState.inflowRecords||[]).forEach(x=>{
         const project=normProject(x.project);
         if(!project)return;
         if(monthOf(x.expectedDate)!==month)return;
-        if(['received','rejected'].includes(effectiveInflowStatus(x)))return;
-        const amount=inflowOutstanding(x);
+        if(x.status==='rejected')return;
+        const basis=inflowBasis(x);
+        let receivedByCutoff=0;
+        if(cutoff){
+            const receipts=normalizeInflowReceipts(x).filter(r=>r.date&&String(r.date)<=cutoff);
+            receivedByCutoff=receipts.reduce((s,r)=>s+num(r.amount),0);
+        }else{
+            receivedByCutoff=num(x.receivedAmount);
+        }
+        const amount=Math.max(basis-receivedByCutoff,0);
         if(amount<=0)return;
-        rows.push({project,type:'receipt',label:x.number||INFLOW_TYPE_LABELS[x.type]||'Dự kiến thu',period:x.expectedDate||month,amount,status:'Dự kiến thu',source:'Thu CĐT / IPC'});
+        rows.push({project,type:'receipt',label:x.number||INFLOW_TYPE_LABELS[x.type]||'Dự kiến thu',period:x.expectedDate||month,amount,status:'Dự kiến thu còn lại',source:'Thu CĐT / IPC'});
     });
 
     const expenses=allExpenses();
@@ -6129,7 +6200,8 @@ function ccPlanRows(month){
         const project=normProject(x.project);
         if(!project)return;
         if(x.source==='payment'){
-            if(x.status!=='paid'&&x.period===month){
+            const remainsAtCutoff=x.status!=='paid'||afterCutoff(x.actualDate);
+            if(remainsAtCutoff&&x.period===month){
                 const isIndirect=/间接|gián tiếp|gian tiep/i.test(String(x.category||''));
                 rows.push({
                     project,
@@ -6137,30 +6209,33 @@ function ccPlanRows(month){
                     label:x.description||x.category||'Payment',
                     period:month,
                     amount:num(x.plannedAmount||x.amount),
-                    status:'Chờ thanh toán',
+                    status:afterCutoff(x.actualDate)?'Chưa chi tại ngày chốt':'Chờ thanh toán',
                     source:isIndirect?'Payment · 间接费':'Payment'
                 });
             }
             return;
         }
         if(x.source==='payroll')return;
-        if(x.status==='unpaid'&&monthOf(x.expectedDate)===month){
-            rows.push({project,type:'other',label:x.description||x.category||'Khoản khác',period:x.expectedDate||month,amount:num(x.amount),status:'Chưa chi',source:'Cash Control'});
+        const remainsAtCutoff=x.status!=='paid'||afterCutoff(x.actualDate);
+        if(remainsAtCutoff&&monthOf(x.expectedDate)===month){
+            rows.push({project,type:'other',label:x.description||x.category||'Khoản khác',period:x.expectedDate||month,amount:num(x.amount),status:afterCutoff(x.actualDate)?'Chưa chi tại ngày chốt':'Chưa chi',source:'Cash Control'});
         }
     });
 
     (cashCloudState.salaryRecords||[]).forEach(x=>{
         const project=normProject(x.project);
-        if(!project||x.actualDate||payrollPlannedMonth(x)!==month)return;
-        rows.push({project,type:x.type==='tax'?'tax':'payroll',label:PAYROLL_TYPE_LABELS[x.type]||x.type,period:x.type==='tax'?`${payrollQuarter(x.payrollMonth)} → ${fmtMonth(month)}`:fmtMonth(x.payrollMonth),amount:num(x.amountVnd),status:x.type==='tax'?'Chưa nộp':'Chưa trả',source:'Lương & thuế'});
+        if(!project||payrollPlannedMonth(x)!==month)return;
+        if(x.actualDate&&!afterCutoff(x.actualDate))return;
+        rows.push({project,type:x.type==='tax'?'tax':'payroll',label:PAYROLL_TYPE_LABELS[x.type]||x.type,period:x.type==='tax'?`${payrollQuarter(x.payrollMonth)} → ${fmtMonth(month)}`:fmtMonth(x.payrollMonth),amount:num(x.amountVnd),status:x.type==='tax'?'Chưa nộp tại ngày chốt':'Chưa trả tại ngày chốt',source:'Lương & thuế'});
     });
 
     legacySalary().forEach(x=>{
         const project=normProject(x.project),due=String(x.recognizedMonth||x.expectedDate||'');
-        if(!project||x.status==='paid'||due!==month)return;
+        if(!project||due!==month)return;
+        if(x.status==='paid'&&!afterCutoff(x.actualDate))return;
         const isTax=x.subCode==='TH'||/个税|所得税/.test(String(x.description||''));
         const isPayroll=x.subCode==='LVN'||x.subCode==='LTQ'||/工资/.test(String(x.description||''));
-        rows.push({project,type:isTax?'tax':isPayroll?'payroll':'other',label:x.description||x.category||'Nghĩa vụ lịch sử',period:due||x.period||month,amount:num(x.amount),status:isTax?'Chưa nộp':'Chưa chi',source:'Lịch sử bàn giao'});
+        rows.push({project,type:isTax?'tax':isPayroll?'payroll':'other',label:x.description||x.category||'Nghĩa vụ lịch sử',period:due||x.period||month,amount:num(x.amount),status:isTax?'Chưa nộp tại ngày chốt':'Chưa chi tại ngày chốt',source:'Lịch sử bàn giao'});
     });
 
     return rows.sort((a,b)=>a.project.localeCompare(b.project)||a.type.localeCompare(b.type)||String(a.label).localeCompare(String(b.label)));
@@ -6195,11 +6270,59 @@ function openTaxOutstanding(project){
     if($('taxOutstandingTotal'))$('taxOutstandingTotal').textContent=money(total);
     if($('taxOutstandingPeriods'))$('taxOutstandingPeriods').textContent=String(new Set(rows.map(x=>`${x.quarter}|${x.dueMonth}`)).size);
     if($('taxOutstandingNextDue'))$('taxOutstandingNextDue').textContent=due?fmtMonth(due):'—';
-    if($('taxOutstandingDetailBody'))$('taxOutstandingDetailBody').innerHTML=rows.map(x=>`<tr><td><b>${esc(x.quarter||'—')}</b></td><td>${/^\d{4}-\d{2}$/.test(x.period)?fmtMonth(x.period):esc(x.period||'—')}</td><td class="${x.dueMonth&&x.dueMonth<CURRENT?'overdue':''}">${x.dueMonth?fmtMonth(x.dueMonth):'—'}</td><td>${esc(x.source)}</td><td class="money">${money(x.amount)}</td></tr>`).join('')||'<tr><td colspan="5" class="mep-empty">Project này hiện không có thuế chưa nộp.</td></tr>';
+    if($('taxOutstandingDetailBody'))$('taxOutstandingDetailBody').innerHTML=rows.map(x=>{
+        const overdue=!!(x.dueMonth&&x.dueMonth<CURRENT);
+        const sourceTone=/Lương|thuế/i.test(String(x.source||''))?'payroll':'legacy';
+        return `<tr><td><span class="tax-period-pill">${esc(x.quarter||'—')}</span></td><td>${/^\d{4}-\d{2}$/.test(x.period)?fmtMonth(x.period):esc(x.period||'—')}</td><td>${x.dueMonth?`<span class="tax-due ${overdue?'overdue':''}">${fmtMonth(x.dueMonth)}</span>`:'—'}</td><td><span class="tax-source-pill ${sourceTone}">${esc(x.source)}</span></td><td class="money tax-money">${money(x.amount)}</td></tr>`;
+    }).join('')||'<tr><td colspan="5" class="mep-empty">Project này hiện không có thuế chưa nộp.</td></tr>';
+    if($('taxOutstandingDetailFoot'))$('taxOutstandingDetailFoot').innerHTML=rows.length?`<tr><th colspan="4">Tổng chưa nộp</th><th class="money">${money(total)}</th></tr>`:'';
     openModal('taxOutstandingModal');
 }
-function ccPlanProjectStats(project,month,planRows=[],taxOutstandingMap=null){
-    const op=opening(project,month),actual=externalMovements(month,project),actualIn=actual.reduce((s,x)=>s+x.in,0),actualOut=actual.reduce((s,x)=>s+x.out,0);
+function fundsMonthLastDate(month){
+    const m=String(month||'').match(/^(\d{4})-(\d{2})$/);
+    if(!m)return isoToday();
+    const y=Number(m[1]),mo=Number(m[2]);
+    const last=new Date(y,mo,0).getDate();
+    return `${m[1]}-${m[2]}-${String(last).padStart(2,'0')}`;
+}
+function defaultFundsCutoffDate(month){
+    const today=isoToday(),todayMonth=today.slice(0,7);
+    if(month===todayMonth)return today;
+    return fundsMonthLastDate(month);
+}
+function syncFundsCutoffDate(month,force=false){
+    const input=$('fundsCutoffDate');if(!input)return defaultFundsCutoffDate(month);
+    const min=`${month}-01`,max=fundsMonthLastDate(month);
+    input.min=min;input.max=max;
+    if(force||!input.value||String(input.value).slice(0,7)!==month){
+        input.value=defaultFundsCutoffDate(month);
+    }
+    if(input.value<min)input.value=min;
+    if(input.value>max)input.value=max;
+    return input.value;
+}
+function outstandingTaxByProjectAsOf(cutoffDate){
+    const cutoff=String(cutoffDate||'').trim(),map=new Map();
+    const add=(project,amount)=>{project=normProject(project);amount=num(amount);if(!project||amount<=0)return;map.set(project,(map.get(project)||0)+amount)};
+    (cashCloudState.salaryRecords||[]).forEach(x=>{
+        if(x.type!=='tax')return;
+        if(x.actualDate&&cutoff&&String(x.actualDate)<=cutoff)return;
+        add(x.project,x.amountVnd);
+    });
+    legacySalary().forEach(x=>{
+        const isTax=x.subCode==='TH'||/个税|所得税|thuế\s*tncn|thue\s*tncn/i.test(String(x.description||x.category||''));
+        if(!isTax)return;
+        if(x.status==='paid'&&x.actualDate&&cutoff&&String(x.actualDate)<=cutoff)return;
+        if(x.status==='paid'&&!x.actualDate)return;
+        add(x.project,x.amount);
+    });
+    return map;
+}
+function ccPlanProjectStats(project,month,planRows=[],taxOutstandingMap=null,cutoffDate=''){
+    const op=opening(project,month);
+    const cutoff=String(cutoffDate||'').trim();
+    const actual=externalMovements(month,project).filter(x=>!cutoff||String(x.date||'')<=cutoff);
+    const actualIn=actual.reduce((s,x)=>s+x.in,0),actualOut=actual.reduce((s,x)=>s+x.out,0);
     const normalized=normProject(project);
     const plan=planRows.filter(x=>normProject(x.project)===normalized);
     const expectedIn=plan.filter(x=>x.type==='receipt').reduce((s,x)=>s+x.amount,0),
@@ -6210,32 +6333,84 @@ function ccPlanProjectStats(project,month,planRows=[],taxOutstandingMap=null){
           other=plan.filter(x=>x.type==='other').reduce((s,x)=>s+x.amount,0);
     const taxOutstanding=(taxOutstandingMap||outstandingTaxByProject()).get(normalized)||0;
     const actualBalance=op+actualIn-actualOut;
-    // Forecast liquidity must start from the cash that actually exists now.
-    // Only future / still-unpaid items are added or deducted, preventing double count
-    // when a planned receipt/payment has already become an actual cash movement.
     const remainingPlannedOut=payment+indirect+payroll+taxPlan+other;
     const projected=actualBalance+expectedIn-remainingPlannedOut;
-    return {project,op,expectedIn,payment,indirect,payroll,taxPlan,taxOutstanding,other,remainingPlannedOut,projected,actualIn,actualOut,actualBalance};
+    return {project,op,expectedIn,payment,indirect,payroll,taxPlan,taxOutstanding,other,remainingPlannedOut,projected,actualIn,actualOut,actualBalance,cutoffDate:cutoff};
 }
 function renderFunds(){
-    const month=$('fundsMonth')?.value||CURRENT;if($('fundsMonth')&&!$('fundsMonth').value)$('fundsMonth').value=month;
+    const month=$('fundsMonth')?.value||CURRENT;
+    if($('fundsMonth')&&!$('fundsMonth').value)$('fundsMonth').value=month;
+    const cutoff=syncFundsCutoffDate(month,false);
     const q=String($('fundsSearch')?.value||'').trim().toLowerCase();
-    const planRows=ccPlanRows(month),taxOutstandingMap=outstandingTaxByProject();
-    const rows=allProjects().filter(p=>!q||p.toLowerCase().includes(q)).map(p=>ccPlanProjectStats(p,month,planRows,taxOutstandingMap));
+    const planRows=ccPlanRows(month,cutoff),taxOutstandingMap=outstandingTaxByProjectAsOf(cutoff);
+    const rows=allProjects().filter(p=>!q||p.toLowerCase().includes(q)).map(p=>ccPlanProjectStats(p,month,planRows,taxOutstandingMap,cutoff));
     const totals=rows.reduce((a,x)=>{Object.keys(a).forEach(k=>a[k]+=num(x[k]));return a},{op:0,expectedIn:0,payment:0,indirect:0,payroll:0,taxPlan:0,taxOutstanding:0,other:0,projected:0,actualIn:0,actualOut:0,actualBalance:0});
-    $('fundsOpening').textContent=money(totals.op);$('fundsExpectedIn').textContent=money(totals.expectedIn);$('fundsPlannedOut').textContent=money(totals.payment+totals.indirect+totals.payroll+totals.taxPlan+totals.other);$('fundsProjected').textContent=money(totals.projected);$('fundsActual').textContent=money(totals.actualBalance);if($('fundsTaxOutstanding'))$('fundsTaxOutstanding').textContent=money(totals.taxOutstanding);
+    $('fundsOpening').textContent=money(totals.op);
+    $('fundsExpectedIn').textContent=money(totals.expectedIn);
+    $('fundsPlannedOut').textContent=money(totals.payment+totals.indirect+totals.payroll+totals.taxPlan+totals.other);
+    $('fundsProjected').textContent=money(totals.projected);
+    $('fundsActual').textContent=money(totals.actualBalance);
+    if($('fundsTaxOutstanding'))$('fundsTaxOutstanding').textContent=money(totals.taxOutstanding);
+    const sheetNote=document.querySelector('#fundsView .cc-sheet-head span');
+    if(sheetNote)sheetNote.textContent=`Chốt số dư đến ${fmtDate(cutoff)} · Click dự án để mở sổ dòng tiền thực tế.`;
+
     $('fundsBody').innerHTML=rows.map(x=>{const remainingNeed=x.remainingPlannedOut||0,cls=x.projected<0?'bad':(remainingNeed>0&&x.projected<remainingNeed*.1)?'warn':'good',label=x.projected<0?'THIẾU NGUỒN':cls==='warn'?'SÁT NGƯỠNG':'ĐỦ NGUỒN';return `<tr><td><button class="project-link" data-cc-project="${esc(x.project)}">${esc(x.project)}</button></td><td class="money">${money(x.op)}</td><td class="money">${money(x.expectedIn)}</td><td class="money">${money(x.payment)}</td><td class="money">${money(x.indirect)}</td><td class="money">${money(x.payroll)}</td><td class="money">${x.taxOutstanding>0?`<button class="tax-outstanding-btn" data-tax-project="${esc(x.project)}">${money(x.taxOutstanding)}</button>`:`<span class="tax-outstanding-btn zero">0</span>`}</td><td class="money">${money(x.other)}</td><td class="money ${x.projected<0?'neg':'pos'}"><b>${money(x.projected)}</b></td><td class="money pos">${money(x.actualIn)}</td><td class="money neg">${money(x.actualOut)}</td><td class="money"><b>${money(x.actualBalance)}</b></td><td><span class="cc-status ${cls}">${label}</span></td></tr>`}).join('')||'<tr><td colspan="13" class="mep-empty">Chưa có dự án.</td></tr>';
     document.querySelectorAll('[data-tax-project]').forEach(btn=>btn.onclick=e=>{e.stopPropagation();openTaxOutstanding(btn.dataset.taxProject||'')});
     $('fundsFoot').innerHTML=`<tr><th>TỔNG</th><th class="money">${money(totals.op)}</th><th class="money">${money(totals.expectedIn)}</th><th class="money">${money(totals.payment)}</th><th class="money">${money(totals.indirect)}</th><th class="money">${money(totals.payroll)}</th><th class="money">${money(totals.taxOutstanding)}</th><th class="money">${money(totals.other)}</th><th class="money">${money(totals.projected)}</th><th class="money">${money(totals.actualIn)}</th><th class="money">${money(totals.actualOut)}</th><th class="money">${money(totals.actualBalance)}</th><th></th></tr>`;
     document.querySelectorAll('[data-cc-project]').forEach(b=>b.onclick=()=>{pfSelectedProject=b.dataset.ccProject;if($('commandMonth'))$('commandMonth').value=month;showView('command')});
 }
+function planHubRemainingRows(month){
+    const rows=ccPlanRows(month).filter(x=>x.type!=='payroll'&&x.type!=='tax');
+    const targetIdx=monthIndex(month);
+
+    // Current payroll module: keep salary/BH/TNCN visible until actually paid.
+    (cashCloudState.salaryRecords||[]).forEach(x=>{
+        const project=normProject(x.project);if(!project)return;
+        const due=payrollPlannedMonth(x)||x.payrollMonth||'';
+        if(!due||monthIndex(due)>targetIdx)return;
+        if(x.actualDate&&monthIndex(monthOf(x.actualDate))<=targetIdx)return;
+        const isTax=x.type==='tax';
+        rows.push({
+            project,
+            type:isTax?'tax':'payroll',
+            label:isTax?`个人所得税 · ${fmtMonth(x.payrollMonth)}`:(PAYROLL_TYPE_LABELS[x.type]||x.type||'Lương / BH'),
+            period:isTax?`${payrollQuarter(x.payrollMonth)} · ${fmtMonth(due)}`:fmtMonth(x.payrollMonth),
+            amount:num(x.amountVnd),
+            status:isTax?'Chưa nộp':'Chưa chi',
+            source:'Lương & thuế'
+        });
+    });
+
+    // Legacy salary handover: remove old display codes (LVN/BHVN/KPCD...) and carry unpaid rows forward.
+    legacySalary().forEach(x=>{
+        const project=normProject(x.project);if(!project)return;
+        const due=String(x.recognizedMonth||x.expectedDate||x.period||'').slice(0,7);
+        if(!due||monthIndex(due)>targetIdx)return;
+        if(x.status==='paid'&&x.actualDate&&monthIndex(monthOf(x.actualDate))<=targetIdx)return;
+        if(x.status==='paid'&&!x.actualDate)return;
+        const raw=String(x.description||x.category||'');
+        const isTax=x.subCode==='TH'||/个税|所得税|thuế\s*tncn|thue\s*tncn/i.test(raw);
+        rows.push({
+            project,
+            type:isTax?'tax':'payroll',
+            label:isTax?`个人所得税 · ${x.description||fmtMonth(x.period)}`:(x.description||x.category||'职工薪酬'),
+            period:due,
+            amount:num(x.amount),
+            status:isTax?'Chưa nộp':'Chưa chi',
+            source:'Lương & thuế · lịch sử'
+        });
+    });
+
+    return rows.sort((a,b)=>a.project.localeCompare(b.project)||a.type.localeCompare(b.type)||String(a.period).localeCompare(String(b.period))||String(a.label).localeCompare(String(b.label)));
+}
+
 function renderPlanHub(){
     const month=$('planHubMonth')?.value||CURRENT;if($('planHubMonth')&&!$('planHubMonth').value)$('planHubMonth').value=month;
-    const q=String($('planHubSearch')?.value||'').trim().toLowerCase(),all=ccPlanRows(month),rows=all.filter(x=>(ccPlanFilter==='all'||x.type===ccPlanFilter)&&(!q||[x.project,x.label,x.source].join(' ').toLowerCase().includes(q)));
+    const q=String($('planHubSearch')?.value||'').trim().toLowerCase(),all=planHubRemainingRows(month),rows=all.filter(x=>(ccPlanFilter==='all'||x.type===ccPlanFilter)&&(!q||[x.project,x.label,x.source,x.status].join(' ').toLowerCase().includes(q)));
     const receipt=all.filter(x=>x.type==='receipt').reduce((s,x)=>s+x.amount,0),payrollTax=all.filter(x=>x.type==='payroll'||x.type==='tax').reduce((s,x)=>s+x.amount,0),other=all.filter(x=>x.type==='payment'||x.type==='indirect'||x.type==='other').reduce((s,x)=>s+x.amount,0);
     $('planReceiptTotal').textContent=money(receipt);$('planPayrollTaxTotal').textContent=money(payrollTax);$('planOtherTotal').textContent=money(other);
-    const labels={receipt:'DỰ KIẾN THU',payment:'PAYMENT',indirect:'间接费',payroll:'LƯƠNG',tax:'THUẾ',other:'KHÁC'};
-    $('planHubBody').innerHTML=rows.map(x=>`<tr><td><b>${esc(x.project)}</b></td><td><span class="cc-status ${x.type==='receipt'?'good':x.type==='tax'?'warn':''}">${labels[x.type]||x.type}</span></td><td>${esc(x.label)}</td><td>${esc(String(x.period||''))}</td><td class="money"><b>${money(x.amount)}</b></td><td>${esc(x.status)}</td><td>${esc(x.source)}</td></tr>`).join('')||'<tr><td colspan="7" class="mep-empty">Không có kế hoạch phù hợp.</td></tr>';
+    const labels={receipt:'CHƯA THU',payment:'PAYMENT',indirect:'间接费',payroll:'LƯƠNG / BH',tax:'THUẾ TNCN',other:'KHÁC'};
+    $('planHubBody').innerHTML=rows.map(x=>`<tr><td><b>${esc(x.project)}</b></td><td><span class="cc-status ${x.type==='receipt'?'good':x.type==='tax'?'warn':''}">${labels[x.type]||x.type}</span></td><td>${esc(x.label)}</td><td>${esc(String(x.period||''))}</td><td class="money"><b>${money(x.amount)}</b></td><td>${esc(x.status)}</td><td>${esc(x.source)}</td></tr>`).join('')||'<tr><td colspan="7" class="mep-empty">Không còn khoản phù hợp trong tháng này.</td></tr>';
 }
 
 function renderAll(){
@@ -6340,15 +6515,16 @@ function showView(v){
     if(v==='health')renderHealth();
 }
 document.querySelectorAll('.nav').forEach(b=>b.onclick=()=>showView(b.dataset.view));
-if($('fundsMonth'))$('fundsMonth').onchange=renderFunds;
-if($('fundsSearch'))$('fundsSearch').oninput=renderFunds;
+if($('exportRangeMode'))$('exportRangeMode').onchange=updateExportRangeModeUI;
+if($('fundsMonth'))$('fundsMonth').onchange=()=>{syncFundsCutoffDate($('fundsMonth').value||CURRENT,true);renderFunds()};
+if($('fundsSearch'))$('fundsSearch').oninput=renderFunds;if($('fundsCutoffDate'))$('fundsCutoffDate').onchange=renderFunds;
 if($('fundsAddTxn'))$('fundsAddTxn').onclick=()=>addTxn();
 if($('fundsExport'))$('fundsExport').onclick=()=>{if($('rMonth'))$('rMonth').value=$('fundsMonth').value||CURRENT;if($('rProject'))$('rProject').value='';exportCashManagementExcel()};
 if($('planHubMonth'))$('planHubMonth').onchange=renderPlanHub;
 if($('planHubSearch'))$('planHubSearch').oninput=renderPlanHub;
 document.querySelectorAll('[data-plan-filter]').forEach(b=>b.onclick=()=>{ccPlanFilter=b.dataset.planFilter;document.querySelectorAll('[data-plan-filter]').forEach(x=>x.classList.toggle('active',x===b));renderPlanHub()});
 if($('planHubExport'))$('planHubExport').onclick=()=>{if($('rMonth'))$('rMonth').value=$('planHubMonth').value||CURRENT;if($('rProject'))$('rProject').value='';exportCashManagementExcel()};
-['debtSearch'].forEach(id=>{if($(id))$(id).oninput=renderLoans});['debtLender','debtBorrower','debtSort'].forEach(id=>{if($(id))$(id).onchange=renderLoans});['loanProject','loanType'].forEach(id=>{if($(id))$(id).onchange=()=>{loanPairFilter=null;renderLoans()}});if($('loanSearch'))$('loanSearch').oninput=()=>{loanPairFilter=null;renderLoans()};if($('reportHideZero'))$('reportHideZero').onchange=renderReport;if($('exportModernCashExcelBtn'))$('exportModernCashExcelBtn').onclick=()=>{const m=$('rMonth')?.value||CURRENT,p=$('rProject')?.value||'';exportModernCashFlowExcel([m],p)};
+['debtSearch'].forEach(id=>{if($(id))$(id).oninput=renderLoans});['debtLender','debtBorrower'].forEach(id=>{if($(id))$(id).onchange=renderLoans});['loanProject','loanType'].forEach(id=>{if($(id))$(id).onchange=()=>{loanPairFilter=null;renderLoans()}});if($('loanSearch'))$('loanSearch').oninput=()=>{loanPairFilter=null;renderLoans()};if($('reportHideZero'))$('reportHideZero').onchange=renderReport;if($('exportModernCashExcelBtn'))$('exportModernCashExcelBtn').onclick=()=>{const m=$('rMonth')?.value||CURRENT,p=$('rProject')?.value||'';openExportRangeModal('modern',p,m)};
 if(document.querySelector('.pf-detail-head'))document.querySelector('.pf-detail-head').ondblclick=()=>document.querySelector('.pf-detail')?.classList.remove('drawer-open');
 document.querySelectorAll('[data-txn-direction]').forEach(btn=>{
     btn.onclick=()=>{
@@ -6592,8 +6768,71 @@ $('resetLegacy').onclick=async()=>{
 if($('loanDriveConfigBtn'))$('loanDriveConfigBtn').onclick=openLoanDriveConfig;
 if($('loanDetailClose'))$('loanDetailClose').onclick=closeLoanDetail;
 if($('saveLoanDriveConfig'))$('saveLoanDriveConfig').onclick=()=>{const clientId=String($('loanDriveClientId').value||'').trim(),folderId=String($('loanDriveFolderId').value||'').trim();if(!clientId){alert(cashLang==='zh'?'请输入Google OAuth Client ID。':'Nhập Google OAuth Client ID.');return}localStorage.setItem('cashLoanDriveClientId',clientId);localStorage.setItem('cashLoanDriveFolderId',normalizeDriveFolderId(folderId));loanDriveAccessToken='';$('loanDriveConfigModal').classList.remove('show');renderLoanDetail()};
+if($('deleteTransferInModal'))$('deleteTransferInModal').onclick=async()=>{if(!editingTransferId)return;const id=editingTransferId;$('transferModal').classList.remove('show');editingTransferId='';editingTransferSource='manual';setTransferModalMode('add');await deleteTxn(id)};
 if($('exportLoanExcelBtn'))$('exportLoanExcelBtn').onclick=exportLoansExcel;
-$('addTransferBtn').onclick=()=>{const d=new Date();$('tDate').value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;$('tFrom').value='';$('tTo').value='';$('tAmount').value='';$('tDesc').value='';$('tType').value='transfer';openModal('transferModal')};$('saveTransfer').onclick=async()=>{
+function transferRecordTypeLabel(type){
+    return type==='repayment' ? 'Hoàn vay nội bộ' : type==='loan' ? 'Vay nội bộ' : 'Điều chuyển nội bộ';
+}
+function setTransferModalMode(mode='add'){
+    const box=$('transferModal');
+    if(!box)return;
+    const title=box.querySelector('h3');
+    const sub=box.querySelector('.csub');
+    const save=$('saveTransfer');
+    const del=$('deleteTransferInModal');
+    if(mode==='edit'){
+        if(title)title.textContent='Sửa giao dịch nội bộ';
+        if(sub)sub.textContent='Sửa nội dung, ngày, dự án, số tiền hoặc loại giao dịch. PDF đã gắn sẽ được giữ nguyên.';
+        if(save)save.textContent='Lưu chỉnh sửa';
+        if(del)del.classList.remove('hidden');
+    }else{
+        if(title)title.textContent='Giao dịch nội bộ';
+        if(sub)sub.textContent='Nhập một lần, hệ thống tự ghi tiền ra ở dự án chuyển và tiền vào ở dự án nhận.';
+        if(save)save.textContent='Lưu giao dịch';
+        if(del)del.classList.add('hidden');
+    }
+}
+function openTransferEditor(id){
+    const x=allTransfers().find(r=>String(r.id)===String(id));
+    if(!x)return;
+    editingTransferId=String(x.id||'');
+    editingTransferSource=String(x.source||'manual');
+    $('tDate').value=x.actualDate||'';
+    $('tFrom').value=x.fromProject||'';
+    $('tTo').value=x.toProject||'';
+    $('tAmount').value=Number(x.amount||0)||'';
+    $('tDesc').value=x.description||'';
+    $('tType').value=x.transferType||'transfer';
+    setTransferModalMode('edit');
+    openModal('transferModal');
+}
+async function quickEditTransferDescription(id){
+    const x=allTransfers().find(r=>String(r.id)===String(id));
+    if(!x)return;
+    const current=String(x.description||'');
+    const next=prompt(cashLang==='zh'?'修改说明/备注：':'Sửa nội dung / ghi chú:',current);
+    if(next===null)return;
+    const desc=String(next).trim();
+    if(editingTransferId)editingTransferId='';
+    if((x.source||'manual')==='legacy_vnb'){
+        cashCloudState.legacyOverrides={
+            ...(cashCloudState.legacyOverrides||{}),
+            [x.id]:{
+                ...(cashCloudState.legacyOverrides?.[x.id]||{}),
+                description:desc
+            }
+        };
+    }else{
+        cashCloudState.manualRecords=manual().map(item=>String(item.id)===String(x.id)?{...item,description:desc}:item);
+    }
+    const ok=await persistCashCloud('Sửa nội dung giao dịch nội bộ');
+    if(ok){
+        if(String(loanSelectedId)===String(x.id))loanSelectedId=String(x.id);
+        renderAll();
+        if(String(loanSelectedId)===String(x.id))renderLoanDetail();
+    }
+}
+$('addTransferBtn').onclick=()=>{const d=new Date();editingTransferId='';editingTransferSource='manual';$('tDate').value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;$('tFrom').value='';$('tTo').value='';$('tAmount').value='';$('tDesc').value='';$('tType').value='transfer';setTransferModalMode('add');openModal('transferModal')};$('saveTransfer').onclick=async()=>{
     const from=normProject($('tFrom').value),
           to=normProject($('tTo').value),
           amt=Number($('tAmount').value||0),
@@ -6605,41 +6844,78 @@ $('addTransferBtn').onclick=()=>{const d=new Date();$('tDate').value=`${d.getFul
         return;
     }
 
-    const arr=[...manual()];
     const lender=type==='loan'?from:type==='repayment'?to:'',
-          borrower=type==='loan'?to:type==='repayment'?from:'';
+          borrower=type==='loan'?to:type==='repayment'?from:'',
+          description=$('tDesc').value.trim()||'Chuyển nội bộ';
 
-    arr.push({
-        id:'manual_transfer_'+Date.now(),
-        kind:'transfer',
-        source:'manual',
-        direction:'transfer',
-        category:
-            type==='repayment'
-                ? 'Hoàn vay nội bộ'
-                : type==='loan'
-                    ? 'Vay nội bộ'
-                    : 'Điều chuyển nội bộ',
-        fromProject:from,
-        toProject:to,
-        lender,
-        borrower,
-        transferType:type,
-        period:monthOf(date),
-        description:$('tDesc').value.trim()||'Chuyển nội bộ',
-        amount:amt,
-        status:'paid',
-        actualDate:date,
-        actualAmount:amt,
-        note:''
-    });
+    if(editingTransferId){
+        if(editingTransferSource==='legacy_vnb'){
+            cashCloudState.legacyOverrides={
+                ...(cashCloudState.legacyOverrides||{}),
+                [editingTransferId]:{
+                    ...(cashCloudState.legacyOverrides?.[editingTransferId]||{}),
+                    category:transferRecordTypeLabel(type),
+                    fromProject:from,
+                    toProject:to,
+                    lender,
+                    borrower,
+                    transferType:type,
+                    period:monthOf(date),
+                    description,
+                    amount:amt,
+                    status:'paid',
+                    actualDate:date,
+                    actualAmount:amt
+                }
+            };
+        }else{
+            cashCloudState.manualRecords=manual().map(item=>String(item.id)===String(editingTransferId)?{
+                ...item,
+                category:transferRecordTypeLabel(type),
+                fromProject:from,
+                toProject:to,
+                lender,
+                borrower,
+                transferType:type,
+                period:monthOf(date),
+                description,
+                amount:amt,
+                status:'paid',
+                actualDate:date,
+                actualAmount:amt
+            }:item);
+        }
+    }else{
+        const arr=[...manual()];
+        arr.push({
+            id:'manual_transfer_'+Date.now(),
+            kind:'transfer',
+            source:'manual',
+            direction:'transfer',
+            category:transferRecordTypeLabel(type),
+            fromProject:from,
+            toProject:to,
+            lender,
+            borrower,
+            transferType:type,
+            period:monthOf(date),
+            description,
+            amount:amt,
+            status:'paid',
+            actualDate:date,
+            actualAmount:amt,
+            note:''
+        });
+        cashCloudState.manualRecords=arr;
+    }
 
-    cashCloudState.manualRecords=arr;
-
-    const ok=await persistCashCloud("Thêm vay/điều chuyển nội bộ");
+    const ok=await persistCashCloud(editingTransferId?"Sửa vay/điều chuyển nội bộ":"Thêm vay/điều chuyển nội bộ");
     if(!ok)return;
 
     $('transferModal').classList.remove('show');
+    editingTransferId='';
+    editingTransferSource='manual';
+    setTransferModalMode('add');
     renderAll();
 };
 
@@ -7013,19 +7289,19 @@ setTimeout(()=>{
 /* V12 compact loan tables + right-side PDF panel */
 .loan-workspace{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;align-items:start}
 .loan-main{min-width:0}
-.loan-detail{display:none;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;position:sticky;top:82px;max-height:calc(100vh - 98px)}
-.loan-workspace.detail-open{grid-template-columns:minmax(560px,1fr) minmax(360px,42%)}
+.loan-detail{display:none;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;position:sticky;top:82px;max-height:calc(100vh - 98px);min-width:0}
+.loan-workspace.detail-open{grid-template-columns:minmax(380px,40%) minmax(560px,60%)}
 .loan-workspace.detail-open .loan-detail{display:block}
 .loan-detail-head{height:44px;display:flex;align-items:center;gap:8px;padding:0 11px;background:#f8fafc;border-bottom:1px solid var(--line);color:var(--nav)}
-.loan-detail-head b{font-size:12px}
+.loan-detail-head b{font-size:11px}
 .loan-detail-close{margin-left:auto;width:30px;height:30px;border:0;border-radius:7px;background:transparent;color:#667085;font-size:20px;line-height:1}
 .loan-detail-close:hover{background:#edf2f7}
 .loan-detail-body{padding:10px;overflow:auto;max-height:calc(100vh - 143px)}
 .loan-detail-grid{display:grid;grid-template-columns:92px minmax(0,1fr);gap:0 8px;margin-bottom:10px}
 .loan-detail-grid label,.loan-detail-grid>div{padding:6px 0;border-bottom:1px dashed #edf0f4}
-.loan-detail-grid label{font-size:9px;color:var(--muted);font-weight:800}
-.loan-detail-grid>div{font-size:10px;color:#344054;word-break:break-word}
-.loan-detail-money{font-size:15px!important;font-weight:900;color:var(--nav)!important}
+.loan-detail-grid label{font-size:8px;color:var(--muted);font-weight:800}
+.loan-detail-grid>div{font-size:9.5px;color:#344054;word-break:break-word}
+.loan-detail-money{font-size:14px!important;font-weight:900;color:var(--nav)!important}
 .loan-pdf-box{border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff}
 .loan-pdf-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px;border-bottom:1px solid var(--line);background:#f8fafc}
 .loan-pdf-name{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:800;color:#475467}
@@ -7036,18 +7312,18 @@ setTimeout(()=>{
 
 /* Do not inherit the global full-width table rule. */
 .loan-debt-table{overflow:auto}
-.loan-debt-table .loan-compact-table{width:680px!important;min-width:680px!important;max-width:680px!important;table-layout:fixed}
-.loan-debt-table .loan-compact-table th:nth-child(1),.loan-debt-table .loan-compact-table td:nth-child(1){width:220px!important}
-.loan-debt-table .loan-compact-table th:nth-child(2),.loan-debt-table .loan-compact-table td:nth-child(2){width:220px!important}
-.loan-debt-table .loan-compact-table th:nth-child(3),.loan-debt-table .loan-compact-table td:nth-child(3){width:240px!important;text-align:right}
-.loan-history-table{width:920px!important;min-width:920px!important;table-layout:fixed}
-.loan-history-table th:nth-child(1),.loan-history-table td:nth-child(1){width:95px}
-.loan-history-table th:nth-child(2),.loan-history-table td:nth-child(2){width:90px}
-.loan-history-table th:nth-child(3),.loan-history-table td:nth-child(3){width:125px}
-.loan-history-table th:nth-child(4),.loan-history-table td:nth-child(4){width:125px}
-.loan-history-table th:nth-child(5),.loan-history-table td:nth-child(5){width:145px;text-align:right}
-.loan-history-table th:nth-child(6),.loan-history-table td:nth-child(6){width:280px}
-.loan-history-table th:nth-child(7),.loan-history-table td:nth-child(7){width:60px}
+.loan-debt-table .loan-compact-table{width:560px!important;min-width:560px!important;max-width:560px!important;table-layout:fixed}
+.loan-debt-table .loan-compact-table th:nth-child(1),.loan-debt-table .loan-compact-table td:nth-child(1){width:170px!important}
+.loan-debt-table .loan-compact-table th:nth-child(2),.loan-debt-table .loan-compact-table td:nth-child(2){width:170px!important}
+.loan-debt-table .loan-compact-table th:nth-child(3),.loan-debt-table .loan-compact-table td:nth-child(3){width:220px!important;text-align:right}
+.loan-history-table{width:760px!important;min-width:760px!important;table-layout:fixed}
+.loan-history-table th:nth-child(1),.loan-history-table td:nth-child(1){width:82px}
+.loan-history-table th:nth-child(2),.loan-history-table td:nth-child(2){width:74px}
+.loan-history-table th:nth-child(3),.loan-history-table td:nth-child(3){width:98px}
+.loan-history-table th:nth-child(4),.loan-history-table td:nth-child(4){width:98px}
+.loan-history-table th:nth-child(5),.loan-history-table td:nth-child(5){width:126px;text-align:right}
+.loan-history-table th:nth-child(6),.loan-history-table td:nth-child(6){width:210px}
+.loan-history-table th:nth-child(7),.loan-history-table td:nth-child(7){width:52px}
 
 @media(max-width:1150px){
  .loan-workspace.detail-open{grid-template-columns:1fr}
@@ -7056,11 +7332,207 @@ setTimeout(()=>{
  .loan-pdf-frame{height:500px}
 }
 @media(max-width:760px){
- .loan-debt-table .loan-compact-table{width:620px!important;min-width:620px!important;max-width:620px!important}
- .loan-debt-table .loan-compact-table th:nth-child(1),.loan-debt-table .loan-compact-table td:nth-child(1){width:190px!important}
- .loan-debt-table .loan-compact-table th:nth-child(2),.loan-debt-table .loan-compact-table td:nth-child(2){width:190px!important}
- .loan-debt-table .loan-compact-table th:nth-child(3),.loan-debt-table .loan-compact-table td:nth-child(3){width:240px!important}
+ .loan-debt-table .loan-compact-table{width:540px!important;min-width:540px!important;max-width:540px!important}
+ .loan-debt-table .loan-compact-table th:nth-child(1),.loan-debt-table .loan-compact-table td:nth-child(1){width:160px!important}
+ .loan-debt-table .loan-compact-table th:nth-child(2),.loan-debt-table .loan-compact-table td:nth-child(2){width:160px!important}
+ .loan-debt-table .loan-compact-table th:nth-child(3),.loan-debt-table .loan-compact-table td:nth-child(3){width:220px!important}
 }
+</style>
+
+<style id="loan-layout-override-v21">
+@media(min-width:901px){
+  #loanWorkspace.detail-open{grid-template-columns:minmax(420px,45%) minmax(520px,55%) !important;}
+  #loanWorkspace.detail-open #loanDetail{display:block !important;}
+  #loansView .loan-main{min-width:0;}
+  #loansView .loan-detail{min-width:0;}
+  #loansView .loan-debt-table .loan-compact-table{width:590px !important;min-width:590px !important;max-width:590px !important;table-layout:fixed !important;}
+  #loansView .loan-debt-table .loan-compact-table th:nth-child(1),#loansView .loan-debt-table .loan-compact-table td:nth-child(1){width:180px !important;}
+  #loansView .loan-debt-table .loan-compact-table th:nth-child(2),#loansView .loan-debt-table .loan-compact-table td:nth-child(2){width:180px !important;}
+  #loansView .loan-debt-table .loan-compact-table th:nth-child(3),#loansView .loan-debt-table .loan-compact-table td:nth-child(3){width:230px !important;text-align:right !important;}
+  #loansView .loan-history-table{width:820px !important;min-width:820px !important;max-width:820px !important;table-layout:fixed !important;}
+  #loansView .loan-history-table th:nth-child(1),#loansView .loan-history-table td:nth-child(1){width:82px !important;}
+  #loansView .loan-history-table th:nth-child(2),#loansView .loan-history-table td:nth-child(2){width:74px !important;}
+  #loansView .loan-history-table th:nth-child(3),#loansView .loan-history-table td:nth-child(3){width:110px !important;}
+  #loansView .loan-history-table th:nth-child(4),#loansView .loan-history-table td:nth-child(4){width:110px !important;}
+  #loansView .loan-history-table th:nth-child(5),#loansView .loan-history-table td:nth-child(5){width:126px !important;text-align:right !important;}
+  #loansView .loan-history-table th:nth-child(6),#loansView .loan-history-table td:nth-child(6){width:240px !important;}
+  #loansView .loan-history-table th:nth-child(7),#loansView .loan-history-table td:nth-child(7){width:52px !important;}
+  #loansView .loan-history-table td,#loansView .loan-debt-table td{white-space:nowrap !important;overflow:hidden !important;text-overflow:ellipsis !important;}
+  #loansView .loan-history-table td.wrap{white-space:nowrap !important;overflow:hidden !important;text-overflow:ellipsis !important;}
+  #loansView .loan-detail-head b{font-size:11px !important;}
+  #loansView .loan-detail-grid label{font-size:8px !important;}
+  #loansView .loan-detail-grid>div{font-size:9.5px !important;}
+  #loansView .loan-detail-money{font-size:14px !important;}
+  #loansView .loan-pdf-toolbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;}
+  #loansView .loan-pdf-name{font-size:9px;max-width:100%;word-break:break-all;color:#475467;font-weight:700;}
+  #loansView .loan-pdf-frame{width:100% !important;height:calc(100vh - 330px) !important;min-height:520px !important;border:1px solid var(--line) !important;border-radius:10px !important;background:#f8fafc !important;}
+}
+</style>
+
+<style id="loan-layout-override-v23">
+@media(min-width:901px){
+  #loanWorkspace.detail-open{grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;}
+  #loansView .loan-main, #loansView .loan-detail{min-width:0 !important;}
+
+  /* Make the filter row fit without clipped controls */
+  #loansView .loan-filters{display:flex !important;flex-wrap:wrap !important;gap:6px !important;align-items:center !important;}
+  #loansView .loan-filters input{flex:1 1 220px !important;min-width:180px !important;max-width:none !important;}
+  #loansView .loan-filters select{flex:0 1 150px !important;min-width:120px !important;max-width:170px !important;}
+
+  /* Remove horizontal scrolling in both loan tables */
+  #loansView .loan-debt-table, #loansView .loan-card .tw{overflow-x:hidden !important;}
+  #loansView .loan-debt-table .loan-compact-table{width:100% !important;min-width:0 !important;max-width:none !important;table-layout:fixed !important;}
+  #loansView .loan-debt-table .loan-compact-table th:nth-child(1),
+  #loansView .loan-debt-table .loan-compact-table td:nth-child(1){width:28% !important;}
+  #loansView .loan-debt-table .loan-compact-table th:nth-child(2),
+  #loansView .loan-debt-table .loan-compact-table td:nth-child(2){width:28% !important;}
+  #loansView .loan-debt-table .loan-compact-table th:nth-child(3),
+  #loansView .loan-debt-table .loan-compact-table td:nth-child(3){width:44% !important;text-align:right !important;}
+
+  #loansView .loan-history-table{width:100% !important;min-width:0 !important;max-width:none !important;table-layout:fixed !important;}
+  #loansView .loan-history-table th:nth-child(1),
+  #loansView .loan-history-table td:nth-child(1){width:70px !important;}
+  #loansView .loan-history-table th:nth-child(2),
+  #loansView .loan-history-table td:nth-child(2){width:62px !important;}
+  #loansView .loan-history-table th:nth-child(3),
+  #loansView .loan-history-table td:nth-child(3){width:80px !important;}
+  #loansView .loan-history-table th:nth-child(4),
+  #loansView .loan-history-table td:nth-child(4){width:80px !important;}
+  #loansView .loan-history-table th:nth-child(5),
+  #loansView .loan-history-table td:nth-child(5){width:112px !important;text-align:right !important;}
+  /* Let description take remaining space */
+  #loansView .loan-history-table th:nth-child(7),
+  #loansView .loan-history-table td:nth-child(7){width:48px !important;}
+
+  #loansView .loan-history-table th, #loansView .loan-history-table td,
+  #loansView .loan-debt-table th, #loansView .loan-debt-table td{padding:7px 8px !important;font-size:10px !important;}
+  #loansView .loan-history-table td:nth-child(1),
+  #loansView .loan-history-table td:nth-child(2),
+  #loansView .loan-history-table td:nth-child(3),
+  #loansView .loan-history-table td:nth-child(4),
+  #loansView .loan-history-table td:nth-child(5),
+  #loansView .loan-debt-table td{white-space:nowrap !important;overflow:hidden !important;text-overflow:ellipsis !important;}
+  #loansView .loan-history-table td:nth-child(6){white-space:normal !important;overflow:visible !important;text-overflow:clip !important;word-break:break-word !important;line-height:1.35 !important;}
+
+  #loansView .loan-type{font-size:7px !important;padding:0 6px !important;min-height:18px !important;}
+  #loansView .loan-history-table td:last-child button,
+  #loansView .loan-history-table td:last-child .btn{min-height:26px !important;height:26px !important;padding:0 8px !important;font-size:9px !important;}
+
+  /* Give PDF viewer a clean balanced area */
+  #loansView .loan-detail{max-height:calc(100vh - 98px) !important;}
+  #loansView .loan-detail-body{padding:10px !important;}
+  #loansView .loan-pdf-frame{width:100% !important;height:calc(100vh - 345px) !important;min-height:500px !important;}
+}
+</style>
+
+<style id="loan-layout-override-v26">
+/* Keep loan tab balanced from the moment it opens: 50/50 on desktop */
+@media(min-width:981px){
+  #loanWorkspace{grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;}
+  #loanWorkspace.detail-open{grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;}
+  #loansView .loan-detail{display:block !important;position:sticky !important;top:82px !important;max-height:calc(100vh - 98px) !important;min-width:0 !important;}
+  #loansView .loan-detail-body{max-height:calc(100vh - 143px) !important;overflow:auto !important;}
+}
+@media(max-width:980px){
+  #loanWorkspace{grid-template-columns:1fr !important;}
+  #loanWorkspace.detail-open{grid-template-columns:1fr !important;}
+  #loansView .loan-detail{display:none !important;position:static !important;max-height:none !important;}
+  #loanWorkspace.detail-open #loanDetail{display:block !important;}
+  #loansView .loan-detail-body{max-height:none !important;}
+}
+</style>
+
+
+<style id="loan-edit-style-v28">
+#loansView .loan-action-cell{width:72px;white-space:nowrap;text-align:center;}
+#loansView .loan-action-cell .table-btn{min-width:52px;padding:6px 10px;}
+#transferModal .mfoot{display:flex;gap:8px;justify-content:flex-end;align-items:center;}
+#transferModal .mfoot .btn.danger{margin-right:auto;}
+</style>
+
+<style id="loan-edit-style-v29">
+/* Loan history: shrink description a bit, widen action button so 'Sửa' never breaks */
+#loansView .loan-history-table th:nth-child(6),
+#loansView .loan-history-table td:nth-child(6){width:190px !important;}
+#loansView .loan-history-table th:nth-child(7),
+#loansView .loan-history-table td:nth-child(7){width:72px !important;}
+#loansView .loan-action-cell{width:72px !important;white-space:nowrap !important;text-align:center !important;}
+#loansView .loan-action-cell .table-btn{min-width:58px !important;padding:5px 10px !important;white-space:nowrap !important;line-height:1.1 !important;font-size:10px !important;}
+#loansView .loan-history-table td:nth-child(6){white-space:nowrap !important;overflow:hidden !important;text-overflow:ellipsis !important;}
+</style>
+
+<style id="loan-clean-status-v30">
+#loansView .loan-debt-filters{grid-template-columns:minmax(220px,1fr) 180px 180px !important;}
+#loansView .loan-history-table th:nth-child(6),#loansView .loan-history-table td:nth-child(6){width:160px !important;}
+#loansView .loan-history-table th:nth-child(7),#loansView .loan-history-table td:nth-child(7){width:54px !important;text-align:center !important;}
+#loansView .loan-history-table th:nth-child(8),#loansView .loan-history-table td:nth-child(8){width:72px !important;text-align:center !important;}
+#loansView .loan-pdf-status-cell{white-space:nowrap !important;text-align:center !important;}
+#loansView .loan-pdf-badge{display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:20px;padding:0 7px;border-radius:999px;background:#eef4ff;color:#2457a7;border:1px solid #d8e5ff;font-size:8px;font-weight:900;letter-spacing:.2px;}
+#loansView .loan-pdf-missing{color:#b3bcc8;font-size:11px;}
+#loansView .loan-action-cell{width:72px !important;white-space:nowrap !important;}
+#loansView .loan-action-cell .table-btn{white-space:nowrap !important;min-width:58px !important;}
+@media(max-width:900px){#loansView .loan-debt-filters{grid-template-columns:1fr 1fr !important;}#loansView .loan-debt-filters input{grid-column:1/-1 !important;}}
+</style>
+
+<style id="loan-combined-action-v31">
+#loansView .loan-history-table th:nth-child(6),#loansView .loan-history-table td:nth-child(6){width:180px !important;}
+#loansView .loan-history-table th:nth-child(7),#loansView .loan-history-table td:nth-child(7){width:96px !important;text-align:center !important;}
+#loansView .loan-action-cell{width:96px !important;white-space:nowrap !important;text-align:center !important;}
+#loansView .loan-action-stack{display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;}
+#loansView .loan-action-cell .table-btn.icon-btn{min-width:32px !important;width:32px !important;height:30px !important;padding:0 !important;border-radius:8px !important;font-size:14px !important;line-height:1 !important;display:inline-flex !important;align-items:center !important;justify-content:center !important;}
+#loansView .loan-pdf-status-cell{display:none !important;}
+#loansView .loan-pdf-badge{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:22px;padding:0 8px;border-radius:999px;font-size:9px;font-weight:900;background:#eef4ff;color:#2457a7;border:1px solid #d4def8;}
+#loansView .loan-pdf-missing{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:22px;color:#98a2b3;font-weight:700;}
+</style>
+
+<style id="loan-v32-align-fix">
+#loansView .loan-history-table th:nth-child(7),#loansView .loan-history-table td:nth-child(7){width:88px !important;text-align:center !important;}
+#loansView .loan-action-cell{width:88px !important;padding-left:6px !important;padding-right:6px !important;vertical-align:middle !important;}
+#loansView .loan-action-stack{display:flex !important;align-items:center !important;justify-content:center !important;gap:6px !important;min-height:28px !important;}
+#loansView .loan-pdf-badge,#loansView .loan-pdf-missing{width:36px !important;min-width:36px !important;height:22px !important;display:inline-flex !important;align-items:center !important;justify-content:center !important;box-sizing:border-box !important;}
+#loansView .loan-pdf-missing{border:1px solid #e4e7ec !important;border-radius:999px !important;background:#f8fafc !important;color:#98a2b3 !important;}
+#loansView .loan-action-cell .table-btn.icon-btn{width:30px !important;min-width:30px !important;height:30px !important;padding:0 !important;display:inline-flex !important;align-items:center !important;justify-content:center !important;font-size:13px !important;}
+</style>
+
+<style id="funds-cutoff-v33">
+#fundsView .funds-cutoff-control{display:flex;align-items:center;gap:6px;padding:0 8px;height:38px;border:1px solid #d7dee8;border-radius:8px;background:#fff;color:#667085;font-size:9px;font-weight:800;white-space:nowrap}
+#fundsView .funds-cutoff-control .mep-select{border:0!important;padding:0!important;height:30px!important;min-width:132px;background:transparent!important;box-shadow:none!important}
+#fundsView .funds-cutoff-control:focus-within{border-color:#9fb7cf;box-shadow:0 0 0 2px rgba(23,55,86,.06)}
+@media(max-width:980px){#fundsView .funds-cutoff-control{width:100%;justify-content:space-between}}
+</style>
+
+<style id="export-range-v36">
+#exportRangeModal .field .field{margin:0}
+#exportRangeModal select{min-height:38px}
+#exportRangeModal .note{font-size:10px}
+</style>
+
+<style id="tax-outstanding-v37">
+#taxOutstandingModal .mbox{max-width:900px!important}
+#taxOutstandingModal .mhead{padding-bottom:12px}
+#taxOutstandingModal .cc-kpi-row{display:grid!important;grid-template-columns:1.2fr .8fr 1fr!important;gap:10px!important;margin:4px 0 14px!important}
+#taxOutstandingModal .cc-kpi-row>div{border:1px solid #dbe4ee;border-radius:10px;background:#f8fbfe;padding:10px 12px!important;min-height:72px}
+#taxOutstandingModal .cc-kpi-row span{display:block;color:#667085;font-size:10px;font-weight:800;margin-bottom:5px}
+#taxOutstandingModal .cc-kpi-row b{display:block;color:#102f50;font-size:18px;line-height:1.2;font-variant-numeric:tabular-nums}
+#taxOutstandingModal .tax-detail-wrap{border:1px solid #d9e2ec;border-radius:10px;overflow:auto;max-height:420px;background:#fff}
+#taxOutstandingModal .tax-detail-table{width:100%;border-collapse:collapse;table-layout:fixed}
+#taxOutstandingModal .tax-detail-table th,#taxOutstandingModal .tax-detail-table td{padding:10px 12px;border-bottom:1px solid #e7edf3;font-size:11px;vertical-align:middle}
+#taxOutstandingModal .tax-detail-table thead th{position:sticky;top:0;z-index:2;background:#17395e;color:#fff;font-weight:900;text-align:left}
+#taxOutstandingModal .tax-detail-table th:nth-child(1),#taxOutstandingModal .tax-detail-table td:nth-child(1){width:120px}
+#taxOutstandingModal .tax-detail-table th:nth-child(2),#taxOutstandingModal .tax-detail-table td:nth-child(2){width:190px}
+#taxOutstandingModal .tax-detail-table th:nth-child(3),#taxOutstandingModal .tax-detail-table td:nth-child(3){width:140px}
+#taxOutstandingModal .tax-detail-table th:nth-child(4),#taxOutstandingModal .tax-detail-table td:nth-child(4){width:180px}
+#taxOutstandingModal .tax-detail-table .money-head,#taxOutstandingModal .tax-detail-table .money{text-align:right}
+#taxOutstandingModal .tax-detail-table tbody tr:hover{background:#f8fbfe}
+#taxOutstandingModal .tax-detail-table tfoot th{position:sticky;bottom:0;background:#edf4fa;color:#17395e;border-top:1px solid #c6d6e5;border-bottom:0;font-weight:950}
+#taxOutstandingModal .tax-period-pill{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;background:#eef4ff;color:#2457a7;font-weight:900}
+#taxOutstandingModal .tax-source-pill{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;font-size:9px;font-weight:850;background:#f2f4f7;color:#475467}
+#taxOutstandingModal .tax-source-pill.payroll{background:#ecfdf3;color:#027a48}
+#taxOutstandingModal .tax-source-pill.legacy{background:#fff7ed;color:#b54708}
+#taxOutstandingModal .tax-due{font-weight:800;color:#344054}
+#taxOutstandingModal .tax-due.overdue{color:#b42318}
+#taxOutstandingModal .tax-money{font-weight:900;font-variant-numeric:tabular-nums}
+@media(max-width:760px){#taxOutstandingModal .cc-kpi-row{grid-template-columns:1fr!important}#taxOutstandingModal .tax-detail-wrap{max-height:55vh}}
 </style>
 </body></html>
 
@@ -7068,5 +7540,5 @@ setTimeout(()=>{
 #payrollView #salaryQuarterSummary td,#payrollView #salaryQuarterSummary th{white-space:nowrap}#payrollView .mep-table-wrap{max-width:100%}#payrollView .mep-card{overflow:hidden}
 
 /* CLEAN INTERNAL LOAN UI */
-.loan-head{align-items:center}.loan-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}.loan-stat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 12px}.loan-stat span{display:block;color:var(--muted);font-size:9px;font-weight:850}.loan-stat b{display:block;margin-top:5px;color:var(--nav);font-size:17px;font-variant-numeric:tabular-nums}.loan-stat small{display:block;margin-top:3px;color:#8a96a5;font-size:9px}.loan-stat.emphasis{border-color:#d7dee8;background:#fbfcfe}.loan-card{padding:0;overflow:hidden}.loan-card .ctop{padding:10px 12px;margin:0;border-bottom:1px solid var(--line)}.loan-card .loan-filters{padding:8px 10px;margin:0;border-bottom:1px solid var(--line);background:#f8fafc;position:static}.compact-loan-filters input{min-width:260px}.loan-compact-table{min-width:620px}.loan-compact-table th:nth-child(3),.loan-compact-table td:nth-child(3){text-align:right}.loan-history-table{min-width:900px}.loan-history-table th:nth-child(5),.loan-history-table td:nth-child(5){text-align:right}.loan-type{display:inline-flex;align-items:center;min-height:21px;padding:0 7px;border-radius:999px;font-size:8px;font-weight:900;white-space:nowrap}.loan-type.loan{background:#eef4ff;color:#2457a7}.loan-type.repayment{background:#ecfdf3;color:#027a48}.loan-type.transfer{background:#f4f0ff;color:#5d48b7}.loan-modal-box{max-width:640px}.loan-form-grid{margin-top:6px}.loan-form-grid .field label{font-size:10px!important}.loan-form-grid .field input,.loan-form-grid .field select{min-height:38px;font-size:12px!important}.loan-form-grid .field.full{grid-column:1/-1}.loan-total-row th{position:sticky;bottom:0;z-index:3;background:#eef4f9!important;color:#15395f!important;border-top:1px solid #cbd8e5!important;font-size:9.5px!important;font-weight:950!important;padding:8px 10px!important}.loan-total-row .amt{text-align:right!important;font-variant-numeric:tabular-nums}.loan-total-row .neg{color:#c83b3b!important}@media(max-width:760px){.loan-summary{grid-template-columns:1fr}.loan-form-grid{grid-template-columns:1fr}.loan-form-grid .field.full{grid-column:auto}}
+.loan-head{align-items:center}.loan-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}.loan-card .tw{padding-right:0}.loan-detail-body .loan-pdf-box{margin-top:2px}.loan-detail-body .loan-pdf-toolbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px}.loan-detail-body .loan-pdf-name{font-size:9px;max-width:100%;word-break:break-all;color:#475467;font-weight:700}.loan-detail-body .loan-pdf-frame{width:100%;height:calc(100vh - 330px);min-height:520px;border:1px solid var(--line);border-radius:10px;background:#f8fafc}.loan-history-table td,.loan-debt-table td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.loan-history-table td.wrap{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.loan-stat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 12px}.loan-stat span{display:block;color:var(--muted);font-size:9px;font-weight:850}.loan-stat b{display:block;margin-top:5px;color:var(--nav);font-size:17px;font-variant-numeric:tabular-nums}.loan-stat small{display:block;margin-top:3px;color:#8a96a5;font-size:9px}.loan-stat.emphasis{border-color:#d7dee8;background:#fbfcfe}.loan-card{padding:0;overflow:hidden}.loan-card .ctop{padding:10px 12px;margin:0;border-bottom:1px solid var(--line)}.loan-card .loan-filters{padding:8px 10px;margin:0;border-bottom:1px solid var(--line);background:#f8fafc;position:static}.compact-loan-filters input{min-width:260px}.loan-compact-table{min-width:620px}.loan-compact-table th:nth-child(3),.loan-compact-table td:nth-child(3){text-align:right}.loan-history-table{min-width:900px}.loan-history-table th:nth-child(5),.loan-history-table td:nth-child(5){text-align:right}.loan-type{display:inline-flex;align-items:center;min-height:21px;padding:0 7px;border-radius:999px;font-size:8px;font-weight:900;white-space:nowrap}.loan-type.loan{background:#eef4ff;color:#2457a7}.loan-type.repayment{background:#ecfdf3;color:#027a48}.loan-type.transfer{background:#f4f0ff;color:#5d48b7}.loan-modal-box{max-width:640px}.loan-form-grid{margin-top:6px}.loan-form-grid .field label{font-size:10px!important}.loan-form-grid .field input,.loan-form-grid .field select{min-height:38px;font-size:12px!important}.loan-form-grid .field.full{grid-column:1/-1}.loan-total-row th{position:sticky;bottom:0;z-index:3;background:#eef4f9!important;color:#15395f!important;border-top:1px solid #cbd8e5!important;font-size:9.5px!important;font-weight:950!important;padding:8px 10px!important}.loan-total-row .amt{text-align:right!important;font-variant-numeric:tabular-nums}.loan-total-row .neg{color:#c83b3b!important}@media(max-width:760px){.loan-summary{grid-template-columns:1fr}.loan-form-grid{grid-template-columns:1fr}.loan-form-grid .field.full{grid-column:auto}}
 </style>
