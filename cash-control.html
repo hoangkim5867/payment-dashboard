@@ -3670,40 +3670,100 @@ function renderLoanDetail(){
   };
 }
 function openLoanDriveConfig(){const cfg=loanDriveConfig();$('loanDriveClientId').value=cfg.clientId;$('loanDriveFolderId').value=cfg.folderId;openModal('loanDriveConfigModal')}
-function getLoanDriveToken(){
+function normalizeDriveFolderId(value){
+  const raw=String(value||'').trim();
+  if(!raw)return '';
+  const m=raw.match(/\/folders\/([A-Za-z0-9_-]+)/);
+  return (m?m[1]:raw.split('?')[0].split('#')[0]).trim();
+}
+function driveErrorMessage(payload,status=0){
+  let msg='';
+  try{const obj=typeof payload==='string'?JSON.parse(payload):payload;msg=obj?.error?.message||obj?.error_description||obj?.message||''}catch{msg=String(payload||'')}
+  const text=String(msg||payload||`HTTP ${status}`);
+  if(/accessNotConfigured|has not been used|Drive API.*disabled|SERVICE_DISABLED/i.test(text))return 'Google Drive API chưa được bật cho project Google Cloud này. Vào APIs & Services → Library → Google Drive API → Enable.';
+  if(/origin|redirect_uri|idpiframe_initialization_failed|popup_failed_to_open/i.test(text))return 'OAuth Client chưa cho phép domain hiện tại. Kiểm tra Authorized JavaScript origins của Payment UNC Web.';
+  if(/insufficientPermissions|insufficient.*scope|PERMISSION_DENIED/i.test(text))return 'Tài khoản Google/OAuth chưa có quyền Drive cần thiết. Hãy cấp lại quyền rồi thử lại.';
+  if(/File not found|notFound|404/i.test(text))return 'Không tìm thấy thư mục Drive. Kiểm tra lại Folder ID hoặc quyền truy cập thư mục.';
+  if(/storageQuotaExceeded|quota/i.test(text))return 'Google Drive đã vượt giới hạn dung lượng/quota.';
+  return text;
+}
+function getLoanDriveToken(forceConsent=false){
   return new Promise((resolve,reject)=>{
     const cfg=loanDriveConfig();if(!cfg.clientId)return reject(new Error('Chưa cài Google OAuth Client ID.'));
     if(!window.google?.accounts?.oauth2)return reject(new Error('Google Identity Services chưa tải xong. Kiểm tra Internet rồi thử lại.'));
-    if(loanDriveAccessToken)return resolve(loanDriveAccessToken);
-    loanDriveTokenClient=google.accounts.oauth2.initTokenClient({client_id:cfg.clientId,scope:'https://www.googleapis.com/auth/drive',callback:(resp)=>{if(resp?.error)return reject(new Error(resp.error));loanDriveAccessToken=resp.access_token||'';loanDriveAccessToken?resolve(loanDriveAccessToken):reject(new Error('Không lấy được access token.'))}});
-    loanDriveTokenClient.requestAccessToken({prompt:''});
+    if(loanDriveAccessToken&&!forceConsent)return resolve(loanDriveAccessToken);
+    let settled=false;
+    loanDriveTokenClient=google.accounts.oauth2.initTokenClient({
+      client_id:cfg.clientId,
+      scope:'https://www.googleapis.com/auth/drive',
+      callback:(resp)=>{
+        if(settled)return;settled=true;
+        if(resp?.error)return reject(new Error(driveErrorMessage(resp)));
+        loanDriveAccessToken=resp?.access_token||'';
+        loanDriveAccessToken?resolve(loanDriveAccessToken):reject(new Error('Không lấy được access token từ Google.'));
+      },
+      error_callback:(err)=>{if(settled)return;settled=true;reject(new Error(driveErrorMessage(err)))}
+    });
+    try{loanDriveTokenClient.requestAccessToken({prompt:forceConsent?'consent':''})}
+    catch(err){reject(new Error(driveErrorMessage(err)))}
   });
 }
+async function verifyLoanDriveFolder(token,folderId){
+  if(!folderId)return {id:'',name:'My Drive'};
+  const url=`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(folderId)}?fields=id,name,mimeType,capabilities(canAddChildren)&supportsAllDrives=true`;
+  const res=await fetch(url,{headers:{Authorization:`Bearer ${token}`}});
+  const text=await res.text();
+  if(!res.ok)throw new Error(driveErrorMessage(text,res.status));
+  const info=JSON.parse(text||'{}');
+  if(info.mimeType!=='application/vnd.google-apps.folder')throw new Error('Folder ID đang trỏ tới một file, không phải thư mục Drive.');
+  if(info.capabilities&&info.capabilities.canAddChildren===false)throw new Error(`Không có quyền upload vào thư mục “${info.name||folderId}”.`);
+  return info;
+}
 async function uploadLoanPdf(recordId,file){
-  if(!ensureMepWrite())return;if(!file||file.type!=='application/pdf'){alert(cashLang==='zh'?'请选择PDF文件。':'Chỉ chọn file PDF.');return}
+  if(!ensureMepWrite())return;
+  if(!file||(!String(file.type||'').includes('pdf')&&!/\.pdf$/i.test(file.name||''))){alert(cashLang==='zh'?'请选择PDF文件。':'Chỉ chọn file PDF.');return}
   const x=loanRecordById(recordId);if(!x)return;
-  const cfg=loanDriveConfig();
+  const cfgRaw=loanDriveConfig();
+  const cfg={...cfgRaw,folderId:normalizeDriveFolderId(cfgRaw.folderId)};
+  if(!cfg.folderId){alert(cashLang==='zh'?'请先设置Drive文件夹ID。':'Hãy cài Drive Folder ID trước.');return}
   try{
-    const token=await getLoanDriveToken();
-    const cleanFilePart=value=>String(value||'').trim().replace(/[\\/:*?"<>|]/g,'-').replace(/\s+/g,' ');
+    let token;
+    try{token=await getLoanDriveToken(false)}catch(firstErr){
+      console.warn('Initial Drive token failed, retry with consent',firstErr);
+      token=await getLoanDriveToken(true);
+    }
+    await verifyLoanDriveFolder(token,cfg.folderId);
+    const cleanFilePart=value=>String(value||'').trim().replace(/[\/:*?"<>|]/g,'-').replace(/\s+/g,' ');
     const typeZh=x.transferType==='repayment'?'还款':x.transferType==='transfer'?'内部调剂':'借款';
     const datePart=String(x.actualDate||isoToday()).replace(/[^0-9]/g,'').slice(0,8)||String(isoToday()).replace(/[^0-9]/g,'').slice(0,8);
     const fromPart=cleanFilePart(x.fromProject||x.lender||'PROJECT');
     const toPart=cleanFilePart(x.toProject||x.borrower||'PROJECT');
     const amountPart=Math.round(Math.abs(Number(x.actualAmount||x.amount||0))).toString();
     const safeName=`${typeZh}_${datePart}_${fromPart}转${toPart}_${amountPart}.pdf`;
-    const meta={name:safeName,mimeType:'application/pdf'};if(cfg.folderId)meta.parents=[cfg.folderId];
-    const boundary='cashloan_'+Date.now();
-    const body=new Blob([`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${boundary}\r\nContent-Type: application/pdf\r\n\r\n`,file,`\r\n--${boundary}--`],{type:`multipart/related; boundary=${boundary}`});
-    const res=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':`multipart/related; boundary=${boundary}`},body});
-    if(!res.ok)throw new Error((await res.text())||`Drive upload ${res.status}`);
-    const out=await res.json();
+    const meta={name:safeName,mimeType:'application/pdf',parents:[cfg.folderId]};
+    const boundary='cashloan_'+Date.now().toString(36);
+    const body=new Blob([
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n`,
+      `--${boundary}\r\nContent-Type: application/pdf\r\nContent-Transfer-Encoding: binary\r\n\r\n`,
+      file,
+      `\r\n--${boundary}--\r\n`
+    ],{type:`multipart/related; boundary=${boundary}`});
+    const uploadUrl='https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink,webContentLink';
+    let res=await fetch(uploadUrl,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':`multipart/related; boundary=${boundary}`},body});
+    if(res.status===401){loanDriveAccessToken='';token=await getLoanDriveToken(true);res=await fetch(uploadUrl,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':`multipart/related; boundary=${boundary}`},body})}
+    const responseText=await res.text();
+    if(!res.ok)throw new Error(driveErrorMessage(responseText,res.status));
+    const out=JSON.parse(responseText||'{}');
     const pdfLink={fileId:out.id,name:out.name||safeName,webViewLink:out.webViewLink||`https://drive.google.com/file/d/${out.id}/view`,uploadedAt:new Date().toISOString()};
     cashCloudState.loanPdfLinks={...(cashCloudState.loanPdfLinks||{}),[String(recordId)]:pdfLink};
     const arr=[...manual()],i=arr.findIndex(r=>String(r.id)===String(recordId));
     if(i>=0){arr[i]={...arr[i],loanPdf:pdfLink};cashCloudState.manualRecords=arr}
-    if(await persistCashCloud('Upload PDF hồ sơ vay nội bộ')){renderLoans();openLoanDetail(recordId)}
-  }catch(error){console.error('LOAN PDF UPLOAD ERROR',error);loanDriveAccessToken='';alert((cashLang==='zh'?'上传PDF失败：':'Upload PDF thất bại: ')+String(error?.message||error))}
+    if(await persistCashCloud('Upload PDF hồ sơ vay nội bộ')){renderLoans();openLoanDetail(recordId);alert(cashLang==='zh'?`上传成功：${pdfLink.name}`:`Upload thành công: ${pdfLink.name}`)}
+  }catch(error){
+    console.error('LOAN PDF UPLOAD ERROR',error);
+    loanDriveAccessToken='';
+    alert((cashLang==='zh'?'上传PDF失败：\n':'Upload PDF thất bại:\n')+driveErrorMessage(error?.message||error));
+  }
 }
 function latestLoanForPair(lender,borrower){return allTransfers().filter(x=>x.transferType==='loan'&&normProject(x.lender||x.fromProject)===normProject(lender)&&normProject(x.borrower||x.toProject)===normProject(borrower)).sort((a,b)=>String(b.actualDate||'').localeCompare(String(a.actualDate||'')))[0]||null}
 function applyLoanLanguage(){
@@ -6518,7 +6578,7 @@ $('resetLegacy').onclick=async()=>{
 };$('showUnclassified').textContent='Xem tài chính & bảo lãnh';$('showUnclassified').onclick=()=>{$('eSource').value='legacy_finance';renderExpenses()};
 if($('loanDriveConfigBtn'))$('loanDriveConfigBtn').onclick=openLoanDriveConfig;
 if($('loanDetailClose'))$('loanDetailClose').onclick=closeLoanDetail;
-if($('saveLoanDriveConfig'))$('saveLoanDriveConfig').onclick=()=>{const clientId=String($('loanDriveClientId').value||'').trim(),folderId=String($('loanDriveFolderId').value||'').trim();if(!clientId){alert(cashLang==='zh'?'请输入Google OAuth Client ID。':'Nhập Google OAuth Client ID.');return}localStorage.setItem('cashLoanDriveClientId',clientId);localStorage.setItem('cashLoanDriveFolderId',folderId);loanDriveAccessToken='';$('loanDriveConfigModal').classList.remove('show');renderLoanDetail()};
+if($('saveLoanDriveConfig'))$('saveLoanDriveConfig').onclick=()=>{const clientId=String($('loanDriveClientId').value||'').trim(),folderId=String($('loanDriveFolderId').value||'').trim();if(!clientId){alert(cashLang==='zh'?'请输入Google OAuth Client ID。':'Nhập Google OAuth Client ID.');return}localStorage.setItem('cashLoanDriveClientId',clientId);localStorage.setItem('cashLoanDriveFolderId',normalizeDriveFolderId(folderId));loanDriveAccessToken='';$('loanDriveConfigModal').classList.remove('show');renderLoanDetail()};
 if($('exportLoanExcelBtn'))$('exportLoanExcelBtn').onclick=exportLoansExcel;
 $('addTransferBtn').onclick=()=>{const d=new Date();$('tDate').value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;$('tFrom').value='';$('tTo').value='';$('tAmount').value='';$('tDesc').value='';$('tType').value='transfer';openModal('transferModal')};$('saveTransfer').onclick=async()=>{
     const from=normProject($('tFrom').value),
