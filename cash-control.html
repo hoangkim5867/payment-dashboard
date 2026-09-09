@@ -3657,8 +3657,24 @@ function renderLoanDetail(){
       ${preview?`<iframe class="loan-pdf-frame" src="${preview}" title="Loan PDF"></iframe>`:`<div class="loan-pdf-empty">${zh?'上传贷款/调剂PDF后，可直接在此预览。':'Upload PDF hồ sơ vay/điều chuyển, sau đó file sẽ hiển thị ngay tại đây.'}</div>`}
     </div>`;
   $('loanUploadPdfBtn').onclick=()=>{
-    const cfg=loanDriveConfig();if(!cfg.clientId){openLoanDriveConfig();return}
-    $('loanPdfInput').click();
+    const cfg=loanDriveConfig();
+    if(!cfg.clientId){openLoanDriveConfig();return}
+    // Request OAuth token directly from the user's click. Browsers may block
+    // Google popup windows if requestAccessToken() happens later from the
+    // file-input change event or after awaited network checks.
+    getLoanDriveToken(false).then(()=>{
+      const input=$('loanPdfInput');
+      if(input){input.value='';input.click()}
+    }).catch(async firstErr=>{
+      try{
+        await getLoanDriveToken(true);
+        const input=$('loanPdfInput');
+        if(input){input.value='';input.click()}
+      }catch(err){
+        console.error('LOAN DRIVE AUTH ERROR',err);
+        alert((cashLang==='zh'?'Google Drive授权失败：\n':'Không mở được đăng nhập Google Drive:\n')+driveErrorMessage(err?.message||err));
+      }
+    });
   };
   $('loanPdfInput').onchange=()=>{const f=$('loanPdfInput').files?.[0];if(f)uploadLoanPdf(x.id,f)};
   if($('loanOpenDriveBtn'))$('loanOpenDriveBtn').onclick=()=>window.open(pdf.webViewLink||`https://drive.google.com/file/d/${pdf.fileId}/view`,'_blank','noopener');
@@ -3727,11 +3743,8 @@ async function uploadLoanPdf(recordId,file){
   const cfg={...cfgRaw,folderId:normalizeDriveFolderId(cfgRaw.folderId)};
   if(!cfg.folderId){alert(cashLang==='zh'?'请先设置Drive文件夹ID。':'Hãy cài Drive Folder ID trước.');return}
   try{
-    let token;
-    try{token=await getLoanDriveToken(false)}catch(firstErr){
-      console.warn('Initial Drive token failed, retry with consent',firstErr);
-      token=await getLoanDriveToken(true);
-    }
+    const token=loanDriveAccessToken;
+    if(!token)throw new Error(cashLang==='zh'?'尚未取得Google Drive授权，请重新点击“上传PDF”。':'Chưa có quyền Google Drive. Hãy bấm lại nút Upload PDF.');
     await verifyLoanDriveFolder(token,cfg.folderId);
     const cleanFilePart=value=>String(value||'').trim().replace(/[\/:*?"<>|]/g,'-').replace(/\s+/g,' ');
     const typeZh=x.transferType==='repayment'?'还款':x.transferType==='transfer'?'内部调剂':'借款';
@@ -3750,7 +3763,7 @@ async function uploadLoanPdf(recordId,file){
     ],{type:`multipart/related; boundary=${boundary}`});
     const uploadUrl='https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink,webContentLink';
     let res=await fetch(uploadUrl,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':`multipart/related; boundary=${boundary}`},body});
-    if(res.status===401){loanDriveAccessToken='';token=await getLoanDriveToken(true);res=await fetch(uploadUrl,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':`multipart/related; boundary=${boundary}`},body})}
+    if(res.status===401){loanDriveAccessToken='';throw new Error(cashLang==='zh'?'Google授权已过期，请重新点击“上传PDF”授权后再上传。':'Quyền Google Drive đã hết hạn. Hãy bấm lại Upload PDF để cấp quyền rồi tải lại.')}
     const responseText=await res.text();
     if(!res.ok)throw new Error(driveErrorMessage(responseText,res.status));
     const out=JSON.parse(responseText||'{}');
