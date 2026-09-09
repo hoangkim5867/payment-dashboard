@@ -2374,6 +2374,7 @@ function normalizeCashCloudState(raw){
         partnerMasters:Array.isArray(x.partnerMasters)?x.partnerMasters:[],
         inflowRecords:Array.isArray(x.inflowRecords)?x.inflowRecords:[],
         paymentRequests:Array.isArray(x.paymentRequests)?x.paymentRequests:[],
+        loanPdfLinks:x.loanPdfLinks&&typeof x.loanPdfLinks==="object"?x.loanPdfLinks:{},
         salaryRecords:Array.isArray(x.salaryRecords)?x.salaryRecords:[],
         guarantees:Array.isArray(x.guarantees)?x.guarantees:[],
         facilities:Array.isArray(x.facilities)?x.facilities:[],
@@ -2468,6 +2469,7 @@ async function persistCashCloud(action="Cập nhật Cash Control"){
                 partnerMasters:cashCloudState.partnerMasters,
                 inflowRecords:cashCloudState.inflowRecords,
                 paymentRequests:cashCloudState.paymentRequests,
+                loanPdfLinks:cashCloudState.loanPdfLinks||{},
                 salaryRecords:cashCloudState.salaryRecords,
                 guarantees:cashCloudState.guarantees,
                 facilities:cashCloudState.facilities,
@@ -2512,6 +2514,7 @@ async function ensureCashCloudDocument(){
                 partnerMasters:[],
                 inflowRecords:[],
                 paymentRequests:[],
+                loanPdfLinks:{},
                 guarantees:[],
                 facilities:[],
                 auditLog:[],
@@ -3615,6 +3618,11 @@ let loanDriveTokenClient=null;
 let loanDriveAccessToken='';
 function loanDriveConfig(){return {clientId:localStorage.getItem('cashLoanDriveClientId')||'',folderId:localStorage.getItem('cashLoanDriveFolderId')||''}}
 function loanRecordById(id){return allTransfers().find(x=>String(x.id||'')===String(id||''))||null}
+function loanPdfForRecord(record){
+  if(!record)return null;
+  const linked=(cashCloudState.loanPdfLinks||{})[String(record.id||'')];
+  return linked||record.loanPdf||null;
+}
 function loanTypeText(type){
   const zh=cashLang==='zh';
   return type==='loan'?(zh?'借出':'Cho vay'):type==='repayment'?(zh?'还款':'Hoàn vay'):(zh?'内部调剂':'Điều chuyển');
@@ -3627,7 +3635,7 @@ function renderLoanDetail(){
   const x=loanRecordById(loanSelectedId);if(!x){closeLoanDetail();return}
   wrap.classList.add('detail-open');
   document.querySelectorAll('[data-loan-row]').forEach(r=>r.classList.toggle('selected',r.dataset.loanRow===loanSelectedId));
-  const zh=cashLang==='zh',pdf=x.loanPdf||null,preview=loanPdfPreviewUrl(pdf);
+  const zh=cashLang==='zh',pdf=loanPdfForRecord(x),preview=loanPdfPreviewUrl(pdf);
   const pdfName=pdf?.name||'';
   body.innerHTML=`
     <div class="loan-detail-grid">
@@ -3656,7 +3664,9 @@ function renderLoanDetail(){
   if($('loanOpenDriveBtn'))$('loanOpenDriveBtn').onclick=()=>window.open(pdf.webViewLink||`https://drive.google.com/file/d/${pdf.fileId}/view`,'_blank','noopener');
   if($('loanUnlinkPdfBtn'))$('loanUnlinkPdfBtn').onclick=async()=>{
     if(!confirm(zh?'仅解除Cash Control中的文件关联？Drive中的PDF不会被删除。':'Chỉ gỡ liên kết PDF khỏi Cash Control? File trên Drive sẽ không bị xóa.'))return;
-    const arr=[...manual()],i=arr.findIndex(r=>String(r.id)===String(x.id));if(i<0)return;arr[i]={...arr[i],loanPdf:null};cashCloudState.manualRecords=arr;if(await persistCashCloud('Gỡ liên kết PDF vay nội bộ')){renderLoans();renderLoanDetail()}
+    const links={...(cashCloudState.loanPdfLinks||{})};delete links[String(x.id||'')];cashCloudState.loanPdfLinks=links;
+    const arr=[...manual()],i=arr.findIndex(r=>String(r.id)===String(x.id));if(i>=0){arr[i]={...arr[i],loanPdf:null};cashCloudState.manualRecords=arr}
+    if(await persistCashCloud('Gỡ liên kết PDF vay nội bộ')){renderLoans();renderLoanDetail()}
   };
 }
 function openLoanDriveConfig(){const cfg=loanDriveConfig();$('loanDriveClientId').value=cfg.clientId;$('loanDriveFolderId').value=cfg.folderId;openModal('loanDriveConfigModal')}
@@ -3688,9 +3698,10 @@ async function uploadLoanPdf(recordId,file){
     const res=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':`multipart/related; boundary=${boundary}`},body});
     if(!res.ok)throw new Error((await res.text())||`Drive upload ${res.status}`);
     const out=await res.json();
-    const arr=[...manual()],i=arr.findIndex(r=>String(r.id)===String(recordId));if(i<0)throw new Error('Không tìm thấy giao dịch để gắn PDF.');
-    arr[i]={...arr[i],loanPdf:{fileId:out.id,name:out.name||safeName,webViewLink:out.webViewLink||`https://drive.google.com/file/d/${out.id}/view`,uploadedAt:new Date().toISOString()}};
-    cashCloudState.manualRecords=arr;
+    const pdfLink={fileId:out.id,name:out.name||safeName,webViewLink:out.webViewLink||`https://drive.google.com/file/d/${out.id}/view`,uploadedAt:new Date().toISOString()};
+    cashCloudState.loanPdfLinks={...(cashCloudState.loanPdfLinks||{}),[String(recordId)]:pdfLink};
+    const arr=[...manual()],i=arr.findIndex(r=>String(r.id)===String(recordId));
+    if(i>=0){arr[i]={...arr[i],loanPdf:pdfLink};cashCloudState.manualRecords=arr}
     if(await persistCashCloud('Upload PDF hồ sơ vay nội bộ')){renderLoans();openLoanDetail(recordId)}
   }catch(error){console.error('LOAN PDF UPLOAD ERROR',error);loanDriveAccessToken='';alert((cashLang==='zh'?'上传PDF失败：':'Upload PDF thất bại: ')+String(error?.message||error))}
 }
@@ -3779,7 +3790,7 @@ function exportLoansExcel(){
     [zh?'按网页当前筛选结果导出':'Xuất theo bộ lọc đang hiển thị trên web'],
     [],
     zh?['日期','类型','转出项目','转入项目','金额','说明','PDF']:['Ngày','Loại','Từ dự án','Đến dự án','Số tiền','Nội dung','PDF'],
-    ...shownHistory.map(x=>[x.actualDate||'',loanTypeText(x.transferType),x.fromProject||'',x.toProject||'',Number(x.amount||0),x.description||'',x.loanPdf?.webViewLink||'']),
+    ...shownHistory.map(x=>[x.actualDate||'',loanTypeText(x.transferType),x.fromProject||'',x.toProject||'',Number(x.amount||0),x.description||'',loanPdfForRecord(x)?.webViewLink||'']),
     [zh?`当前显示合计 · ${shownHistory.length}笔交易`:`TỔNG ĐANG HIỂN THỊ · ${shownHistory.length} giao dịch`,'','','',historyTotal,'','']
   ];
   const wsHist=XLSX.utils.aoa_to_sheet(histData);
@@ -3819,7 +3830,7 @@ function renderLoans(){
   const q=($('loanSearch')?.value||'').toLowerCase(),pr=$('loanProject')?.value||'',ty=$('loanType')?.value||'';
   const pairMatch=x=>!loanPairFilter||((normProject(x.fromProject)===normProject(loanPairFilter.lender)&&normProject(x.toProject)===normProject(loanPairFilter.borrower))||(normProject(x.fromProject)===normProject(loanPairFilter.borrower)&&normProject(x.toProject)===normProject(loanPairFilter.lender)));
   const arr=full.filter(x=>pairMatch(x)&&(!q||[x.fromProject,x.toProject,x.description].join(' ').toLowerCase().includes(q))&&(!pr||x.fromProject===pr||x.toProject===pr)&&(!ty||x.transferType===ty));
-  if($('loanBody'))$('loanBody').innerHTML=arr.map(x=>`<tr class="loan-row-selectable ${String(x.id)===loanSelectedId?'selected':''}" data-loan-row="${esc(x.id)}"><td>${fmtDate(x.actualDate)}</td><td><span class="loan-type ${x.transferType==='loan'?'loan':x.transferType==='repayment'?'repayment':'transfer'}">${esc(loanTypeText(x.transferType).toUpperCase())}</span></td><td><b>${esc(x.fromProject)}</b></td><td><b>${esc(x.toProject)}</b></td><td class="amt">${money(x.amount)}</td><td class="wrap" title="${esc(x.description||'')}">${esc(x.description||'—')}${x.loanPdf?'<span title="PDF" style="margin-left:6px">📎</span>':''}</td><td><button class="table-btn danger" data-del-transfer="${esc(x.id)}">${cashLang==='zh'?'删':'Xóa'}</button></td></tr>`).join('')||`<tr><td colspan="7" class="empty">${cashLang==='zh'?'没有符合条件的数据。':'Không có dữ liệu phù hợp.'}</td></tr>`;
+  if($('loanBody'))$('loanBody').innerHTML=arr.map(x=>`<tr class="loan-row-selectable ${String(x.id)===loanSelectedId?'selected':''}" data-loan-row="${esc(x.id)}"><td>${fmtDate(x.actualDate)}</td><td><span class="loan-type ${x.transferType==='loan'?'loan':x.transferType==='repayment'?'repayment':'transfer'}">${esc(loanTypeText(x.transferType).toUpperCase())}</span></td><td><b>${esc(x.fromProject)}</b></td><td><b>${esc(x.toProject)}</b></td><td class="amt">${money(x.amount)}</td><td class="wrap" title="${esc(x.description||'')}">${esc(x.description||'—')}${loanPdfForRecord(x)?'<span title="PDF" style="margin-left:6px">📎</span>':''}</td><td><button class="table-btn danger" data-del-transfer="${esc(x.id)}">${cashLang==='zh'?'删':'Xóa'}</button></td></tr>`).join('')||`<tr><td colspan="7" class="empty">${cashLang==='zh'?'没有符合条件的数据。':'Không có dữ liệu phù hợp.'}</td></tr>`;
   const shownLoanTotal=arr.reduce((sum,x)=>sum+Number(x.amount||0),0);
   if($('loanBodyFoot'))$('loanBodyFoot').innerHTML=`<tr class="loan-total-row"><th colspan="4">${cashLang==='zh'?`当前显示合计 · ${arr.length}笔交易`:`Tổng đang hiển thị · ${arr.length} giao dịch`}</th><th class="amt">${money(shownLoanTotal)}</th><th colspan="2"></th></tr>`;
   if($('loanPairChip'))$('loanPairChip').innerHTML=loanPairFilter?`<span class="loan-pair-chip">${esc(loanPairFilter.lender)} ↔ ${esc(loanPairFilter.borrower)} <button type="button" id="clearLoanPairHighlight" title="${cashLang==='zh'?'清除筛选':'Bỏ lọc'}">×</button></span>`:'';
