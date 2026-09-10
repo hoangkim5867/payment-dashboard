@@ -1994,6 +1994,19 @@ button,input,select,textarea,
 }
 </style>
 
+
+<style id="excel-project-multiselect-style-v2">
+.excel-project-check-item{
+  display:flex;align-items:center;gap:8px;min-height:32px;
+  padding:6px 7px;border-bottom:1px solid #edf1f5;
+  font-size:10px;color:#2f3a48
+}
+.excel-project-check-item:last-child{border-bottom:0}
+.excel-project-check-item:hover{background:#f7fafc}
+.excel-project-check-item input{accent-color:var(--navy)}
+.excel-project-check-item b{font-weight:850;color:var(--navy)}
+</style>
+
 </head>
 <body class="auth-checking">
 <div id="reviewColumnResizeGuide"></div>
@@ -2078,9 +2091,9 @@ button,input,select,textarea,
         <div class="excel-export-wrap" id="excelExportWrap">
           <button id="excelExportBtn" class="excel-export-btn" type="button" data-i18n="exportExcel">⇩ Xuất Excel ▾</button>
           <div id="excelExportMenu" class="excel-export-menu">
-            <button type="button" data-excel-export="overview" data-i18n="exportOverview">Tổng quan nguồn tiền</button>
-            <button type="button" data-excel-export="detail" data-i18n="exportDetail">Chi tiết khoản duyệt</button>
-            <button type="button" data-excel-export="full" data-i18n="exportFull">Toàn bộ báo cáo</button>
+            <button type="button" data-excel-export="overview">Tổng quan</button>
+            <button type="button" data-excel-export="all-projects">Chi tiết tất cả dự án</button>
+            <button type="button" data-excel-export="overview-all-projects">Tổng quan + tất cả dự án</button>
           </div>
         </div>
         <button id="importCashOpeningBtn" class="toolbar-btn" type="button" data-i18n="syncCash">↻ Cập nhật từ Dòng tiền</button>
@@ -2999,7 +3012,7 @@ function buildDetailSheet(){
     [L.unit],
     headers,
     ...data,
-    [L.total,"","","","","","",totalProposal,totalApproved,"",""]
+    [L.total,"","","","","",totalProposal,totalApproved,"",""]
   ];
   const ws=XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols']=[{wch:18},{wch:18},{wch:28},{wch:28},{wch:14},{wch:18},{wch:40},{wch:18},{wch:18},{wch:28},{wch:18}];
@@ -3008,29 +3021,469 @@ function buildDetailSheet(){
   for(let c=1;c<=lastCol;c++){const cell=ws[XLSX.utils.encode_cell({r:lastRow-1,c:c-1})];if(cell)cell.s={...(cell.s||{}),fill:{fgColor:{rgb:"E8EEF4"}},font:{name:"Arial",sz:9,bold:true,color:{rgb:"173756"}},border:{top:{style:"medium",color:{rgb:"9FB0C0"}}}};}
   return ws;
 }
-function exportPlanReviewExcel(mode="full"){
-  if(typeof XLSX==="undefined"){alert(isChineseUI()?"Excel 组件尚未加载，请检查网络连接。":"Chưa tải được thư viện Excel. Kiểm tra kết nối mạng rồi thử lại.");return;}
+
+function excelProjectList(){
+  return [...new Set(
+    planningMonthPayments()
+      .map(p=>String(p.project||"").trim())
+      .filter(Boolean)
+  )].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:"base"}));
+}
+
+function safeExcelSheetName(name){
+  return String(name||"Project")
+    .replace(/[\\\/\?\*\[\]\:]/g," ")
+    .replace(/\s+/g," ")
+    .trim()
+    .slice(0,31) || "Project";
+}
+
+function buildProjectDetailSheet(project){
+  const L=excelLanguageLabels();
+  const isFoxconn=norm(project||"")===norm("FOXCONN");
+  const rows=planningMonthPayments()
+    .filter(p=>
+      norm(p.project||"")===norm(project||"") &&
+      (isFoxconn || paymentPlanGroup(p)!=="indirect")
+    )
+    .slice()
+    .sort((a,b)=>timeValue(a.createdAt)-timeValue(b.createdAt));
+
+  const headers=[L.person,L.company,L.contract,L.ipc,L.cost,L.content,L.proposal,L.approved,L.remark,L.review];
+
+  const data=rows.map(p=>{
+    const proposal=Number(p.amount)||0;
+    const st=draftStatus.get(p.id)||"included";
+    const approved=st==="excluded"
+      ?0
+      :Math.max(0,Number(draftApprovedAmount.get(p.id)??proposal)||0);
+    const status=st==="excluded"
+      ?L.excluded
+      :(approved<proposal?L.reduced:L.included);
+
+    return [
+      p.personInCharge||"",
+      p.company||"",
+      p.contractNo||"",
+      p.ipcNo||"",
+      p.costType||"",
+      p.contractName||"",
+      proposal,
+      approved,
+      p.remark||"",
+      status
+    ];
+  });
+
+  const totalProposal=data.reduce((s,r)=>s+(Number(r[6])||0),0);
+  const totalApproved=data.reduce((s,r)=>s+(Number(r[7])||0),0);
+
+  const aoa=[
+    [project||L.project],
+    [`${L.month}: ${displayMonth(monthSelect.value)}`],
+    [L.unit],
+    headers,
+    ...data,
+    [L.total,"","","","","","",totalProposal,totalApproved,"",""]
+  ];
+
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"]=[
+    {wch:18},{wch:30},{wch:30},{wch:14},{wch:18},
+    {wch:42},{wch:18},{wch:18},{wch:28},{wch:18}
+  ];
+
+  const lastRow=aoa.length,lastCol=headers.length;
+  excelStyleSheet(ws,{
+    headerRow:4,
+    moneyCols:[7,8],
+    statusCol:10,
+    lastRow,
+    lastCol,
+    freezeCol:0
+  });
+
+  for(let c=1;c<=lastCol;c++){
+    const cell=ws[XLSX.utils.encode_cell({r:lastRow-1,c:c-1})];
+    if(cell)cell.s={
+      ...(cell.s||{}),
+      fill:{fgColor:{rgb:"E8EEF4"}},
+      font:{name:"Arial",sz:9,bold:true,color:{rgb:"173756"}},
+      border:{top:{style:"medium",color:{rgb:"9FB0C0"}}}
+    };
+  }
+
+  return ws;
+}
+
+let pendingExcelExportMode="projects";
+
+function selectedExcelProjects(){
+  return [...document.querySelectorAll('#excelProjectChecklist input[type="checkbox"][data-excel-project]:checked')]
+    .map(el=>el.dataset.excelProject)
+    .filter(Boolean);
+}
+
+function updateExcelProjectPickedCount(){
+  const picked=selectedExcelProjects().length;
+  const all=document.querySelectorAll('#excelProjectChecklist input[type="checkbox"][data-excel-project]').length;
+  const el=$("excelProjectPickedCount");
+  if(el)el.textContent=isChineseUI()?`已选 ${picked} / ${all}`:`Đã chọn ${picked} / ${all}`;
+  if($("excelProjectConfirm"))$("excelProjectConfirm").disabled=picked===0;
+}
+
+function openExcelProjectPicker(mode){
+  const projects=excelProjectList();
+  if(!projects.length){
+    alert(isChineseUI()?"本月没有可导出的项目。":"Tháng này chưa có dự án để xuất.");
+    return;
+  }
+
+  pendingExcelExportMode=mode;
+  const checklist=$("excelProjectChecklist");
+
+  checklist.innerHTML=projects.map(project=>{
+    const checked=activeProject && norm(activeProject)===norm(project);
+    return `<label class="excel-project-check-item">
+      <input type="checkbox" data-excel-project="${escapeHtml(project)}" ${checked?'checked':''}>
+      <b>${escapeHtml(project)}</b>
+    </label>`;
+  }).join("");
+
+  if(!activeProject){
+    checklist.querySelectorAll('input[type="checkbox"]').forEach(el=>el.checked=false);
+  }
+
+  $("excelProjectModalTitle").textContent=isChineseUI()?"选择要导出的项目":"Chọn dự án để xuất";
+  $("excelProjectModalDesc").textContent=
+    mode==="overview-projects"
+      ?(isChineseUI()
+          ?"导出资金总览 + 你勾选的多个项目，每个项目单独一个工作表。"
+          :"Xuất Tổng quan + nhiều dự án đã chọn, mỗi dự án 1 sheet riêng.")
+      :(isChineseUI()
+          ?"只导出你勾选的项目，每个项目单独一个工作表。"
+          :"Chỉ xuất các dự án đã chọn, mỗi dự án 1 sheet riêng.");
+
+  $("excelProjectSelectAll").textContent=isChineseUI()?"全选":"Chọn tất cả";
+  $("excelProjectClearAll").textContent=isChineseUI()?"取消全选":"Bỏ chọn";
+  $("excelProjectCancel").textContent=isChineseUI()?"取消":"Hủy";
+  $("excelProjectConfirm").textContent=isChineseUI()?"导出 Excel":"Xuất Excel";
+
+  checklist.querySelectorAll('input[type="checkbox"]').forEach(el=>el.addEventListener('change',updateExcelProjectPickedCount));
+  updateExcelProjectPickedCount();
+  $("excelProjectModal").classList.add("show");
+}
+
+function closeExcelProjectPicker(){
+  $("excelProjectModal")?.classList.remove("show");
+}
+
+function exportSelectedProjectsExcel(){
+  const projects=selectedExcelProjects();
+  if(!projects.length){
+    alert(isChineseUI()?"请至少选择一个项目。":"Chọn ít nhất 1 dự án.");
+    return;
+  }
+
+  const wb=XLSX.utils.book_new();
+  const L=excelLanguageLabels();
+
+  if(pendingExcelExportMode==="overview-projects"){
+    XLSX.utils.book_append_sheet(wb,buildOverviewSheet(),L.overview.slice(0,31));
+  }
+
+  const used=new Set(wb.SheetNames||[]);
+  projects.forEach(project=>{
+    let base=safeExcelSheetName(project), name=base, i=2;
+    while(used.has(name)){
+      const suffix=` (${i++})`;
+      name=base.slice(0,31-suffix.length)+suffix;
+    }
+    used.add(name);
+    XLSX.utils.book_append_sheet(wb,buildProjectDetailSheet(project),name);
+  });
+
+  const suffix=pendingExcelExportMode==="overview-projects"?"Overview_SelectedProjects":"SelectedProjects";
+  XLSX.writeFile(wb,`Payment_Plan_Review_${monthSelect.value}_${suffix}.xlsx`);
+  closeExcelProjectPicker();
+}
+
+
+function buildIndirectDetailSheet(){
+  const L=excelLanguageLabels();
+  const rows=planningMonthPayments()
+    .filter(p=>
+      paymentPlanGroup(p)==="indirect" &&
+      norm(p.project||"")!==norm("FOXCONN")
+    )
+    .slice()
+    .sort((a,b)=>
+      String(a.project||"").localeCompare(String(b.project||""),undefined,{numeric:true,sensitivity:"base"}) ||
+      timeValue(a.createdAt)-timeValue(b.createdAt)
+    );
+
+  const headers=[
+    L.project,L.person,L.company,L.contract,L.ipc,
+    L.cost,L.content,L.proposal,L.approved,L.remark,L.review
+  ];
+
+  const data=rows.map(p=>{
+    const proposal=Number(p.amount)||0;
+    const st=draftStatus.get(p.id)||"included";
+    const approved=st==="excluded"
+      ?0
+      :Math.max(0,Number(draftApprovedAmount.get(p.id)??proposal)||0);
+    const status=st==="excluded"
+      ?L.excluded
+      :(approved<proposal?L.reduced:L.included);
+
+    return [
+      p.project||"",
+      p.personInCharge||"",
+      p.company||"",
+      p.contractNo||"",
+      p.ipcNo||"",
+      p.costType||"",
+      p.contractName||"",
+      proposal,
+      approved,
+      p.remark||"",
+      status
+    ];
+  });
+
+  const totalProposal=data.reduce((s,r)=>s+(Number(r[7])||0),0);
+  const totalApproved=data.reduce((s,r)=>s+(Number(r[8])||0),0);
+
+  const title=isChineseUI()?"间接费明细":"CHI PHÍ GIÁN TIẾP";
+  const aoa=[
+    [title],
+    [`${L.month}: ${displayMonth(monthSelect.value)}`],
+    [L.unit],
+    headers,
+    ...data,
+    [L.total,"","","","","","",totalProposal,totalApproved,"",""]
+  ];
+
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"]=[
+    {wch:18},{wch:18},{wch:30},{wch:30},{wch:14},
+    {wch:18},{wch:42},{wch:18},{wch:18},{wch:28},{wch:18}
+  ];
+
+  const lastRow=aoa.length,lastCol=headers.length;
+  excelStyleSheet(ws,{
+    headerRow:4,
+    moneyCols:[8,9],
+    statusCol:11,
+    lastRow,lastCol,freezeCol:1
+  });
+
+  for(let c=1;c<=lastCol;c++){
+    const cell=ws[XLSX.utils.encode_cell({r:lastRow-1,c:c-1})];
+    if(cell)cell.s={
+      ...(cell.s||{}),
+      fill:{fgColor:{rgb:"E8EEF4"}},
+      font:{name:"Arial",sz:9,bold:true,color:{rgb:"173756"}},
+      border:{top:{style:"medium",color:{rgb:"9FB0C0"}}}
+    };
+  }
+  return ws;
+}
+
+function buildPayrollTaxSheet(){
+  const L=excelLanguageLabels();
+
+  const rows=projectPlanStats()
+    .map(s=>{
+      const cash=projectCashStats(
+        s.project,
+        s.proposal,
+        s.pendingApproved,
+        s.paidActual,
+        s.cashPayrollPending,
+        s.payrollFromCash
+      );
+      const payroll=Number(s.payrollFromCash?s.cashPayrollPending:s.payroll)||0;
+      const tax=Number(cash.taxPending)||0;
+      return {
+        project:s.project,
+        payroll,
+        tax,
+        total:payroll+tax
+      };
+    })
+    .filter(x=>x.payroll!==0||x.tax!==0)
+    .sort((a,b)=>String(a.project||"").localeCompare(String(b.project||""),undefined,{numeric:true,sensitivity:"base"}));
+
+  const headers=isChineseUI()
+    ?["项目","工资 / 社保","待缴税费","合计"]
+    :["Dự án","Lương / BH","Thuế chưa nộp","Tổng cộng"];
+
+  const totalPayroll=rows.reduce((s,x)=>s+x.payroll,0);
+  const totalTax=rows.reduce((s,x)=>s+x.tax,0);
+
+  const aoa=[
+    [isChineseUI()?"工资与税费":"LƯƠNG & THUẾ"],
+    [`${L.month}: ${displayMonth(monthSelect.value)}`],
+    [L.unit],
+    headers,
+    ...rows.map(x=>[x.project,x.payroll,x.tax,x.total]),
+    [L.total,totalPayroll,totalTax,totalPayroll+totalTax]
+  ];
+
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"]=[{wch:20},{wch:20},{wch:20},{wch:20}];
+
+  const lastRow=aoa.length,lastCol=headers.length;
+  excelStyleSheet(ws,{
+    headerRow:4,
+    moneyCols:[2,3,4],
+    statusCol:0,
+    lastRow,lastCol,freezeCol:1
+  });
+
+  for(let c=1;c<=lastCol;c++){
+    const cell=ws[XLSX.utils.encode_cell({r:lastRow-1,c:c-1})];
+    if(cell)cell.s={
+      ...(cell.s||{}),
+      fill:{fgColor:{rgb:"E8EEF4"}},
+      font:{name:"Arial",sz:9,bold:true,color:{rgb:"173756"}},
+      border:{top:{style:"medium",color:{rgb:"9FB0C0"}}}
+    };
+  }
+  return ws;
+}
+
+function appendSpecialCostSheets(wb,used){
+  const indirectName=isChineseUI()?"间接费":"Chi_phi_gian_tiep";
+  const payrollTaxName=isChineseUI()?"工资_税费":"Luong_Thue";
+
+  const addUnique=(base,ws)=>{
+    let name=safeExcelSheetName(base),candidate=name,i=2;
+    while(used.has(candidate)){
+      const suffix=` (${i++})`;
+      candidate=name.slice(0,31-suffix.length)+suffix;
+    }
+    used.add(candidate);
+    XLSX.utils.book_append_sheet(wb,ws,candidate);
+  };
+
+  addUnique(indirectName,buildIndirectDetailSheet());
+  addUnique(payrollTaxName,buildPayrollTaxSheet());
+}
+
+function exportAllProjectSheets(includeOverview=false){
+  const projects=excelProjectList();
+  if(!projects.length){
+    alert(isChineseUI()?"本月没有可导出的项目。":"Tháng này chưa có dự án để xuất.");
+    return;
+  }
+
+  const wb=XLSX.utils.book_new();
+  const L=excelLanguageLabels();
+
+  if(includeOverview){
+    XLSX.utils.book_append_sheet(
+      wb,
+      buildOverviewSheet(),
+      L.overview.slice(0,31)
+    );
+  }
+
+  const used=new Set(wb.SheetNames||[]);
+  projects.forEach(project=>{
+    let base=safeExcelSheetName(project), name=base, i=2;
+    while(used.has(name)){
+      const suffix=` (${i++})`;
+      name=base.slice(0,31-suffix.length)+suffix;
+    }
+    used.add(name);
+    XLSX.utils.book_append_sheet(
+      wb,
+      buildProjectDetailSheet(project),
+      name
+    );
+  });
+
+  appendSpecialCostSheets(wb,used);
+
+  const suffix=includeOverview?"Overview_AllProjects":"AllProjects";
+  XLSX.writeFile(
+    wb,
+    `Payment_Plan_Review_${monthSelect.value}_${suffix}.xlsx`
+  );
+}
+
+function exportPlanReviewExcel(mode="overview"){
+  if(typeof XLSX==="undefined"){
+    alert(isChineseUI()?"Excel 组件尚未加载，请检查网络连接。":"Chưa tải được thư viện Excel. Kiểm tra kết nối mạng rồi thử lại.");
+    return;
+  }
+
   try{
+    if(mode==="all-projects"){
+      exportAllProjectSheets(false);
+      return;
+    }
+
+    if(mode==="overview-all-projects"){
+      exportAllProjectSheets(true);
+      return;
+    }
+
     const wb=XLSX.utils.book_new();
     const L=excelLanguageLabels();
-    if(mode==="overview"||mode==="full")XLSX.utils.book_append_sheet(wb,buildOverviewSheet(),L.overview.slice(0,31));
-    if(mode==="detail"||mode==="full")XLSX.utils.book_append_sheet(wb,buildDetailSheet(),L.detail.slice(0,31));
-    const suffix=mode==="overview"?"Overview":mode==="detail"?"Detail":"Full";
-    XLSX.writeFile(wb,`Payment_Plan_Review_${monthSelect.value}_${suffix}.xlsx`);
-  }catch(error){console.error("EXCEL EXPORT ERROR",error);alert((isChineseUI()?"导出 Excel 失败：":"Xuất Excel thất bại: ")+error.message)}
+    XLSX.utils.book_append_sheet(
+      wb,
+      buildOverviewSheet(),
+      L.overview.slice(0,31)
+    );
+    XLSX.writeFile(
+      wb,
+      `Payment_Plan_Review_${monthSelect.value}_Overview.xlsx`
+    );
+  }catch(error){
+    console.error("EXCEL EXPORT ERROR",error);
+    alert((isChineseUI()?"导出 Excel 失败：":"Xuất Excel thất bại: ")+error.message);
+  }
 }
+
 function setupExcelExportMenu(){
-  const btn=$("excelExportBtn"),menu=$("excelExportMenu"),wrap=$("excelExportWrap");if(!btn||!menu||!wrap)return;
-  const syncLabels=()=>{btn.textContent=isChineseUI()?"⇩ 导出 Excel ▾":"⇩ Xuất Excel ▾";const labels=isChineseUI()?["项目资金总览","审核明细","完整报告"]:["Tổng quan nguồn tiền","Chi tiết khoản duyệt","Toàn bộ báo cáo"];menu.querySelectorAll("[data-excel-export]").forEach((b,i)=>{const small=b.querySelector("small");b.childNodes[0].nodeValue=labels[i];if(small)small.textContent=isChineseUI()?(i===0?"按项目汇总的 1 个工作表":i===1?"本月全部待审核明细":"2 个工作表：总览 + 审核明细"):(i===0?"1 sheet tổng hợp theo dự án":i===1?"1 sheet toàn bộ khoản chờ duyệt trong tháng":"2 sheet: Tổng quan + Chi tiết duyệt")});};
+  const btn=$("excelExportBtn"),menu=$("excelExportMenu"),wrap=$("excelExportWrap");
+  if(!btn||!menu||!wrap)return;
+
+  const syncLabels=()=>{
+    btn.textContent=isChineseUI()?"⇩ 导出 Excel ▾":"⇩ Xuất Excel ▾";
+
+    const labelMap=isChineseUI()
+      ?{
+          overview:"资金总览",
+          "all-projects":"全部项目明细",
+          "overview-all-projects":"总览 + 全部项目"
+        }
+      :{
+          overview:"Tổng quan",
+          "all-projects":"Chi tiết tất cả dự án",
+          "overview-all-projects":"Tổng quan + tất cả dự án"
+        };
+
+    menu.querySelectorAll("[data-excel-export]").forEach(b=>{
+      b.textContent=labelMap[b.dataset.excelExport]||b.textContent;
+    });
+  };
+
   syncLabels();
+
   const placeMenu=()=>{
     const r=btn.getBoundingClientRect();
     const menuW=205;
-    let left=Math.min(window.innerWidth-menuW-8,Math.max(8,r.right-menuW));
-    let top=r.bottom+5;
+    const left=Math.min(window.innerWidth-menuW-8,Math.max(8,r.right-menuW));
+    const top=r.bottom+5;
     menu.style.left=`${left}px`;
     menu.style.top=`${top}px`;
   };
+
   btn.onclick=e=>{
     e.stopPropagation();
     const willOpen=!menu.classList.contains("show");
@@ -3039,10 +3492,26 @@ function setupExcelExportMenu(){
     syncLabels();
     if(willOpen)placeMenu();
   };
-  menu.querySelectorAll("[data-excel-export]").forEach(item=>item.onclick=e=>{e.stopPropagation();menu.classList.remove("show");btn.classList.remove("open");exportPlanReviewExcel(item.dataset.excelExport)});
-  document.addEventListener("click",e=>{if(!wrap.contains(e.target)&&!menu.contains(e.target)){menu.classList.remove("show");btn.classList.remove("open")}});
-  window.addEventListener("resize",()=>{if(menu.classList.contains("show"))placeMenu()});
-  document.addEventListener("scroll",()=>{if(menu.classList.contains("show"))placeMenu()},true);
+
+  menu.querySelectorAll("[data-excel-export]").forEach(item=>{
+    item.onclick=e=>{
+      e.stopPropagation();
+      menu.classList.remove("show");
+      btn.classList.remove("open");
+      exportPlanReviewExcel(item.dataset.excelExport);
+    };
+  });
+
+  document.addEventListener("click",e=>{
+    if(!wrap.contains(e.target)){
+      menu.classList.remove("show");
+      btn.classList.remove("open");
+    }
+  });
+
+  window.addEventListener("resize",()=>{
+    if(menu.classList.contains("show"))placeMenu();
+  });
 }
 
 function setReviewView(view){
@@ -4210,6 +4679,21 @@ document.addEventListener("planreviewlanguagechange",()=>{
   }catch(e){}
 });
 
+
+if($("excelProjectCancel"))$("excelProjectCancel").onclick=closeExcelProjectPicker;
+if($("excelProjectConfirm"))$("excelProjectConfirm").onclick=exportSelectedProjectsExcel;
+if($("excelProjectSelectAll"))$("excelProjectSelectAll").onclick=()=>{
+  document.querySelectorAll('#excelProjectChecklist input[type="checkbox"][data-excel-project]').forEach(el=>el.checked=true);
+  updateExcelProjectPickedCount();
+};
+if($("excelProjectClearAll"))$("excelProjectClearAll").onclick=()=>{
+  document.querySelectorAll('#excelProjectChecklist input[type="checkbox"][data-excel-project]').forEach(el=>el.checked=false);
+  updateExcelProjectPickedCount();
+};
+if($("excelProjectModal"))$("excelProjectModal").onclick=e=>{
+  if(e.target===$("excelProjectModal"))closeExcelProjectPicker();
+};
+
 setupExcelExportMenu();
 
 
@@ -4406,5 +4890,26 @@ setupExcelExportMenu();
 })();
 
 </script>
+
+<div class="modal" id="excelProjectModal">
+  <div class="modal-box" style="width:min(520px,96vw)">
+    <h3 id="excelProjectModalTitle">Chọn dự án để xuất</h3>
+    <p id="excelProjectModalDesc">Chọn một hoặc nhiều dự án. Mỗi dự án sẽ xuất thành 1 sheet riêng.</p>
+
+    <div style="display:flex;gap:6px;align-items:center;margin-top:9px">
+      <button class="btn" type="button" id="excelProjectSelectAll">Chọn tất cả</button>
+      <button class="btn" type="button" id="excelProjectClearAll">Bỏ chọn</button>
+      <span id="excelProjectPickedCount" style="margin-left:auto;font-size:9px;color:#667585;font-weight:800"></span>
+    </div>
+
+    <div id="excelProjectChecklist" style="margin-top:8px;max-height:320px;overflow:auto;border:1px solid var(--line2);border-radius:8px;background:#fff;padding:5px 7px"></div>
+
+    <div class="modal-actions">
+      <button class="btn" type="button" id="excelProjectCancel">Hủy</button>
+      <button class="btn btn-primary" type="button" id="excelProjectConfirm">Xuất Excel</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
