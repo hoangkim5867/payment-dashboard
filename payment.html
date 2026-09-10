@@ -12928,6 +12928,115 @@ html[data-theme="corporate"] .theme-picker-wrap *{
     right:3px !important;
 }
 </style>
+
+<style>
+/* =====================================================
+   FIXED PAYMENT TOTAL BAR
+   Always visible above the bottom horizontal scrollbar.
+===================================================== */
+#paymentLiveTotalBar{
+    position:fixed;
+    left:0;
+    right:0;
+    bottom:18px; /* existing paymentHorizontalScrollbar is 18px high */
+    height:42px;
+    z-index:99998;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding:0 14px;
+    border-top:1px solid var(--theme-border,#cfd6df);
+    background:color-mix(in srgb,var(--theme-surface,#fff) 96%,transparent);
+    box-shadow:0 -4px 14px rgba(15,35,55,.08);
+    backdrop-filter:blur(8px);
+    color:var(--theme-text,#172033);
+    font-size:11px;
+    font-variant-numeric:tabular-nums;
+}
+#paymentLiveTotalBar[hidden]{display:none!important}
+
+.payment-live-total-left,
+.payment-live-total-right{
+    display:flex;
+    align-items:center;
+    min-width:0;
+}
+.payment-live-total-left{
+    gap:7px;
+    color:var(--theme-muted,#667085);
+    white-space:nowrap;
+}
+.payment-live-total-left strong{
+    color:var(--theme-primary,#17365d);
+    font-size:12px;
+}
+.payment-live-total-right{
+    justify-content:flex-end;
+    gap:18px;
+    margin-left:auto;
+    white-space:nowrap;
+}
+.payment-live-total-item{
+    display:flex;
+    align-items:baseline;
+    gap:6px;
+}
+.payment-live-total-item span{
+    color:var(--theme-muted,#667085);
+    font-size:10px;
+    font-weight:700;
+}
+.payment-live-total-item b{
+    color:var(--theme-primary,#17365d);
+    font-size:14px;
+    font-weight:900;
+}
+.payment-live-total-item.actual b{
+    color:var(--theme-success,#16855b);
+}
+.payment-live-total-selected{
+    display:none;
+    align-items:center;
+    gap:6px;
+    height:26px;
+    padding:0 9px;
+    border:1px solid color-mix(in srgb,var(--theme-primary,#17365d) 22%,transparent);
+    border-radius:7px;
+    background:var(--theme-soft,#eef4ff);
+}
+.payment-live-total-selected.show{display:flex}
+.payment-live-total-selected span{
+    color:var(--theme-muted,#667085);
+    font-size:10px;
+    font-weight:700;
+}
+.payment-live-total-selected b{
+    color:var(--theme-primary,#17365d);
+    font-size:12px;
+    font-weight:900;
+}
+
+@media(max-width:900px){
+    #paymentLiveTotalBar{
+        height:38px;
+        padding:0 8px;
+        gap:8px;
+    }
+    .payment-live-total-right{gap:9px}
+    .payment-live-total-item.actual{display:none}
+    .payment-live-total-item b{font-size:12px}
+    .payment-live-total-left{font-size:10px}
+}
+</style>
+
+
+<style>
+/* Reserve space for the fixed total bar + scrollbar without changing table width. */
+body{padding-bottom:60px!important}
+#paymentHorizontalScrollbar{bottom:0!important}
+</style>
+
 </head>
 
 
@@ -13623,6 +13732,30 @@ html[data-theme="corporate"] .theme-picker-wrap *{
 
 <div id="paymentHorizontalScrollbar" aria-label="Horizontal table scrollbar">
     <div id="paymentHorizontalScrollbarInner"></div>
+</div>
+
+<div id="paymentLiveTotalBar" aria-live="polite">
+    <div class="payment-live-total-left">
+        <span id="paymentLiveTotalScope">Đang hiển thị</span>
+        <strong id="paymentLiveTotalCount">0 khoản</strong>
+    </div>
+
+    <div class="payment-live-total-right">
+        <div class="payment-live-total-selected" id="paymentLiveSelectedWrap">
+            <span id="paymentLiveSelectedLabel">Đã chọn</span>
+            <b id="paymentLiveSelectedValue">0 VND</b>
+        </div>
+
+        <div class="payment-live-total-item">
+            <span id="paymentLivePlanLabel">Tổng số tiền</span>
+            <b id="paymentLivePlanValue">0 VND</b>
+        </div>
+
+        <div class="payment-live-total-item actual">
+            <span id="paymentLiveActualLabel">Thực trả</span>
+            <b id="paymentLiveActualValue">0 VND</b>
+        </div>
+    </div>
 </div>
 
 <div id="paymentFixedHeaderWrap" aria-hidden="true">
@@ -25520,6 +25653,97 @@ paymentTimelineModal.addEventListener("click",event => {
 });
 
 
+
+function paymentBottomBarCopy(){
+    if(currentLanguage === "zh"){
+        return {
+            scope:"当前显示",
+            item:"笔",
+            plan:"合计金额",
+            actual:"实际付款",
+            selected:"已选"
+        };
+    }
+    if(currentLanguage === "en"){
+        return {
+            scope:"Showing",
+            item:"items",
+            plan:"Total amount",
+            actual:"Actual paid",
+            selected:"Selected"
+        };
+    }
+    return {
+        scope:"Đang hiển thị",
+        item:"khoản",
+        plan:"Tổng số tiền",
+        actual:"Thực trả",
+        selected:"Đã chọn"
+    };
+}
+
+function updatePaymentLiveTotalBar(rows){
+    const bar = document.getElementById("paymentLiveTotalBar");
+    if(!bar) return;
+
+    const visibleRows = Array.isArray(rows) ? rows : getFilteredPayments();
+    const copy = paymentBottomBarCopy();
+
+    const totalPlan = visibleRows.reduce(
+        (sum,item) => sum + (Number(item.amount) || 0),
+        0
+    );
+
+    const totalActual = visibleRows.reduce(
+        (sum,item) => {
+            if(!isPaymentPaid(item)) return sum;
+            const actual = item.processActualAmount;
+            return sum + (
+                actual !== "" && actual != null && Number.isFinite(Number(actual))
+                    ? Number(actual)
+                    : (Number(item.amount) || 0)
+            );
+        },
+        0
+    );
+
+    const selectedRows = visibleRows.filter(
+        item => selectedPaymentIds.has(String(item.id)) || selectedPaymentIds.has(item.id)
+    );
+
+    const selectedTotal = selectedRows.reduce(
+        (sum,item) => sum + (Number(item.amount) || 0),
+        0
+    );
+
+    const scopeEl = document.getElementById("paymentLiveTotalScope");
+    const countEl = document.getElementById("paymentLiveTotalCount");
+    const planLabel = document.getElementById("paymentLivePlanLabel");
+    const planValue = document.getElementById("paymentLivePlanValue");
+    const actualLabel = document.getElementById("paymentLiveActualLabel");
+    const actualValue = document.getElementById("paymentLiveActualValue");
+    const selectedWrap = document.getElementById("paymentLiveSelectedWrap");
+    const selectedLabel = document.getElementById("paymentLiveSelectedLabel");
+    const selectedValue = document.getElementById("paymentLiveSelectedValue");
+
+    if(scopeEl) scopeEl.textContent = copy.scope;
+    if(countEl) countEl.textContent = `${visibleRows.length.toLocaleString()} ${copy.item}`;
+    if(planLabel) planLabel.textContent = copy.plan;
+    if(planValue) planValue.textContent = formatMoney(totalPlan);
+    if(actualLabel) actualLabel.textContent = copy.actual;
+    if(actualValue) actualValue.textContent = formatMoney(totalActual);
+
+    if(selectedWrap){
+        selectedWrap.classList.toggle("show", selectedRows.length > 0);
+    }
+    if(selectedLabel){
+        selectedLabel.textContent = selectedRows.length
+            ? `${copy.selected} ${selectedRows.length.toLocaleString()}`
+            : copy.selected;
+    }
+    if(selectedValue) selectedValue.textContent = formatMoney(selectedTotal);
+}
+
 function renderPayments(){
 
     setupSortableHeaders();
@@ -25530,6 +25754,8 @@ function renderPayments(){
 
     const filtered =
         getFilteredPayments();
+
+    updatePaymentLiveTotalBar(filtered);
 
 
     /*
@@ -26166,6 +26392,7 @@ function renderPayments(){
                             selectedPaymentIds.delete(checkbox.dataset.id);
                         }
                         updateBatchSelectionUI();
+                        updatePaymentLiveTotalBar(filtered);
                     }
                 );
             }
