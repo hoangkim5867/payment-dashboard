@@ -5453,18 +5453,11 @@ async function publishProjectBalanceSnapshot(){
     // IMPORTANT: Plan Review must use the SAME "Monthly Remaining" payroll/tax logic
     // shown in Cash Control > Còn phải thu / chi trong tháng.
     // That screen carries forward unpaid salary/BH/tax from prior periods until actually paid.
-    const bridgeRemainingRows=planHubRemainingRows(month);
-    const bridgePayrollRemaining=new Map();
-    const bridgeTaxRemaining=new Map();
-    bridgeRemainingRows.forEach(row=>{
-      const project=normProject(row.project);
-      if(!project)return;
-      if(row.type==='payroll'){
-        bridgePayrollRemaining.set(project,(bridgePayrollRemaining.get(project)||0)+num(row.amount));
-      }else if(row.type==='tax'){
-        bridgeTaxRemaining.set(project,(bridgeTaxRemaining.get(project)||0)+num(row.amount));
-      }
-    });
+    const bridgePayrollRemaining=payrollRemainingByProjectAsOf(month,bridgeCutoff);
+    // Tax must follow the cutoff date too. Using planHubRemainingRows(month) alone
+    // can wrongly remove tax that is paid later in the same month but is still outstanding
+    // on the selected cutoff date.
+    const bridgeTaxRemaining=bridgeTaxMap;
 
     const cashPlanningByProject={};
     allProjects().forEach(project=>{
@@ -5485,7 +5478,7 @@ async function publishProjectBalanceSnapshot(){
         payment:Number(st.payment)||0,
         indirect:Number(st.indirect)||0,
 
-        // Same figures as "Còn phải thu / chi trong tháng"
+        // Same carry-forward logic as "Còn phải thu / chi trong tháng", but cutoff-aware
         payroll:payrollRemaining,
         taxPlan:taxRemaining,
         taxOutstanding:taxRemaining,
@@ -6380,6 +6373,43 @@ function outstandingTaxByProjectAsOf(cutoffDate){
     });
     return map;
 }
+
+function payrollRemainingByProjectAsOf(month,cutoffDate=''){
+    const targetIdx=monthIndex(month);
+    const cutoff=String(cutoffDate||'').trim();
+    const map=new Map();
+    const add=(project,amount)=>{
+        const p=normProject(project); const n=num(amount);
+        if(!p||n<=0)return;
+        map.set(p,(map.get(p)||0)+n);
+    };
+
+    // New payroll module: carry all unpaid salary/BH/union/meal etc. forward
+    // from earlier periods until the actual payment date has passed the cutoff.
+    (cashCloudState.salaryRecords||[]).forEach(x=>{
+        if(x.type==='tax')return;
+        const project=normProject(x.project); if(!project)return;
+        const due=payrollPlannedMonth(x)||x.payrollMonth||'';
+        if(!due||monthIndex(due)>targetIdx)return;
+        if(x.actualDate && (!cutoff || String(x.actualDate)<=cutoff))return;
+        add(project,x.amountVnd);
+    });
+
+    // Legacy payroll handover: same carry-forward rule.
+    legacySalary().forEach(x=>{
+        const project=normProject(x.project); if(!project)return;
+        const due=String(x.recognizedMonth||x.expectedDate||x.period||'').slice(0,7);
+        if(!due||monthIndex(due)>targetIdx)return;
+        const raw=String(x.description||x.category||'');
+        const isTax=x.subCode==='TH'||/个税|所得税|thuế\s*tncn|thue\s*tncn/i.test(raw);
+        if(isTax)return;
+        if(x.status==='paid' && x.actualDate && (!cutoff || String(x.actualDate)<=cutoff))return;
+        if(x.status==='paid' && !x.actualDate)return;
+        add(project,x.amount);
+    });
+    return map;
+}
+
 function ccPlanProjectStats(project,month,planRows=[],taxOutstandingMap=null,cutoffDate=''){
     const op=opening(project,month);
     const cutoff=String(cutoffDate||'').trim();
@@ -6405,11 +6435,18 @@ function renderFunds(){
     const cutoff=syncFundsCutoffDate(month,false);
     const q=String($('fundsSearch')?.value||'').trim().toLowerCase();
     const planRows=ccPlanRows(month,cutoff),taxOutstandingMap=outstandingTaxByProjectAsOf(cutoff);
-    const rows=allProjects().filter(p=>!q||p.toLowerCase().includes(q)).map(p=>ccPlanProjectStats(p,month,planRows,taxOutstandingMap,cutoff));
+    const payrollRemainingMap=payrollRemainingByProjectAsOf(month,cutoff);
+    const rows=allProjects().filter(p=>!q||p.toLowerCase().includes(q)).map(p=>{
+        const st=ccPlanProjectStats(p,month,planRows,taxOutstandingMap,cutoff);
+        const payroll=payrollRemainingMap.get(normProject(p))||0;
+        const remainingPlannedOut=st.payment+st.indirect+payroll+st.taxOutstanding+st.other;
+        const projected=st.actualBalance+st.expectedIn-remainingPlannedOut;
+        return {...st,payroll,taxPlan:st.taxOutstanding,remainingPlannedOut,projected};
+    });
     const totals=rows.reduce((a,x)=>{Object.keys(a).forEach(k=>a[k]+=num(x[k]));return a},{op:0,expectedIn:0,payment:0,indirect:0,payroll:0,taxPlan:0,taxOutstanding:0,other:0,projected:0,actualIn:0,actualOut:0,actualBalance:0});
     $('fundsOpening').textContent=money(totals.op);
     $('fundsExpectedIn').textContent=money(totals.expectedIn);
-    $('fundsPlannedOut').textContent=money(totals.payment+totals.indirect+totals.payroll+totals.taxPlan+totals.other);
+    $('fundsPlannedOut').textContent=money(totals.payment+totals.indirect+totals.payroll+totals.taxOutstanding+totals.other);
     $('fundsProjected').textContent=money(totals.projected);
     $('fundsActual').textContent=money(totals.actualBalance);
     if($('fundsTaxOutstanding'))$('fundsTaxOutstanding').textContent=money(totals.taxOutstanding);
