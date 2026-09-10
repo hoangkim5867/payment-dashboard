@@ -32894,6 +32894,120 @@ function smartDetectRow(row){
 }
 
 
+
+/* =====================================================
+   SMART AUTO-DETECT STABILITY GUARD — 2026-09-10
+   Protect normal no-header payment rows from column drift.
+   A valid CSCECVN... cell is always Contract No., never Project.
+===================================================== */
+function stabilizeSmartDetectedContractRow(row, detected){
+    if(!detected){
+        return detected;
+    }
+
+    const cells=(row||[]).map(value=>String(value??"").trim());
+    const contractIndex=cells.findIndex(looksLikeContractNo);
+
+    if(contractIndex<0){
+        return detected;
+    }
+
+    const actualContractNo=normalizeContractCandidate(cells[contractIndex]);
+    const fixed={...detected,contractNo:actualContractNo};
+
+    /* IPC: prefer a real IPC cell occurring after Contract No. */
+    const ipcIndexAfter=cells.findIndex((value,index)=>index>contractIndex&&looksLikeIPC(value));
+    const ipcIndex=ipcIndexAfter>=0?ipcIndexAfter:cells.findIndex(looksLikeIPC);
+    if(ipcIndex>=0){
+        fixed.ipcNo=formatIPC(cells[ipcIndex]);
+    }
+
+    /* Amount: right-most genuine money cell after the structural fields. */
+    const moneyCandidates=cells
+        .map((value,index)=>({index,value,number:looksLikeMoneyCell(value)?parseImportMoney(value):NaN}))
+        .filter(item=>Number.isFinite(item.number)&&item.index!==contractIndex&&item.index!==ipcIndex);
+
+    const afterStructure=moneyCandidates.filter(item=>item.index>Math.max(contractIndex,ipcIndex));
+    const usable=afterStructure.length?afterStructure:moneyCandidates;
+    if(usable.length){
+        const chosen=usable[usable.length-1];
+        fixed.amount=chosen.number;
+    }
+
+    /* Structural values around Contract No. in the ordinary payment paste layout. */
+    const relativeCompany=contractIndex>=2?cells[contractIndex-2]:"";
+    const relativeBank=contractIndex>=1?cells[contractIndex-1]:"";
+    const relativeContractName=contractIndex+1<cells.length?cells[contractIndex+1]:"";
+
+    const exactMatches=(allContracts||[]).filter(item=>
+        normalizeSmartContractNo(item.contractNo)===normalizeSmartContractNo(actualContractNo)
+    );
+
+    let master=null;
+    if(exactMatches.length===1){
+        master=exactMatches[0];
+    }else if(exactMatches.length>1){
+        /* If duplicate Contract No. exists, only use an explicit known Project cell as tie-breaker. */
+        master=exactMatches.find(item=>
+            cells.some((cell,index)=>
+                index!==contractIndex&&
+                normalizeSmartProject(cell)===normalizeSmartProject(item.project)
+            )
+        )||null;
+    }
+
+    if(master){
+        fixed.contract=master;
+        fixed.project=canonicalProjectDisplay(master.project||"");
+        fixed.company=master.company||relativeCompany||fixed.company||"";
+        fixed.bankAccount=master.bankAccount||relativeBank||fixed.bankAccount||"";
+        fixed.contractName=master.contractName||(
+            relativeContractName&&!looksLikeIPC(relativeContractName)?relativeContractName:""
+        )||fixed.contractName||"";
+        fixed.costType=master.costType||cells.find(looksLikeCostTypeValue)||fixed.costType||"";
+        fixed.contractType=master.contractType||cells.find(looksLikeContractTypeValue)||fixed.contractType||"";
+        fixed.projectConflict=null;
+        fixed.projectDetectionSource="master-contract";
+    }else{
+        /* New/unresolved contract: keep nearby pasted fields, but NEVER invent Project from Contract No. */
+        if(relativeCompany&&!looksLikeContractNo(relativeCompany)){
+            fixed.company=relativeCompany;
+        }
+        if(relativeBank&&!looksLikeContractNo(relativeBank)){
+            fixed.bankAccount=relativeBank;
+        }
+        if(relativeContractName&&!looksLikeIPC(relativeContractName)&&!looksLikeContractNo(relativeContractName)){
+            fixed.contractName=relativeContractName;
+        }
+        fixed.costType=cells.find(looksLikeCostTypeValue)||fixed.costType||"";
+        fixed.contractType=cells.find(looksLikeContractTypeValue)||fixed.contractType||"";
+
+        if(
+            !fixed.project||
+            looksLikeContractNo(fixed.project)||
+            normalizeSmartContractNo(fixed.project)===normalizeSmartContractNo(actualContractNo)
+        ){
+            fixed.project="";
+            fixed.projectDetectionSource="";
+        }
+    }
+
+    /* Last-line safety: a Contract No. can never become the display Project. */
+    if(looksLikeContractNo(fixed.project)){
+        fixed.project=master?canonicalProjectDisplay(master.project||""):"";
+    }
+
+    const signalCount=[
+        !!fixed.contractNo,
+        !!fixed.ipcNo,
+        Number.isFinite(fixed.amount),
+        !!fixed.contract
+    ].filter(Boolean).length;
+    fixed.confidence=signalCount>=4?"high":signalCount>=3?"medium":"low";
+
+    return fixed;
+}
+
 function smartDetectMatrix(matrix){
 
     return matrix.map(
@@ -33208,7 +33322,10 @@ function buildExcelImportRows(){
 
                 const smart =
                     useSmartAutoDetect
-                        ? smartDetectRow(row)
+                        ? stabilizeSmartDetectedContractRow(
+                            row,
+                            smartDetectRow(row)
+                        )
                         : null;
 
                 const mepFallback =
