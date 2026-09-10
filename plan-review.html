@@ -189,75 +189,86 @@ button{cursor:pointer}
 .summary-card.exclude .summary-value{color:var(--red)}
 .summary-meta{margin-top:3px;color:#7A8795;font-size:8.7px;font-weight:700}
 
-/* ===== PROJECT STRIP ===== */
+/* ===== PROJECT STRIP · EXECUTIVE SWITCHER ===== */
 .project-bar{
-  height:60px;
-  flex:0 0 60px;
+  height:50px;
+  flex:0 0 50px;
   display:flex;
   align-items:stretch;
   gap:0;
-  border-bottom:1px solid var(--line);
-  background:#F8FAFC;
+  border-bottom:1px solid #DCE4EC;
+  background:#fff;
   overflow:hidden
 }
 .all-projects-btn{
-  flex:0 0 120px;
+  position:relative;
+  flex:0 0 112px;
   border:0;
-  border-right:1px solid var(--line);
+  border-right:1px solid #E5EAF0;
   background:#fff;
   color:var(--navy);
-  font-size:10px;
+  font-size:9.5px;
   font-weight:900
 }
-.all-projects-btn:hover{background:var(--blue-soft)}
+.all-projects-btn:hover{background:#F8FAFC}
+.all-projects-btn::after{
+  content:"";position:absolute;left:14px;right:14px;bottom:0;height:3px;
+  border-radius:3px 3px 0 0;background:transparent
+}
 .project-strip{
   flex:1;
   min-width:0;
   display:flex!important;
-  gap:5px!important;
-  align-items:center;
+  gap:0!important;
+  align-items:stretch;
   overflow-x:auto!important;
   overflow-y:hidden!important;
-  padding:5px 7px!important;
-  scrollbar-width:thin
+  padding:0!important;
+  scrollbar-width:thin;
+  background:#fff
 }
 .project-pill{
-  flex:0 0 190px!important;
-  width:190px!important;
-  min-width:190px!important;
-  height:48px;
-  border:1px solid var(--line)!important;
-  border-radius:7px!important;
+  position:relative;
+  flex:0 0 164px!important;
+  width:164px!important;
+  min-width:164px!important;
+  height:50px;
+  border:0!important;
+  border-right:1px solid #E8EDF2!important;
+  border-radius:0!important;
   background:#fff!important;
-  padding:6px 9px!important;
+  padding:7px 10px 6px!important;
   text-align:left;
-  box-shadow:none!important
+  box-shadow:none!important;
+  transition:background .12s ease
 }
-.project-pill:hover{border-color:#AFC1D2!important;background:#FCFDFE!important}
-.project-pill.active{border-color:var(--navy)!important;background:var(--blue-soft)!important}
+.project-pill:hover{background:#F8FAFC!important}
+.project-pill::after{
+  content:"";position:absolute;left:10px;right:10px;bottom:0;height:3px;
+  border-radius:3px 3px 0 0;background:transparent
+}
+.project-pill.active{background:#F3F7FB!important}
+.project-pill.active::after{background:var(--navy)}
 .project-pill strong{
   display:block;
-  color:var(--navy);
-  font-size:10px!important;
-  line-height:1.05!important;
+  color:#173556;
+  font-size:9.8px!important;
+  line-height:1.1!important;
+  font-weight:950;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis
 }
-.project-pill .project-total,
-.project-pill .project-keep{
+.project-pill .project-total{
   display:inline!important;
   margin:0!important;
-  font-size:8.3px!important;
-  line-height:1.15!important;
+  color:#7A8795!important;
+  font-size:7.9px!important;
+  line-height:1.2!important;
   white-space:nowrap
 }
-.project-pill .project-total{color:#7A8795!important}
-.project-pill .project-total + .project-total::before{content:" · "}
-.project-pill .project-keep{
-  display:block!important;
-  color:var(--green)!important;
-  font-weight:850!important;
-  margin-top:2px!important
-}
+.project-pill .project-total + .project-total::before{content:" · ";color:#B0BAC5}
+.project-pill .project-keep{display:none!important}
+.project-strip::-webkit-scrollbar{height:5px}
+.project-strip::-webkit-scrollbar-thumb{background:#C8D1DB;border-radius:99px}
 
 /* ===== NOTICE ===== */
 .notice{
@@ -512,6 +523,14 @@ body.is-resizing{cursor:col-resize!important;user-select:none!important}
 .approved-input.reduced-amount{color:var(--amber)!important}
 .approved-input:disabled{opacity:1;color:#7A8591}
 
+
+/* internal debt: show all counterparties instead of +N */
+.debt-mini-list{display:flex;flex-wrap:wrap;gap:3px 4px;margin-top:4px;white-space:normal;overflow:visible}
+.debt-mini{display:inline-flex;align-items:center;min-height:17px;padding:1px 5px;border-radius:999px;background:#F3F6F9;color:#667585;font-size:7.2px;font-weight:800;line-height:1.2;white-space:nowrap}
+.debt-mini.receive{background:#EEF7F2;color:#317154}
+.debt-mini.pay{background:#FFF4F3;color:#9C4C50}
+.internal-debt-cell{white-space:normal!important;overflow:visible!important}
+
 /* ===== FOOTER ===== */
 .footer-bar{
   min-height:46px;
@@ -609,7 +628,7 @@ body.is-resizing{cursor:col-resize!important;user-select:none!important}
 @media(max-width:900px){
   .user-chip{display:none}
   .summary-value{font-size:13px}
-  .project-pill{flex-basis:165px!important;width:165px!important;min-width:165px!important}
+  .project-pill{flex-basis:150px!important;width:150px!important;min-width:150px!important}
   .search-box{width:210px}
 }
 
@@ -705,7 +724,509 @@ body.is-resizing{cursor:col-resize!important;user-select:none!important}
 .payment-detail-view .sheet-toolbar{flex:0 0 44px}
 .payment-detail-view .table-wrap{flex:1;min-height:0}
 .footer-bar{flex:0 0 46px}
+
+/* ===== C-LEVEL FUNDING REDESIGN ===== */
+.funding-view{background:#F8FAFC}
+.funding-toolbar{min-height:52px;padding:7px 10px;background:#fff}
+.funding-actions{gap:6px}
+.quick-filter-bar{display:flex;align-items:center;gap:5px}
+.quick-filter-btn{height:30px;border:1px solid #D7E0E8;border-radius:999px;background:#fff;color:#5E6D7C;padding:0 10px;font-size:8.6px;font-weight:850;white-space:nowrap}
+.quick-filter-btn:hover{background:#F5F8FB;border-color:#BFCBD7}
+.quick-filter-btn.active{background:#EAF2F8;border-color:#9DB6CA;color:var(--navy)}
+.funding-table-wrap{background:#fff}
+.funding-table{min-width:1740px;table-layout:fixed;border-collapse:separate;border-spacing:0}
+.funding-table thead tr.group-head th{top:0;height:27px;background:#0A365B!important;color:#DCE8F1!important;border-right:0!important;border-bottom:1px solid rgba(255,255,255,.12)!important;text-align:center;font-size:7.6px!important;letter-spacing:.09em;text-transform:uppercase}
+.funding-table thead tr.column-head th{top:27px;height:38px;background:#0D426F!important;border-right:0!important;border-bottom:1px solid #DDE5EC!important;font-size:8.5px!important}
+.funding-table thead th.group-start,.funding-table tbody td.group-start,.funding-table tfoot td.group-start{border-left:1px solid #D9E2EA!important}
+.funding-table tbody td{height:var(--funding-row-height,58px);padding:8px 9px;border-right:0!important;border-bottom:1px solid #EDF1F4;background:#fff;color:#344054;font-size:9.2px}
+.funding-table tbody tr:nth-child(even) td{background:#FBFCFD}
+.funding-table tbody tr:hover td{background:#F3F7FA}
+.funding-table tbody tr.row-shortage td{background:#FFF8F8}
+.funding-table tbody tr.row-shortage:hover td{background:#FFF2F3}
+.funding-table tbody tr.row-warning td{background:#FFFCF5}
+.funding-table tbody tr.row-good td{background:#F8FCFA}
+.funding-table tbody tr.row-inactive td{opacity:1}
+.funding-table tbody tr.row-inactive .funding-project-meta{opacity:.52}
+.funding-table tbody tr.row-inactive .exec-status{opacity:.68}
+.funding-table tbody tr.row-inactive .money-main.zero,.funding-table tbody tr.row-inactive .inline-money-display.zero{opacity:.30}
+.funding-unit{display:inline-flex;align-items:center;margin-left:7px;padding:2px 6px;border-radius:999px;background:#F0F4F7;color:#7A8795;font-size:7.5px;font-weight:850;vertical-align:1px}
+.funding-table tbody td.result-cell{background:#FAFCFE!important}
+.funding-table tbody tr:hover td.result-cell{background:#F1F6FA!important}
+.funding-table tbody tr.row-shortage td.result-cell{background:#FFF3F4!important}
+.funding-table tbody tr.row-warning td.result-cell{background:#FFFBF0!important}
+.funding-table tfoot td{font-variant-numeric:tabular-nums}
+.funding-table .project-cell{padding-left:11px!important}
+.funding-project-name{font-size:10.5px;font-weight:950;color:var(--navy)}
+.funding-project-meta{margin-top:4px;font-size:7.8px;color:#7A8795}
+.project-alert-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-left:5px;vertical-align:1px;background:#C58B2B}
+.money-main{display:block;text-align:right;font-variant-numeric:tabular-nums;font-size:10px;font-weight:850;color:#20374D;white-space:nowrap}
+.money-main.zero{color:#A9B2BC;font-weight:650;opacity:.45}
+.money-main.positive{color:var(--green)}
+.money-main.negative{color:var(--red)}
+.money-main.emphasis{font-size:10.8px;font-weight:950;color:var(--navy)}
+.money-main.emphasis.negative{color:var(--red)}
+.progress-mini{height:3px;margin-top:6px;border-radius:999px;background:#E8EDF1;overflow:hidden}
+.progress-mini>span{display:block;height:100%;border-radius:999px;background:#2C7A58;min-width:0}
+.progress-caption{margin-top:3px;text-align:right;color:#8793A0;font-size:7.2px;font-weight:800}
+.inline-money-wrap{position:relative;min-height:28px;display:flex;align-items:center;justify-content:flex-end;border-radius:5px}
+.inline-money-display{width:100%;padding:5px 6px;text-align:right;font-variant-numeric:tabular-nums;font-size:9.8px;font-weight:850;color:#253E55;border:1px solid transparent;border-radius:5px;cursor:text}
+.inline-money-display.zero{color:#A9B2BC;opacity:.48;font-weight:650}
+.inline-money-display::after{content:' ✎';font-size:7px;color:#A1ADB8;opacity:0}
+.inline-money-wrap:hover .inline-money-display{background:#F8FAFC;border-color:#D6E0E8}
+.inline-money-wrap:hover .inline-money-display::after{opacity:1}
+.inline-money-wrap.editing .inline-money-display{display:none}
+.inline-money-input{display:none;width:100%;height:28px;border:1px solid var(--navy);border-radius:5px;background:#fff;color:var(--navy);text-align:right;padding:0 6px;font-size:9px;font-weight:850;font-variant-numeric:tabular-nums;outline:none;box-shadow:0 0 0 2px rgba(11,45,77,.08)}
+.inline-money-wrap.editing .inline-money-input{display:block}
+.status-stack{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.exec-status{display:inline-flex;align-items:center;gap:5px;min-height:22px;padding:0 7px;border-radius:999px;font-size:7.7px;font-weight:900;white-space:nowrap}
+.exec-status::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.85}
+.exec-status.ok{background:#EDF7F1;color:#19734D}
+.exec-status.bad{background:#FFF0F1;color:#B53D48}
+.exec-status.wait{background:#FFF7E7;color:#A86C00}
+.exec-status.empty{background:#F3F5F7;color:#7A8795}
+.action-cell{text-align:center}
+.row-action-btn{height:28px;border:1px solid #C9D5E0;border-radius:6px;background:#fff;color:var(--navy);padding:0 9px;font-size:8.2px;font-weight:900;white-space:nowrap}
+.row-action-btn:hover{background:var(--navy);border-color:var(--navy);color:#fff}
+.row-more-btn{width:28px;height:28px;margin-left:3px;border:0;border-radius:6px;background:transparent;color:#7A8795;font-weight:950}
+.row-more-btn:hover{background:#EEF3F7;color:var(--navy)}
+.funding-table th:first-child,.funding-table td:first-child{position:sticky;left:0;z-index:8;border-right:1px solid #CFDAE3!important;box-shadow:5px 0 9px rgba(11,45,77,.035)}
+.funding-table thead tr.group-head th:first-child{z-index:16;background:#0A365B!important}
+.funding-table thead tr.column-head th:first-child{z-index:16;background:#0D426F!important}
+.funding-table th:last-child,.funding-table td:last-child{position:sticky;right:0;z-index:8;border-left:1px solid #CFDAE3!important;box-shadow:-5px 0 9px rgba(11,45,77,.035)}
+.funding-table thead tr.group-head th:last-child{z-index:16;background:#0A365B!important}
+.funding-table thead tr.column-head th:last-child{z-index:16;background:#0D426F!important}
+.funding-table tfoot td{height:40px;background:#F0F4F7;color:#18384F;border-top:1px solid #BAC7D2;border-right:0;font-size:8.7px}
+.funding-table tfoot td:first-child,.funding-table tfoot td:last-child{background:#EAF0F5}
+.funding-note{background:#FAFBFC}
+
+/* Drawer */
+.funding-drawer-backdrop{position:fixed;inset:0;z-index:12000;background:rgba(4,19,31,.18);display:none}
+.funding-drawer-backdrop.show{display:block}
+.funding-drawer{position:fixed;top:0;right:0;z-index:12001;width:min(460px,92vw);height:100vh;background:#fff;box-shadow:-18px 0 55px rgba(9,35,57,.20);transform:translateX(102%);transition:transform .2s ease;display:flex;flex-direction:column}
+.funding-drawer.show{transform:translateX(0)}
+.drawer-head{padding:17px 18px 13px;border-bottom:1px solid #E5EAF0;display:flex;justify-content:space-between;gap:12px}
+.drawer-title{font-size:16px;font-weight:950;color:var(--navy)}
+.drawer-sub{margin-top:4px;color:#7B8794;font-size:9px}
+.drawer-close{width:30px;height:30px;border:0;border-radius:6px;background:#F3F6F8;color:#5D6C7A;font-size:17px}
+.drawer-body{padding:14px 18px;overflow:auto}
+.drawer-kpi{padding:12px;border:1px solid #DDE6ED;border-radius:9px;background:#F8FBFD;margin-bottom:12px}
+.drawer-kpi span{display:block;color:#748291;font-size:8px;font-weight:850;text-transform:uppercase}
+.drawer-kpi strong{display:block;margin-top:4px;font-size:19px;color:var(--navy);font-variant-numeric:tabular-nums}
+.drawer-section{margin-top:16px}
+.drawer-section h4{margin:0 0 8px;font-size:9px;color:#687684;letter-spacing:.06em;text-transform:uppercase}
+.drawer-line{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid #EFF2F5;font-size:9px}
+.drawer-line span{color:#687684}.drawer-line strong{color:#253D53;font-variant-numeric:tabular-nums}
+.drawer-foot{margin-top:auto;padding:12px 18px;border-top:1px solid #E4E9EE;background:#FAFBFC}
+.drawer-primary{width:100%;height:34px;border:0;border-radius:7px;background:var(--navy);color:#fff;font-size:9px;font-weight:900}
+
+/* ===== C-LEVEL POLISH V2 ===== */
+.summary-bar{min-height:64px;background:#F7F9FC}
+.month-box{width:164px;flex-basis:164px;padding:8px 11px;background:#F7F9FC}
+.summary-card{padding:9px 13px 7px}
+.summary-card::before{width:2px}
+.summary-value{font-size:15px}
+.summary-meta{font-size:8.2px}
+.view-switchbar{height:39px;flex-basis:39px;padding:3px 9px;background:#fff}
+.funding-toolbar{min-height:49px;border-bottom:1px solid #DDE5EC}
+.funding-toolbar>div:first-child{min-width:245px}
+.funding-toolbar>div:first-child strong{font-size:10px}
+.funding-toolbar>div:first-child span{font-size:8px;color:#8793A0}
+.funding-actions{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}
+.quick-filter-bar{flex:0 0 auto}
+.quick-filter-btn{height:28px;padding:0 9px}
+.funding-cutoff,.funding-search,.funding-control,.funding-actions .toolbar-btn{height:28px}
+.funding-search{width:155px}
+.funding-table{min-width:1660px}
+.funding-table tbody td{height:var(--funding-row-height,54px);padding:7px 9px}
+.funding-project-name{font-size:10.8px;letter-spacing:.01em}
+.funding-project-meta{font-size:7.6px;margin-top:3px}
+.money-main{font-size:9.7px}
+.money-main.emphasis{font-size:10.6px}
+.progress-mini{height:2px;margin-top:5px}
+.progress-caption{margin-top:2px;font-size:6.8px}
+.inline-money-wrap{min-height:25px}
+.inline-money-display{padding:4px 5px;font-size:9.5px}
+.exec-status{min-height:20px;padding:0 7px}
+.row-action-btn{height:26px;padding:0 8px}
+.row-more-btn{width:26px;height:26px}
+.funding-table tbody tr{cursor:default}
+.funding-table tbody tr[data-project-row]{cursor:pointer}
+.funding-table tbody tr[data-project-row] .inline-money-wrap,
+.funding-table tbody tr[data-project-row] button{cursor:pointer}
+.funding-table tbody tr[data-project-row]:focus-within td{background:#F4F8FB}
+.funding-table tfoot td{height:36px;font-size:8.4px}
+.tax-hint{display:block;margin-top:2px;text-align:right;color:#99A4AE;font-size:6.8px;font-weight:750}
+.drawer-body{background:#FCFDFE}
+.drawer-kpi{background:#fff;box-shadow:0 1px 2px rgba(11,45,77,.03)}
+.drawer-line{background:#fff;padding-left:2px;padding-right:2px}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+
+<style>
+/* ===== EXCEL EXPORT MENU ===== */
+.excel-export-wrap{position:relative;flex:0 0 auto}
+.excel-export-btn{height:28px;border:1px solid #B8C7D5;border-radius:6px;background:#fff;color:var(--navy);padding:0 9px;font-size:8.7px;font-weight:900;white-space:nowrap}
+.excel-export-btn:hover,.excel-export-btn.open{background:var(--blue-soft);border-color:#9FB6CA}
+.excel-export-menu{position:fixed;right:auto;top:auto;z-index:3000;width:205px;padding:5px;background:#fff;border:1px solid #CED9E4;border-radius:8px;box-shadow:0 14px 34px rgba(11,45,77,.16);display:none}
+.excel-export-menu.show{display:block}
+.excel-export-menu button{width:100%;border:0;background:#fff;color:#344054;text-align:left;padding:8px 9px;border-radius:6px;font-size:9px;font-weight:800;line-height:1.3}
+.excel-export-menu button:hover{background:#F2F6FA;color:var(--navy)}
+.excel-export-menu small{display:block;color:#8A96A4;font-size:7.7px;font-weight:650;margin-top:2px}
+</style>
+
+<style>
+/* ===== READABILITY TUNE — slightly larger, still compact ===== */
+.view-tab{font-size:10px!important}
+.funding-global-status{font-size:9.8px!important}
+
+.funding-toolbar>div:first-child strong{font-size:10.8px!important}
+.quick-filter-btn{font-size:9.2px!important}
+.funding-cutoff span{font-size:8.2px!important}
+.funding-cutoff input{font-size:9.5px!important}
+.funding-search{font-size:9.5px!important}
+.funding-control{font-size:9.2px!important}
+.funding-actions .toolbar-btn{font-size:9.2px!important}
+.excel-export-btn{font-size:9.2px!important}
+.excel-export-menu button{font-size:9.5px!important}
+
+.funding-table thead tr.group-head th{
+  font-size:8.3px!important;
+  letter-spacing:.07em!important
+}
+.funding-table thead tr.column-head th{
+  font-size:9.2px!important
+}
+.funding-table tbody td{
+  font-size:9.8px!important
+}
+
+.funding-project-name{font-size:11.2px!important}
+.funding-project-meta{font-size:8.4px!important}
+.internal-debt-cell .funding-main{font-size:9.8px!important}
+.debt-mini{font-size:8.2px!important}
+
+.money-main{font-size:10.2px!important}
+.money-main.emphasis{font-size:11px!important}
+.inline-money-display{font-size:10px!important}
+.inline-money-input{font-size:9.8px!important}
+
+.progress-caption{font-size:7.6px!important}
+.exec-status{font-size:8.3px!important}
+.row-action-btn{font-size:8.8px!important}
+
+.funding-table tfoot td{font-size:9px!important}
+.funding-table tfoot td:nth-child(2){font-size:8.8px!important}
+
+.drawer-sub{font-size:9.6px!important}
+.drawer-kpi span{font-size:8.7px!important}
+.drawer-section h4{font-size:9.5px!important}
+.drawer-line{font-size:9.7px!important}
+.drawer-primary{font-size:9.6px!important}
+
+.summary-meta{font-size:8.8px!important}
+.funding-unit{font-size:8px!important}
+</style>
+
+
+<style>
+/* ===== MONEY READABILITY BOOST ===== */
+/* Main financial figures in the funding table */
+.funding-table .money-main,
+.funding-table .funding-main,
+.funding-table .inline-money-display{
+  font-size:12.4px!important;
+  line-height:1.25!important;
+  font-weight:900!important;
+  letter-spacing:-.1px!important;
+}
+
+/* Important result / limit column */
+.funding-table .money-main.emphasis,
+.funding-table td.result-cell .money-main,
+.funding-table td.result-cell .inline-money-display{
+  font-size:13.4px!important;
+  font-weight:950!important;
+}
+
+/* Editable amount input while editing */
+.funding-table .inline-money-input{
+  font-size:12px!important;
+  font-weight:850!important;
+}
+
+/* Internal debt main numbers */
+.internal-debt-cell .funding-main{
+  font-size:11.6px!important;
+  line-height:1.25!important;
+}
+
+/* Tiny debt breakdown chips: still secondary, but readable */
+.debt-mini{
+  font-size:9.2px!important;
+  line-height:1.35!important;
+}
+
+/* Progress percentage and shortage note */
+.progress-caption,
+.status-stack .funding-sub{
+  font-size:8.8px!important;
+}
+
+/* Footer totals */
+.funding-table tfoot td{
+  font-size:10.8px!important;
+  font-weight:900!important;
+}
+
+/* Keep the row roomy enough so the larger numbers don't feel cramped */
+.funding-table tbody td{
+  padding-top:9px!important;
+  padding-bottom:9px!important;
+}
+</style>
+
+
+<style>
+/* ===== PAYMENT DETAIL READABILITY BOOST =====
+   Làm riêng tab "Duyệt từng khoản" dễ nhìn hơn trên màn hình rộng.
+*/
+.payment-detail-view .project-bar{
+  height:58px!important;
+  flex-basis:58px!important;
+}
+.payment-detail-view .all-projects-btn{
+  font-size:11px!important;
+}
+.payment-detail-view .project-pill{
+  height:58px!important;
+  flex-basis:176px!important;
+  width:176px!important;
+  min-width:176px!important;
+  padding:9px 11px 7px!important;
+}
+.payment-detail-view .project-pill strong{
+  font-size:11.5px!important;
+  line-height:1.15!important;
+}
+.payment-detail-view .project-pill .project-total{
+  font-size:9.2px!important;
+  line-height:1.3!important;
+}
+
+.payment-detail-view .sheet-toolbar{
+  min-height:50px!important;
+  flex-basis:50px!important;
+  padding:7px 10px!important;
+}
+.payment-detail-view .toolbar-btn,
+.payment-detail-view .sort-select{
+  height:36px!important;
+  font-size:10.8px!important;
+}
+.payment-detail-view .search-box{
+  height:36px!important;
+  width:360px!important;
+}
+.payment-detail-view .search-box input{
+  font-size:11.2px!important;
+}
+.payment-detail-view .filter-status{
+  height:32px!important;
+  font-size:9.8px!important;
+}
+
+/* Header lớn hơn, rõ hơn */
+.payment-detail-view .review-table thead th{
+  height:48px!important;
+}
+.payment-detail-view .review-table .th-inner{
+  height:48px!important;
+  padding:0 28px 0 10px!important;
+}
+.payment-detail-view .review-table .th-label{
+  font-size:10.6px!important;
+  line-height:1.15!important;
+  font-weight:950!important;
+  letter-spacing:.025em!important;
+}
+.payment-detail-view .col-filter-btn{
+  width:18px!important;
+  height:20px!important;
+  font-size:9px!important;
+}
+
+/* Dòng dữ liệu lớn hơn đáng kể */
+.payment-detail-view .review-table tbody td{
+  height:50px!important;
+  padding:9px 10px!important;
+  font-size:11.6px!important;
+  line-height:1.35!important;
+}
+
+/* Các ô chữ cần đọc nhiều */
+.payment-detail-view .review-table tbody td:nth-child(2),
+.payment-detail-view .review-table tbody td:nth-child(3),
+.payment-detail-view .review-table tbody td:nth-child(5),
+.payment-detail-view .review-table tbody td:nth-child(6),
+.payment-detail-view .review-table tbody td:nth-child(9){
+  font-size:11.3px!important;
+}
+
+/* Tiền phải nổi bật nhất */
+.payment-detail-view .review-table .amount,
+.payment-detail-view .approved-input{
+  font-size:12.8px!important;
+  font-weight:950!important;
+  letter-spacing:-.1px!important;
+  font-variant-numeric:tabular-nums!important;
+}
+.payment-detail-view .approved-input{
+  height:32px!important;
+  padding:0 7px!important;
+}
+
+/* Nút duyệt / loại dễ bấm hơn */
+.payment-detail-view .decision{
+  min-height:34px!important;
+}
+.payment-detail-view .decision button{
+  min-height:30px!important;
+  padding:5px 8px!important;
+  font-size:9.8px!important;
+}
+.payment-detail-view .status-badge{
+  font-size:9.5px!important;
+  padding:5px 9px!important;
+}
+
+/* Footer đồng bộ */
+.payment-detail-view .footer-bar{
+  min-height:52px!important;
+  flex-basis:52px!important;
+}
+.payment-detail-view .footer-summary{
+  font-size:10.8px!important;
+}
+.payment-detail-view .confirm-btn{
+  height:38px!important;
+  font-size:10.6px!important;
+}
+
+/* Nới một số cột hay bị bí chữ */
+</style>
+
+
+<style>
+/* ===== PAYMENT DETAIL BALANCED READABILITY =====
+   Vừa mắt hơn, không "over", và KHÔNG khóa độ rộng cột.
+*/
+
+/* Project strip: chỉ tăng nhẹ */
+.payment-detail-view .project-bar{
+  height:54px!important;
+  flex-basis:54px!important;
+}
+.payment-detail-view .all-projects-btn{
+  font-size:10.2px!important;
+}
+.payment-detail-view .project-pill{
+  height:54px!important;
+  flex-basis:164px!important;
+  width:164px!important;
+  min-width:164px!important;
+  padding:8px 10px 6px!important;
+}
+.payment-detail-view .project-pill strong{
+  font-size:10.4px!important;
+}
+.payment-detail-view .project-pill .project-total{
+  font-size:8.6px!important;
+}
+
+/* Toolbar vừa phải */
+.payment-detail-view .sheet-toolbar{
+  min-height:46px!important;
+  flex-basis:46px!important;
+  padding:6px 9px!important;
+}
+.payment-detail-view .toolbar-btn,
+.payment-detail-view .sort-select{
+  height:33px!important;
+  font-size:9.8px!important;
+}
+.payment-detail-view .search-box{
+  height:33px!important;
+  width:330px!important;
+}
+.payment-detail-view .search-box input{
+  font-size:10.2px!important;
+}
+
+/* Header: tăng nhẹ thôi */
+.payment-detail-view .review-table thead th{
+  height:43px!important;
+}
+.payment-detail-view .review-table .th-inner{
+  height:43px!important;
+  padding:0 25px 0 9px!important;
+}
+.payment-detail-view .review-table .th-label{
+  font-size:9.7px!important;
+  line-height:1.1!important;
+}
+
+/* Dòng dữ liệu: vừa đủ đọc */
+.payment-detail-view .review-table tbody td{
+  height:43px!important;
+  padding:8px 9px!important;
+  font-size:10.6px!important;
+  line-height:1.28!important;
+}
+
+/* Số tiền lớn hơn text thường nhưng không quá bự */
+.payment-detail-view .review-table .amount,
+.payment-detail-view .approved-input{
+  font-size:11.7px!important;
+  font-weight:950!important;
+  font-variant-numeric:tabular-nums!important;
+}
+.payment-detail-view .approved-input{
+  height:28px!important;
+}
+
+/* Nút vừa phải */
+.payment-detail-view .decision{
+  min-height:30px!important;
+}
+.payment-detail-view .decision button{
+  min-height:27px!important;
+  padding:4px 7px!important;
+  font-size:9px!important;
+}
+.payment-detail-view .status-badge{
+  font-size:8.8px!important;
+  padding:4px 8px!important;
+}
+
+/* Footer vừa mắt */
+.payment-detail-view .footer-bar{
+  min-height:48px!important;
+  flex-basis:48px!important;
+}
+.payment-detail-view .footer-summary{
+  font-size:10px!important;
+}
+.payment-detail-view .confirm-btn{
+  height:35px!important;
+  font-size:9.8px!important;
+}
+
+/* QUAN TRỌNG:
+   Không đặt width !important cho bất kỳ <col> nào,
+   để JS kéo co giãn cột hoạt động lại.
+*/
+</style>
+
 </head>
 <body class="auth-checking">
 <style>body.auth-checking .app-header,body.auth-checking .workspace{visibility:hidden}</style>
@@ -772,41 +1293,76 @@ body.is-resizing{cursor:col-resize!important;user-select:none!important}
   <section id="fundingView" class="funding-view">
     <div class="funding-toolbar">
       <div>
-        <strong data-i18n="fundingTitle">Nguồn tiền theo dự án</strong>
-        <span data-i18n="fundingFormula">Nguồn khả dụng = Số dư hiện có + Thu dự kiến − Chi bắt buộc</span>
+        <strong data-i18n="fundingTitle">Hạn mức theo dự án</strong><span class="funding-unit">VND</span>
       </div>
       <div class="funding-actions">
+        <div class="quick-filter-bar">
+          <button class="quick-filter-btn active" type="button" data-funding-quick="all" data-i18n="quickAll">Tất cả</button>
+          <button class="quick-filter-btn" type="button" data-funding-quick="activity" data-i18n="quickActivity">Có phát sinh</button>
+          <button class="quick-filter-btn" type="button" data-funding-quick="pending" data-i18n="quickPending">Chờ duyệt</button>
+          <button class="quick-filter-btn" type="button" data-funding-quick="debt" data-i18n="quickDebt">Có nợ nội bộ</button>
+          <button class="quick-filter-btn" type="button" data-funding-quick="shortage" data-i18n="quickShortage">Thiếu nguồn</button>
+        </div>
         <label class="funding-cutoff"><span data-i18n="fundingCutoff">CHỐT SỐ DƯ ĐẾN NGÀY</span><input id="fundingCutoffDate" type="date"></label>
         <input id="fundingSearchInput" class="funding-search" placeholder="Tìm dự án..." data-i18n-placeholder="fundingSearchPlaceholder">
-        <select id="fundingFilterSelect" class="funding-control"><option value="all" data-i18n="fundingFilterAll">Tất cả dự án</option><option value="activity" data-i18n="fundingFilterActivity">Có thanh toán tháng này</option><option value="inactive" data-i18n="fundingFilterInactive">Không có thanh toán tháng này</option><option value="debt" data-i18n="fundingFilterDebt">Có công nợ nội bộ</option><option value="missingBalance" data-i18n="fundingFilterMissing">Chưa có số dư</option></select>
         <select id="fundingSortSelect" class="funding-control"><option value="activity" data-i18n="fundingSortActivity">Thanh toán tháng này trước</option><option value="project" data-i18n="fundingSortProject">Dự án A → Z</option><option value="balance" data-i18n="fundingSortBalance">Số dư cao → thấp</option><option value="remaining" data-i18n="fundingSortRemaining">Hạn mức cao → thấp</option><option value="debtPay" data-i18n="fundingSortDebt">Phải trả nội bộ cao → thấp</option></select>
-        <label class="funding-row-size"><span data-i18n="fundingRowHeight">Độ cao dòng</span><input id="fundingRowHeight" type="range" min="46" max="96" step="2"></label>
-        <button id="importCashOpeningBtn" class="toolbar-btn" type="button" data-i18n="syncCash">↻ Cập nhật số dư từ Dòng tiền</button>
+        <div class="excel-export-wrap" id="excelExportWrap">
+          <button id="excelExportBtn" class="excel-export-btn" type="button" data-i18n="exportExcel">⇩ Xuất Excel ▾</button>
+          <div id="excelExportMenu" class="excel-export-menu">
+            <button type="button" data-excel-export="overview" data-i18n="exportOverview">Tổng quan nguồn tiền</button>
+            <button type="button" data-excel-export="detail" data-i18n="exportDetail">Chi tiết khoản duyệt</button>
+            <button type="button" data-excel-export="full" data-i18n="exportFull">Toàn bộ báo cáo</button>
+          </div>
+        </div>
+        <button id="importCashOpeningBtn" class="toolbar-btn" type="button" data-i18n="syncCash">↻ Cập nhật từ Dòng tiền</button>
         <button id="goPaymentAllBtn" class="toolbar-btn" type="button" data-i18n="reviewPayments">Duyệt từng khoản →</button>
       </div>
     </div>
     <div class="funding-table-wrap">
       <table class="funding-table" id="fundingTable">
         <colgroup>
-          <col style="width:145px"><col style="width:260px"><col style="width:150px"><col style="width:155px"><col style="width:145px">
-          <col style="width:145px"><col style="width:140px"><col style="width:150px"><col style="width:155px"><col style="width:155px"><col style="width:155px"><col style="width:180px">
+          <col style="width:155px"><col style="width:210px"><col style="width:140px"><col style="width:145px"><col style="width:150px">
+          <col style="width:140px"><col style="width:125px"><col style="width:125px"><col style="width:130px"><col style="width:130px"><col style="width:130px">
+          <col style="width:155px"><col style="width:135px"><col style="width:105px">
         </colgroup>
-        <thead><tr>
-          <th data-i18n="fundingProject">DỰ ÁN</th><th data-i18n="fundingInternal">CÔNG NỢ NỘI BỘ</th><th data-i18n="fundingOpening">SỐ DƯ ĐẾN NGÀY</th>
-          <th data-i18n="fundingExpectedIn">THU KẾ HOẠCH</th><th data-i18n="fundingActualIn">THỰC THU TRONG THÁNG</th><th data-i18n="fundingPayroll">LƯƠNG / BH</th>
-          <th data-i18n="fundingIndirect">CHI PHÍ GIÁN TIẾP</th><th data-i18n="fundingDirect">CHI CÔNG TRÌNH</th><th data-i18n="fundingInternalRepay">DỰ KIẾN HOÀN NỘI BỘ</th><th data-i18n="fundingReserve">KHOẢN GIỮ LẠI</th>
-          <th data-i18n="fundingActualOut">THỰC CHI ĐẾN NGÀY</th><th data-i18n="fundingRemaining">CÒN ĐƯỢC DÙNG</th>
-        </tr></thead>
+        <thead>
+          <tr class="group-head">
+            <th rowspan="2" data-i18n="fundingProject">DỰ ÁN</th>
+            <th rowspan="2" data-i18n="fundingInternal">CÔNG NỢ NỘI BỘ</th>
+            <th colspan="3" class="group-start" data-i18n="fundingGroupSource">NGUỒN TIỀN</th>
+            <th colspan="4" class="group-start" data-i18n="fundingGroupExpense">KẾ HOẠCH CHI</th>
+            <th colspan="2" class="group-start" data-i18n="fundingGroupAdjust">ĐIỀU CHỈNH</th>
+            <th colspan="2" class="group-start" data-i18n="fundingGroupResult">KẾT QUẢ</th>
+            <th rowspan="2" class="group-start" data-i18n="fundingAction">THAO TÁC</th>
+          </tr>
+          <tr class="column-head">
+            <th class="group-start" data-i18n="fundingOpening">SỐ DƯ</th>
+            <th data-i18n="fundingExpectedIn">KẾ HOẠCH THU</th>
+            <th data-i18n="fundingActualIn">THỰC THU</th>
+            <th class="group-start" data-i18n="fundingDirectGroup">PHÂN BAO / CÔNG TRÌNH</th>
+            <th data-i18n="fundingIndirect">间接费</th>
+            <th data-i18n="fundingPayroll">LƯƠNG / BH</th>
+            <th data-i18n="fundingTax">THUẾ TREO</th>
+            <th class="group-start" data-i18n="fundingInternalRepay">HOÀN NỘI BỘ</th>
+            <th data-i18n="fundingReserve">GIỮ LẠI</th>
+            <th class="group-start" data-i18n="fundingRemaining">HẠN MỨC</th>
+            <th>TRẠNG THÁI</th>
+          </tr>
+        </thead>
         <tbody id="fundingBody"></tbody>
         <tfoot id="fundingFoot"></tfoot>
       </table>
     </div>
-    <div class="funding-note">
-      <span>ⓘ</span>
-      <span id="fundingNoteText" data-i18n="fundingNote">Công nợ nội bộ chỉ để theo dõi ai còn nợ ai. Chỉ số tiền dự kiến hoàn mới được trừ khỏi hạn mức.</span>
-    </div>
+
   </section>
 
+
+<div id="fundingDrawerBackdrop" class="funding-drawer-backdrop"></div>
+<aside id="fundingDrawer" class="funding-drawer" aria-hidden="true">
+  <div class="drawer-head"><div><div id="fundingDrawerTitle" class="drawer-title">Dự án</div><div id="fundingDrawerSub" class="drawer-sub"></div></div><button id="fundingDrawerClose" class="drawer-close" type="button">×</button></div>
+  <div id="fundingDrawerBody" class="drawer-body"></div>
+  <div class="drawer-foot"><button id="fundingDrawerReview" class="drawer-primary" type="button">Duyệt từng khoản →</button></div>
+</aside>
   <section id="paymentDetailView" class="payment-detail-view hidden-view">
 
 <section class="project-bar">
@@ -913,7 +1469,7 @@ appTitle:"DUYỆT KẾ HOẠCH THANH TOÁN",appSub:"Duyệt kế hoạch thanh t
 totalProposal:"TỔNG TIỀN ĐỀ XUẤT",keepInPlan:"TỔNG TIỀN ĐƯỢC DUYỆT",excludeFromPlan:"TỔNG TIỀN LOẠI / GIẢM",keepRate:"TỶ LỆ ĐƯỢC DUYỆT",
 fundingView:"TỔNG QUAN DUYỆT THÁNG",paymentView:"DUYỆT TỪNG KHOẢN",fundingTitle:"Hạn mức theo dự án",fundingFormula:"Số dư đến ngày + thu kế hoạch − kế hoạch còn chi − dự kiến hoàn nội bộ − khoản giữ lại = hạn mức dự kiến",
 syncCash:"↻ Cập nhật từ Dòng tiền",reviewPayments:"Duyệt từng khoản →",fundingSearchPlaceholder:"Tìm dự án...",fundingCutoff:"CHỐT SỐ DƯ ĐẾN NGÀY",fundingProject:"DỰ ÁN",fundingOpening:"SỐ DƯ ĐẾN NGÀY",fundingInternal:"CÔNG NỢ NỘI BỘ",fundingExpectedIn:"THU KẾ HOẠCH",fundingActualIn:"THỰC THU TRONG THÁNG",fundingPayroll:"LƯƠNG / BH",fundingIndirect:"CHI PHÍ GIÁN TIẾP",fundingDirect:"CHI CÔNG TRÌNH",fundingInternalRepay:"DỰ KIẾN HOÀN NỘI BỘ",fundingReserve:"KHOẢN GIỮ LẠI",fundingActualOut:"THỰC CHI ĐẾN NGÀY",
-fundingRemaining:"HẠN MỨC DỰ KIẾN",fundingNote:"Công nợ nội bộ chỉ để theo dõi ai còn nợ ai. Chỉ số tiền nhập tại Dự kiến hoàn nội bộ mới được trừ khỏi hạn mức tháng.",
+fundingRemaining:"HẠN MỨC DỰ KIẾN",fundingDirectGroup:"PHÂN BAO / CÔNG TRÌNH",fundingTax:"THUẾ TREO",fundingGroupSource:"NGUỒN TIỀN",fundingGroupExpense:"KẾ HOẠCH CHI",fundingGroupAdjust:"ĐIỀU CHỈNH",fundingGroupResult:"KẾT QUẢ",fundingAction:"THAO TÁC",quickAll:"Tất cả",quickActivity:"Có phát sinh",quickPending:"Chờ duyệt",quickDebt:"Có nợ nội bộ",quickShortage:"Thiếu nguồn",exportExcel:"⇩ Xuất Excel ▾",exportOverview:"Tổng quan nguồn tiền",exportDetail:"Chi tiết khoản duyệt",exportFull:"Toàn bộ báo cáo",
 fundingFilterAll:"Tất cả dự án",fundingFilterActivity:"Có thanh toán tháng này",fundingFilterInactive:"Không có thanh toán tháng này",fundingFilterDebt:"Có công nợ nội bộ",fundingFilterMissing:"Chưa có số dư",fundingSortActivity:"Thanh toán tháng này trước",fundingSortProject:"Dự án A → Z",fundingSortBalance:"Số dư cao → thấp",fundingSortRemaining:"Hạn mức cao → thấp",fundingSortDebt:"Phải trả nội bộ cao → thấp",fundingRowHeight:"Độ cao dòng",
 projectsInPlan:"DỰ ÁN TRONG KẾ HOẠCH",allProjects:"Tất cả dự án",keepAllVisible:"✓ Duyệt tất cả đang hiển thị",excludeAllVisible:"⊘ Loại tất cả đang hiển thị",
 refresh:"↻ Làm mới",confirmLock:"XÁC NHẬN VÀ KHÓA KẾ HOẠCH",sortCreated:"Theo thứ tự đề xuất",sortAmountDesc:"Số tiền: cao → thấp",sortAmountAsc:"Số tiền: thấp → cao",
@@ -926,7 +1482,7 @@ appTitle:"付款计划审核",appSub:"按月审核付款计划",signOut:"退出�
 totalProposal:"提报总金额",keepInPlan:"核准总金额",excludeFromPlan:"移出 / 调减金额",keepRate:"核准比例",
 fundingView:"月度审核总览",paymentView:"逐笔审核",fundingTitle:"项目月度可用额度",fundingFormula:"截止日余额 + 预计收款 − 待支付计划 − 预计内部还款 − 预留款 = 预计额度",
 syncCash:"↻ 从资金页面更新",reviewPayments:"逐笔审核 →",fundingSearchPlaceholder:"搜索项目...",fundingCutoff:"余额截止日期",fundingProject:"项目",fundingOpening:"截止日余额",fundingInternal:"内部往来欠款",fundingExpectedIn:"预计收款",fundingActualIn:"本月累计实收",fundingPayroll:"工资 / 社保",fundingIndirect:"间接费",fundingDirect:"工程直接费",fundingInternalRepay:"预计内部还款",fundingReserve:"预留款",fundingActualOut:"截止日实支",
-fundingRemaining:"预计可用额度",fundingNote:"内部欠款仅用于查看项目间债权债务。只有填入预计内部还款的金额才会从本月额度中扣除。",
+fundingRemaining:"预计可用额度",fundingDirectGroup:"分包 / 工程款",fundingTax:"待缴税费",fundingGroupSource:"资金来源",fundingGroupExpense:"计划支出",fundingGroupAdjust:"资金调整",fundingGroupResult:"结果",fundingAction:"操作",quickAll:"全部",quickActivity:"有发生",quickPending:"待审核",quickDebt:"有内部欠款",quickShortage:"资金不足",exportExcel:"⇩ 导出 Excel ▾",exportOverview:"资金总览",exportDetail:"审核明细",exportFull:"完整报告",
 fundingFilterAll:"全部项目",fundingFilterActivity:"本月有付款",fundingFilterInactive:"本月无付款",fundingFilterDebt:"有内部欠款",fundingFilterMissing:"缺少余额",fundingSortActivity:"本月付款项目优先",fundingSortProject:"项目 A → Z",fundingSortBalance:"余额从高到低",fundingSortRemaining:"额度从高到低",fundingSortDebt:"内部应付从高到低",fundingRowHeight:"行高",
 projectsInPlan:"计划内项目",allProjects:"全部项目",keepAllVisible:"✓ 核准当前显示全部",excludeAllVisible:"⊘ 移出当前显示全部",
 refresh:"↻ 刷新",confirmLock:"确认并锁定计划",sortCreated:"按提报顺序",sortAmountDesc:"金额：高 → 低",sortAmountAsc:"金额：低 → 高",
@@ -982,6 +1538,7 @@ const monthSelect=$("monthSelect"),searchInput=$("searchInput"),sortSelect=$("so
 let activeProject="";
 function norm(v){return String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d").replace(/Đ/g,"D").trim().toLowerCase().replace(/\s+/g," ")}
 function money(v){return new Intl.NumberFormat("vi-VN",{maximumFractionDigits:0}).format(Number(v)||0)+" VND"}
+function tableMoney(v){return new Intl.NumberFormat("vi-VN",{maximumFractionDigits:0}).format(Number(v)||0)}
 function isChineseUI(){return window.PLAN_REVIEW_LANG==="zh"}
 function monthValue(value){
   const match=String(value||"").match(/^(\d{4})-(\d{2})$/);
@@ -1084,13 +1641,14 @@ function loadFundingStore(){
 }
 function saveFundingStore(obj){localStorage.setItem(FUNDING_KEY,JSON.stringify(obj))}
 function fundingKey(project){return `${monthSelect.value}|${project}`}
-function emptyMonthlySnapshot(month){return {month,balances:{},planning:{},internalDebtByProject:{},internalDebtSource:{},projectCatalog:[],reviewCutoffDate:"",exists:false}}
+function emptyMonthlySnapshot(month){return {month,balances:{},planning:{},cashPlanningByProject:{},internalDebtByProject:{},internalDebtSource:{},projectCatalog:[],reviewCutoffDate:"",exists:false}}
 function normalizeMonthlySnapshot(month,raw,exists=true){
   const value=raw&&typeof raw==="object"?raw:{};
   return {
     month,
     balances:value.balances&&typeof value.balances==="object"?value.balances:{},
     planning:value.planning&&typeof value.planning==="object"?value.planning:{},
+    cashPlanningByProject:value.cashPlanningByProject&&typeof value.cashPlanningByProject==="object"?value.cashPlanningByProject:{},
     internalDebtByProject:value.internalDebtByProject&&typeof value.internalDebtByProject==="object"?value.internalDebtByProject:{},
     internalDebtSource:value.internalDebtSource&&typeof value.internalDebtSource==="object"?value.internalDebtSource:{},
     projectCatalog:Array.isArray(value.projectCatalog)?value.projectCatalog:[],
@@ -1115,6 +1673,7 @@ function legacyPlanningForMonth(month){
       expectedIn:Math.max(0,Number(row.expectedIn)||0),
       mandatoryOut:Math.max(0,Number(row.mandatoryOut)||0),
       internalRepayment:Math.max(0,Number(row.internalRepayment)||0),
+      taxPending:Math.max(0,Number(row.taxPending)||0),
       updatedAt:new Date().toISOString(),
       migratedFrom:"paymentPlanFundingV1"
     };
@@ -1162,12 +1721,16 @@ async function loadMonthlyFundingSnapshot(month,{force=false,quiet=false}={}){
   monthlySnapshotLoads.set(month,task);
   return task;
 }
+function cashPlanningRecord(project){
+  const cloud=monthlyFundingSnapshots.get(monthSelect.value);
+  return projectMapRecord(cloud?.cashPlanningByProject,project);
+}
 function fundingRecord(project){
   const cloud=monthlyFundingSnapshots.get(monthSelect.value);
   const online=projectMapRecord(cloud?.planning,project);
-  if(online)return {expectedIn:Number(online.expectedIn)||0,mandatoryOut:Number(online.mandatoryOut)||0,internalRepayment:Number(online.internalRepayment)||0};
+  if(online)return {expectedIn:Number(online.expectedIn)||0,mandatoryOut:Number(online.mandatoryOut)||0,internalRepayment:Number(online.internalRepayment)||0,taxPending:Number(online.taxPending)||0};
   const store=loadFundingStore();
-  return store[fundingKey(project)]||{expectedIn:0,mandatoryOut:0,internalRepayment:0};
+  return store[fundingKey(project)]||{expectedIn:0,mandatoryOut:0,internalRepayment:0,taxPending:0};
 }
 async function persistFundingRecord(month,project,row){
   if(!canReview())return;
@@ -1192,14 +1755,15 @@ async function persistFundingRecord(month,project,row){
 function setFundingField(project,field,value){
   const month=monthSelect.value;
   const store=loadFundingStore(), key=fundingKey(project);
-  store[key]={expectedIn:0,mandatoryOut:0,internalRepayment:0,...(store[key]||{}),[field]:Math.max(0,Number(value)||0)};
+  store[key]={expectedIn:0,mandatoryOut:0,internalRepayment:0,taxPending:0,...(store[key]||{}),[field]:Math.max(0,Number(value)||0)};
   saveFundingStore(store);
   const snapshot=monthlyFundingSnapshots.get(month)||emptyMonthlySnapshot(month);
-  const previous=projectMapRecord(snapshot.planning,project)||{expectedIn:0,mandatoryOut:0,internalRepayment:0};
+  const previous=projectMapRecord(snapshot.planning,project)||{expectedIn:0,mandatoryOut:0,internalRepayment:0,taxPending:0};
   const row={
     expectedIn:Math.max(0,Number(previous.expectedIn)||0),
     mandatoryOut:Math.max(0,Number(previous.mandatoryOut)||0),
     internalRepayment:Math.max(0,Number(previous.internalRepayment)||0),
+    taxPending:Math.max(0,Number(previous.taxPending)||0),
     [field]:Math.max(0,Number(value)||0)
   };
   snapshot.planning={...snapshot.planning,[project]:{project,...row,updatedAt:new Date().toISOString()}};
@@ -1211,7 +1775,7 @@ function projectPlanStats(){
   const map=new Map();
   activeMonthPayments().forEach(p=>{
     const project=p.project||"—";
-    const s=map.get(project)||{project,count:0,paidCount:0,paidActual:0,proposal:0,approved:0,pendingApproved:0,direct:0,indirect:0,payroll:0,sources:[isChineseUI()?"本月 Payment":"Payment tháng này"]};
+    const s=map.get(project)||{project,count:0,paidCount:0,paidActual:0,proposal:0,approved:0,pendingApproved:0,direct:0,indirect:0,payroll:0,tax:0,sources:[isChineseUI()?"本月 Payment":"Payment tháng này"]};
     if(isPaidPayment(p)){
       const raw=p.processActualAmount;
       s.paidCount++;
@@ -1234,20 +1798,26 @@ function projectPlanStats(){
     project=String(project||"").trim();if(!project)return;
     const existing=[...map.entries()].find(([key])=>norm(key)===norm(project));
     if(existing){existing[1].sources=[...new Set([...(existing[1].sources||[]),...sources])];return}
-    map.set(project,{project,count:0,paidCount:0,paidActual:0,proposal:0,approved:0,pendingApproved:0,direct:0,indirect:0,payroll:0,sources:[...new Set(sources)]});
+    map.set(project,{project,count:0,paidCount:0,paidActual:0,proposal:0,approved:0,pendingApproved:0,direct:0,indirect:0,payroll:0,tax:0,sources:[...new Set(sources)]});
   };
   (cloud.projectCatalog||[]).forEach(row=>ensureProject(typeof row==="string"?row:row?.project,Array.isArray(row?.sources)?row.sources:[]));
   Object.values(cloud.balances||{}).forEach(row=>ensureProject(row?.project,[isChineseUI()?"资金余额":"Số dư Dòng tiền"]));
+  Object.values(cloud.cashPlanningByProject||{}).forEach(row=>ensureProject(row?.project,[isChineseUI()?"资金计划":"Kế hoạch Dòng tiền"]));
   const debtMap=cloud.internalDebtByProject||{};
   Object.values(debtMap).forEach(row=>{
     const project=String(row?.project||"").trim();
     ensureProject(project,[isChineseUI()?"内部借款":"Vay nội bộ"]);
   });
-  return [...map.values()];
+  return [...map.values()].map(s=>{
+    const cp=projectMapRecord(cloud.cashPlanningByProject,s.project);
+    const hasPayroll=!!(cp&&Object.prototype.hasOwnProperty.call(cp,"payroll"));
+    return {...s,cashPlan:cp||null,cashPayrollPending:hasPayroll?Math.max(0,Number(cp.payroll)||0):0,payrollFromCash:hasPayroll};
+  });
 }
 
 function paymentPlanGroup(payment){
   const text=norm([payment.costType,payment.contractType,payment.contractName].join(" "));
+  if(/thuế|thue|税|tax|vat/i.test(text))return "tax";
   if(/间接|gian tiep|indirect|jianjie|hành chính|hanh chinh|行政|临建/i.test(text))return "indirect";
   if(/lương|luong|工资|薪资|bảo hiểm|bao hiem|社保|保险|công đoàn|cong doan|工会/i.test(text))return "payroll";
   return "direct";
@@ -1292,12 +1862,16 @@ function cashBalanceFor(project){
   };
 }
 
-function projectCashStats(project,proposal,approved,paidActualFallback=0){
+function projectCashStats(project,proposal,approved,paidActualFallback=0,cashPayrollPending=0,payrollFromCash=false){
   const f=fundingRecord(project);
   const cash=cashBalanceFor(project);
+  const cp=cashPlanningRecord(project);
   const expectedIn=Number(f.expectedIn)||0;
   const reserve=Number(f.mandatoryOut)||0;
   const internalRepayment=Number(f.internalRepayment)||0;
+  const taxFromCash=!!(cp&&Object.prototype.hasOwnProperty.call(cp,"taxOutstanding"));
+  const taxPending=taxFromCash?Math.max(0,Number(cp.taxOutstanding)||0):(Number(f.taxPending)||0);
+  const payrollPending=payrollFromCash?Math.max(0,Number(cashPayrollPending)||0):0;
   const internalNet=cash.internalIn-cash.internalOut;
   const actualIn=Math.max(0,cash.cashIn-cash.internalIn);
   const snapshotActualOut=Math.max(0,cash.cashOut-cash.internalOut);
@@ -1305,11 +1879,11 @@ function projectCashStats(project,proposal,approved,paidActualFallback=0){
   const extraPaid=Math.max(0,countedActualOut-snapshotActualOut);
   const opening=cash.found?(cash.balance-extraPaid):0;
   const source=opening+expectedIn;
-  const remaining=source-approved-internalRepayment-reserve;
-  const hasFunding=cash.found||expectedIn!==0||reserve!==0||internalRepayment!==0;
+  const remaining=source-approved-payrollPending-internalRepayment-reserve-taxPending;
+  const hasFunding=cash.found||expectedIn!==0||reserve!==0||internalRepayment!==0||taxPending!==0||payrollPending!==0;
   return{
     opening,actualIn,actualOut:countedActualOut,internalIn:cash.internalIn,internalOut:cash.internalOut,internalNet,
-    expectedIn,reserve,internalRepayment,internalDebt:cash.internalDebt,source,
+    expectedIn,reserve,internalRepayment,taxPending,taxFromCash,payrollPending,payrollFromCash,internalDebt:cash.internalDebt,source,
     proposal,
     approved,
     remaining,
@@ -1361,8 +1935,13 @@ function applyFundingRowHeight(value){
 }
 function compactMoney(v){
   const n=Math.abs(Number(v)||0);
-  if(n>=1e9)return `${new Intl.NumberFormat("vi-VN",{maximumFractionDigits:2}).format(n/1e9)} ${isChineseUI()?"十亿":"tỷ"}`;
-  if(n>=1e6)return `${new Intl.NumberFormat("vi-VN",{maximumFractionDigits:1}).format(n/1e6)} ${isChineseUI()?"百万":"triệu"}`;
+  if(isChineseUI()){
+    if(n>=1e8)return `${new Intl.NumberFormat("zh-CN",{maximumFractionDigits:2}).format(n/1e8)} 亿`;
+    if(n>=1e4)return `${new Intl.NumberFormat("zh-CN",{maximumFractionDigits:1}).format(n/1e4)} 万`;
+    return new Intl.NumberFormat("zh-CN",{maximumFractionDigits:0}).format(n);
+  }
+  if(n>=1e9)return `${new Intl.NumberFormat("vi-VN",{maximumFractionDigits:2}).format(n/1e9)} tỷ`;
+  if(n>=1e6)return `${new Intl.NumberFormat("vi-VN",{maximumFractionDigits:1}).format(n/1e6)} triệu`;
   return new Intl.NumberFormat("vi-VN",{maximumFractionDigits:0}).format(n);
 }
 function internalDebtCell(debt,precise=true){
@@ -1371,25 +1950,78 @@ function internalDebtCell(debt,precise=true){
   if(!receive&&!pay)return `<span class="funding-main">—</span><div class="funding-sub">${isChineseUI()?"无内部欠款":"Không còn công nợ"}</div>`;
   const main=isChineseUI()?`应收 ${compactMoney(receive)} · 应付 ${compactMoney(pay)}`:`Thu ${compactMoney(receive)} · Trả ${compactMoney(pay)}`;
   const details=[
-    ...receivables.map(row=>isChineseUI()?`${row.project} 欠 ${compactMoney(row.amount)}`:`${row.project} nợ ${compactMoney(row.amount)}`),
-    ...payables.map(row=>isChineseUI()?`欠 ${row.project} ${compactMoney(row.amount)}`:`Nợ ${row.project} ${compactMoney(row.amount)}`)
+    ...receivables.map(row=>({kind:"receive",text:isChineseUI()?`${row.project} 欠 ${compactMoney(row.amount)}`:`${row.project} nợ ${compactMoney(row.amount)}`})),
+    ...payables.map(row=>({kind:"pay",text:isChineseUI()?`欠 ${row.project} ${compactMoney(row.amount)}`:`Nợ ${row.project} ${compactMoney(row.amount)}`}))
   ];
-  return `<span class="funding-main">${escapeHtml(main)}</span><div class="funding-sub" title="${escapeHtml(details.join(" · "))}">${escapeHtml(details.slice(0,2).join(" · "))}${details.length>2?` · +${details.length-2}`:""}</div>`;
+  const detailHtml=details.map(d=>`<span class="debt-mini ${d.kind}">${escapeHtml(d.text)}</span>`).join("");
+  return `<span class="funding-main">${escapeHtml(main)}</span><div class="debt-mini-list">${detailHtml}</div>`;
 }
+function fundingMoneyDisplay(value,{positive=false,negative=false,emphasis=false}={}){
+  const n=Number(value)||0;
+  const cls=["money-main",n===0?"zero":"",positive&&n>0?"positive":"",negative&&n>0?"negative":"",emphasis?"emphasis":""].filter(Boolean).join(" ");
+  return `<span class="${cls}">${n===0?"–":tableMoney(n)}</span>`;
+}
+function fundingInlineEditor(project,field,value,disabled=false){
+  const n=Math.max(0,Number(value)||0), zero=n===0;
+  if(disabled)return `<div class="inline-money-wrap"><span class="inline-money-display ${zero?"zero":""}">${zero?"–":tableMoney(n)}</span></div>`;
+  return `<div class="inline-money-wrap" data-inline-wrap><span class="inline-money-display ${zero?"zero":""}" data-inline-display>${zero?"–":tableMoney(n)}</span><input class="inline-money-input" data-funding-project="${escapeHtml(project)}" data-funding-field="${field}" value="${formatInputMoney(n)}"></div>`;
+}
+function fundingRowStatus(s){
+  const c=s.cash, pending=s.count>0;
+  const debtTotal=(Number(c.internalDebt?.receivableTotal)||0)+(Number(c.internalDebt?.payableTotal)||0);
+  const payroll=Number(s.payrollFromCash?s.cashPayrollPending:s.payroll)||0;
+  const hasFinancialActivity=[s.count,s.paidCount,c.expectedIn,c.actualIn,s.direct,s.indirect,payroll,c.taxPending,c.internalRepayment,c.reserve,c.actualOut,debtTotal].some(v=>Math.abs(Number(v)||0)>0);
+  if(!c.cashFound||!c.cashPrecise||!c.debtPrecise)return {kind:"empty",label:isChineseUI()?"需更新数据":"CẦN CẬP NHẬT",row:"row-warning"};
+  if(c.remaining<0)return {kind:"bad",label:isChineseUI()?"资金不足":"THIẾU NGUỒN",row:"row-shortage"};
+  if(pending)return {kind:"wait",label:isChineseUI()?"待审核":"CHỜ DUYỆT",row:"row-warning"};
+  if(!hasFinancialActivity)return {kind:"empty",label:isChineseUI()?"无发生":"KHÔNG PHÁT SINH",row:"row-inactive"};
+  return {kind:"ok",label:isChineseUI()?"正常":"BÌNH THƯỜNG",row:"row-good"};
+}
+function openFundingDrawer(project){
+  const stats=projectPlanStats().find(x=>norm(x.project)===norm(project)); if(!stats)return;
+  const c=projectCashStats(stats.project,stats.proposal,stats.pendingApproved,stats.paidActual,stats.cashPayrollPending,stats.payrollFromCash), debt=c.internalDebt||{};
+  const line=(label,value)=>`<div class="drawer-line"><span>${label}</span><strong>${Number(value)?money(value):"–"}</strong></div>`;
+  $("fundingDrawerTitle").textContent=stats.project;
+  $("fundingDrawerSub").textContent=`${stats.count} ${isChineseUI()?"笔待审核":"khoản chờ duyệt"}${stats.paidCount?` · ${stats.paidCount} ${isChineseUI()?"笔已支付":"đã trả"}`:""}`;
+  const debtDetails=[...(debt.receivables||[]).map(r=>`${isChineseUI()?"应收":"Phải thu"} ${r.project}: ${money(r.amount)}`),...(debt.payables||[]).map(r=>`${isChineseUI()?"应付":"Phải trả"} ${r.project}: ${money(r.amount)}`)];
+  $("fundingDrawerBody").innerHTML=`
+    <div class="drawer-kpi"><span>${isChineseUI()?"预计可用额度":"Hạn mức dự kiến"}</span><strong style="${c.remaining<0?'color:var(--red)':''}">${c.cashFound?money(c.remaining):"—"}</strong></div>
+    <div class="drawer-section"><h4>${isChineseUI()?"资金来源":"Nguồn tiền"}</h4>${line(isChineseUI()?"截止日余额":"Số dư",c.opening)}${line(isChineseUI()?"预计收款":"Kế hoạch thu",c.expectedIn)}${line(isChineseUI()?"本月实收":"Thực thu",c.actualIn)}</div>
+    <div class="drawer-section"><h4>${isChineseUI()?"计划支出":"Kế hoạch chi"}</h4>${line(isChineseUI()?"分包 / 工程款":"Phân bao / Công trình",stats.direct)}${line(isChineseUI()?"间接费":"Chi phí gián tiếp",stats.indirect)}${line(isChineseUI()?"工资 / 社保":"Lương / BH",stats.payrollFromCash?stats.cashPayrollPending:stats.payroll)}${line(isChineseUI()?"待缴税费":"Thuế treo",c.taxPending)}</div>
+    <div class="drawer-section"><h4>${isChineseUI()?"资金调整":"Điều chỉnh"}</h4>${line(isChineseUI()?"预计内部还款":"Hoàn nội bộ",c.internalRepayment)}${line(isChineseUI()?"预留款":"Giữ lại",c.reserve)}</div>
+    <div class="drawer-section"><h4>${isChineseUI()?"内部往来":"Công nợ nội bộ"}</h4>${debtDetails.length?debtDetails.map(t=>`<div class="drawer-line"><span>${escapeHtml(t)}</span></div>`).join(""):`<div class="drawer-line"><span>${isChineseUI()?"无内部欠款":"Không có công nợ nội bộ"}</span></div>`}</div>`;
+  $("fundingDrawer").dataset.project=stats.project;
+  $("fundingDrawer").classList.add("show");$("fundingDrawerBackdrop").classList.add("show");$("fundingDrawer").setAttribute("aria-hidden","false");
+}
+function closeFundingDrawer(){ $("fundingDrawer")?.classList.remove("show");$("fundingDrawerBackdrop")?.classList.remove("show");$("fundingDrawer")?.setAttribute("aria-hidden","true"); }
 function renderFundingView(){
   if(!$("fundingBody"))return;
-  setupFundingColumnResizers();
-  syncFundingCutoffInput(false);
+  setupFundingColumnResizers(); syncFundingCutoffInput(false);
   const locked=isMonthLocked(), search=norm($("fundingSearchInput")?.value||"");
-  const allRows=projectPlanStats().map(s=>({...s,cash:projectCashStats(s.project,s.proposal,s.pendingApproved,s.paidActual)}));
-  const filter=$("fundingFilterSelect")?.value||"all",sort=$("fundingSortSelect")?.value||"activity";
+  const allRows=projectPlanStats().map(s=>({...s,cash:projectCashStats(s.project,s.proposal,s.pendingApproved,s.paidActual,s.cashPayrollPending,s.payrollFromCash)}));
+  const quick=document.querySelector(".quick-filter-btn.active")?.dataset.fundingQuick||"all",sort=$("fundingSortSelect")?.value||"activity";
   let rows=allRows.filter(s=>!search||norm([s.project,...(s.sources||[])].join(" ")).includes(search));
+  const rowFinancialActivity=s=>{
+    const c=s.cash||{};
+    const debt=(Number(c.internalDebt?.receivableTotal)||0)+(Number(c.internalDebt?.payableTotal)||0);
+    const payroll=Number(s.payrollFromCash?s.cashPayrollPending:s.payroll)||0;
+    const values=[c.expectedIn,c.actualIn,s.direct,s.indirect,payroll,c.taxPending,c.internalRepayment,c.reserve,c.actualOut,debt];
+    return values.some(v=>Math.abs(Number(v)||0)>0);
+  };
+  const rowFinancialWeight=s=>{
+    const c=s.cash||{};
+    const debt=(Number(c.internalDebt?.receivableTotal)||0)+(Number(c.internalDebt?.payableTotal)||0);
+    const payroll=Number(s.payrollFromCash?s.cashPayrollPending:s.payroll)||0;
+    return [c.expectedIn,c.actualIn,s.direct,s.indirect,payroll,c.taxPending,c.internalRepayment,c.reserve,c.actualOut,debt]
+      .reduce((sum,v)=>sum+Math.abs(Number(v)||0),0);
+  };
   rows=rows.filter(s=>{
-    const activity=s.count+s.paidCount>0,debt=(Number(s.cash.internalDebt?.receivableTotal)||0)+(Number(s.cash.internalDebt?.payableTotal)||0);
-    if(filter==="activity")return activity;
-    if(filter==="inactive")return !activity;
-    if(filter==="debt")return debt>0;
-    if(filter==="missingBalance")return !s.cash.cashFound;
+    const paymentActivity=s.count+s.paidCount>0, financialActivity=rowFinancialActivity(s);
+    const debt=(Number(s.cash.internalDebt?.receivableTotal)||0)+(Number(s.cash.internalDebt?.payableTotal)||0);
+    if(quick==="activity")return paymentActivity||financialActivity;
+    if(quick==="pending")return s.count>0;
+    if(quick==="debt")return debt>0;
+    if(quick==="shortage")return s.cash.cashFound&&s.cash.remaining<0;
     return true;
   });
   rows.sort((a,b)=>{
@@ -1397,86 +2029,207 @@ function renderFundingView(){
     if(sort==="balance")return b.cash.opening-a.cash.opening||a.project.localeCompare(b.project);
     if(sort==="remaining")return b.cash.remaining-a.cash.remaining||a.project.localeCompare(b.project);
     if(sort==="debtPay")return (Number(b.cash.internalDebt?.payableTotal)||0)-(Number(a.cash.internalDebt?.payableTotal)||0)||a.project.localeCompare(b.project);
-    const aa=a.count+a.paidCount>0,ba=b.count+b.paidCount>0;
-    if(aa!==ba)return aa?-1:1;
-    if(aa&&a.proposal!==b.proposal)return b.proposal-a.proposal;
+
+    // Mặc định "Thanh toán tháng này trước":
+    // 1) Dự án có Payment/đã trả
+    // 2) Ngay sau đó: dự án không có Payment nhưng có phát sinh tiền (lương, thuế, indirect, thu/chi, nợ nội bộ...)
+    // 3) Cuối cùng mới là dự án thật sự không phát sinh
+    const aPayment=a.count+a.paidCount>0, bPayment=b.count+b.paidCount>0;
+    const aMoney=rowFinancialActivity(a), bMoney=rowFinancialActivity(b);
+    const aTier=aPayment?0:(aMoney?1:2), bTier=bPayment?0:(bMoney?1:2);
+    if(aTier!==bTier)return aTier-bTier;
+    if(aTier===0&&a.proposal!==b.proposal)return b.proposal-a.proposal;
+    if(aTier===1){
+      const aw=rowFinancialWeight(a),bw=rowFinancialWeight(b);
+      if(aw!==bw)return bw-aw;
+    }
     return a.project.localeCompare(b.project,undefined,{numeric:true,sensitivity:"base"});
   });
-  let shortageProjects=0,totalShortage=0,totalSource=0,totalApproved=0,totalReserve=0,totalActualOut=0,totalRemaining=0,totalDebtReceive=0,totalDebtPay=0,totalInternalRepayment=0,withFunding=0,impreciseProjects=0;
-  let totalOpening=0,totalExpectedIn=0,totalActualIn=0,totalPayroll=0,totalIndirect=0,totalDirect=0;
+  let shortageProjects=0,totalShortage=0,totalSource=0,totalApproved=0,totalReserve=0,totalActualOut=0,totalRemaining=0,totalInternalRepayment=0,withFunding=0,impreciseProjects=0;
+  let totalOpening=0,totalExpectedIn=0,totalActualIn=0,totalPayroll=0,totalIndirect=0,totalDirect=0,totalTax=0,totalTaxPending=0;
   $("fundingBody").innerHTML=rows.map(s=>{
-    const c=s.cash;
+    const c=s.cash, rs=fundingRowStatus(s), inputDisabled=locked||!canReview();
     totalSource+=c.source;totalApproved+=c.approved;totalReserve+=c.reserve;totalActualOut+=c.actualOut;totalRemaining+=c.remaining;totalInternalRepayment+=c.internalRepayment;
-    totalDebtReceive+=Number(c.internalDebt?.receivableTotal)||0;totalDebtPay+=Number(c.internalDebt?.payableTotal)||0;
-    totalOpening+=c.opening;totalExpectedIn+=c.expectedIn;totalActualIn+=c.actualIn;totalPayroll+=s.payroll;totalIndirect+=s.indirect;totalDirect+=s.direct;
-    if(c.cashFound)withFunding++;
-    if(c.cashFound&&(!c.cashPrecise||!c.debtPrecise))impreciseProjects++;
-    if(c.cashFound&&c.remaining<0){shortageProjects++;totalShortage+=Math.abs(c.remaining)}
-    const inputDisabled=locked||!canReview()?"disabled":"";
-    const status=!c.cashFound
-      ? `<span class="cash-status empty">${isChineseUI()?"未更新余额":"CHƯA CÓ SỐ DƯ"}</span>`
-      : !c.cashPrecise||!c.debtPrecise
-        ? `<span class="cash-status empty">${isChineseUI()?"需更新资金数据":"CẦN CẬP NHẬT DÒNG TIỀN"}</span>`
-      : c.remaining>=0
-        ? `<span class="cash-status ok">${isChineseUI()?"资金充足":"ĐỦ NGUỒN"}</span>`
-        : `<span class="cash-status bad">${isChineseUI()?"缺口":"THIẾU"} ${money(Math.abs(c.remaining))}</span>`;
-    const hasActivity=s.count+s.paidCount>0;
-    const activityText=hasActivity?`${s.count} ${isChineseUI()?"笔待审核":"khoản chờ duyệt"}${s.paidCount?` · ${s.paidCount} ${isChineseUI()?"笔已支付":"đã trả"}`:""}`:(isChineseUI()?"本月无付款":"Không có thanh toán tháng này");
-    const sourceText=(s.sources||[]).join(" · ");
-    const projectAction=s.count?`<button class="detail-link" data-open-project="${escapeHtml(s.project)}">${isChineseUI()?"审核":"Duyệt"} →</button>`:s.paidCount?`<span class="plan-chip">${isChineseUI()?"已支付完":"ĐÃ TRẢ"}</span>`:`<span class="plan-chip">${isChineseUI()?"无发生":"KHÔNG PHÁT SINH"}</span>`;
-    return `<tr>
-      <td class="project-cell" title="${escapeHtml(sourceText)}"><span class="funding-project-name">${escapeHtml(s.project)}</span><div class="funding-project-meta">${activityText}</div><div class="funding-sub">${sourceText?`${isChineseUI()?"来源":"Nguồn"}: ${escapeHtml(sourceText)}`:""}</div>${projectAction}</td>
+    totalOpening+=c.opening;totalExpectedIn+=c.expectedIn;totalActualIn+=c.actualIn;totalPayroll+=(s.payrollFromCash?s.cashPayrollPending:s.payroll);totalIndirect+=s.indirect;totalDirect+=s.direct;totalTax+=s.tax||0;totalTaxPending+=c.taxPending||0;
+    if(c.cashFound)withFunding++; if(c.cashFound&&(!c.cashPrecise||!c.debtPrecise))impreciseProjects++; if(c.cashFound&&c.remaining<0){shortageProjects++;totalShortage+=Math.abs(c.remaining)}
+    const payrollDisplay=Number(s.payrollFromCash?s.cashPayrollPending:s.payroll)||0;
+    const debtActivity=(Number(c.internalDebt?.receivableTotal)||0)+(Number(c.internalDebt?.payableTotal)||0);
+    const hasMoneyActivity=[c.expectedIn,c.actualIn,s.direct,s.indirect,payrollDisplay,c.taxPending,c.internalRepayment,c.reserve,c.actualOut,debtActivity].some(v=>Math.abs(Number(v)||0)>0);
+    const hasActivity=s.count+s.paidCount>0||hasMoneyActivity, sourceText=(s.sources||[]).join(" · ");
+    const activityText=(s.count+s.paidCount>0)?`${s.count} ${isChineseUI()?"笔待审核":"khoản chờ"}${s.paidCount?` · ${s.paidCount} ${isChineseUI()?"已支付":"đã trả"}`:""}`:hasMoneyActivity?(isChineseUI()?"本月有资金发生":"Có phát sinh dòng tiền"):(isChineseUI()?"本月无发生":"Không phát sinh");
+    const progress=c.expectedIn>0?Math.max(0,Math.min(100,(c.actualIn/c.expectedIn)*100)):0;
+    const taxTotal=c.taxPending||0;
+    return `<tr class="${rs.row}" data-project-row="${escapeHtml(s.project)}">
+      <td class="project-cell" title="${escapeHtml(sourceText)}"><span class="funding-project-name">${escapeHtml(s.project)}</span>${s.count?'<span class="project-alert-dot"></span>':''}<div class="funding-project-meta">${activityText}</div></td>
       <td class="internal-debt-cell">${internalDebtCell(c.internalDebt,c.debtPrecise)}</td>
-      <td><span class="funding-main">${c.cashFound?money(c.opening):"—"}</span></td>
-      <td class="funding-cell-in"><input class="funding-input" data-funding-project="${escapeHtml(s.project)}" data-funding-field="expectedIn" value="${formatInputMoney(c.expectedIn)}" ${inputDisabled}></td>
-      <td class="funding-cell-in"><span class="funding-main positive">${c.cashFound?money(c.actualIn):"—"}</span></td>
-      <td class="funding-cell-plan"><span class="funding-main">${money(s.payroll)}</span></td>
-      <td class="funding-cell-plan"><span class="funding-main">${money(s.indirect)}</span></td>
-      <td class="funding-cell-plan" title="${isChineseUI()?"本月核准待支付":"Kế hoạch đã duyệt còn chờ chi"}"><span class="funding-main">${money(s.direct)}</span><div class="funding-sub">${isChineseUI()?"待支付计划":"KH còn chờ chi"}</div></td>
-      <td class="funding-cell-plan"><input class="funding-input" data-funding-project="${escapeHtml(s.project)}" data-funding-field="internalRepayment" value="${formatInputMoney(c.internalRepayment)}" ${inputDisabled}><div class="funding-sub">${isChineseUI()?"仅按本月决定扣除":"Chỉ trừ khi dự kiến hoàn"}</div></td>
-      <td class="funding-cell-plan"><input class="funding-input" data-funding-project="${escapeHtml(s.project)}" data-funding-field="mandatoryOut" value="${formatInputMoney(c.reserve)}" ${inputDisabled}></td>
-      <td class="funding-cell-out"><span class="funding-main negative">${c.cashFound||c.actualOut?money(c.actualOut):"—"}</span></td>
-      <td class="funding-cell-remaining ${c.remaining<0?"negative":"positive"}"><span class="funding-main ${c.remaining<0?"negative":"positive"}">${c.cashFound?money(c.remaining):"—"}</span><div class="funding-sub">${status}</div></td>
+      <td class="group-start">${c.cashFound?fundingMoneyDisplay(c.opening):'<span class="money-main zero">—</span>'}</td>
+      <td>${fundingInlineEditor(s.project,"expectedIn",c.expectedIn,inputDisabled)}</td>
+      <td>${c.cashFound?fundingMoneyDisplay(c.actualIn,{positive:true}):'<span class="money-main zero">—</span>'}${c.expectedIn>0?`<div class="progress-mini"><span style="width:${progress}%"></span></div><div class="progress-caption">${Math.round(progress)}%</div>`:""}</td>
+      <td class="group-start">${fundingMoneyDisplay(s.direct)}</td>
+      <td>${fundingMoneyDisplay(s.indirect)}</td>
+      <td>${fundingMoneyDisplay(s.payrollFromCash?s.cashPayrollPending:s.payroll)}</td>
+      <td>${c.taxFromCash?fundingMoneyDisplay(c.taxPending):fundingInlineEditor(s.project,"taxPending",c.taxPending,inputDisabled)}</td>
+      <td class="group-start">${fundingInlineEditor(s.project,"internalRepayment",c.internalRepayment,inputDisabled)}</td>
+      <td>${fundingInlineEditor(s.project,"mandatoryOut",c.reserve,inputDisabled)}</td>
+      <td class="group-start result-cell">${c.cashFound?fundingMoneyDisplay(c.remaining,{emphasis:true,negative:c.remaining<0}):'<span class="money-main zero">—</span>'}</td>
+      <td><div class="status-stack"><span class="exec-status ${rs.kind}">${rs.label}</span>${c.remaining<0?`<span class="funding-sub">${isChineseUI()?"缺口":"Thiếu"} ${compactMoney(Math.abs(c.remaining))}</span>`:""}</div></td>
+      <td class="action-cell group-start"><button class="row-action-btn" data-open-project="${escapeHtml(s.project)}">${s.count?(isChineseUI()?"审核 →":"Duyệt →"):(isChineseUI()?"详情":"Chi tiết")}</button><button class="row-more-btn" data-open-drawer="${escapeHtml(s.project)}" title="Chi tiết">•••</button></td>
     </tr>`;
-  }).join("") || `<tr><td colspan="12" class="empty">${isChineseUI()?"本月没有待审核项目。":"Tháng này không còn khoản chờ duyệt."}</td></tr>`;
+  }).join("") || `<tr><td colspan="14" class="empty">${isChineseUI()?"没有符合条件的项目。":"Không có dự án phù hợp bộ lọc."}</td></tr>`;
 
-  if($("fundingFoot"))$("fundingFoot").innerHTML=rows.length?`<tr>
-    <td>${rows.length===allRows.length&&!search&&filter==="all"?(isChineseUI()?"公司合计":"TỔNG CÔNG TY"):(isChineseUI()?"当前显示合计":"TỔNG ĐANG HIỂN THỊ")}</td><td title="${isChineseUI()?"内部资金在公司层面自动抵消":"Tiền nội bộ tự đối ứng trong cùng công ty"}">${isChineseUI()?"内部往来自动抵消":"NỘI BỘ TỰ CÂN BẰNG"}</td><td>${money(totalOpening)}</td><td>${money(totalExpectedIn)}</td><td>${money(totalActualIn)}</td>
-    <td>${money(totalPayroll)}</td><td>${money(totalIndirect)}</td><td>${money(totalDirect)}</td><td>${money(totalInternalRepayment)}</td><td>${money(totalReserve)}</td><td>${money(totalActualOut)}</td><td>${money(totalRemaining)}</td>
-  </tr>`:"";
+  if($("fundingFoot"))$("fundingFoot").innerHTML=rows.length?`<tr><td>${rows.length===allRows.length&&!search&&quick==="all"?(isChineseUI()?"公司合计":"TỔNG CÔNG TY"):(isChineseUI()?"当前显示":"TỔNG ĐANG HIỂN THỊ")}</td><td>—</td><td class="group-start">${totalOpening?tableMoney(totalOpening):"–"}</td><td>${totalExpectedIn?tableMoney(totalExpectedIn):"–"}</td><td>${totalActualIn?tableMoney(totalActualIn):"–"}</td><td class="group-start">${totalDirect?tableMoney(totalDirect):"–"}</td><td>${totalIndirect?tableMoney(totalIndirect):"–"}</td><td>${totalPayroll?tableMoney(totalPayroll):"–"}</td><td>${totalTaxPending?tableMoney(totalTaxPending):"–"}</td><td class="group-start">${totalInternalRepayment?tableMoney(totalInternalRepayment):"–"}</td><td>${totalReserve?tableMoney(totalReserve):"–"}</td><td class="group-start result-cell">${totalRemaining?tableMoney(totalRemaining):"–"}</td><td>—</td><td class="group-start">—</td></tr>`:"";
 
-  const debtSource=monthlyFundingSnapshots.get(monthSelect.value)?.internalDebtSource||{};
-  if($("fundingNoteText"))$("fundingNoteText").textContent=isChineseUI()
-    ? `内部欠款仅供追踪；只有预计内部还款才扣减额度。数据来源：DATAVNB 历史 ${Number(debtSource.legacyRows)||0} 笔 + 手工录入 ${Number(debtSource.manualRows)||0} 笔，共 ${Number(debtSource.projectCount)||0} 个项目。`
-    : `Công nợ chỉ để theo dõi; chỉ Dự kiến hoàn nội bộ mới trừ hạn mức. Nguồn: ${Number(debtSource.legacyRows)||0} dòng DATAVNB lịch sử + ${Number(debtSource.manualRows)||0} giao dịch nhập tay, tổng hợp ${Number(debtSource.projectCount)||0} dự án.`;
-
-  document.querySelectorAll("[data-funding-project]").forEach(input=>{
-    input.onfocus=()=>input.select();
-    input.onchange=()=>{
-      const project=input.dataset.fundingProject, field=input.dataset.fundingField;
-      const value=parseMoneyInput(input.value);
-      setFundingField(project,field,value);
-      renderFundingView();
-    };
-  });
-  document.querySelectorAll("[data-open-project]").forEach(btn=>{
-    btn.onclick=()=>{activeProject=btn.dataset.openProject||"";setReviewView("payment");render()}
-  });
-  const cutoff=fundingCutoffValue(), cutoffText=cutoff?cutoff.split("-").reverse().join("/"):"—";
-  $("fundingGlobalStatus").textContent=impreciseProjects
-    ? (isChineseUI()
-        ? `${impreciseProjects} 个项目缺少每日余额 · 请在资金页面加载项目后更新`
-        : `${impreciseProjects} dự án chưa có số dư/công nợ mới · mở Dòng tiền, tải dự án rồi bấm Cập nhật`)
-    : shortageProjects
-    ? (isChineseUI()
-        ? `截至 ${cutoffText} · ${shortageProjects} 个项目资金不足 · 缺口 ${money(totalShortage)}`
-        : `Chốt ${cutoffText} · ${shortageProjects} dự án thiếu nguồn · Thiếu ${money(totalShortage)}`)
-    : withFunding
-      ? (isChineseUI()
-          ? `截至 ${cutoffText} · 资金 ${money(totalSource)} · 实际支出 ${money(totalActualOut)} · 待支付计划 ${money(totalApproved)} · 预计内部还款 ${money(totalInternalRepayment)} · 预留 ${money(totalReserve)} · 可用 ${money(totalRemaining)}`
-          : `Chốt ${cutoffText} · Nguồn ${money(totalSource)} · Thực chi ${money(totalActualOut)} · KH còn chi ${money(totalApproved)} · Dự kiến hoàn nội bộ ${money(totalInternalRepayment)} · Giữ lại ${money(totalReserve)} · Hạn mức ${money(totalRemaining)}`)
-      : (isChineseUI()?"尚未更新项目余额":"Chưa cập nhật số dư dự án");
+  document.querySelectorAll("[data-inline-wrap]").forEach(wrap=>{const display=wrap.querySelector("[data-inline-display]"),input=wrap.querySelector(".inline-money-input");if(!input)return;display.onclick=()=>{wrap.classList.add("editing");input.focus();input.select()};input.onblur=()=>{wrap.classList.remove("editing")};input.onkeydown=e=>{if(e.key==="Enter")input.blur();if(e.key==="Escape"){wrap.classList.remove("editing");input.blur()}};input.onchange=()=>{setFundingField(input.dataset.fundingProject,input.dataset.fundingField,parseMoneyInput(input.value));renderFundingView()}});
+  document.querySelectorAll("[data-open-project]").forEach(btn=>btn.onclick=e=>{e.stopPropagation();activeProject=btn.dataset.openProject||"";setReviewView("payment");render()});
+  document.querySelectorAll("[data-open-drawer]").forEach(btn=>btn.onclick=e=>{e.stopPropagation();openFundingDrawer(btn.dataset.openDrawer)});
+  document.querySelectorAll("[data-project-row]").forEach(row=>row.onclick=e=>{if(e.target.closest("button,input,.inline-money-wrap"))return;openFundingDrawer(row.dataset.projectRow)});
+  const cutoff=fundingCutoffValue(),cutoffText=cutoff?cutoff.split("-").reverse().join("/"):"—";
+  $("fundingGlobalStatus").textContent=impreciseProjects?`${impreciseProjects} ${isChineseUI()?"个项目需更新资金数据":"dự án cần cập nhật dữ liệu nguồn tiền"}`:shortageProjects?`${isChineseUI()?"截至":"Chốt"} ${cutoffText} · ${shortageProjects} ${isChineseUI()?"个项目资金不足":"dự án thiếu nguồn"} · ${compactMoney(totalShortage)}`:withFunding?`${isChineseUI()?"截至":"Chốt"} ${cutoffText} · ${isChineseUI()?"预计可用额度":"Hạn mức dự kiến"} ${compactMoney(totalRemaining)}`:(isChineseUI()?"尚未更新项目余额":"Chưa cập nhật số dư dự án");
 }
+
+
+/* =========================================================
+   EXCEL EXPORT — MANAGEMENT REPORT
+========================================================= */
+function excelLanguageLabels(){
+  return isChineseUI()?{
+    overview:"项目资金总览",detail:"审核明细",project:"项目",debt:"内部往来",opening:"截止日余额",expectedIn:"预计收款",actualIn:"本月实收",
+    direct:"分包 / 工程款",indirect:"间接费",payroll:"工资 / 社保",tax:"待缴税费",internalRepay:"预计内部还款",reserve:"预留款",remaining:"预计可用额度",status:"状态",pending:"待审核笔数",paid:"已支付笔数",
+    person:"负责人",company:"公司",contract:"合同编号",ipc:"IPC编号",cost:"费用类型",content:"合同名称 / 内容",proposal:"提报金额",approved:"核准金额",remark:"备注",review:"审核状态",
+    included:"已核准",reduced:"调减后核准",excluded:"已移出",unit:"单位：VND",cutoff:"余额截止日期",month:"付款月份",total:"合计"
+  }:{
+    overview:"Tổng quan nguồn tiền",detail:"Chi tiết khoản duyệt",project:"Dự án",debt:"Công nợ nội bộ",opening:"Số dư đến ngày",expectedIn:"Kế hoạch thu",actualIn:"Thực thu",
+    direct:"Phân bao / Chi công trình",indirect:"Chi phí gián tiếp",payroll:"Lương / BH",tax:"Thuế treo",internalRepay:"Dự kiến hoàn nội bộ",reserve:"Khoản giữ lại",remaining:"Hạn mức dự kiến",status:"Trạng thái",pending:"Số khoản chờ",paid:"Số khoản đã trả",
+    person:"Người phụ trách",company:"Công ty",contract:"Số hợp đồng",ipc:"Số IPC",cost:"Loại chi phí",content:"Tên hợp đồng / Nội dung",proposal:"Số tiền đề xuất",approved:"Số tiền duyệt",remark:"Ghi chú",review:"Trạng thái duyệt",
+    included:"Đã duyệt",reduced:"Đã duyệt giảm",excluded:"Đã loại",unit:"Đơn vị: VND",cutoff:"Chốt số dư đến ngày",month:"Tháng thanh toán",total:"TỔNG"
+  };
+}
+function excelDebtText(debt){
+  const d=debt||{}, parts=[];
+  (d.receivables||[]).forEach(r=>parts.push(`${isChineseUI()?"应收":"Phải thu"} ${r.project}: ${tableMoney(Number(r.amount)||0)}`));
+  (d.payables||[]).forEach(r=>parts.push(`${isChineseUI()?"应付":"Phải trả"} ${r.project}: ${tableMoney(Number(r.amount)||0)}`));
+  return parts.join(" | ");
+}
+function excelFundingRows(){
+  return projectPlanStats().map(s=>{
+    const cash=projectCashStats(s.project,s.proposal,s.pendingApproved,s.paidActual,s.cashPayrollPending,s.payrollFromCash);
+    return {...s,cash,status:fundingRowStatus({...s,cash})};
+  }).sort((a,b)=>{
+    const activity=s=>{
+      const c=s.cash||{}, debt=(Number(c.internalDebt?.receivableTotal)||0)+(Number(c.internalDebt?.payableTotal)||0), payroll=Number(s.payrollFromCash?s.cashPayrollPending:s.payroll)||0;
+      return [s.count+s.paidCount,c.expectedIn,c.actualIn,s.direct,s.indirect,payroll,c.taxPending,c.internalRepayment,c.reserve,c.actualOut,debt].some(v=>Math.abs(Number(v)||0)>0);
+    };
+    const ap=a.count+a.paidCount>0,bp=b.count+b.paidCount>0;
+    const at=ap?0:(activity(a)?1:2),bt=bp?0:(activity(b)?1:2);
+    return at-bt||String(a.project).localeCompare(String(b.project),undefined,{numeric:true,sensitivity:"base"});
+  });
+}
+function excelStyleSheet(ws,{titleRows=3,headerRow=4,moneyCols=[],statusCol=-1,lastRow=0,lastCol=0,freezeCol=1}={}){
+  const navy="173756", navy2="0B2D4D", white="FFFFFF", soft="EEF5FB", green="EAF7F0", red="FFF0F1", amber="FFF7E7", line="D8E2EC";
+  const border={top:{style:"thin",color:{rgb:line}},bottom:{style:"thin",color:{rgb:line}},left:{style:"thin",color:{rgb:line}},right:{style:"thin",color:{rgb:line}}};
+  for(let r=1;r<=lastRow;r++)for(let c=1;c<=lastCol;c++){
+    const cell=ws[XLSX.utils.encode_cell({r:r-1,c:c-1})]; if(!cell)continue;
+    cell.s=cell.s||{};
+    cell.s.font={name:"Arial",sz:r<=titleRows?10:9,color:{rgb:r===headerRow?white:"26384D"},bold:r<=titleRows||r===headerRow};
+    cell.s.alignment={vertical:"center",horizontal:moneyCols.includes(c)?"right":"left",wrapText:true};
+    if(r===headerRow){cell.s.fill={fgColor:{rgb:navy}};cell.s.border=border;}
+    else if(r>headerRow){cell.s.border={bottom:{style:"thin",color:{rgb:"E9EEF3"}}};}
+  }
+  if(ws["A1"]){ws["A1"].s={font:{name:"Arial",sz:15,bold:true,color:{rgb:navy2}},alignment:{vertical:"center"}};}
+  if(ws["A2"]){ws["A2"].s={font:{name:"Arial",sz:9,bold:true,color:{rgb:"667585"}}};}
+  if(ws["A3"]){ws["A3"].s={font:{name:"Arial",sz:8,color:{rgb:"7A8795"}}};}
+  moneyCols.forEach(c=>{for(let r=headerRow+1;r<=lastRow;r++){const cell=ws[XLSX.utils.encode_cell({r:r-1,c:c-1})];if(cell&&typeof cell.v==="number")cell.z='#,##0;[Red]-#,##0;-';}});
+  if(statusCol>0){for(let r=headerRow+1;r<=lastRow;r++){const cell=ws[XLSX.utils.encode_cell({r:r-1,c:statusCol-1})];if(!cell)continue;const t=String(cell.v||"");let rgb="F4F6F8";if(/THIẾU|不足/.test(t))rgb=red;else if(/CHỜ|待审核/.test(t))rgb=amber;else if(/BÌNH|正常|ĐỦ|充足/.test(t))rgb=green;cell.s={...(cell.s||{}),fill:{fgColor:{rgb}},font:{name:"Arial",sz:9,bold:true,color:{rgb:navy2}},alignment:{horizontal:"center",vertical:"center"}};}}
+  ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:headerRow-1,c:0},e:{r:lastRow-1,c:lastCol-1}})};
+  ws['!freeze']={xSplit:freezeCol,ySplit:headerRow,topLeftCell:XLSX.utils.encode_cell({r:headerRow,c:freezeCol}),activePane:"bottomRight",state:"frozen"};
+  ws['!rows']=Array.from({length:lastRow},(_,i)=>({hpt:i===0?23:i<headerRow?17:i===headerRow-1?24:21}));
+}
+function buildOverviewSheet(){
+  const L=excelLanguageLabels(), rows=excelFundingRows(), cutoff=fundingCutoffValue();
+  const headers=[L.project,L.debt,L.opening,L.expectedIn,L.actualIn,L.direct,L.indirect,L.payroll,L.tax,L.internalRepay,L.reserve,L.remaining,L.status,L.pending,L.paid];
+  const data=rows.map(s=>{
+    const c=s.cash, payroll=Number(s.payrollFromCash?s.cashPayrollPending:s.payroll)||0;
+    return [s.project,excelDebtText(c.internalDebt),Number(c.opening)||0,Number(c.expectedIn)||0,Number(c.actualIn)||0,Number(s.direct)||0,Number(s.indirect)||0,payroll,Number(c.taxPending)||0,Number(c.internalRepayment)||0,Number(c.reserve)||0,Number(c.remaining)||0,s.status.label,Number(s.count)||0,Number(s.paidCount)||0];
+  });
+  const totals=data.reduce((a,row)=>{for(let i=2;i<=11;i++)a[i]=(a[i]||0)+(Number(row[i])||0);a[13]=(a[13]||0)+(Number(row[13])||0);a[14]=(a[14]||0)+(Number(row[14])||0);return a},[]);
+  const aoa=[
+    [L.overview],
+    [`${L.month}: ${displayMonth(monthSelect.value)}`],
+    [`${L.cutoff}: ${cutoff?cutoff.split("-").reverse().join("/"):"—"} · ${L.unit}`],
+    headers,
+    ...data,
+    [L.total,"",totals[2]||0,totals[3]||0,totals[4]||0,totals[5]||0,totals[6]||0,totals[7]||0,totals[8]||0,totals[9]||0,totals[10]||0,totals[11]||0,"",totals[13]||0,totals[14]||0]
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:22},{wch:42},{wch:16},{wch:16},{wch:16},{wch:18},{wch:16},{wch:16},{wch:16},{wch:18},{wch:16},{wch:18},{wch:16},{wch:12},{wch:12}];
+  const lastRow=aoa.length,lastCol=headers.length;
+  excelStyleSheet(ws,{headerRow:4,moneyCols:[3,4,5,6,7,8,9,10,11,12],statusCol:13,lastRow,lastCol,freezeCol:1});
+  // total row emphasis
+  for(let c=1;c<=lastCol;c++){const cell=ws[XLSX.utils.encode_cell({r:lastRow-1,c:c-1})];if(cell)cell.s={...(cell.s||{}),fill:{fgColor:{rgb:"E8EEF4"}},font:{name:"Arial",sz:9,bold:true,color:{rgb:"173756"}},border:{top:{style:"medium",color:{rgb:"9FB0C0"}}}};}
+  return ws;
+}
+function buildDetailSheet(){
+  const L=excelLanguageLabels();
+  const rows=planningMonthPayments().slice().sort((a,b)=>String(a.project||"").localeCompare(String(b.project||""),undefined,{numeric:true,sensitivity:"base"})||timeValue(a.createdAt)-timeValue(b.createdAt));
+  const headers=[L.project,L.person,L.company,L.contract,L.ipc,L.cost,L.content,L.proposal,L.approved,L.remark,L.review];
+  const data=rows.map(p=>{
+    const proposal=Number(p.amount)||0,st=draftStatus.get(p.id)||"included",approved=st==="excluded"?0:Math.max(0,Number(draftApprovedAmount.get(p.id)??proposal)||0);
+    const status=st==="excluded"?L.excluded:(approved<proposal?L.reduced:L.included);
+    return [p.project||"",p.personInCharge||"",p.company||"",p.contractNo||"",p.ipcNo||"",p.costType||"",p.contractName||"",proposal,approved,p.remark||"",status];
+  });
+  const totalProposal=data.reduce((s,r)=>s+(Number(r[7])||0),0),totalApproved=data.reduce((s,r)=>s+(Number(r[8])||0),0);
+  const aoa=[
+    [L.detail],
+    [`${L.month}: ${displayMonth(monthSelect.value)}`],
+    [L.unit],
+    headers,
+    ...data,
+    [L.total,"","","","","","",totalProposal,totalApproved,"",""]
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:18},{wch:18},{wch:28},{wch:28},{wch:14},{wch:18},{wch:40},{wch:18},{wch:18},{wch:28},{wch:18}];
+  const lastRow=aoa.length,lastCol=headers.length;
+  excelStyleSheet(ws,{headerRow:4,moneyCols:[8,9],statusCol:11,lastRow,lastCol,freezeCol:1});
+  for(let c=1;c<=lastCol;c++){const cell=ws[XLSX.utils.encode_cell({r:lastRow-1,c:c-1})];if(cell)cell.s={...(cell.s||{}),fill:{fgColor:{rgb:"E8EEF4"}},font:{name:"Arial",sz:9,bold:true,color:{rgb:"173756"}},border:{top:{style:"medium",color:{rgb:"9FB0C0"}}}};}
+  return ws;
+}
+function exportPlanReviewExcel(mode="full"){
+  if(typeof XLSX==="undefined"){alert(isChineseUI()?"Excel 组件尚未加载，请检查网络连接。":"Chưa tải được thư viện Excel. Kiểm tra kết nối mạng rồi thử lại.");return;}
+  try{
+    const wb=XLSX.utils.book_new();
+    const L=excelLanguageLabels();
+    if(mode==="overview"||mode==="full")XLSX.utils.book_append_sheet(wb,buildOverviewSheet(),L.overview.slice(0,31));
+    if(mode==="detail"||mode==="full")XLSX.utils.book_append_sheet(wb,buildDetailSheet(),L.detail.slice(0,31));
+    const suffix=mode==="overview"?"Overview":mode==="detail"?"Detail":"Full";
+    XLSX.writeFile(wb,`Payment_Plan_Review_${monthSelect.value}_${suffix}.xlsx`);
+  }catch(error){console.error("EXCEL EXPORT ERROR",error);alert((isChineseUI()?"导出 Excel 失败：":"Xuất Excel thất bại: ")+error.message)}
+}
+function setupExcelExportMenu(){
+  const btn=$("excelExportBtn"),menu=$("excelExportMenu"),wrap=$("excelExportWrap");if(!btn||!menu||!wrap)return;
+  const syncLabels=()=>{btn.textContent=isChineseUI()?"⇩ 导出 Excel ▾":"⇩ Xuất Excel ▾";const labels=isChineseUI()?["项目资金总览","审核明细","完整报告"]:["Tổng quan nguồn tiền","Chi tiết khoản duyệt","Toàn bộ báo cáo"];menu.querySelectorAll("[data-excel-export]").forEach((b,i)=>{const small=b.querySelector("small");b.childNodes[0].nodeValue=labels[i];if(small)small.textContent=isChineseUI()?(i===0?"按项目汇总的 1 个工作表":i===1?"本月全部待审核明细":"2 个工作表：总览 + 审核明细"):(i===0?"1 sheet tổng hợp theo dự án":i===1?"1 sheet toàn bộ khoản chờ duyệt trong tháng":"2 sheet: Tổng quan + Chi tiết duyệt")});};
+  syncLabels();
+  const placeMenu=()=>{
+    const r=btn.getBoundingClientRect();
+    const menuW=205;
+    let left=Math.min(window.innerWidth-menuW-8,Math.max(8,r.right-menuW));
+    let top=r.bottom+5;
+    menu.style.left=`${left}px`;
+    menu.style.top=`${top}px`;
+  };
+  btn.onclick=e=>{
+    e.stopPropagation();
+    const willOpen=!menu.classList.contains("show");
+    menu.classList.toggle("show",willOpen);
+    btn.classList.toggle("open",willOpen);
+    syncLabels();
+    if(willOpen)placeMenu();
+  };
+  menu.querySelectorAll("[data-excel-export]").forEach(item=>item.onclick=e=>{e.stopPropagation();menu.classList.remove("show");btn.classList.remove("open");exportPlanReviewExcel(item.dataset.excelExport)});
+  document.addEventListener("click",e=>{if(!wrap.contains(e.target)&&!menu.contains(e.target)){menu.classList.remove("show");btn.classList.remove("open")}});
+  window.addEventListener("resize",()=>{if(menu.classList.contains("show"))placeMenu()});
+  document.addEventListener("scroll",()=>{if(menu.classList.contains("show"))placeMenu()},true);
+}
+
 function setReviewView(view){
   currentReviewView=view==="payment"?"payment":"funding";
   $("fundingView")?.classList.toggle("hidden-view",currentReviewView!=="funding");
@@ -1493,10 +2246,11 @@ async function importOpeningFromCashControl(){
     const snapshot=await loadMonthlyFundingSnapshot(month,{force:true});
     syncFundingCutoffInput(true);
     const found=projectPlanStats().filter(({project})=>projectMapRecord(snapshot.balances,project)).length;
+    const obligationCount=Object.keys(snapshot.cashPlanningByProject||{}).length;
     renderFundingView();
-    alert(found
-      ? `✅ Đã cập nhật số dư online của ${found} dự án · 1 lượt đọc Firebase.`
-      : "Chưa có số dư online cho tháng này. Hãy mở trang Dòng tiền và tải dự án cần duyệt một lần để hệ thống tạo bản tổng hợp.");
+    alert(found||obligationCount
+      ? `✅ Đã cập nhật từ Dòng tiền: ${found} dự án có số dư · ${obligationCount} dự án có Lương/Thuế/KH chi · 1 lượt đọc Firebase.`
+      : "Chưa có snapshot online cho tháng này. Hãy mở Cash Control bằng tài khoản Admin để hệ thống xuất bản tổng hợp.");
   }catch(error){
     console.error(error);
   }finally{
@@ -1603,11 +2357,10 @@ function renderProjects(){
   $("projectStrip").innerHTML=[...map.entries()]
     .sort((a,b)=>b[1].total-a[1].total)
     .map(([p,s])=>`
-      <button type="button" class="project-pill ${activeProject===p?"active":""}" data-project="${escapeHtml(p)}">
+      <button type="button" class="project-pill ${activeProject===p?"active":""}" data-project="${escapeHtml(p)}" title="${escapeHtml(p)} · ${tableMoney(s.total)} · ${s.n} ${window.planReviewT("items")}">
         <strong>${escapeHtml(p)}</strong>
-        <span class="project-total">${window.planReviewT("proposal")} ${money(s.total)}</span>
+        <span class="project-total">${compactMoney(s.total)}</span>
         <span class="project-total">${s.n} ${window.planReviewT("items")}</span>
-        <span class="project-keep">${window.planReviewT("kept")} ${money(s.keep)}</span>
       </button>
     `).join("");
 
@@ -1916,8 +2669,11 @@ monthSelect.onchange=async()=>{
 };
 searchInput.oninput=render;
 if($("fundingSearchInput"))$("fundingSearchInput").oninput=renderFundingView;
-if($("fundingFilterSelect"))$("fundingFilterSelect").onchange=renderFundingView;
 if($("fundingSortSelect"))$("fundingSortSelect").onchange=renderFundingView;
+document.querySelectorAll("[data-funding-quick]").forEach(btn=>btn.onclick=()=>{document.querySelectorAll("[data-funding-quick]").forEach(x=>x.classList.remove("active"));btn.classList.add("active");renderFundingView()});
+if($("fundingDrawerClose"))$("fundingDrawerClose").onclick=closeFundingDrawer;
+if($("fundingDrawerBackdrop"))$("fundingDrawerBackdrop").onclick=closeFundingDrawer;
+if($("fundingDrawerReview"))$("fundingDrawerReview").onclick=()=>{const project=$("fundingDrawer")?.dataset.project||"";closeFundingDrawer();activeProject=project;setReviewView("payment");render()};
 if($("fundingRowHeight")){
   $("fundingRowHeight").oninput=()=>applyFundingRowHeight($("fundingRowHeight").value);
   applyFundingRowHeight(localStorage.getItem(FUNDING_ROW_HEIGHT_KEY)||58);
@@ -2046,6 +2802,8 @@ document.addEventListener("planreviewlanguagechange",()=>{
     updateUser();
   }catch(e){}
 });
+
+setupExcelExportMenu();
 </script>
 </body>
 </html>
