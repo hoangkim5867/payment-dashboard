@@ -1831,6 +1831,83 @@ body.is-resizing *{
 }
 </style>
 
+
+<style id="readability-contrast-only-v1">
+/* =========================================================
+   READABILITY — GIỮ FONT GỐC, CHỈ TĂNG ĐỘ RÕ
+   ========================================================= */
+
+/* Keep the original font stack for BOTH Vietnamese and Chinese. */
+html,body,
+button,input,select,textarea,
+.review-table,.funding-table,
+.summary-bar,.project-bar,.sheet-toolbar,.footer-bar{
+  font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif!important;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+/* Secondary text: darker, but still visually secondary. */
+.summary-meta,
+.funding-global-status,
+.funding-toolbar>div:first-child span,
+.funding-project-meta,
+.funding-sub,
+.project-pill .project-total,
+.footer-summary,
+.drawer-sub{
+  color:#566779!important;
+  opacity:1!important;
+}
+
+/* Tiny supporting text that is still useful: slightly darker / larger only. */
+.funding-project-meta{
+  font-size:8.6px!important;
+  font-weight:700!important;
+}
+.project-pill .project-total{
+  color:#667789!important;
+}
+.progress-caption{
+  color:#68798A!important;
+  font-size:8px!important;
+  font-weight:800!important;
+}
+.status-stack .funding-sub{
+  color:#9A4048!important;
+  font-weight:850!important;
+  opacity:1!important;
+}
+
+/* Debt chips need contrast, especially Chinese text. */
+.debt-mini{
+  color:#53687A!important;
+  font-weight:800!important;
+}
+.debt-mini.receive{
+  color:#226A4A!important;
+}
+.debt-mini.pay{
+  color:#99444B!important;
+}
+
+/* Drawer: preserve the nice layout, just make text easier to read. */
+.drawer-section h4{
+  color:#4E6072!important;
+}
+.drawer-line span{
+  color:#536577!important;
+}
+.drawer-line strong{
+  color:#203D57!important;
+}
+
+/* Redundant tiny helper under tax values can stay hidden. */
+.tax-hint{
+  display:none!important;
+}
+</style>
+
 </head>
 <body class="auth-checking">
 <div id="reviewColumnResizeGuide"></div>
@@ -1952,7 +2029,7 @@ body.is-resizing *{
             <th class="group-start" data-i18n="fundingInternalRepay">HOÀN NỘI BỘ</th>
             <th data-i18n="fundingReserve">GIỮ LẠI</th>
             <th class="group-start" data-i18n="fundingRemaining">HẠN MỨC</th>
-            <th>TRẠNG THÁI</th>
+            <th data-i18n="fundingStatus">TRẠNG THÁI</th>
           </tr>
         </thead>
         <tbody id="fundingBody"></tbody>
@@ -2099,7 +2176,7 @@ appTitle:"DUYỆT KẾ HOẠCH THANH TOÁN",appSub:"Duyệt kế hoạch thanh t
 totalProposal:"TỔNG TIỀN ĐỀ XUẤT",keepInPlan:"TỔNG TIỀN ĐƯỢC DUYỆT",excludeFromPlan:"TỔNG TIỀN LOẠI / GIẢM",keepRate:"TỶ LỆ ĐƯỢC DUYỆT",
 fundingView:"TỔNG QUAN DUYỆT THÁNG",paymentView:"DUYỆT TỪNG KHOẢN",fundingTitle:"Hạn mức theo dự án",fundingFormula:"Số dư đến ngày + thu kế hoạch − kế hoạch còn chi − dự kiến hoàn nội bộ − khoản giữ lại = hạn mức dự kiến",
 syncCash:"↻ Cập nhật từ Dòng tiền",reviewPayments:"Duyệt từng khoản →",fundingSearchPlaceholder:"Tìm dự án...",fundingCutoff:"CHỐT SỐ DƯ ĐẾN NGÀY",fundingProject:"DỰ ÁN",fundingOpening:"SỐ DƯ ĐẾN NGÀY",fundingInternal:"CÔNG NỢ NỘI BỘ",fundingExpectedIn:"THU KẾ HOẠCH",fundingActualIn:"THỰC THU TRONG THÁNG",fundingPayroll:"LƯƠNG / BH",fundingIndirect:"CHI PHÍ GIÁN TIẾP",fundingDirect:"CHI CÔNG TRÌNH",fundingInternalRepay:"DỰ KIẾN HOÀN NỘI BỘ",fundingReserve:"KHOẢN GIỮ LẠI",fundingActualOut:"THỰC CHI ĐẾN NGÀY",
-fundingRemaining:"HẠN MỨC DỰ KIẾN",fundingDirectGroup:"PHÂN BAO / CÔNG TRÌNH",fundingTax:"THUẾ TREO",fundingGroupSource:"NGUỒN TIỀN",fundingGroupExpense:"KẾ HOẠCH CHI",fundingGroupAdjust:"ĐIỀU CHỈNH",fundingGroupResult:"KẾT QUẢ",fundingAction:"THAO TÁC",quickAll:"Tất cả",quickActivity:"Có phát sinh",quickPending:"Chờ duyệt",quickDebt:"Có nợ nội bộ",quickShortage:"Thiếu nguồn",exportExcel:"⇩ Xuất Excel ▾",exportOverview:"Tổng quan nguồn tiền",exportDetail:"Chi tiết khoản duyệt",exportFull:"Toàn bộ báo cáo",
+fundingRemaining:"HẠN MỨC DỰ KIẾN",fundingDirectGroup:"PHÂN BAO / CÔNG TRÌNH",fundingTax:"THUẾ TREO",fundingGroupSource:"NGUỒN TIỀN",fundingGroupExpense:"KẾ HOẠCH CHI",fundingGroupAdjust:"ĐIỀU CHỈNH",fundingGroupResult:"KẾT QUẢ",fundingAction:"THAO TÁC",fundingStatus:"TRẠNG THÁI",quickAll:"Tất cả",quickActivity:"Có phát sinh",quickPending:"Chờ duyệt",quickDebt:"Có nợ nội bộ",quickShortage:"Thiếu nguồn",exportExcel:"⇩ Xuất Excel ▾",exportOverview:"Tổng quan nguồn tiền",exportDetail:"Chi tiết khoản duyệt",exportFull:"Toàn bộ báo cáo",
 fundingFilterAll:"Tất cả dự án",fundingFilterActivity:"Có thanh toán tháng này",fundingFilterInactive:"Không có thanh toán tháng này",fundingFilterDebt:"Có công nợ nội bộ",fundingFilterMissing:"Chưa có số dư",fundingSortActivity:"Thanh toán tháng này trước",fundingSortProject:"Dự án A → Z",fundingSortBalance:"Số dư cao → thấp",fundingSortRemaining:"Hạn mức cao → thấp",fundingSortDebt:"Phải trả nội bộ cao → thấp",fundingRowHeight:"Độ cao dòng",
 projectsInPlan:"DỰ ÁN TRONG KẾ HOẠCH",allProjects:"Tất cả dự án",keepAllVisible:"✓ Duyệt tất cả đang hiển thị",excludeAllVisible:"⊘ Loại tất cả đang hiển thị",
 refresh:"↻ Làm mới",confirmLock:"XÁC NHẬN VÀ KHÓA KẾ HOẠCH",sortCreated:"Theo thứ tự đề xuất",sortAmountDesc:"Số tiền: cao → thấp",sortAmountAsc:"Số tiền: thấp → cao",
@@ -2112,7 +2189,7 @@ appTitle:"付款计划审核",appSub:"按月审核付款计划",signOut:"退出�
 totalProposal:"提报总金额",keepInPlan:"核准总金额",excludeFromPlan:"移出 / 调减金额",keepRate:"核准比例",
 fundingView:"月度审核总览",paymentView:"逐笔审核",fundingTitle:"项目月度可用额度",fundingFormula:"截止日余额 + 预计收款 − 待支付计划 − 预计内部还款 − 预留款 = 预计额度",
 syncCash:"↻ 从资金页面更新",reviewPayments:"逐笔审核 →",fundingSearchPlaceholder:"搜索项目...",fundingCutoff:"余额截止日期",fundingProject:"项目",fundingOpening:"截止日余额",fundingInternal:"内部往来欠款",fundingExpectedIn:"预计收款",fundingActualIn:"本月累计实收",fundingPayroll:"工资 / 社保",fundingIndirect:"间接费",fundingDirect:"工程直接费",fundingInternalRepay:"预计内部还款",fundingReserve:"预留款",fundingActualOut:"截止日实支",
-fundingRemaining:"预计可用额度",fundingDirectGroup:"分包 / 工程款",fundingTax:"待缴税费",fundingGroupSource:"资金来源",fundingGroupExpense:"计划支出",fundingGroupAdjust:"资金调整",fundingGroupResult:"结果",fundingAction:"操作",quickAll:"全部",quickActivity:"有发生",quickPending:"待审核",quickDebt:"有内部欠款",quickShortage:"资金不足",exportExcel:"⇩ 导出 Excel ▾",exportOverview:"资金总览",exportDetail:"审核明细",exportFull:"完整报告",
+fundingRemaining:"预计可用额度",fundingDirectGroup:"分包 / 工程款",fundingTax:"待缴税费",fundingGroupSource:"资金来源",fundingGroupExpense:"计划支出",fundingGroupAdjust:"资金调整",fundingGroupResult:"结果",fundingAction:"操作",fundingStatus:"状态",quickAll:"全部",quickActivity:"有发生",quickPending:"待审核",quickDebt:"有内部欠款",quickShortage:"资金不足",exportExcel:"⇩ 导出 Excel ▾",exportOverview:"资金总览",exportDetail:"审核明细",exportFull:"完整报告",
 fundingFilterAll:"全部项目",fundingFilterActivity:"本月有付款",fundingFilterInactive:"本月无付款",fundingFilterDebt:"有内部欠款",fundingFilterMissing:"缺少余额",fundingSortActivity:"本月付款项目优先",fundingSortProject:"项目 A → Z",fundingSortBalance:"余额从高到低",fundingSortRemaining:"额度从高到低",fundingSortDebt:"内部应付从高到低",fundingRowHeight:"行高",
 projectsInPlan:"计划内项目",allProjects:"全部项目",keepAllVisible:"✓ 核准当前显示全部",excludeAllVisible:"⊘ 移出当前显示全部",
 refresh:"↻ 刷新",confirmLock:"确认并锁定计划",sortCreated:"按提报顺序",sortAmountDesc:"金额：高 → 低",sortAmountAsc:"金额：低 → 高",
@@ -2167,8 +2244,12 @@ const $=id=>document.getElementById(id);
 const monthSelect=$("monthSelect"),searchInput=$("searchInput"),sortSelect=$("sortSelect"),reviewBody=$("reviewBody");
 let activeProject="";
 function norm(v){return String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d").replace(/Đ/g,"D").trim().toLowerCase().replace(/\s+/g," ")}
-function money(v){return new Intl.NumberFormat("vi-VN",{maximumFractionDigits:0}).format(Number(v)||0)+" VND"}
-function tableMoney(v){return new Intl.NumberFormat("vi-VN",{maximumFractionDigits:0}).format(Number(v)||0)}
+function money(v){
+  return new Intl.NumberFormat("en-US",{minimumFractionDigits:0,maximumFractionDigits:2}).format(Number(v)||0)+" VND";
+}
+function tableMoney(v){
+  return new Intl.NumberFormat("en-US",{minimumFractionDigits:0,maximumFractionDigits:2}).format(Number(v)||0);
+}
 function isChineseUI(){return window.PLAN_REVIEW_LANG==="zh"}
 function monthValue(value){
   const match=String(value||"").match(/^(\d{4})-(\d{2})$/);
@@ -2565,14 +2646,19 @@ function applyFundingRowHeight(value){
 }
 function compactMoney(v){
   const n=Math.abs(Number(v)||0);
+  const fmt=(value,digits)=>new Intl.NumberFormat("en-US",{
+    minimumFractionDigits:0,
+    maximumFractionDigits:digits
+  }).format(value);
+
   if(isChineseUI()){
-    if(n>=1e8)return `${new Intl.NumberFormat("zh-CN",{maximumFractionDigits:2}).format(n/1e8)} 亿`;
-    if(n>=1e4)return `${new Intl.NumberFormat("zh-CN",{maximumFractionDigits:1}).format(n/1e4)} 万`;
-    return new Intl.NumberFormat("zh-CN",{maximumFractionDigits:0}).format(n);
+    if(n>=1e8)return `${fmt(n/1e8,2)} 亿`;
+    if(n>=1e4)return `${fmt(n/1e4,1)} 万`;
+    return fmt(n,0);
   }
-  if(n>=1e9)return `${new Intl.NumberFormat("vi-VN",{maximumFractionDigits:2}).format(n/1e9)} tỷ`;
-  if(n>=1e6)return `${new Intl.NumberFormat("vi-VN",{maximumFractionDigits:1}).format(n/1e6)} triệu`;
-  return new Intl.NumberFormat("vi-VN",{maximumFractionDigits:0}).format(n);
+  if(n>=1e9)return `${fmt(n/1e9,2)} tỷ`;
+  if(n>=1e6)return `${fmt(n/1e6,1)} triệu`;
+  return fmt(n,0);
 }
 function internalDebtCell(debt,precise=true){
   if(!precise)return `<span class="funding-main">—</span><div class="funding-sub">${isChineseUI()?"需更新内部欠款":"Cần cập nhật công nợ"}</div>`;
@@ -2707,7 +2793,7 @@ function renderFundingView(){
     </tr>`;
   }).join("") || `<tr><td colspan="14" class="empty">${isChineseUI()?"没有符合条件的项目。":"Không có dự án phù hợp bộ lọc."}</td></tr>`;
 
-  if($("fundingFoot"))$("fundingFoot").innerHTML=rows.length?`<tr><td>${rows.length===allRows.length&&!search&&quick==="all"?(isChineseUI()?"公司合计":"TỔNG CÔNG TY"):(isChineseUI()?"当前显示":"TỔNG ĐANG HIỂN THỊ")}</td><td>—</td><td class="group-start">${totalOpening?tableMoney(totalOpening):"–"}</td><td>${totalExpectedIn?tableMoney(totalExpectedIn):"–"}</td><td>${totalActualIn?tableMoney(totalActualIn):"–"}</td><td class="group-start">${totalDirect?tableMoney(totalDirect):"–"}</td><td>${totalIndirect?tableMoney(totalIndirect):"–"}</td><td>${totalPayroll?tableMoney(totalPayroll):"–"}</td><td>${totalTaxPending?tableMoney(totalTaxPending):"–"}</td><td class="group-start">${totalInternalRepayment?tableMoney(totalInternalRepayment):"–"}</td><td>${totalReserve?tableMoney(totalReserve):"–"}</td><td class="group-start result-cell">${totalRemaining?tableMoney(totalRemaining):"–"}</td><td>—</td><td class="group-start">—</td></tr>`:"";
+  if($("fundingFoot"))$("fundingFoot").innerHTML=rows.length?`<tr><td>${rows.length===allRows.length&&!search&&quick==="all"?(isChineseUI()?"合计":"TỔNG CỘNG"):(isChineseUI()?"当前显示":"TỔNG ĐANG HIỂN THỊ")}</td><td>—</td><td class="group-start">${totalOpening?tableMoney(totalOpening):"–"}</td><td>${totalExpectedIn?tableMoney(totalExpectedIn):"–"}</td><td>${totalActualIn?tableMoney(totalActualIn):"–"}</td><td class="group-start">${totalDirect?tableMoney(totalDirect):"–"}</td><td>${totalIndirect?tableMoney(totalIndirect):"–"}</td><td>${totalPayroll?tableMoney(totalPayroll):"–"}</td><td>${totalTaxPending?tableMoney(totalTaxPending):"–"}</td><td class="group-start">${totalInternalRepayment?tableMoney(totalInternalRepayment):"–"}</td><td>${totalReserve?tableMoney(totalReserve):"–"}</td><td class="group-start result-cell">${totalRemaining?tableMoney(totalRemaining):"–"}</td><td>—</td><td class="group-start">—</td></tr>`:"";
 
   document.querySelectorAll("[data-inline-wrap]").forEach(wrap=>{const display=wrap.querySelector("[data-inline-display]"),input=wrap.querySelector(".inline-money-input");if(!input)return;display.onclick=()=>{wrap.classList.add("editing");input.focus();input.select()};input.onblur=()=>{wrap.classList.remove("editing")};input.onkeydown=e=>{if(e.key==="Enter")input.blur();if(e.key==="Escape"){wrap.classList.remove("editing");input.blur()}};input.onchange=()=>{setFundingField(input.dataset.fundingProject,input.dataset.fundingField,parseMoneyInput(input.value));renderFundingView()}});
   document.querySelectorAll("[data-open-project]").forEach(btn=>btn.onclick=e=>{e.stopPropagation();activeProject=btn.dataset.openProject||"";setReviewView("payment");render()});
