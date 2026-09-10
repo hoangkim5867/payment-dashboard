@@ -5404,7 +5404,10 @@ function buildProjectInternalDebtTimeline(month,project){
 }
 
 async function publishProjectBalanceSnapshot(){
-  if(!currentAuthUser||!isCashControlOwner()||paymentMonths.size===0)return;
+  // Planning obligations (Lương/BH/Thuế/KH thu...) must be publishable
+  // even when no Payment project has been opened in this Cash Control session.
+  // Balance rows still stay limited to projects whose Payment data was actually loaded.
+  if(!currentAuthUser||!isCashControlOwner())return;
 
   const loadedProjects=new Set([...paymentMonths.keys()].map(normProject));
   const debtProjects=[...new Set(allTransfers().flatMap(item=>[item.fromProject,item.toProject,item.lender,item.borrower]).filter(Boolean).map(normProject))].sort();
@@ -7343,6 +7346,17 @@ setTimeout(()=>{
         if(status)status.textContent='Đang xác thực đăng nhập…';
     }
 },1200);
+
+// Ensure Plan Review bridge publishes Monthly Remaining obligations after Cash Control loads,
+// without requiring the user to open a Payment project first.
+setTimeout(()=>{
+  try{
+    if(currentAuthUser&&isCashControlOwner()) queueProjectBalanceSnapshot();
+  }catch(e){
+    console.warn('Plan Review bridge initial publish skipped',e);
+  }
+},1800);
+
 </script>
 <style id="loan-v12-compact-fix">
 /* V12 compact loan tables + right-side PDF panel */
