@@ -5441,6 +5441,63 @@ async function publishProjectBalanceSnapshot(){
     const changedHashes=new Map();
     const internalDebtByProject={};
 
+    // PLAN REVIEW BRIDGE V4: publish the cash-control obligations that are
+    // already calculated here (no extra Firebase / Payment reads).
+    const bridgeCutoff=defaultFundsCutoffDate(month);
+    const bridgePlanRows=ccPlanRows(month,bridgeCutoff);
+    const bridgeTaxMap=outstandingTaxByProjectAsOf(bridgeCutoff);
+
+    // IMPORTANT: Plan Review must use the SAME "Monthly Remaining" payroll/tax logic
+    // shown in Cash Control > Còn phải thu / chi trong tháng.
+    // That screen carries forward unpaid salary/BH/tax from prior periods until actually paid.
+    const bridgeRemainingRows=planHubRemainingRows(month);
+    const bridgePayrollRemaining=new Map();
+    const bridgeTaxRemaining=new Map();
+    bridgeRemainingRows.forEach(row=>{
+      const project=normProject(row.project);
+      if(!project)return;
+      if(row.type==='payroll'){
+        bridgePayrollRemaining.set(project,(bridgePayrollRemaining.get(project)||0)+num(row.amount));
+      }else if(row.type==='tax'){
+        bridgeTaxRemaining.set(project,(bridgeTaxRemaining.get(project)||0)+num(row.amount));
+      }
+    });
+
+    const cashPlanningByProject={};
+    allProjects().forEach(project=>{
+      const normalizedProject=normProject(project);
+      const st=ccPlanProjectStats(project,month,bridgePlanRows,bridgeTaxMap,bridgeCutoff);
+      const payrollRemaining=bridgePayrollRemaining.get(normalizedProject)||0;
+      const taxRemaining=bridgeTaxRemaining.get(normalizedProject)||0;
+      const revisedRemainingPlannedOut=
+        (Number(st.payment)||0)+
+        (Number(st.indirect)||0)+
+        payrollRemaining+
+        taxRemaining+
+        (Number(st.other)||0);
+      cashPlanningByProject[project]={
+        project,
+        cutoffDate:bridgeCutoff,
+        expectedIn:Number(st.expectedIn)||0,
+        payment:Number(st.payment)||0,
+        indirect:Number(st.indirect)||0,
+
+        // Same figures as "Còn phải thu / chi trong tháng"
+        payroll:payrollRemaining,
+        taxPlan:taxRemaining,
+        taxOutstanding:taxRemaining,
+
+        other:Number(st.other)||0,
+        remainingPlannedOut:revisedRemainingPlannedOut,
+        projected:(Number(st.actualBalance)||0)+(Number(st.expectedIn)||0)-revisedRemainingPlannedOut,
+        monthlyRemainingSource:true,
+        updatedAt:new Date().toISOString()
+      };
+    });
+    const cashPlanningHash=JSON.stringify(cashPlanningByProject);
+    const cashPlanningHashKey=`cashPlanning|${month}`;
+    const cashPlanningChanged=publishedBalanceHashes.get(cashPlanningHashKey)!==cashPlanningHash;
+
     debtProjects.forEach(project=>{
       internalDebtByProject[project]={project,...buildProjectInternalDebtTimeline(month,project)};
     });
@@ -5476,17 +5533,18 @@ async function publishProjectBalanceSnapshot(){
         }
       });
 
-    if(!Object.keys(changedBalances).length&&!debtChanged&&!catalogChanged)continue;
+    if(!Object.keys(changedBalances).length&&!debtChanged&&!catalogChanged&&!cashPlanningChanged)continue;
 
     const payload={
       month,
-      schemaVersion:3,
+      schemaVersion:4,
       cashUpdatedAt:serverTimestamp(),
       cashUpdatedBy:currentAuthUser.email||''
     };
     if(Object.keys(changedBalances).length)payload.balances=changedBalances;
     if(debtChanged){payload.internalDebtByProject=internalDebtByProject;payload.internalDebtSource=debtSource}
     if(catalogChanged)payload.projectCatalog=projectCatalog;
+    if(cashPlanningChanged)payload.cashPlanningByProject=cashPlanningByProject;
     await setDoc(doc(db,CASH_MONTHLY_SNAPSHOT_COLLECTION,month),payload,{merge:true});
     mergeProjectBalanceSnapshotRows(
       month,
@@ -5498,6 +5556,7 @@ async function publishProjectBalanceSnapshot(){
     changedHashes.forEach((hash,key)=>publishedBalanceHashes.set(key,hash));
     if(debtChanged)publishedBalanceHashes.set(debtHashKey,debtHash);
     if(catalogChanged)publishedBalanceHashes.set(catalogHashKey,projectCatalogHash);
+    if(cashPlanningChanged)publishedBalanceHashes.set(cashPlanningHashKey,cashPlanningHash);
   }
 
   localStorage.setItem('cashV3ProjectBalanceSnapshot',JSON.stringify(localSnapshot));
