@@ -11,7 +11,7 @@
     *{box-sizing:border-box}html,body{min-height:100%}body{margin:0;color:var(--text);background:var(--bg);font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}a{color:inherit;text-decoration:none}button{font:inherit;cursor:pointer}
     .topbar{height:68px;display:flex;align-items:center;padding:0 clamp(18px,4vw,54px);border-bottom:1px solid var(--line);background:rgba(255,255,255,.94);backdrop-filter:blur(14px)}
     .brand{display:flex;align-items:center;gap:11px;font-weight:800}.brand-mark{width:36px;height:36px;display:block;flex:0 0 36px;border-radius:9px;object-fit:contain;background:#0788c9}
-    .account-bar{display:flex;align-items:center;gap:9px;margin-left:auto}.lang-switch{display:flex;align-items:center;gap:4px;margin-left:auto;margin-right:10px;padding:3px;border:1px solid #d4dee8;border-radius:9px;background:#fff}.lang-btn{height:27px;padding:0 8px;border:0;border-radius:6px;color:#657789;background:transparent;font-size:9px;font-weight:850}.lang-btn:hover{background:#edf4f9;color:var(--navy)}.lang-btn.active{color:#fff;background:var(--navy)}.account-copy{text-align:right}.account-copy strong{display:block;color:var(--navy);font-size:11px}.account-copy small{display:block;margin-top:2px;color:var(--muted);font-size:8px;font-weight:750;text-transform:uppercase}.logout-btn{height:33px;padding:0 11px;border:1px solid #d4dee8;border-radius:9px;color:#47637d;background:#fff;font-size:10px;font-weight:800}.logout-btn:hover{background:#edf4f9}
+    .account-bar{display:flex;align-items:center;gap:9px;margin-left:auto}.account-copy{text-align:right}.account-copy strong{display:block;color:var(--navy);font-size:11px}.account-copy small{display:block;margin-top:2px;color:var(--muted);font-size:8px;font-weight:750;text-transform:uppercase}.logout-btn{height:33px;padding:0 11px;border:1px solid #d4dee8;border-radius:9px;color:#47637d;background:#fff;font-size:10px;font-weight:800}.logout-btn:hover{background:#edf4f9}
     main{min-height:calc(100vh - 68px);display:grid;place-items:center;padding:48px 20px}.workspace{width:min(880px,100%)}.heading{margin-bottom:27px}.heading h1{margin:0;font-size:clamp(30px,5vw,46px);line-height:1.08;letter-spacing:-.04em}
     .grid{display:grid;grid-template-columns:1.35fr 1fr;gap:14px}.card{min-height:148px;display:flex;align-items:flex-end;gap:17px;padding:24px;border:1px solid var(--line);border-radius:18px;background:var(--white);box-shadow:0 10px 30px rgba(30,56,86,.06);transition:transform .18s,box-shadow .18s,border-color .18s}.card:hover{transform:translateY(-2px);border-color:#cbd8e5;box-shadow:0 16px 36px rgba(30,56,86,.1)}
     .card-primary{grid-row:span 2;min-height:310px;color:#fff;border-color:transparent;background:linear-gradient(145deg,#102d4d,#1c4d78 70%,#286d91);box-shadow:0 18px 42px rgba(18,56,94,.18)}.card-primary:hover{border-color:transparent;box-shadow:0 22px 48px rgba(18,56,94,.24)}
@@ -37,29 +37,28 @@
 <body>
   <header class="topbar">
     <a class="brand" href="./"><img class="brand-mark" src="./logo.png" alt="CSCEC"><span>中建二局安装工程有限公司</span></a>
-    <div class="lang-switch" id="langSwitch" aria-label="Language"><button class="lang-btn" type="button" data-lang="vi">VI</button><button class="lang-btn" type="button" data-lang="zh">中文</button><button class="lang-btn" type="button" data-lang="en">EN</button></div>
-    <div class="account-bar" id="accountBar" hidden><div class="account-copy"><strong id="accountName">—</strong><small id="accountRole">—</small></div><button class="logout-btn" id="logoutButton" type="button" data-i18n="logout">Đăng xuất</button></div>
+    <div class="account-bar" id="accountBar" hidden><div class="account-copy"><strong id="accountName">—</strong><small id="accountRole">—</small></div><button class="logout-btn" id="logoutButton" type="button">Đăng xuất</button></div>
   </header>
   <main>
     <section class="workspace">
-      <div class="heading"><h1 data-i18n="selectFunction">Select a function</h1></div>
+      <div class="heading"><h1>Select a function</h1></div>
       <div class="grid">
-        <a class="card card-primary" href="./payment.html"><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 9h16M8 13h3M8 16h6"/></svg></span><span class="card-copy"><h2 data-i18n="paymentManagement">Payment Management</h2><p data-i18n="paymentDesc">Track payment progress and history</p></span><span class="arrow">→</span></a>
-        <a class="card" href="https://drive.google.com/drive/folders/1rfkI9U__twlV4KeHNCPvI_gxG8RrYmP6" target="_blank" rel="noopener"><span class="icon"><svg viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/></svg></span><span class="card-copy"><h2 data-i18n="projectDocuments">Project Documents</h2><p data-i18n="projectDocsDesc">Contracts, IPCs and supporting documents</p></span><span class="arrow">↗</span></a>
-        <a class="card" href="./payment-archive.html"><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 6h16v14H4zM8 3h8v6H8zM8 13h8M8 16h6"/></svg></span><span class="card-copy"><h2 data-i18n="paymentArchive">Payment Archive</h2><p data-i18n="archiveDesc">Closed months and payment documents</p></span><span class="arrow">→</span></a>
-        <a class="card" href="./plan-review.html" data-private-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 9l2 2 5-5M8 15h8"/></svg></span><span class="card-copy"><h2 data-i18n="planReview">Plan Review</h2><p data-i18n="planReviewDesc">Review, approve and lock payment plans</p><span class="private-badge" data-i18n="adminOnly">Admin only</span></span><span class="arrow">→</span></a>
-        <a class="card" href="./cash-control.html" data-private-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M3 18h18"/></svg></span><span class="card-copy"><h2 data-i18n="cashControl">Cash Control</h2><p data-i18n="cashControlDesc">Project cash flow and current balances</p><span class="private-badge" data-i18n="adminOnly">Admin only</span></span><span class="arrow">→</span></a>
+        <a class="card card-primary" href="./payment.html"><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 9h16M8 13h3M8 16h6"/></svg></span><span class="card-copy"><h2>Payment Management</h2><p>Track payment progress and history</p></span><span class="arrow">→</span></a>
+        <a class="card" href="https://drive.google.com/drive/folders/1rfkI9U__twlV4KeHNCPvI_gxG8RrYmP6" target="_blank" rel="noopener"><span class="icon"><svg viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/></svg></span><span class="card-copy"><h2>Project Documents</h2><p>Contracts, IPCs and supporting documents</p></span><span class="arrow">↗</span></a>
+        <a class="card" href="./payment-archive.html"><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 6h16v14H4zM8 3h8v6H8zM8 13h8M8 16h6"/></svg></span><span class="card-copy"><h2>Payment Archive</h2><p>Closed months and payment documents</p></span><span class="arrow">→</span></a>
+        <a class="card" href="./plan-review.html" data-private-card data-plan-review-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 9l2 2 5-5M8 15h8"/></svg></span><span class="card-copy"><h2>Plan Review</h2><p>Review, approve and lock payment plans</p><span class="private-badge">Authorized reviewer</span></span><span class="arrow">→</span></a>
+        <a class="card" href="./cash-control.html" data-private-card data-cash-control-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M3 18h18"/></svg></span><span class="card-copy"><h2>Cash Control</h2><p>Project cash flow and current balances</p><span class="private-badge">Admin only</span></span><span class="arrow">→</span></a>
       </div>
     </section>
   </main>
   <section class="auth-gate" id="authGate">
     <form class="login-card" id="loginForm">
-      <div class="login-brand"><img src="./logo.png" alt="CSCEC"><div><strong>中建二局安装工程有限公司</strong><span></span></div></div>
-      <label for="loginUsername" data-i18n="username">Tên đăng nhập</label><input id="loginUsername" autocomplete="username" data-i18n-placeholder="username" placeholder="Tên đăng nhập" required>
-      <label for="loginPassword" data-i18n="password">Mật khẩu</label><input id="loginPassword" type="password" autocomplete="current-password" data-i18n-placeholder="password" placeholder="Mật khẩu" required>
-      <button class="login-submit" id="loginSubmit" type="submit" data-i18n="login">Đăng nhập</button>
+      <div class="login-brand"><img src="./logo.png" alt="CSCEC"><div><strong></strong><span>Đăng nhập để mở trang làm việc</span></div></div>
+      <label for="loginUsername">Tên đăng nhập</label><input id="loginUsername" autocomplete="username" placeholder="Tên đăng nhập" required>
+      <label for="loginPassword">Mật khẩu</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Mật khẩu" required>
+      <button class="login-submit" id="loginSubmit" type="submit">Đăng nhập</button>
       <div class="login-error" id="loginError"></div>
-      <p class="login-note"></p>
+      <p class="login-note">Dùng cùng tài khoản của trang Payment. Phiên đăng nhập được dùng chung trên website này.</p>
     </form>
   </section>
   <button class="chat-launcher" id="chatLauncher" type="button" aria-label="Open team chat" aria-controls="chatPanel" aria-expanded="false">
@@ -68,27 +67,27 @@
   <section class="chat-panel" id="chatPanel" aria-label="Team chat" hidden>
     <div class="chat-head">
       <span class="chat-head-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18.5 3.5 21v-5A8.5 8.5 0 1 1 7 19.5Z"/></svg></span>
-      <span class="chat-head-copy"><strong data-i18n="teamChat">Team chat</strong><small data-i18n="anonymousNicknames">Anonymous nicknames</small></span>
+      <span class="chat-head-copy"><strong>Team chat</strong><small>Anonymous nicknames</small></span>
       <button class="chat-close" id="chatClose" type="button" aria-label="Close chat">×</button>
     </div>
-    <div class="chat-identity"><span data-i18n="chattingAs">You are chatting as</span><button class="chat-name" id="chatNameButton" type="button">Set nickname</button></div>
+    <div class="chat-identity"><span>You are chatting as</span><button class="chat-name" id="chatNameButton" type="button">Set nickname</button></div>
     <div class="chat-log" id="chatLog" aria-live="polite"><div class="chat-empty">Loading messages…</div></div>
     <form class="chat-form" id="chatForm">
       <button class="chat-tool" id="chatImageButton" type="button" aria-label="Choose an image" title="Choose an image" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m4 17 5-5 4 4 2-2 5 4"/></svg></button>
       <button class="chat-tool" id="chatEmojiButton" type="button" aria-label="Choose an emoji" title="Emoji" aria-expanded="false" disabled>☺</button>
-      <input id="chatMessage" type="text" maxlength="500" autocomplete="off" data-i18n-placeholder="messagePlaceholder" placeholder="Message or paste an image…" aria-label="Message" disabled>
-      <button class="chat-send" id="chatSend" type="submit" disabled data-i18n="send">Send</button>
+      <input id="chatMessage" type="text" maxlength="500" autocomplete="off" placeholder="Message or paste an image…" aria-label="Message" disabled>
+      <button class="chat-send" id="chatSend" type="submit" disabled>Send</button>
       <input id="chatImageInput" type="file" accept="image/*" hidden>
       <div class="chat-emoji-panel" id="chatEmojiPanel" aria-label="Emoji" hidden></div>
     </form>
     <div class="chat-name-layer" id="chatNameLayer" hidden>
       <form class="chat-name-card" id="chatNameForm">
-        <h3 data-i18n="chooseNickname">Choose a nickname</h3>
-        <p data-i18n="nicknameHint">Use any nickname — no real name required.</p>
-        <input id="chatNameInput" type="text" maxlength="30" autocomplete="nickname" data-i18n-placeholder="nickname" placeholder="Nickname" required>
+        <h3>Choose a nickname</h3>
+        <p>Use any nickname — no real name required.</p>
+        <input id="chatNameInput" type="text" maxlength="30" autocomplete="nickname" placeholder="Nickname" required>
         <div class="chat-name-actions">
-          <button class="chat-name-cancel" id="chatNameCancel" type="button" data-i18n="cancel">Cancel</button>
-          <button class="chat-name-save" type="submit" data-i18n="continue">Continue</button>
+          <button class="chat-name-cancel" id="chatNameCancel" type="button">Cancel</button>
+          <button class="chat-name-save" type="submit">Continue</button>
         </div>
       </form>
     </div>
@@ -112,31 +111,16 @@
     const accountName=document.getElementById("accountName");
     const accountRole=document.getElementById("accountRole");
     const logoutButton=document.getElementById("logoutButton");
-    const LANG_KEY="cscecmep_language";
-    const translations={
-      vi:{selectFunction:"Chọn chức năng",paymentManagement:"Quản lý thanh toán",paymentDesc:"Theo dõi tiến trình và lịch sử thanh toán",projectDocuments:"Hồ sơ dự án",projectDocsDesc:"Hợp đồng, IPC và hồ sơ liên quan",paymentArchive:"Kho chứng từ",archiveDesc:"Tháng đã chốt và chứng từ thanh toán",planReview:"Duyệt kế hoạch",planReviewDesc:"Kiểm tra, phê duyệt và khóa kế hoạch thanh toán",cashControl:"Kiểm soát dòng tiền",cashControlDesc:"Dòng tiền dự án và số dư hiện tại",adminOnly:"Chỉ Admin",username:"Tên đăng nhập",password:"Mật khẩu",login:"Đăng nhập",logout:"Đăng xuất",adminRole:"Quản trị viên",teamChat:"Chat nội bộ",anonymousNicknames:"Biệt danh ẩn danh",chattingAs:"Bạn đang chat với tên",setNickname:"Đặt biệt danh",messagePlaceholder:"Nhắn tin hoặc dán ảnh…",send:"Gửi",chooseNickname:"Chọn biệt danh",nicknameHint:"Dùng bất kỳ biệt danh nào — không cần tên thật.",nickname:"Biệt danh",cancel:"Hủy",continue:"Tiếp tục",loadingMessages:"Đang tải tin nhắn…",noMessages:"Chưa có tin nhắn. Hãy bắt đầu cuộc trò chuyện.",chatUnavailable:"Chat tạm thời không khả dụng.",loginWorking:"Đang đăng nhập...",loginEmpty:"Hãy nhập tên đăng nhập.",loginFailed:"Đăng nhập thất bại. Kiểm tra lại tên đăng nhập và mật khẩu.",noProfile:"Tài khoản chưa có hồ sơ hoặc chưa được cấp quyền.",permissionCheckFailed:"Không kiểm tra được quyền đăng nhập. Hãy thử lại.",imageTooLarge:"Ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn.",imageSendFailed:"Không gửi được ảnh. Vui lòng thử lại.",messageSendFailed:"Không gửi được tin nhắn. Vui lòng thử lại."},
-      zh:{selectFunction:"选择功能",paymentManagement:"付款管理",paymentDesc:"跟踪付款进度和付款记录",projectDocuments:"项目资料",projectDocsDesc:"合同、IPC及相关资料",paymentArchive:"付款档案",archiveDesc:"已关闭月份及付款凭证",planReview:"计划审核",planReviewDesc:"审核、批准并锁定付款计划",cashControl:"资金管控",cashControlDesc:"项目现金流及当前余额",adminOnly:"仅管理员",username:"用户名",password:"密码",login:"登录",logout:"退出登录",adminRole:"管理员",teamChat:"团队聊天",anonymousNicknames:"匿名昵称",chattingAs:"当前昵称",setNickname:"设置昵称",messagePlaceholder:"输入消息或粘贴图片…",send:"发送",chooseNickname:"选择昵称",nicknameHint:"可使用任意昵称，无需真实姓名。",nickname:"昵称",cancel:"取消",continue:"继续",loadingMessages:"正在加载消息…",noMessages:"暂无消息，开始聊天吧。",chatUnavailable:"聊天暂时不可用。",loginWorking:"正在登录...",loginEmpty:"请输入用户名。",loginFailed:"登录失败，请检查用户名和密码。",noProfile:"该账户尚未建立资料或未获得权限。",permissionCheckFailed:"无法验证登录权限，请重试。",imageTooLarge:"图片过大，请选择较小的图片。",imageSendFailed:"图片发送失败，请重试。",messageSendFailed:"消息发送失败，请重试。"},
-      en:{selectFunction:"Select a function",paymentManagement:"Payment Management",paymentDesc:"Track payment progress and history",projectDocuments:"Project Documents",projectDocsDesc:"Contracts, IPCs and supporting documents",paymentArchive:"Payment Archive",archiveDesc:"Closed months and payment documents",planReview:"Plan Review",planReviewDesc:"Review, approve and lock payment plans",cashControl:"Cash Control",cashControlDesc:"Project cash flow and current balances",adminOnly:"Admin only",username:"Username",password:"Password",login:"Log in",logout:"Log out",adminRole:"Administrator",teamChat:"Team chat",anonymousNicknames:"Anonymous nicknames",chattingAs:"You are chatting as",setNickname:"Set nickname",messagePlaceholder:"Message or paste an image…",send:"Send",chooseNickname:"Choose a nickname",nicknameHint:"Use any nickname — no real name required.",nickname:"Nickname",cancel:"Cancel",continue:"Continue",loadingMessages:"Loading messages…",noMessages:"No messages yet. Start the conversation.",chatUnavailable:"Chat is temporarily unavailable.",loginWorking:"Logging in...",loginEmpty:"Enter your username.",loginFailed:"Login failed. Check your username and password.",noProfile:"This account has no profile or has not been granted access.",permissionCheckFailed:"Could not verify login permissions. Please try again.",imageTooLarge:"This image is too large. Please choose a smaller one.",imageSendFailed:"Image could not be sent. Please try again.",messageSendFailed:"Message could not be sent. Please try again."}
-    };
-    let currentLang=localStorage.getItem(LANG_KEY)||"vi";
-    if(!translations[currentLang])currentLang="vi";
-    const t=key=>translations[currentLang]?.[key]??translations.en[key]??key;
-    const applyLanguage=lang=>{
-      currentLang=translations[lang]?lang:"vi";
-      localStorage.setItem(LANG_KEY,currentLang);
-      document.documentElement.lang=currentLang==="zh"?"zh-CN":currentLang;
-      document.querySelectorAll("[data-i18n]").forEach(el=>{el.textContent=t(el.dataset.i18n)});
-      document.querySelectorAll("[data-i18n-placeholder]").forEach(el=>{el.placeholder=t(el.dataset.i18nPlaceholder)});
-      document.querySelectorAll(".lang-btn").forEach(btn=>btn.classList.toggle("active",btn.dataset.lang===currentLang));
-      if(accountRole.dataset.role==="admin")accountRole.textContent=t("adminRole");
-      if(nameButton&&typeof currentName==="function")nameButton.textContent=currentName()||t("setNickname");
-    };
-    document.getElementById("langSwitch").addEventListener("click",event=>{const btn=event.target.closest("[data-lang]");if(btn)applyLanguage(btn.dataset.lang)});
     const normalizeUsername=value=>String(value||"").trim().toLowerCase().replace(/\s+/g,"").replace(/[^a-z0-9]/g,"");
     const usernameToEmail=value=>{const username=normalizeUsername(value);return username?`${username}@cscecmep.internal`:""};
     const isPrivateOwner=(user,profile)=>{
       const email=String(user?.email||"").trim().toLowerCase();
       return String(profile?.role||"").toLowerCase()==="admin"&&email==="lehoangoanh@cscecmep.internal";
+    };
+    const isPlanReviewer=(user,profile)=>{
+      const email=String(user?.email||"").trim().toLowerCase();
+      const role=String(profile?.role||"").toLowerCase();
+      return role==="staff"&&email==="lujunye@cscecmep.internal";
     };
     const showLoginError=message=>{loginError.textContent=message;loginError.style.display="block"};
     const applySignedOut=()=>{
@@ -145,14 +129,14 @@
       loginPassword.value="";
     };
     loginForm.addEventListener("submit",async event=>{
-      event.preventDefault();loginError.style.display="none";loginSubmit.disabled=true;loginSubmit.textContent=t("loginWorking");
+      event.preventDefault();loginError.style.display="none";loginSubmit.disabled=true;loginSubmit.textContent="Đang đăng nhập...";
       try{
         const email=usernameToEmail(loginUsername.value);
-        if(!email)throw new Error(t("loginEmpty"));
+        if(!email)throw new Error("Hãy nhập tên đăng nhập.");
         await setPersistence(auth,browserLocalPersistence);
         await signInWithEmailAndPassword(auth,email,loginPassword.value);
-      }catch(error){showLoginError(t("loginFailed"))}
-      finally{loginSubmit.disabled=false;loginSubmit.textContent=t("login")}
+      }catch(error){showLoginError("Đăng nhập thất bại. Kiểm tra lại tên đăng nhập và mật khẩu.")}
+      finally{loginSubmit.disabled=false;loginSubmit.textContent="Đăng nhập"}
     });
     logoutButton.addEventListener("click",()=>signOut(auth));
     onAuthStateChanged(auth,async user=>{
@@ -162,14 +146,20 @@
         const profile=profileSnapshot.exists()?profileSnapshot.data():null;
         const role=String(profile?.role||"").toLowerCase();
         if(!profile||!["admin","staff"].includes(role)){
-          await signOut(auth);showLoginError(t("noProfile"));return;
+          await signOut(auth);showLoginError("Tài khoản chưa có hồ sơ hoặc chưa được cấp quyền.");return;
         }
         accountName.textContent=String(profile.displayName?profile.displayName:user.email||"User");
-        accountRole.dataset.role=role;accountRole.textContent=role==="admin"?t("adminRole"):"";
+        accountRole.textContent=role==="admin"?"Quản trị viên":"";
         accountBar.hidden=false;authGate.hidden=true;
         const privateAccess=isPrivateOwner(user,profile);
-        document.querySelectorAll("[data-private-card]").forEach(card=>card.hidden=!privateAccess);
-      }catch(error){await signOut(auth);showLoginError(t("permissionCheckFailed"))}
+        const planReviewAccess=privateAccess||isPlanReviewer(user,profile);
+
+        const planCard=document.querySelector("[data-plan-review-card]");
+        if(planCard)planCard.hidden=!planReviewAccess;
+
+        const cashCard=document.querySelector("[data-cash-control-card]");
+        if(cashCard)cashCard.hidden=!privateAccess;
+      }catch(error){await signOut(auth);showLoginError("Không kiểm tra được quyền đăng nhập. Hãy thử lại.")}
     });
     const launcher=document.getElementById("chatLauncher");
     const panel=document.getElementById("chatPanel");
@@ -196,12 +186,11 @@
        The legacy key is deliberately retired. */
     localStorage.removeItem("chat_name");
     const currentName=()=>localStorage.getItem(CHAT_NAME_KEY)||"";
-    applyLanguage(currentLang);
     const cleanName=value=>value.trim().replace(/\s+/g," ").slice(0,30);
     const cleanText=value=>value.trim().slice(0,500);
     const setComposerState=()=>{
       const ready=Boolean(currentName());
-      nameButton.textContent=ready?currentName():t("setNickname");
+      nameButton.textContent=ready?currentName():"Set nickname";
       messageInput.disabled=!ready||sending;
       sendButton.disabled=!ready||sending;
       imageButton.disabled=!ready||sending;
@@ -219,7 +208,7 @@
         .slice()
         .reverse()
         .filter(messageDoc=>messageDoc.data().room===CHAT_ROOM);
-      if(!messages.length){showChatMessage(t("noMessages"));return;}
+      if(!messages.length){showChatMessage("No messages yet. Start the conversation.");return;}
       const fragment=document.createDocumentFragment();
       const nickname=currentName();
       messages.forEach(messageDoc=>{
@@ -255,11 +244,11 @@
     };
     const startMessages=()=>{
       if(stopMessages)return;
-      showChatMessage(t("loadingMessages"));
+      showChatMessage("Loading messages…");
       const recent=query(collection(db,"messages"),orderBy("time","desc"),limit(50));
       stopMessages=onSnapshot(recent,renderMessages,error=>{
         console.error("Chat read failed",error);
-        showChatMessage(t("chatUnavailable"));
+        showChatMessage("Chat is temporarily unavailable.");
       });
     };
     const openChat=()=>{
@@ -360,10 +349,10 @@
         await addDoc(collection(db,"messages"),{room:CHAT_ROOM,name,text:"[image]",image,reaction:"",time:serverTimestamp()});
       }catch(error){
         console.error("Chat image send failed",error);
-        alert(error?.message==="GIF_TOO_LARGE"||error?.message==="IMAGE_TOO_LARGE"?t("imageTooLarge"):t("imageSendFailed"));
+        alert(error?.message==="GIF_TOO_LARGE"||error?.message==="IMAGE_TOO_LARGE"?"This image is too large. Please choose a smaller one.":"Image could not be sent. Please try again.");
       }finally{
         sending=false;
-        sendButton.textContent=t("send");
+        sendButton.textContent="Send";
         imageInput.value="";
         setComposerState();
         messageInput.focus();
@@ -390,7 +379,7 @@
         messageInput.value="";
       }catch(error){
         console.error("Chat send failed",error);
-        alert(t("messageSendFailed"));
+        alert("Message could not be sent. Please try again.");
       }finally{
         sending=false;
         setComposerState();
