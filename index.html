@@ -33,32 +33,72 @@
   </style>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-6QQBQ1C6FE"></script>
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-6QQBQ1C6FE');</script>
+
+<style id="index-language-switch-v1">
+  .index-language-switch{
+    display:inline-flex;
+    align-items:center;
+    gap:2px;
+    margin-left:auto;
+    margin-right:10px;
+    padding:3px;
+    border:1px solid #d7e1ea;
+    border-radius:9px;
+    background:#f6f9fb;
+  }
+  .index-language-switch button{
+    height:27px;
+    min-width:34px;
+    padding:0 8px;
+    border:0;
+    border-radius:6px;
+    background:transparent;
+    color:#60758a;
+    font-size:9px;
+    font-weight:850;
+  }
+  .index-language-switch button:hover{background:#eaf1f6;color:#15395f}
+  .index-language-switch button.active{
+    background:#15395f;
+    color:#fff;
+  }
+  @media(max-width:680px){
+    .index-language-switch{margin-right:6px}
+    .index-language-switch button{padding:0 6px;min-width:30px}
+  }
+</style>
+
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="./"><img class="brand-mark" src="./logo.png" alt="CSCEC"><span>中建二局安装工程有限公司</span></a>
-    <div class="account-bar" id="accountBar" hidden><div class="account-copy"><strong id="accountName">—</strong><small id="accountRole">—</small></div><button class="logout-btn" id="logoutButton" type="button">Đăng xuất</button></div>
+    <div class="index-language-switch" id="indexLanguageSwitch" aria-label="Language">
+      <button type="button" data-index-lang="vi">VI</button>
+      <button type="button" data-index-lang="zh">中文</button>
+      <button type="button" data-index-lang="en">EN</button>
+    </div>
+    <div class="account-bar" id="accountBar" hidden><div class="account-copy"><strong id="accountName">—</strong><small id="accountRole">—</small></div><button class="logout-btn" id="logoutButton" type="button" data-index-i18n="logout">Đăng xuất</button></div>
   </header>
   <main>
     <section class="workspace">
-      <div class="heading"><h1>Select a function</h1></div>
+      <div class="heading"><h1 data-index-i18n="heading">Select a function</h1></div>
       <div class="grid">
-        <a class="card card-primary" href="./payment.html"><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 9h16M8 13h3M8 16h6"/></svg></span><span class="card-copy"><h2>Payment Management</h2><p>Track payment progress and history</p></span><span class="arrow">→</span></a>
-        <a class="card" href="https://drive.google.com/drive/folders/1rfkI9U__twlV4KeHNCPvI_gxG8RrYmP6" target="_blank" rel="noopener"><span class="icon"><svg viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/></svg></span><span class="card-copy"><h2>Project Documents</h2><p>Contracts, IPCs and supporting documents</p></span><span class="arrow">↗</span></a>
-        <a class="card" href="./payment-archive.html"><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 6h16v14H4zM8 3h8v6H8zM8 13h8M8 16h6"/></svg></span><span class="card-copy"><h2>Payment Archive</h2><p>Closed months and payment documents</p></span><span class="arrow">→</span></a>
-        <a class="card" href="./plan-review.html" data-private-card data-plan-review-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 9l2 2 5-5M8 15h8"/></svg></span><span class="card-copy"><h2>Plan Review</h2><p>Review, approve and lock payment plans</p><span class="private-badge">Authorized reviewer</span></span><span class="arrow">→</span></a>
-        <a class="card" href="./cash-control.html" data-private-card data-cash-control-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M3 18h18"/></svg></span><span class="card-copy"><h2>Cash Control</h2><p>Project cash flow and current balances</p><span class="private-badge">Admin only</span></span><span class="arrow">→</span></a>
+        <a class="card card-primary" href="./payment.html"><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 9h16M8 13h3M8 16h6"/></svg></span><span class="card-copy"><h2 data-index-i18n="paymentTitle">Payment Management</h2><p data-index-i18n="paymentDesc">Track payment progress and history</p></span><span class="arrow">→</span></a>
+        <a class="card" href="https://drive.google.com/drive/folders/1rfkI9U__twlV4KeHNCPvI_gxG8RrYmP6" target="_blank" rel="noopener"><span class="icon"><svg viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/></svg></span><span class="card-copy"><h2 data-index-i18n="docsTitle">Project Documents</h2><p data-index-i18n="docsDesc">Contracts, IPCs and supporting documents</p></span><span class="arrow">↗</span></a>
+        <a class="card" href="./payment-archive.html"><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 6h16v14H4zM8 3h8v6H8zM8 13h8M8 16h6"/></svg></span><span class="card-copy"><h2 data-index-i18n="archiveTitle">Payment Archive</h2><p data-index-i18n="archiveDesc">Closed months and payment documents</p></span><span class="arrow">→</span></a>
+        <a class="card" href="./plan-review.html" data-private-card data-plan-review-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 9l2 2 5-5M8 15h8"/></svg></span><span class="card-copy"><h2 data-index-i18n="planTitle">Plan Review</h2><p data-index-i18n="planDesc">Review, approve and lock payment plans</p><span class="private-badge" data-index-i18n="reviewerBadge">Authorized reviewer</span></span><span class="arrow">→</span></a>
+        <a class="card" href="./cash-control.html" data-private-card data-cash-control-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M3 18h18"/></svg></span><span class="card-copy"><h2 data-index-i18n="cashTitle">Cash Control</h2><p data-index-i18n="cashDesc">Project cash flow and current balances</p><span class="private-badge" data-index-i18n="adminBadge">Admin only</span></span><span class="arrow">→</span></a>
       </div>
     </section>
   </main>
   <section class="auth-gate" id="authGate">
     <form class="login-card" id="loginForm">
-      <div class="login-brand"><img src="./logo.png" alt="CSCEC"><div><strong></strong><span>Đăng nhập để mở trang làm việc</span></div></div>
-      <label for="loginUsername">Tên đăng nhập</label><input id="loginUsername" autocomplete="username" placeholder="Tên đăng nhập" required>
-      <label for="loginPassword">Mật khẩu</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Mật khẩu" required>
-      <button class="login-submit" id="loginSubmit" type="submit">Đăng nhập</button>
+      <div class="login-brand"><img src="./logo.png" alt="CSCEC"><div><strong></strong><span data-index-i18n="loginSubtitle">Đăng nhập để mở trang làm việc</span></div></div>
+      <label for="loginUsername" data-index-i18n="usernameLabel">Tên đăng nhập</label><input id="loginUsername" autocomplete="username" placeholder="Tên đăng nhập" data-index-placeholder="usernamePlaceholder" required>
+      <label for="loginPassword" data-index-i18n="passwordLabel">Mật khẩu</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Mật khẩu" data-index-placeholder="passwordPlaceholder" required>
+      <button class="login-submit" id="loginSubmit" type="submit" data-index-i18n="loginButton">Đăng nhập</button>
       <div class="login-error" id="loginError"></div>
-      <p class="login-note">Dùng cùng tài khoản của trang Payment. Phiên đăng nhập được dùng chung trên website này.</p>
+      <p class="login-note" data-index-i18n="loginNote">Dùng cùng tài khoản của trang Payment. Phiên đăng nhập được dùng chung trên website này.</p>
     </form>
   </section>
   <button class="chat-launcher" id="chatLauncher" type="button" aria-label="Open team chat" aria-controls="chatPanel" aria-expanded="false">
@@ -92,7 +132,144 @@
       </form>
     </div>
   </section>
-  <script type="module">
+  
+<script id="index-i18n-v1">
+(function(){
+  const DICT={
+    vi:{
+      heading:"Chọn chức năng",
+      paymentTitle:"Quản lý thanh toán",
+      paymentDesc:"Theo dõi tiến trình và lịch sử thanh toán",
+      docsTitle:"Kho chứng từ dự án",
+      docsDesc:"Hợp đồng, IPC và hồ sơ liên quan",
+      archiveTitle:"Kho thanh toán",
+      archiveDesc:"Báo cáo tháng đã chốt và chứng từ thanh toán",
+      planTitle:"Duyệt kế hoạch",
+      planDesc:"Duyệt, điều chỉnh và chốt kế hoạch thanh toán",
+      reviewerBadge:"Người duyệt",
+      cashTitle:"Kiểm soát dòng tiền",
+      cashDesc:"Dòng tiền dự án và số dư hiện tại",
+      adminBadge:"Chỉ Admin",
+      loginSubtitle:"Đăng nhập để mở trang làm việc",
+      usernameLabel:"Tên đăng nhập",
+      passwordLabel:"Mật khẩu",
+      usernamePlaceholder:"Tên đăng nhập",
+      passwordPlaceholder:"Mật khẩu",
+      loginButton:"Đăng nhập",
+      loginBusy:"Đang đăng nhập...",
+      loginNote:"Dùng cùng tài khoản của trang Payment. Phiên đăng nhập được dùng chung trên website này.",
+      logout:"Đăng xuất",
+      adminRole:"Quản trị viên",
+      reviewerRole:"Người duyệt",
+      staffRole:"Nhân viên",
+      errEmpty:"Hãy nhập tên đăng nhập.",
+      errLogin:"Đăng nhập thất bại. Kiểm tra lại tên đăng nhập và mật khẩu.",
+      errNoProfile:"Tài khoản chưa có hồ sơ hoặc chưa được cấp quyền.",
+      errPermission:"Không kiểm tra được quyền đăng nhập. Hãy thử lại."
+    },
+    zh:{
+      heading:"选择功能",
+      paymentTitle:"付款管理",
+      paymentDesc:"跟踪付款进度与历史记录",
+      docsTitle:"项目资料",
+      docsDesc:"合同、IPC及相关付款资料",
+      archiveTitle:"付款档案",
+      archiveDesc:"已结月份报表及付款凭证",
+      planTitle:"计划审核",
+      planDesc:"审核、调整并锁定付款计划",
+      reviewerBadge:"审核人",
+      cashTitle:"资金管控",
+      cashDesc:"项目现金流及当前余额",
+      adminBadge:"仅管理员",
+      loginSubtitle:"登录后进入工作页面",
+      usernameLabel:"用户名",
+      passwordLabel:"密码",
+      usernamePlaceholder:"用户名",
+      passwordPlaceholder:"密码",
+      loginButton:"登录",
+      loginBusy:"登录中...",
+      loginNote:"与 Payment 页面使用同一账号，登录状态在本站共享。",
+      logout:"退出登录",
+      adminRole:"管理员",
+      reviewerRole:"审核人",
+      staffRole:"员工",
+      errEmpty:"请输入用户名。",
+      errLogin:"登录失败，请检查用户名和密码。",
+      errNoProfile:"该账号尚未建立用户资料或未获得权限。",
+      errPermission:"无法验证登录权限，请重试。"
+    },
+    en:{
+      heading:"Select a function",
+      paymentTitle:"Payment Management",
+      paymentDesc:"Track payment progress and history",
+      docsTitle:"Project Documents",
+      docsDesc:"Contracts, IPCs and supporting documents",
+      archiveTitle:"Payment Archive",
+      archiveDesc:"Closed months and payment documents",
+      planTitle:"Plan Review",
+      planDesc:"Review, adjust and lock payment plans",
+      reviewerBadge:"Reviewer",
+      cashTitle:"Cash Control",
+      cashDesc:"Project cash flow and current balances",
+      adminBadge:"Admin only",
+      loginSubtitle:"Sign in to open the workspace",
+      usernameLabel:"Username",
+      passwordLabel:"Password",
+      usernamePlaceholder:"Username",
+      passwordPlaceholder:"Password",
+      loginButton:"Sign in",
+      loginBusy:"Signing in...",
+      loginNote:"Use the same account as the Payment page. Your session is shared across this site.",
+      logout:"Sign out",
+      adminRole:"Administrator",
+      reviewerRole:"Reviewer",
+      staffRole:"Staff",
+      errEmpty:"Enter a username.",
+      errLogin:"Sign-in failed. Check your username and password.",
+      errNoProfile:"This account has no profile or has not been granted access.",
+      errPermission:"Could not verify sign-in permissions. Please try again."
+    }
+  };
+
+  function lang(){
+    return localStorage.getItem("cscecIndexLang")||"vi";
+  }
+  function t(key){
+    const l=lang();
+    return DICT[l]?.[key]??DICT.vi[key]??key;
+  }
+  function apply(){
+    const l=lang();
+    document.documentElement.lang=l==="zh"?"zh-CN":l;
+    document.querySelectorAll("[data-index-i18n]").forEach(el=>{
+      const key=el.dataset.indexI18n;
+      el.textContent=t(key);
+    });
+    document.querySelectorAll("[data-index-placeholder]").forEach(el=>{
+      el.placeholder=t(el.dataset.indexPlaceholder);
+    });
+    document.querySelectorAll("[data-index-lang]").forEach(btn=>{
+      btn.classList.toggle("active",btn.dataset.indexLang===l);
+    });
+    window.dispatchEvent(new CustomEvent("indexlanguagechange",{detail:{lang:l}}));
+  }
+  window.indexLang=lang;
+  window.indexT=t;
+  window.applyIndexLanguage=apply;
+
+  document.addEventListener("DOMContentLoaded",()=>{
+    document.querySelectorAll("[data-index-lang]").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        localStorage.setItem("cscecIndexLang",btn.dataset.indexLang);
+        apply();
+      });
+    });
+    apply();
+  });
+})();
+</script>
+
+<script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
     import { getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged,setPersistence,browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
     import { getFirestore,collection,addDoc,query,orderBy,limit,onSnapshot,serverTimestamp,getDoc,doc } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
@@ -129,14 +306,14 @@
       loginPassword.value="";
     };
     loginForm.addEventListener("submit",async event=>{
-      event.preventDefault();loginError.style.display="none";loginSubmit.disabled=true;loginSubmit.textContent="Đang đăng nhập...";
+      event.preventDefault();loginError.style.display="none";loginSubmit.disabled=true;loginSubmit.textContent=window.indexT("loginBusy");
       try{
         const email=usernameToEmail(loginUsername.value);
-        if(!email)throw new Error("Hãy nhập tên đăng nhập.");
+        if(!email)throw new Error(window.indexT("errEmpty"));
         await setPersistence(auth,browserLocalPersistence);
         await signInWithEmailAndPassword(auth,email,loginPassword.value);
-      }catch(error){showLoginError("Đăng nhập thất bại. Kiểm tra lại tên đăng nhập và mật khẩu.")}
-      finally{loginSubmit.disabled=false;loginSubmit.textContent="Đăng nhập"}
+      }catch(error){showLoginError(error?.message===window.indexT("errEmpty")?window.indexT("errEmpty"):window.indexT("errLogin"))}
+      finally{loginSubmit.disabled=false;loginSubmit.textContent=window.indexT("loginButton")}
     });
     logoutButton.addEventListener("click",()=>signOut(auth));
     onAuthStateChanged(auth,async user=>{
@@ -146,10 +323,12 @@
         const profile=profileSnapshot.exists()?profileSnapshot.data():null;
         const role=String(profile?.role||"").toLowerCase();
         if(!profile||!["admin","staff"].includes(role)){
-          await signOut(auth);showLoginError("Tài khoản chưa có hồ sơ hoặc chưa được cấp quyền.");return;
+          await signOut(auth);showLoginError(window.indexT("errNoProfile"));return;
         }
         accountName.textContent=String(profile.displayName?profile.displayName:user.email||"User");
-        accountRole.textContent=role==="admin"?"Quản trị viên":"";
+        accountRole.textContent=role==="admin"
+          ?window.indexT("adminRole")
+          :(isPlanReviewer(user,profile)?window.indexT("reviewerRole"):window.indexT("staffRole"));
         accountBar.hidden=false;authGate.hidden=true;
         const privateAccess=isPrivateOwner(user,profile);
         const planReviewAccess=privateAccess||isPlanReviewer(user,profile);
@@ -159,7 +338,20 @@
 
         const cashCard=document.querySelector("[data-cash-control-card]");
         if(cashCard)cashCard.hidden=!privateAccess;
-      }catch(error){await signOut(auth);showLoginError("Không kiểm tra được quyền đăng nhập. Hãy thử lại.")}
+      }catch(error){await signOut(auth);showLoginError(window.indexT("errPermission"))}
+    });
+
+    window.addEventListener("indexlanguagechange",()=>{
+      const currentRoleText=accountRole.textContent;
+      if(accountBar.hidden)return;
+      const email=String(auth.currentUser?.email||"").toLowerCase();
+      if(email==="lehoangoanh@cscecmep.internal"){
+        accountRole.textContent=window.indexT("adminRole");
+      }else if(email==="lujunye@cscecmep.internal"){
+        accountRole.textContent=window.indexT("reviewerRole");
+      }else{
+        accountRole.textContent=window.indexT("staffRole");
+      }
     });
     const launcher=document.getElementById("chatLauncher");
     const panel=document.getElementById("chatPanel");
