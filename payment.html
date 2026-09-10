@@ -13121,11 +13121,248 @@ body:not(.amount-range-dragging) #paymentTable tbody td.amount-total-selected{
 }
 </style>
 
+
+<style id="plan-review-shortcut-v1">
+.plan-review-shortcut{
+    display:none;
+    align-items:center;
+    justify-content:center;
+    height:32px;
+    padding:0 11px;
+    border:1px solid var(--theme-border,#d6dce5);
+    border-radius:8px;
+    background:var(--theme-surface,#fff);
+    color:var(--theme-primary,#17365d);
+    font-size:10px;
+    font-weight:850;
+    white-space:nowrap;
+    text-decoration:none;
+    box-shadow:none;
+    transition:background .15s,border-color .15s,transform .15s;
+}
+.plan-review-shortcut:hover{
+    background:var(--theme-soft,#eef4ff);
+    border-color:var(--theme-accent,#8ea8c0);
+    transform:translateY(-1px);
+}
+.plan-review-shortcut.show{
+    display:inline-flex;
+}
+</style>
+
+
+<style id="plan-review-notice-v2">
+/* ===== PROMINENT PLAN REVIEW NOTICE ===== */
+.plan-review-notice{
+    position:fixed;
+    top:72px;
+    left:50%;
+    transform:translateX(-50%) translateY(-10px);
+    z-index:100020;
+    width:min(560px,calc(100vw - 28px));
+    display:none;
+    align-items:center;
+    gap:12px;
+    padding:12px 13px;
+    border:1px solid color-mix(in srgb,var(--theme-accent,#3b82f6) 38%,#dce5ef);
+    border-radius:12px;
+    background:var(--theme-surface,#fff);
+    color:var(--theme-text,#172033);
+    box-shadow:0 16px 40px rgba(17,42,69,.18);
+    opacity:0;
+    transition:opacity .18s ease,transform .18s ease;
+}
+.plan-review-notice.show{
+    display:flex;
+}
+.plan-review-notice.visible{
+    opacity:1;
+    transform:translateX(-50%) translateY(0);
+}
+.plan-review-notice-icon{
+    width:36px;
+    height:36px;
+    display:grid;
+    place-items:center;
+    flex:0 0 36px;
+    border-radius:10px;
+    background:var(--theme-soft,#eef4ff);
+    color:var(--theme-primary,#17365d);
+    font-size:17px;
+    font-weight:900;
+}
+.plan-review-notice-copy{
+    min-width:0;
+    flex:1;
+}
+.plan-review-notice-copy strong{
+    display:block;
+    font-size:12px;
+    color:var(--theme-primary,#17365d);
+}
+.plan-review-notice-copy span{
+    display:block;
+    margin-top:3px;
+    color:var(--theme-muted,#667085);
+    font-size:10px;
+    line-height:1.45;
+}
+.plan-review-notice-action{
+    height:34px;
+    flex:0 0 auto;
+    padding:0 12px;
+    border:0;
+    border-radius:8px;
+    background:var(--theme-primary,#17365d);
+    color:#fff;
+    font-size:10px;
+    font-weight:850;
+    text-decoration:none;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    white-space:nowrap;
+}
+.plan-review-notice-action:hover{
+    filter:brightness(1.06);
+}
+.plan-review-notice-close{
+    width:28px;
+    height:28px;
+    flex:0 0 28px;
+    border:0;
+    border-radius:7px;
+    background:transparent;
+    color:var(--theme-muted,#667085);
+    font-size:18px;
+    line-height:1;
+}
+.plan-review-notice-close:hover{
+    background:var(--theme-soft,#eef4ff);
+    color:var(--theme-primary,#17365d);
+}
+@media(max-width:620px){
+    .plan-review-notice{
+        top:62px;
+        align-items:flex-start;
+        flex-wrap:wrap;
+    }
+    .plan-review-notice-action{
+        margin-left:48px;
+    }
+}
+</style>
+
+
+<style id="plan-review-notice-centered-v3">
+.plan-review-notice-backdrop{
+    position:fixed;
+    inset:0;
+    z-index:100018;
+    background:rgba(13,29,48,.16);
+    backdrop-filter:blur(2px);
+    display:none;
+    opacity:0;
+    transition:opacity .18s ease;
+}
+.plan-review-notice-backdrop.show{
+    display:block;
+}
+.plan-review-notice-backdrop.visible{
+    opacity:1;
+}
+
+.plan-review-notice{
+    position:fixed!important;
+    top:50%!important;
+    left:50%!important;
+    transform:translate(-50%,-50%) scale(.985)!important;
+    z-index:100020!important;
+    width:min(700px,calc(100vw - 36px))!important;
+    min-height:104px;
+    display:none;
+    align-items:center;
+    gap:16px;
+    padding:20px 20px!important;
+    border:1px solid color-mix(in srgb,var(--theme-accent,#3b82f6) 34%,#dce5ef)!important;
+    border-radius:16px!important;
+    background:var(--theme-surface,#fff)!important;
+    color:var(--theme-text,#172033)!important;
+    box-shadow:0 24px 60px rgba(17,42,69,.24)!important;
+    opacity:0;
+    transition:opacity .18s ease,transform .18s ease;
+}
+.plan-review-notice.show{
+    display:flex!important;
+}
+.plan-review-notice.visible{
+    opacity:1!important;
+    transform:translate(-50%,-50%) scale(1)!important;
+}
+.plan-review-notice-icon{
+    width:52px!important;
+    height:52px!important;
+    flex:0 0 52px!important;
+    border-radius:14px!important;
+    font-size:24px!important;
+}
+.plan-review-notice-copy strong{
+    display:block;
+    font-size:16px!important;
+    line-height:1.22!important;
+    color:var(--theme-primary,#17365d)!important;
+}
+.plan-review-notice-copy span{
+    display:block;
+    margin-top:6px!important;
+    color:#5f7284!important;
+    font-size:12.5px!important;
+    line-height:1.5!important;
+}
+.plan-review-notice-action{
+    height:42px!important;
+    padding:0 16px!important;
+    border-radius:10px!important;
+    font-size:12px!important;
+    font-weight:850!important;
+}
+.plan-review-notice-close{
+    width:34px!important;
+    height:34px!important;
+    flex:0 0 34px!important;
+    font-size:20px!important;
+    border-radius:10px!important;
+}
+@media(max-width:620px){
+    .plan-review-notice{
+        width:min(92vw,560px)!important;
+        padding:18px 16px!important;
+        align-items:flex-start!important;
+        flex-wrap:wrap;
+        gap:12px!important;
+    }
+    .plan-review-notice-action{
+        margin-left:68px;
+    }
+}
+</style>
+
 </head>
 
 
 
 <body class="access-login-required">
+<div id="planReviewNoticeBackdrop" class="plan-review-notice-backdrop"></div>
+<div id="planReviewNotice" class="plan-review-notice" role="dialog" aria-live="polite" aria-label="Plan Review">
+    <div class="plan-review-notice-icon">✓</div>
+    <div class="plan-review-notice-copy">
+        <strong id="planReviewNoticeTitle">Plan Review đã được mở quyền</strong>
+        <span id="planReviewNoticeText">Bấm qua Plan Review để xem và duyệt kế hoạch thanh toán.</span>
+    </div>
+    <a id="planReviewNoticeAction" class="plan-review-notice-action" href="./plan-review.html" onclick="localStorage.setItem('planReviewNoticeDismissed_v20260910_1','1'); hidePlanReviewNotice({remember:true});">Mở Plan Review</a>
+    <button id="planReviewNoticeClose" class="plan-review-notice-close" type="button" aria-label="Đóng" onclick="hidePlanReviewNotice({remember:true})">×</button>
+</div>
+
 
 <div id="appBootScreen" aria-live="polite" aria-label="Loading">
     <div class="app-boot-card">
@@ -13229,6 +13466,14 @@ body:not(.amount-range-dragging) #paymentTable tbody td.amount-total-selected{
                 </div>
             </div>
         </div>
+
+        <a
+            id="planReviewShortcut"
+            class="plan-review-shortcut"
+            href="./plan-review.html"
+            title="Plan Review"
+            aria-label="Plan Review"
+        >✓ Plan Review</a>
 
         <div class="header-user-wrap">
             <button class="header-user-button" id="operatorBtn" type="button">
@@ -15962,6 +16207,121 @@ function isStaff(){
     );
 }
 
+
+function isPlanReviewShortcutUser(){
+    if(!currentAuthUser || !currentUserProfile){
+        return false;
+    }
+
+    const email=String(currentAuthUser.email||"").trim().toLowerCase();
+
+    return (
+        currentUserRole === "admin" ||
+        email === "lujunye@cscecmep.internal"
+    );
+}
+
+function syncPlanReviewShortcut(){
+    const shortcut=document.getElementById("planReviewShortcut");
+    if(!shortcut)return;
+
+    const allowed=isPlanReviewShortcutUser();
+    shortcut.classList.toggle("show",allowed);
+    shortcut.hidden=!allowed;
+
+    const label =
+        currentLanguage === "zh"
+            ? "✓ 计划审核"
+            : currentLanguage === "en"
+                ? "✓ Plan Review"
+                : "✓ Duyệt kế hoạch";
+
+    shortcut.textContent=label;
+    shortcut.title=
+        currentLanguage === "zh"
+            ? "打开计划审核"
+            : currentLanguage === "en"
+                ? "Open Plan Review"
+                : "Mở Duyệt kế hoạch";
+}
+
+
+const PLAN_REVIEW_NOTICE_KEY="planReviewNoticeDismissed_v20260910_1";
+let planReviewNoticeShownThisLoad=false;
+
+function syncPlanReviewNoticeLanguage(){
+    const title=document.getElementById("planReviewNoticeTitle");
+    const copy=document.getElementById("planReviewNoticeText");
+    const action=document.getElementById("planReviewNoticeAction");
+    const close=document.getElementById("planReviewNoticeClose");
+    if(!title||!copy||!action)return;
+
+    if(currentLanguage==="zh"){
+        title.textContent="已为你开放计划审核权限";
+        copy.textContent="点击进入“计划审核”，可查看并审核付款计划。";
+        action.textContent="进入计划审核";
+        if(close)close.setAttribute("aria-label","关闭");
+    }else if(currentLanguage==="en"){
+        title.textContent="Plan Review access is now available";
+        copy.textContent="Open Plan Review to view and approve payment plans.";
+        action.textContent="Open Plan Review";
+        if(close)close.setAttribute("aria-label","Close");
+    }else{
+        title.textContent="Đã mở quyền Plan Review";
+        copy.textContent="Bấm qua Plan Review để xem và duyệt kế hoạch thanh toán.";
+        action.textContent="Mở Plan Review";
+        if(close)close.setAttribute("aria-label","Đóng");
+    }
+}
+
+function showPlanReviewNoticeIfNeeded(){
+    const notice=document.getElementById("planReviewNotice");
+    const backdrop=document.getElementById("planReviewNoticeBackdrop");
+    if(!notice || !isPlanReviewShortcutUser())return;
+
+    syncPlanReviewNoticeLanguage();
+
+    const dismissed=localStorage.getItem(PLAN_REVIEW_NOTICE_KEY)==="1";
+    if(dismissed || planReviewNoticeShownThisLoad)return;
+
+    planReviewNoticeShownThisLoad=true;
+    if(backdrop){
+        backdrop.classList.add("show");
+        requestAnimationFrame(()=>backdrop.classList.add("visible"));
+    }
+    notice.classList.add("show");
+    requestAnimationFrame(()=>notice.classList.add("visible"));
+}
+
+function hidePlanReviewNotice({remember=false}={}){
+    const notice=document.getElementById("planReviewNotice");
+    const backdrop=document.getElementById("planReviewNoticeBackdrop");
+    if(!notice)return;
+    notice.classList.remove("visible");
+    if(backdrop)backdrop.classList.remove("visible");
+    setTimeout(()=>{
+        notice.classList.remove("show");
+        if(backdrop)backdrop.classList.remove("show");
+    },180);
+    if(remember)localStorage.setItem(PLAN_REVIEW_NOTICE_KEY,"1");
+}
+
+
+window.addEventListener("pageshow",()=>{
+    const dismissed=localStorage.getItem(PLAN_REVIEW_NOTICE_KEY)==="1";
+    if(dismissed){
+        const notice=document.getElementById("planReviewNotice");
+        const backdrop=document.getElementById("planReviewNoticeBackdrop");
+        if(notice){
+            notice.classList.remove("visible","show");
+        }
+        if(backdrop){
+            backdrop.classList.remove("visible","show");
+        }
+        planReviewNoticeShownThisLoad=true;
+    }
+});
+
 function canBulkEdit(){
     return isStaff() || isAdmin();
 }
@@ -16739,6 +17099,8 @@ function setStatusFilter(select, labelKey){
 
 function applyLanguage(){
     const langMap={en:'en',zh:'zh-CN',vi:'vi'};
+    syncPlanReviewShortcut();
+    syncPlanReviewNoticeLanguage();
     document.documentElement.lang = langMap[currentLanguage];
 
     /* The real <colgroup> must follow the language-specific Actions width;
@@ -22961,6 +23323,9 @@ const headerChangePasswordBtn = document.getElementById("headerChangePasswordBtn
 const headerLogoutBtn = document.getElementById("headerLogoutBtn");
 
 function syncHeaderUserMenu(){
+    syncPlanReviewShortcut();
+    syncPlanReviewNoticeLanguage();
+    showPlanReviewNoticeIfNeeded();
     if(!headerUserMenuName || !headerUserMenuRole) return;
 
     if(!currentAuthUser || !currentUserProfile){
@@ -48177,6 +48542,25 @@ html[data-theme="onyxcat"] #pasteExcelModal .modal-header .close{
 
     updateStatus();
 })();
+
+document.addEventListener("DOMContentLoaded",()=>{
+    const close=document.getElementById("planReviewNoticeClose");
+    const action=document.getElementById("planReviewNoticeAction");
+    const backdrop=document.getElementById("planReviewNoticeBackdrop");
+
+    if(close){
+        close.addEventListener("click",()=>hidePlanReviewNotice({remember:true}));
+    }
+    if(action){
+        action.addEventListener("click",()=>{
+            localStorage.setItem(PLAN_REVIEW_NOTICE_KEY,"1");
+        });
+    }
+    if(backdrop){
+        backdrop.addEventListener("click",()=>hidePlanReviewNotice({remember:true}));
+    }
+});
+
 </script>
 
 <style id="butter-bear-color-theme">

@@ -1908,6 +1908,92 @@ button,input,select,textarea,
 }
 </style>
 
+
+<style id="funding-header-alignment-fix-v1">
+/* ===== FUNDING MULTI-LEVEL HEADER ALIGNMENT =====
+   Các ô rowspan (Dự án / Công nợ / Thao tác) phải cao bằng cả 2 tầng header.
+*/
+.funding-table thead tr.group-head th[rowspan="2"]{
+  height:65px!important;              /* 27 + 38 */
+  min-height:65px!important;
+  vertical-align:middle!important;
+  top:0!important;
+  background:#0A365B!important;
+  border-bottom:1px solid #DDE5EC!important;
+}
+
+/* KẾT QUẢ / 结果: chia 2 cột rõ ràng, không tạo cảm giác lệch khung */
+.funding-table thead tr.group-head th[data-i18n="fundingGroupResult"]{
+  border-left:1px solid rgba(255,255,255,.18)!important;
+  border-right:1px solid rgba(255,255,255,.18)!important;
+}
+.funding-table thead tr.column-head th[data-i18n="fundingRemaining"],
+.funding-table thead tr.column-head th[data-i18n="fundingStatus"]{
+  vertical-align:middle!important;
+}
+.funding-table thead tr.column-head th[data-i18n="fundingStatus"]{
+  border-right:1px solid rgba(255,255,255,.14)!important;
+}
+
+/* Action header: center perfectly across the two header levels */
+.funding-table thead th[data-i18n="fundingAction"]{
+  text-align:center!important;
+  padding:0 8px!important;
+}
+
+/* Keep the header baseline visually continuous */
+.funding-table thead tr.column-head th{
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04)!important;
+}
+</style>
+
+
+<style id="funding-action-column-no-sticky-v2">
+/* =========================================================
+   FIX THẬT: cột THAO TÁC / 操作 không sticky bên phải.
+   Trước đây nó luôn ghim right:0 nên khi chưa kéo ngang,
+   cột này "lộ" đè vào vùng KẾT QUẢ. Khi kéo tới cuối thì lại
+   trông bình thường — đúng triệu chứng user chụp.
+   ========================================================= */
+.funding-table th:last-child,
+.funding-table td:last-child{
+  position:static!important;
+  right:auto!important;
+  z-index:auto!important;
+  box-shadow:none!important;
+}
+
+/* Header action vẫn giữ đúng màu 2 tầng */
+.funding-table thead tr.group-head th:last-child{
+  position:sticky!important;
+  top:0!important;
+  right:auto!important;
+  z-index:12!important;
+  background:#0A365B!important;
+}
+.funding-table thead tr.column-head th:last-child{
+  position:sticky!important;
+  top:27px!important;
+  right:auto!important;
+  z-index:12!important;
+  background:#0D426F!important;
+}
+
+/* Vì action là rowspan=2 ở group-head, giữ đúng chiều cao */
+.funding-table thead tr.group-head th[data-i18n="fundingAction"]{
+  height:65px!important;
+  vertical-align:middle!important;
+}
+
+/* Footer cột cuối cũng không ghim, tránh một miếng trắng/xám lộ ở mép phải */
+.funding-table tfoot td:last-child{
+  position:static!important;
+  right:auto!important;
+  z-index:auto!important;
+  box-shadow:none!important;
+}
+</style>
+
 </head>
 <body class="auth-checking">
 <div id="reviewColumnResizeGuide"></div>
