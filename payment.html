@@ -32352,6 +32352,36 @@ function looksLikeContractTypeValue(value){
 }
 
 
+
+function inferCostTypeFromContractNo(contractNo){
+    const raw = String(contractNo || "").trim().toUpperCase();
+    if(!raw){
+        return "";
+    }
+
+    /*
+       Fallback only for Contract No. codes.
+       Do NOT override an explicit Cost Type from Contract Master / Excel.
+    */
+    if(/(?:^|[-_\s])SUPL(?:[-_\s]|$)/i.test(raw)){
+        return "材料款";
+    }
+    if(/(?:^|[-_\s])SUBP(?:[-_\s]|$)/i.test(raw)){
+        return "分包款";
+    }
+    if(/(?:^|[-_\s])LAB(?:[-_\s]|$)/i.test(raw)){
+        return "劳务款";
+    }
+    if(/(?:^|[-_\s])ADM(?:[-_\s]|$)/i.test(raw)){
+        return "间接费";
+    }
+    if(/(?:^|[-_\s])OTH(?:[-_\s]|$)/i.test(raw)){
+        return "其他直接费";
+    }
+
+    return "";
+}
+
 function smartDetectRow(row){
 
     const cells =
@@ -32854,6 +32884,23 @@ function smartDetectRow(row){
                     knownVendor.bankAccount || "";
             }
         }
+    }
+
+    /*
+       FINAL COST TYPE FALLBACK
+       ------------------------
+       Older Payment versions inferred cost type from the Contract No.
+       Keep that behavior for pasted rows when both Contract Master and Excel
+       leave Cost Type blank.
+
+       SUPL -> 材料款
+       SUBP -> 分包款
+       LAB  -> 劳务款
+       ADM  -> 间接费
+       OTH  -> 其他直接费
+    */
+    if(!String(costType || "").trim()){
+        costType = inferCostTypeFromContractNo(contractNo);
     }
 
     const confidenceSignals = [
@@ -43473,7 +43520,7 @@ history26CommitBtn.addEventListener("click",async()=>{
             item.data.company = master.company || item.data.company;
             item.data.bankAccount = master.bankAccount || item.data.bankAccount;
             item.data.contractName = master.contractName || item.data.contractName;
-            item.data.costType = normalizeLegacyCostTypeValue(master.costType || item.data.costType || "");
+            item.data.costType = normalizeLegacyCostTypeValue(master.costType || item.data.costType || inferCostTypeFromContractNo(item.data.contractNo) || "");
             item.data.contractType = master.contractType || item.data.contractType;
         });
 

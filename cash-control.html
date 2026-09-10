@@ -871,6 +871,84 @@ body{
 <style id="cc-v7-polish">
 #reportsView .mep-card{margin-bottom:10px}#reportsView .mep-table tfoot th{background:#eef4f9;color:#15395f;font-weight:900;border-top:1px solid #cbd8e5}.loan-debt-filters{display:grid;grid-template-columns:minmax(220px,1fr) 180px 180px 150px;gap:7px;margin-bottom:9px}.loan-debt-filters input,.loan-debt-filters select{min-width:0}.cc-more-menu [data-view="reports"] .nav-label{font-weight:900}@media(max-width:900px){.loan-debt-filters{grid-template-columns:1fr 1fr}}
 </style>
+
+<style id="salary-legacy-tax-sync-v1">
+#salaryBody tr.salary-row-legacy-tax td{
+  background:#fbfcfe!important;
+}
+#salaryBody tr.salary-row-legacy-tax:hover td{
+  background:#f3f7fb!important;
+}
+.salary-source-badge{
+  display:inline-flex;
+  align-items:center;
+  min-height:19px;
+  padding:2px 6px;
+  border-radius:999px;
+  background:#eef3f8;
+  color:#52667a;
+  border:1px solid #dbe4ed;
+  font-size:8.5px;
+  font-weight:850;
+}
+.salary-readonly{
+  color:#7d8a98;
+  font-size:9px;
+  font-weight:800;
+}
+</style>
+
+
+<style id="payroll-compact-secondary-labels-v2">
+/* Lương & thuế: thu nhỏ các chữ phụ / label nhỏ khoảng 50% */
+#payrollView .metric-foot,
+#payrollView .mep-card-sub,
+#payrollView .section-note,
+#payrollView .salary-source-badge,
+#payrollView .salary-readonly{
+  font-size:7px!important;
+  line-height:1.2!important;
+}
+#payrollView .metric-foot{
+  margin-top:3px!important;
+}
+#payrollView .mep-card-sub{
+  margin-top:2px!important;
+  opacity:.82;
+}
+#payrollView .section-note{
+  padding:7px 10px!important;
+}
+#payrollView .salary-source-badge{
+  min-height:15px!important;
+  padding:1px 5px!important;
+}
+#payrollView .mep-card-head .mep-card-sub{
+  font-size:7px!important;
+}
+#payrollView .metric-label{
+  font-size:8px!important;
+}
+</style>
+
+
+<style id="payroll-total-rows-v2">
+#payrollView .mep-table tfoot th,
+#payrollView .mep-table tfoot td{
+  background:#eef4f9!important;
+  color:#163a5f!important;
+  border-top:1px solid #c9d6e2!important;
+  padding:8px 9px!important;
+  font-size:9px!important;
+  font-weight:900!important;
+  white-space:nowrap;
+}
+#payrollView .mep-table tfoot .money{
+  text-align:right!important;
+  font-variant-numeric:tabular-nums;
+}
+</style>
+
 </head><body class="auth-checking">
 <div class="app"><header class="top"><div class="brand"><div class="mark">₫</div><div><h1>MEP CASH CONTROL</h1><small>Điều hành dòng tiền · Công nợ · Thanh toán · Tín dụng dự án</small></div></div><div class="topright">
 <div class="lang-switch">
@@ -1195,9 +1273,9 @@ body{
     <button class="btn danger" id="salaryDeleteSelected">Xóa khoản đã chọn</button>
   </div>
 
-  <div class="mep-card"><div class="mep-card-head"><div><div class="mep-card-title">Chi tiết nghĩa vụ lương · thuế · bảo hiểm</div><div class="mep-card-sub">Kỳ phát sinh dùng để gom nghĩa vụ; ngày thực chi quyết định tháng dòng tiền</div></div></div><div class="mep-table-wrap"><table class="mep-table"><thead><tr><th><input type="checkbox" id="salarySelectAll" title="Chọn toàn bộ kết quả đang hiển thị"></th><th>Dự án</th><th>Khoản mục</th><th>Kỳ phát sinh</th><th>Kỳ dự kiến chi</th><th>Số tiền VND</th><th>Ngày thực chi</th><th>Tháng dòng tiền</th><th>Tài khoản chi</th><th>Nguồn nhập</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody id="salaryBody"></tbody></table></div></div>
+  <div class="mep-card"><div class="mep-card-head"><div><div class="mep-card-title">Chi tiết nghĩa vụ lương · thuế · bảo hiểm</div><div class="mep-card-sub">Kỳ phát sinh dùng để gom nghĩa vụ; ngày thực chi quyết định tháng dòng tiền. Thuế lịch sử chưa nộp có thể ghi ngày nộp trực tiếp tại đây.</div></div></div><div class="mep-table-wrap"><table class="mep-table"><thead><tr><th><input type="checkbox" id="salarySelectAll" title="Chọn toàn bộ kết quả đang hiển thị"></th><th>Dự án</th><th>Khoản mục</th><th>Kỳ phát sinh</th><th>Kỳ dự kiến chi</th><th>Số tiền VND</th><th>Ngày thực chi</th><th>Tháng dòng tiền</th><th>Tài khoản chi</th><th>Nguồn nhập</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody id="salaryBody"></tbody><tfoot id="salaryFoot"></tfoot></table></div></div>
 
-  <div class="mep-card"><div class="mep-card-head"><div><div class="mep-card-title">Nghĩa vụ thuế theo dự án</div><div class="mep-card-sub">Mỗi dòng là một project + quý. Thuế chưa nộp được cộng dồn từ các tháng trong quý; khi nộp xong thì số treo của kỳ đó về 0.</div></div></div><div class="mep-table-wrap"><table class="mep-table compact"><thead><tr><th>Dự án</th><th>Kỳ thuế</th><th>Tháng lương liên quan</th><th>Tổng nghĩa vụ</th><th>Đã nộp</th><th>Còn chưa nộp</th><th>Dự kiến nộp</th><th>Lần nộp gần nhất</th><th>Trạng thái</th></tr></thead><tbody id="salaryQuarterSummary"></tbody></table></div></div>
+  <div class="mep-card"><div class="mep-card-head"><div><div class="mep-card-title">Nghĩa vụ thuế theo dự án</div><div class="mep-card-sub">Mỗi dòng là một project + quý. Thuế chưa nộp được cộng dồn từ các tháng trong quý; khi nộp xong thì số treo của kỳ đó về 0.</div></div></div><div class="mep-table-wrap"><table class="mep-table compact"><thead><tr><th>Dự án</th><th>Kỳ</th><th>Tháng lương liên quan</th><th>Tổng nghĩa vụ</th><th>Đã nộp</th><th>Còn chưa nộp</th><th>Dự kiến nộp</th><th>Lần nộp gần nhất</th><th>Trạng thái</th></tr></thead><tbody id="salaryQuarterSummary"></tbody><tfoot id="salaryQuarterFoot"></tfoot></table></div></div>
 </section>
 
 <section class="view" id="receivablesView">
@@ -3245,11 +3323,25 @@ function setOptions(){
         updateStaticMarkup($('cashAccountList'),accounts.map(x=>`<option value="${esc(x)}">`).join(''));
     }
     if($('salaryPeriod')){
-        const salaryMonths=[...new Set((cashCloudState.salaryRecords||[]).map(x=>x.payrollMonth).filter(Boolean))].sort().reverse();
-        updateOptionMarkup($('salaryPeriod'),'<option value="">Tất cả kỳ lương</option>'+salaryMonths.map(m=>`<option value="${m}">${fmtMonth(m)}</option>`).join(''),'');
+        const legacyTaxMonths=legacySalary()
+          .filter(x=>x.subCode==='TH'||/个税|所得税|thuế\s*tncn|thue\s*tncn/i.test(String(x.description||x.category||'')))
+          .map(x=>String(x.period||x.payrollMonth||'').slice(0,7))
+          .filter(x=>/^\d{4}-\d{2}$/.test(x));
+        const salaryMonths=[...new Set([
+          ...(cashCloudState.salaryRecords||[]).map(x=>x.payrollMonth).filter(Boolean),
+          ...legacyTaxMonths
+        ])].sort().reverse();
+        updateOptionMarkup($('salaryPeriod'),'<option value="">Tất cả kỳ phát sinh</option>'+salaryMonths.map(m=>`<option value="${m}">${fmtMonth(m)}</option>`).join(''),'');
     }
     if($('salaryQuarter')){
-        const quarters=[...new Set((cashCloudState.salaryRecords||[]).map(x=>payrollQuarter(x.payrollMonth)).filter(x=>x!=='Chưa rõ kỳ'))].sort().reverse();
+        const legacyTaxMonths=legacySalary()
+          .filter(x=>x.subCode==='TH'||/个税|所得税|thuế\s*tncn|thue\s*tncn/i.test(String(x.description||x.category||'')))
+          .map(x=>String(x.period||x.payrollMonth||'').slice(0,7))
+          .filter(x=>/^\d{4}-\d{2}$/.test(x));
+        const quarters=[...new Set([
+          ...(cashCloudState.salaryRecords||[]).map(x=>payrollQuarter(x.payrollMonth)),
+          ...legacyTaxMonths.map(payrollQuarter)
+        ].filter(x=>x&&x!=='Chưa rõ kỳ'))].sort().reverse();
         updateOptionMarkup($('salaryQuarter'),'<option value="">Tất cả quý</option>'+quarters.map(q=>`<option value="${esc(q)}">${esc(q)}</option>`).join(''),'');
     }
     const cats=[...new Set(allExpenses().map(x=>x.category).filter(Boolean))].sort();
@@ -5982,7 +6074,7 @@ async function deletePaymentRequest(id){
 }
 
 const PAYROLL_TYPE_LABELS={salary:'Lương thực nhận',tax:'Thuế TNCN',insurance_vn:'Bảo hiểm VN',insurance_cn:'Bảo hiểm TQ',union:'Phí công đoàn',insurance:'Bảo hiểm',meal:'Tiền ăn',other:'Phụ cấp / khoản khác'};
-const PAYROLL_SOURCE_LABELS={vn_paste:'Dán Excel',cn_excel:'Excel',excel:'Excel',manual:'Nhập tay'};
+const PAYROLL_SOURCE_LABELS={vn_paste:'Dán Excel',cn_excel:'Excel',excel:'Excel',manual:'Nhập tay',legacy_tax:'Lịch sử bàn giao'};
 const DEFAULT_PAYROLL_ACCOUNT='Tài khoản ngân hàng công ty';
 const salarySelectedIds=new Set();
 let editingSalaryId=null,salaryImportPreview=[],salaryImportErrors=[];
@@ -6019,9 +6111,67 @@ function syncSalaryCash(record){
     cashCloudState.manualRecords=arr;
 }
 
+function salaryViewRows(){
+    const current=(cashCloudState.salaryRecords||[]).map(x=>({
+        ...x,
+        __legacyTax:false
+    }));
+
+    const legacyTax=legacySalary()
+      .filter(x=>{
+          const isTax=x.subCode==='TH'||/个税|所得税|thuế\s*tncn|thue\s*tncn/i.test(String(x.description||x.category||''));
+          return isTax && x.status!=='paid';
+      })
+      .map(x=>{
+          const period=String(x.period||x.payrollMonth||'').slice(0,7);
+          return {
+              id:`legacy-tax-view:${x.id}`,
+              legacyId:x.id,
+              type:'tax',
+              project:normProject(x.project),
+              payrollMonth:/^\d{4}-\d{2}$/.test(period)?period:'',
+              amountVnd:num(x.amount),
+              actualDate:'',
+              account:x.account||'',
+              note:x.description||x.category||'Thuế TNCN lịch sử',
+              sourceType:'legacy_tax',
+              sourceFile:'DATALUONG',
+              sourceSheet:'Lịch sử bàn giao',
+              __legacyTax:true,
+              __legacyRaw:x
+          };
+      });
+
+    return [...current,...legacyTax];
+}
+
 function salaryFilteredRows(){
-    const q=String($('salarySearch')?.value||'').trim().toLowerCase(),project=$('salaryProject')?.value||'',period=$('salaryPeriod')?.value||'',quarter=$('salaryQuarter')?.value||'',type=$('salaryType')?.value||'',status=$('salaryStatus')?.value||'';
-    return (cashCloudState.salaryRecords||[]).filter(x=>(!q||[x.project,PAYROLL_TYPE_LABELS[x.type],x.sourceFile,x.sourceSheet,x.note].join(' ').toLowerCase().includes(q))&&(!project||normProject(x.project)===normProject(project))&&(!period||x.payrollMonth===period)&&(!quarter||payrollQuarter(x.payrollMonth)===quarter)&&(!type||x.type===type)&&(!status||(status==='paid'?!!x.actualDate:!x.actualDate))).sort((a,b)=>String(b.actualDate||b.payrollMonth||'').localeCompare(String(a.actualDate||a.payrollMonth||''))||String(a.project).localeCompare(String(b.project)));
+    const q=String($('salarySearch')?.value||'').trim().toLowerCase(),
+          project=$('salaryProject')?.value||'',
+          period=$('salaryPeriod')?.value||'',
+          quarter=$('salaryQuarter')?.value||'',
+          type=$('salaryType')?.value||'',
+          status=$('salaryStatus')?.value||'';
+
+    return salaryViewRows()
+      .filter(x=>
+          (!q||[
+              x.project,
+              PAYROLL_TYPE_LABELS[x.type],
+              x.sourceFile,
+              x.sourceSheet,
+              x.note
+          ].join(' ').toLowerCase().includes(q)) &&
+          (!project||normProject(x.project)===normProject(project)) &&
+          (!period||x.payrollMonth===period) &&
+          (!quarter||payrollQuarter(x.payrollMonth)===quarter) &&
+          (!type||x.type===type) &&
+          (!status||(status==='paid'?!!x.actualDate:!x.actualDate))
+      )
+      .sort((a,b)=>
+          String(b.actualDate||b.payrollMonth||'').localeCompare(String(a.actualDate||a.payrollMonth||'')) ||
+          String(a.project).localeCompare(String(b.project))
+      );
 }
 
 function updateSalarySelectionControls(rows=salaryFilteredRows()){
@@ -6029,26 +6179,267 @@ function updateSalarySelectionControls(rows=salaryFilteredRows()){
     if($('salarySelectionCount'))$('salarySelectionCount').textContent=count?`Đã chọn ${count} khoản · ${money(total)} VND`:'Chưa chọn khoản nào';
     ['salaryApplyPaid','salaryClearPaid','salaryDeleteSelected'].forEach(id=>{if($(id))$(id).disabled=!count});
     if($('salarySelectAll')){
-        const visibleIds=rows.map(x=>x.id),selected=visibleIds.filter(id=>salarySelectedIds.has(id)).length;
+        const visibleIds=rows.filter(x=>!x.__legacyTax).map(x=>x.id);
+        const selected=visibleIds.filter(id=>salarySelectedIds.has(id)).length;
         $('salarySelectAll').checked=visibleIds.length>0&&selected===visibleIds.length;
         $('salarySelectAll').indeterminate=selected>0&&selected<visibleIds.length;
     }
 }
 
 function renderPayroll(){
-    const rows=salaryFilteredRows(),total=rows.reduce((s,x)=>s+num(x.amountVnd),0),pending=rows.filter(x=>!x.actualDate),paid=rows.filter(x=>x.actualDate),taxPending=pending.filter(x=>x.type==='tax');
-    $('salaryTotal').textContent=money(total);$('salaryPending').textContent=money(pending.reduce((s,x)=>s+num(x.amountVnd),0));$('salaryPendingCount').textContent=`${pending.length} khoản`;$('salaryPaid').textContent=money(paid.reduce((s,x)=>s+num(x.amountVnd),0));$('salaryTaxPending').textContent=money(taxPending.reduce((s,x)=>s+num(x.amountVnd),0));$('salaryRows').textContent=rows.length.toLocaleString('vi-VN');
-    const validIds=new Set((cashCloudState.salaryRecords||[]).map(x=>x.id));[...salarySelectedIds].forEach(id=>{if(!validIds.has(id))salarySelectedIds.delete(id)});
-    $('salaryBody').innerHTML=rows.map(x=>{const planned=payrollPlannedMonth(x),paidLabel=x.type==='tax'?'Đã nộp':'Đã trả',pendingLabel=x.type==='tax'?'Chưa nộp':'Chưa trả';return `<tr class="${x.actualDate?'salary-row-paid':'salary-row-pending'}"><td><input type="checkbox" class="salary-row-select" data-salary-select="${esc(x.id)}" ${salarySelectedIds.has(x.id)?'checked':''}></td><td><b>${esc(x.project)}</b></td><td>${esc(PAYROLL_TYPE_LABELS[x.type]||x.type)}</td><td>${fmtMonth(x.payrollMonth)}</td><td>${planned?fmtMonth(planned):'—'}${x.type==='tax'?`<div class="mep-card-sub">${esc(payrollQuarter(x.payrollMonth))}</div>`:''}</td><td class="money">${money(x.amountVnd)}</td><td>${fmtDate(x.actualDate)}</td><td>${x.actualDate?fmtMonth(monthOf(x.actualDate)):'—'}</td><td>${esc(x.account||'—')}</td><td class="wrap">${esc(PAYROLL_SOURCE_LABELS[x.sourceType]||'Excel')}${x.sourceSheet?`<div class="mep-card-sub">${esc(x.sourceSheet)}</div>`:''}</td><td>${statusChip(x.actualDate?paidLabel:pendingLabel,x.actualDate?'paid':'approved')}</td><td class="actions-cell"><button class="table-btn" data-edit-salary="${esc(x.id)}">Sửa</button><button class="table-btn danger" data-del-salary="${esc(x.id)}">Xóa</button></td></tr>`}).join('')||'<tr><td colspan="12" class="mep-empty">Chưa có dữ liệu lương và thuế phù hợp.</td></tr>';
-    document.querySelectorAll('[data-salary-select]').forEach(el=>el.onchange=()=>{if(el.checked)salarySelectedIds.add(el.dataset.salarySelect);else salarySelectedIds.delete(el.dataset.salarySelect);updateSalarySelectionControls(rows)});
+    const rows=salaryFilteredRows(),
+          total=rows.reduce((s,x)=>s+num(x.amountVnd),0),
+          pending=rows.filter(x=>!x.actualDate),
+          paid=rows.filter(x=>x.actualDate),
+          taxPending=pending.filter(x=>x.type==='tax');
+
+    $('salaryTotal').textContent=money(total);
+    $('salaryPending').textContent=money(pending.reduce((s,x)=>s+num(x.amountVnd),0));
+    $('salaryPendingCount').textContent=`${pending.length} khoản`;
+    $('salaryPaid').textContent=money(paid.reduce((s,x)=>s+num(x.amountVnd),0));
+    $('salaryTaxPending').textContent=money(taxPending.reduce((s,x)=>s+num(x.amountVnd),0));
+    $('salaryRows').textContent=rows.length.toLocaleString('vi-VN');
+
+    const validIds=new Set((cashCloudState.salaryRecords||[]).map(x=>x.id));
+    [...salarySelectedIds].forEach(id=>{if(!validIds.has(id))salarySelectedIds.delete(id)});
+
+    $('salaryBody').innerHTML=rows.map(x=>{
+        const planned=payrollPlannedMonth(x),
+              paidLabel=x.type==='tax'?'Đã nộp':'Đã trả',
+              pendingLabel=x.type==='tax'?'Chưa nộp':'Chưa trả';
+
+        if(x.__legacyTax){
+            return `<tr class="salary-row-pending salary-row-legacy-tax">
+              <td><input type="checkbox" disabled title="Dữ liệu lịch sử chỉ đọc"></td>
+              <td><b>${esc(x.project)}</b></td>
+              <td>${esc(PAYROLL_TYPE_LABELS[x.type]||x.type)}</td>
+              <td>${x.payrollMonth?fmtMonth(x.payrollMonth):'—'}</td>
+              <td>${planned?fmtMonth(planned):'—'}${x.payrollMonth?`<div class="mep-card-sub">${esc(payrollQuarter(x.payrollMonth))}</div>`:''}</td>
+              <td class="money">${money(x.amountVnd)}</td>
+              <td>—</td>
+              <td>—</td>
+              <td>${esc(x.account||'—')}</td>
+              <td class="wrap"><span class="salary-source-badge">Lịch sử bàn giao</span><div class="mep-card-sub">DATALUONG</div></td>
+              <td>${statusChip('Chưa nộp','approved')}</td>
+              <td class="actions-cell"><button class="table-btn" data-pay-legacy-tax="${esc(x.legacyId)}">Ghi ngày nộp</button></td>
+            </tr>`;
+        }
+
+        return `<tr class="${x.actualDate?'salary-row-paid':'salary-row-pending'}">
+          <td><input type="checkbox" class="salary-row-select" data-salary-select="${esc(x.id)}" ${salarySelectedIds.has(x.id)?'checked':''}></td>
+          <td><b>${esc(x.project)}</b></td>
+          <td>${esc(PAYROLL_TYPE_LABELS[x.type]||x.type)}</td>
+          <td>${fmtMonth(x.payrollMonth)}</td>
+          <td>${planned?fmtMonth(planned):'—'}${x.type==='tax'?`<div class="mep-card-sub">${esc(payrollQuarter(x.payrollMonth))}</div>`:''}</td>
+          <td class="money">${money(x.amountVnd)}</td>
+          <td>${fmtDate(x.actualDate)}</td>
+          <td>${x.actualDate?fmtMonth(monthOf(x.actualDate)):'—'}</td>
+          <td>${esc(x.account||'—')}</td>
+          <td class="wrap">${esc(PAYROLL_SOURCE_LABELS[x.sourceType]||'Excel')}${x.sourceSheet?`<div class="mep-card-sub">${esc(x.sourceSheet)}</div>`:''}</td>
+          <td>${statusChip(x.actualDate?paidLabel:pendingLabel,x.actualDate?'paid':'approved')}</td>
+          <td class="actions-cell"><button class="table-btn" data-edit-salary="${esc(x.id)}">Sửa</button><button class="table-btn danger" data-del-salary="${esc(x.id)}">Xóa</button></td>
+        </tr>`;
+    }).join('')||'<tr><td colspan="12" class="mep-empty">Chưa có dữ liệu lương và thuế phù hợp.</td></tr>';
+
+
+    if($('salaryFoot')){
+      const visibleTotal=rows.reduce((s,x)=>s+num(x.amountVnd),0);
+      const visiblePending=rows.filter(x=>!x.actualDate).reduce((s,x)=>s+num(x.amountVnd),0);
+      const visiblePaid=rows.filter(x=>x.actualDate).reduce((s,x)=>s+num(x.amountVnd),0);
+      $('salaryFoot').innerHTML=rows.length
+        ? `<tr>
+            <th colspan="5">TỔNG ĐANG HIỂN THỊ · ${rows.length} khoản</th>
+            <th class="money">${money(visibleTotal)}</th>
+            <th colspan="6">Chưa chi: <b>${money(visiblePending)}</b> · Đã thực chi: <b>${money(visiblePaid)}</b></th>
+          </tr>`
+        : '';
+    }
+
+    document.querySelectorAll('[data-salary-select]').forEach(el=>el.onchange=()=>{
+        if(el.checked)salarySelectedIds.add(el.dataset.salarySelect);
+        else salarySelectedIds.delete(el.dataset.salarySelect);
+        updateSalarySelectionControls(rows)
+    });
     document.querySelectorAll('[data-edit-salary]').forEach(b=>b.onclick=()=>openSalaryRecord(b.dataset.editSalary));
     document.querySelectorAll('[data-del-salary]').forEach(b=>b.onclick=()=>deleteSalaryRecord(b.dataset.delSalary));
-    if($('salarySelectAll'))$('salarySelectAll').onchange=()=>{rows.forEach(x=>$('salarySelectAll').checked?salarySelectedIds.add(x.id):salarySelectedIds.delete(x.id));renderPayroll()};
+    document.querySelectorAll('[data-pay-legacy-tax]').forEach(b=>b.onclick=()=>{
+        const legacyId=b.dataset.payLegacyTax||'';
+        if(!legacyId)return;
+        editTxn(legacyId);
+        if($('txnTitle'))$('txnTitle').textContent='Ghi nhận nộp thuế lịch sử';
+        if($('legacyEditNote'))$('legacyEditNote').textContent='Nhập Ngày thực chi / nộp. Hệ thống sẽ lưu online trong Cash Control và không sửa file Excel gốc.';
+        if($('fStatus'))$('fStatus').value='paid';
+        const legacyRow=legacySalary().find(x=>x.id===legacyId);
+        if(legacyRow && $('fActualAmount') && !parseTxnMoney($('fActualAmount').value)){
+            $('fActualAmount').value=legacyRow.amount||'';
+            formatTxnMoneyInput($('fActualAmount'));
+        }
+        syncTxnModernUI();
+    });
+
+    if($('salarySelectAll'))$('salarySelectAll').onchange=()=>{
+        rows.filter(x=>!x.__legacyTax).forEach(x=>
+            $('salarySelectAll').checked
+              ?salarySelectedIds.add(x.id)
+              :salarySelectedIds.delete(x.id)
+        );
+        renderPayroll()
+    };
     updateSalarySelectionControls(rows);
 
-    const groups={};(cashCloudState.salaryRecords||[]).filter(x=>x.type==='tax').forEach(x=>{const project=normProject(x.project),quarter=payrollQuarter(x.payrollMonth),key=`${project}|${quarter}`;groups[key]??={project,quarter,total:0,paid:0,months:new Set(),paidDates:[],dueMonth:taxDueMonth(x.payrollMonth)};groups[key].total+=num(x.amountVnd);groups[key].months.add(x.payrollMonth);if(x.actualDate){groups[key].paid+=num(x.amountVnd);groups[key].paidDates.push(x.actualDate)}});
-    $('salaryQuarterSummary').innerHTML=Object.values(groups).sort((a,b)=>String(b.dueMonth).localeCompare(String(a.dueMonth))||a.project.localeCompare(b.project)).map(g=>{const outstanding=Math.max(0,g.total-g.paid),lastPaid=g.paidDates.sort().slice(-1)[0]||'',months=[...g.months].sort().map(m=>fmtMonth(m).replace('Tháng ','T')).join(' + ');return `<tr><td><b>${esc(g.project)}</b></td><td>${esc(g.quarter)}</td><td>${esc(months||'—')}</td><td class="money">${money(g.total)}</td><td class="money pos">${money(g.paid)}</td><td class="money ${outstanding>0?'neg':'pos'}"><b>${money(outstanding)}</b></td><td>${g.dueMonth?fmtMonth(g.dueMonth):'—'}</td><td>${fmtDate(lastPaid)}</td><td>${statusChip(outstanding>0?'CHƯA NỘP HẾT':'ĐÃ NỘP XONG',outstanding>0?'approved':'paid')}</td></tr>`}).join('')||'<tr><td colspan="9" class="mep-empty">Chưa có dữ liệu thuế.</td></tr>';
+    /*
+      SMART TAX HISTORY:
+      - Thuế chưa nộp / dữ liệu mới: gom theo quý như quy tắc hiện hành.
+      - Thuế lịch sử đã nộp: căn cứ NGÀY THỰC NỘP.
+        + Nếu nhiều tháng trong cùng quý được nộp cùng một ngày -> hiển thị 1 dòng quý.
+        + Nếu chỉ một tháng được nộp trong đợt đó -> giữ riêng theo tháng.
+      Như vậy lịch sử không bị ép thành quý khi thực tế trước đây công ty nộp theo tháng.
+    */
+    const q=String($('salarySearch')?.value||'').trim().toLowerCase(),
+          projectFilter=$('salaryProject')?.value||'',
+          periodFilter=$('salaryPeriod')?.value||'',
+          quarterFilter=$('salaryQuarter')?.value||'',
+          typeFilter=$('salaryType')?.value||'',
+          statusFilter=$('salaryStatus')?.value||'';
+
+    const taxSourceRows=[];
+
+    (cashCloudState.salaryRecords||[]).forEach(x=>{
+        if(x.type!=='tax')return;
+        taxSourceRows.push({
+            project:normProject(x.project),
+            payrollMonth:x.payrollMonth||'',
+            amount:num(x.amountVnd),
+            actualDate:x.actualDate||'',
+            source:'current',
+            label:[x.project,'Thuế TNCN',x.sourceFile,x.sourceSheet,x.note].join(' ')
+        });
+    });
+
+    legacySalary().forEach(x=>{
+        const isTax=x.subCode==='TH'||/个税|所得税|thuế\s*tncn|thue\s*tncn/i.test(String(x.description||x.category||''));
+        if(!isTax)return;
+        const period=String(x.period||x.payrollMonth||'').slice(0,7);
+        taxSourceRows.push({
+            project:normProject(x.project),
+            payrollMonth:/^\d{4}-\d{2}$/.test(period)?period:'',
+            amount:num(x.amount),
+            actualDate:x.status==='paid'?(x.actualDate||''): '',
+            source:'legacy',
+            label:[x.project,x.description,x.category,'Lịch sử bàn giao'].join(' ')
+        });
+    });
+
+    const filteredTaxRows=taxSourceRows.filter(x=>{
+        if(typeFilter&&typeFilter!=='tax')return false;
+        if(projectFilter&&normProject(x.project)!==normProject(projectFilter))return false;
+        if(periodFilter&&x.payrollMonth!==periodFilter)return false;
+        if(quarterFilter&&payrollQuarter(x.payrollMonth)!==quarterFilter)return false;
+        if(statusFilter==='paid'&&!x.actualDate)return false;
+        if(statusFilter==='pending'&&x.actualDate)return false;
+        if(q&&!String(x.label||'').toLowerCase().includes(q))return false;
+        return true;
+    });
+
+    /* Detect historical quarterly payment batches by actual payment date. */
+    const legacyPaidBatch=new Map();
+    filteredTaxRows
+      .filter(x=>x.source==='legacy'&&x.actualDate&&x.payrollMonth)
+      .forEach(x=>{
+          const quarter=payrollQuarter(x.payrollMonth);
+          const key=`${x.project}|${x.actualDate}|${quarter}`;
+          if(!legacyPaidBatch.has(key))legacyPaidBatch.set(key,new Set());
+          legacyPaidBatch.get(key).add(x.payrollMonth);
+      });
+
+    const groups={};
+
+    filteredTaxRows.forEach(x=>{
+        const project=normProject(x.project);
+        if(!project)return;
+
+        const quarter=payrollQuarter(x.payrollMonth);
+        let key, displayPeriod, dueMonth;
+
+        if(x.source==='legacy'&&x.actualDate){
+            const batchKey=`${project}|${x.actualDate}|${quarter}`;
+            const monthsInSamePaidBatch=legacyPaidBatch.get(batchKey)?.size||0;
+
+            if(monthsInSamePaidBatch>=2){
+                key=`${project}|quarter-paid|${quarter}|${x.actualDate}`;
+                displayPeriod=quarter;
+            }else{
+                key=`${project}|month-paid|${x.payrollMonth}|${x.actualDate}`;
+                displayPeriod=x.payrollMonth?fmtMonth(x.payrollMonth):'Kỳ cũ';
+            }
+            dueMonth=monthOf(x.actualDate)||taxDueMonth(x.payrollMonth);
+        }else{
+            key=`${project}|quarter-open|${quarter}`;
+            displayPeriod=quarter;
+            dueMonth=taxDueMonth(x.payrollMonth);
+        }
+
+        groups[key]??={
+            project,
+            periodLabel:displayPeriod,
+            total:0,
+            paid:0,
+            months:new Set(),
+            paidDates:[],
+            dueMonth,
+            isMonthly:/^Tháng\s/i.test(String(displayPeriod||''))
+        };
+
+        groups[key].total+=num(x.amount);
+        if(x.payrollMonth)groups[key].months.add(x.payrollMonth);
+
+        if(x.actualDate){
+            groups[key].paid+=num(x.amount);
+            if(/^\d{4}-\d{2}-\d{2}$/.test(x.actualDate))groups[key].paidDates.push(x.actualDate);
+        }
+    });
+
+    $('salaryQuarterSummary').innerHTML=Object.values(groups)
+      .sort((a,b)=>{
+          const aDate=(a.paidDates||[]).slice().sort().slice(-1)[0]||a.dueMonth||'';
+          const bDate=(b.paidDates||[]).slice().sort().slice(-1)[0]||b.dueMonth||'';
+          return String(bDate).localeCompare(String(aDate))||a.project.localeCompare(b.project);
+      })
+      .map(g=>{
+          const outstanding=Math.max(0,g.total-g.paid),
+                lastPaid=g.paidDates.sort().slice(-1)[0]||'',
+                months=[...g.months].filter(Boolean).sort().map(m=>fmtMonth(m).replace('Tháng ','T')).join(' + ');
+
+          return `<tr>
+            <td><b>${esc(g.project)}</b></td>
+            <td>${esc(g.periodLabel||'—')}</td>
+            <td>${esc(months||'—')}</td>
+            <td class="money">${money(g.total)}</td>
+            <td class="money pos">${money(g.paid)}</td>
+            <td class="money ${outstanding>0?'neg':'pos'}"><b>${money(outstanding)}</b></td>
+            <td>${g.dueMonth?fmtMonth(g.dueMonth):'—'}</td>
+            <td>${fmtDate(lastPaid)}</td>
+            <td>${statusChip(outstanding>0?'CHƯA NỘP HẾT':'ĐÃ NỘP XONG',outstanding>0?'approved':'paid')}</td>
+          </tr>`;
+      }).join('')||'<tr><td colspan="9" class="mep-empty">Chưa có dữ liệu thuế theo bộ lọc hiện tại.</td></tr>';
+
+    if($('salaryQuarterFoot')){
+      const groupRows=Object.values(groups);
+      const totalTax=groupRows.reduce((s,g)=>s+num(g.total),0);
+      const totalPaidTax=groupRows.reduce((s,g)=>s+num(g.paid),0);
+      const totalOpenTax=Math.max(0,totalTax-totalPaidTax);
+      $('salaryQuarterFoot').innerHTML=groupRows.length
+        ? `<tr>
+            <th colspan="3">TỔNG ĐANG HIỂN THỊ · ${groupRows.length} kỳ</th>
+            <th class="money">${money(totalTax)}</th>
+            <th class="money">${money(totalPaidTax)}</th>
+            <th class="money">${money(totalOpenTax)}</th>
+            <th colspan="3"></th>
+          </tr>`
+        : '';
+    }
 }
+
 function openSalaryRecord(id=null){
     editingSalaryId=id;const x=id?(cashCloudState.salaryRecords||[]).find(r=>r.id===id):null;
     $('salaryRecordModalTitle').textContent=x?'Sửa khoản lương / thuế':'Thêm khoản lương / thuế';$('pyProject').value=x?.project||pfSelectedProject||'';$('pyType').value=x?.type||'salary';$('pyPeriod').value=x?.payrollMonth||CURRENT;$('pyAmount').value=x?.amountVnd?money(x.amountVnd):'';$('pyActualDate').value=x?.actualDate||'';$('pyAccount').value=x?.account||DEFAULT_PAYROLL_ACCOUNT;$('pyNote').value=x?.note||'';openModal('salaryRecordModal');
