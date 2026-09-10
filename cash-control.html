@@ -949,6 +949,104 @@ body{
 }
 </style>
 
+
+<style id="salary-summary-strip-v3">
+#payrollView .salary-summary-strip{
+  display:grid;
+  grid-template-columns:1.25fr 1.15fr 1.15fr 1.25fr .65fr;
+  align-items:stretch;
+  margin:10px 0 11px;
+  border:1px solid #dfe7ef;
+  border-radius:10px;
+  overflow:hidden;
+  background:#fff;
+}
+#payrollView .salary-summary-item{
+  min-width:0;
+  padding:9px 12px 8px;
+  border-right:1px solid #e7edf3;
+  background:#fff;
+}
+#payrollView .salary-summary-item:last-child{border-right:0}
+#payrollView .salary-summary-item span{
+  display:block;
+  color:#738197;
+  font-size:8px;
+  line-height:1.2;
+  font-weight:850;
+  text-transform:uppercase;
+  letter-spacing:.25px;
+}
+#payrollView .salary-summary-item b{
+  display:block;
+  margin-top:4px;
+  color:#173756;
+  font-size:14px;
+  line-height:1.15;
+  font-weight:950;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-variant-numeric:tabular-nums;
+}
+#payrollView .salary-summary-item small{
+  display:block;
+  margin-top:2px;
+  color:#8996a7;
+  font-size:7px;
+  font-weight:750;
+}
+#payrollView .salary-summary-item.tax b{color:#b42318}
+#payrollView .salary-summary-item.rows b{font-size:13px}
+#payrollView .salary-batch-bar{
+  grid-template-columns:minmax(220px,1fr) 140px auto auto auto!important;
+}
+#payrollView .mep-table{min-width:980px!important}
+@media(max-width:980px){
+  #payrollView .salary-summary-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #payrollView .salary-summary-item{border-bottom:1px solid #e7edf3}
+}
+</style>
+
+
+<style id="salary-sheet-filter-ui-v1">
+#payrollView .salary-hidden-filters{display:none!important}
+#payrollView .salary-search-toolbar{margin-bottom:7px}
+#payrollView .salary-search-toolbar .mep-search{min-height:35px}
+#payrollView .salary-clear-filters{
+  border:0;background:transparent;color:#667085;font-size:9px;font-weight:850;
+  padding:5px 7px;white-space:nowrap
+}
+#payrollView .salary-clear-filters:hover{color:#173756;text-decoration:underline}
+
+#payrollView .salary-filter-table th{padding-right:7px!important}
+#payrollView .sheet-filter-btn{
+  float:right;width:18px;height:18px;padding:0;margin:-2px 0 -2px 6px;
+  border:0;border-radius:4px;background:rgba(255,255,255,.10);color:#fff;
+  font-size:8px;line-height:18px;text-align:center
+}
+#payrollView .sheet-filter-btn:hover{background:rgba(255,255,255,.22)}
+#payrollView .sheet-filter-btn.active{background:#fff;color:#138a62}
+
+.salary-sheet-filter-pop{
+  position:fixed;z-index:2500;width:210px;max-height:300px;overflow:hidden;
+  background:#fff;border:1px solid #cfd9e5;border-radius:8px;
+  box-shadow:0 12px 34px rgba(15,39,68,.18);font-family:inherit
+}
+.salary-sheet-filter-title{
+  padding:9px 10px 7px;font-size:10px;font-weight:900;color:#173756;
+  border-bottom:1px solid #e8edf3
+}
+.salary-sheet-filter-list{max-height:245px;overflow:auto;padding:4px}
+.salary-sheet-filter-option{
+  display:block;width:100%;border:0;background:#fff;text-align:left;
+  padding:7px 8px;border-radius:5px;font-size:10px;color:#344054
+}
+.salary-sheet-filter-option:hover{background:#f3f7fb}
+.salary-sheet-filter-option.selected{background:#eaf3ff;color:#173756;font-weight:850}
+.salary-sheet-filter-option.clear{color:#667085;border-bottom:1px solid #edf1f5;border-radius:0;margin-bottom:3px}
+</style>
+
 </head><body class="auth-checking">
 <div class="app"><header class="top"><div class="brand"><div class="mark">₫</div><div><h1>MEP CASH CONTROL</h1><small>Điều hành dòng tiền · Công nợ · Thanh toán · Tín dụng dự án</small></div></div><div class="topright">
 <div class="lang-switch">
@@ -1247,35 +1345,37 @@ body{
     <div class="acts"><button class="btn" id="downloadSalaryVNTemplate">⇩ Mẫu nhập</button><button class="btn" id="openSalaryImport">⇧ Nhập Excel / Dán dữ liệu</button><button class="btn primary" id="addSalaryRecord">＋ Thêm khoản</button></div>
   </div>
   <div class="section-note"><b>Quy tắc:</b> lương T7/T8/T9 tạo nghĩa vụ thuế Q3 và khoản thuế đó dự kiến nộp ở T10. Lương phát trong T10 thuộc kỳ mới, không cộng vào đợt thuế Q3 đang nộp. Dòng tiền thực tế luôn theo <b>ngày thực trả / thực nộp</b>.</div>
-  <div class="executive-grid" style="grid-template-columns:repeat(5,minmax(0,1fr))">
-    <div class="metric-card blue"><span class="metric-label">Tổng nghĩa vụ</span><b class="metric-value" id="salaryTotal">0</b><span class="metric-foot">Theo bộ lọc hiện tại</span></div>
-    <div class="metric-card orange"><span class="metric-label">Chưa chi</span><b class="metric-value" id="salaryPending">0</b><span class="metric-foot" id="salaryPendingCount">0 khoản</span></div>
-    <div class="metric-card green"><span class="metric-label">Đã thực chi</span><b class="metric-value" id="salaryPaid">0</b><span class="metric-foot">Theo ngày tiền thực đi</span></div>
-    <div class="metric-card red"><span class="metric-label">Thuế lũy kế chưa nộp</span><b class="metric-value" id="salaryTaxPending">0</b><span class="metric-foot">Cộng dồn theo project + quý</span></div>
-    <div class="metric-card violet"><span class="metric-label">Số dòng dữ liệu</span><b class="metric-value" id="salaryRows">0</b><span class="metric-foot">Không chia theo quốc gia</span></div>
+  <div class="salary-summary-strip">
+    <div class="salary-summary-item"><span>Tổng nghĩa vụ</span><b id="salaryTotal">0</b></div>
+    <div class="salary-summary-item"><span>Chưa chi</span><b id="salaryPending">0</b><small id="salaryPendingCount">0 khoản</small></div>
+    <div class="salary-summary-item"><span>Đã thực chi</span><b id="salaryPaid">0</b></div>
+    <div class="salary-summary-item tax"><span>Thuế chưa nộp</span><b id="salaryTaxPending">0</b></div>
+    <div class="salary-summary-item rows"><span>Số dòng</span><b id="salaryRows">0</b></div>
   </div>
 
-  <div class="mep-toolbar"><div class="mep-filter-row" style="flex:1">
+  <div class="mep-toolbar salary-search-toolbar"><div class="mep-filter-row" style="flex:1">
     <input id="salarySearch" class="mep-search" placeholder="Tìm dự án, khoản mục, file nguồn...">
-    <select id="salaryProject"><option value="">Tất cả dự án</option></select>
-    <select id="salaryPeriod"><option value="">Tất cả kỳ phát sinh</option></select>
-    <select id="salaryQuarter"><option value="">Tất cả quý</option></select>
-    <select id="salaryType"><option value="">Tất cả khoản mục</option><option value="salary">Lương thực nhận</option><option value="tax">Thuế TNCN</option><option value="insurance_vn">Bảo hiểm VN</option><option value="insurance_cn">Bảo hiểm TQ</option><option value="union">Phí công đoàn</option><option value="insurance">Bảo hiểm</option><option value="meal">Tiền ăn</option><option value="other">Phụ cấp / khoản khác</option></select>
-    <select id="salaryStatus"><option value="">Tất cả trạng thái</option><option value="pending">Chưa chi</option><option value="paid">Đã thực chi</option></select>
+    <button type="button" class="salary-clear-filters" id="salaryClearHeaderFilters" hidden>Xóa lọc</button>
+    <div class="salary-hidden-filters" aria-hidden="true">
+      <select id="salaryProject"><option value="">Tất cả dự án</option></select>
+      <select id="salaryPeriod"><option value="">Tất cả kỳ phát sinh</option></select>
+      <select id="salaryQuarter"><option value="">Tất cả quý</option></select>
+      <select id="salaryType"><option value="">Tất cả khoản mục</option><option value="salary">Lương thực nhận</option><option value="bonus">Thưởng</option><option value="tax">Thuế TNCN</option><option value="insurance_vn">Bảo hiểm VN</option><option value="insurance_cn">Bảo hiểm TQ</option><option value="union">Phí công đoàn</option><option value="insurance">Bảo hiểm</option><option value="meal">Tiền ăn</option><option value="other">Phụ cấp / khoản khác</option></select>
+      <select id="salaryStatus"><option value="">Tất cả trạng thái</option><option value="pending">Chưa chi</option><option value="paid">Đã thực chi</option></select>
+    </div>
   </div></div>
 
   <div class="salary-batch-bar">
     <span class="selection-count" id="salarySelectionCount">Chưa chọn khoản nào</span>
     <input type="date" id="salaryBatchDate" class="mep-select" title="Ngày tiền thực sự đi khỏi tài khoản">
-    <input id="salaryBatchAccount" class="mep-select" list="cashAccountList" value="Tài khoản ngân hàng công ty" placeholder="Tài khoản chi / quỹ">
     <button class="btn primary" id="salaryApplyPaid">Gán ngày thực chi</button>
     <button class="btn" id="salaryClearPaid">Bỏ ngày thực chi</button>
     <button class="btn danger" id="salaryDeleteSelected">Xóa khoản đã chọn</button>
   </div>
 
-  <div class="mep-card"><div class="mep-card-head"><div><div class="mep-card-title">Chi tiết nghĩa vụ lương · thuế · bảo hiểm</div><div class="mep-card-sub">Kỳ phát sinh dùng để gom nghĩa vụ; ngày thực chi quyết định tháng dòng tiền. Thuế lịch sử chưa nộp có thể ghi ngày nộp trực tiếp tại đây.</div></div></div><div class="mep-table-wrap"><table class="mep-table"><thead><tr><th><input type="checkbox" id="salarySelectAll" title="Chọn toàn bộ kết quả đang hiển thị"></th><th>Dự án</th><th>Khoản mục</th><th>Kỳ phát sinh</th><th>Kỳ dự kiến chi</th><th>Số tiền VND</th><th>Ngày thực chi</th><th>Tháng dòng tiền</th><th>Tài khoản chi</th><th>Nguồn nhập</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody id="salaryBody"></tbody><tfoot id="salaryFoot"></tfoot></table></div></div>
+  <div class="mep-card"><div class="mep-card-head"><div><div class="mep-card-title">Chi tiết lương · BH · thuế cần theo dõi</div><div class="mep-card-sub">Dòng hiện tại và các khoản lịch sử còn treo. Ngày thực chi / nộp quyết định tháng dòng tiền.</div></div></div><div class="mep-table-wrap"><table class="mep-table salary-filter-table"><thead><tr><th><input type="checkbox" id="salarySelectAll" title="Chọn toàn bộ kết quả đang hiển thị"></th><th>Dự án <button class="sheet-filter-btn" data-salary-head-filter="project" title="Lọc Dự án">▼</button></th><th>Khoản mục <button class="sheet-filter-btn" data-salary-head-filter="type" title="Lọc Khoản mục">▼</button></th><th>Kỳ phát sinh <button class="sheet-filter-btn" data-salary-head-filter="period" title="Lọc Kỳ phát sinh">▼</button></th><th>Kỳ dự kiến chi</th><th>Số tiền VND</th><th>Ngày thực chi</th><th>Tháng dòng tiền</th><th>Nguồn nhập</th><th>Trạng thái <button class="sheet-filter-btn" data-salary-head-filter="status" title="Lọc Trạng thái">▼</button></th><th>Thao tác</th></tr></thead><tbody id="salaryBody"></tbody><tfoot id="salaryFoot"></tfoot></table></div></div>
 
-  <div class="mep-card"><div class="mep-card-head"><div><div class="mep-card-title">Nghĩa vụ thuế theo dự án</div><div class="mep-card-sub">Mỗi dòng là một project + quý. Thuế chưa nộp được cộng dồn từ các tháng trong quý; khi nộp xong thì số treo của kỳ đó về 0.</div></div></div><div class="mep-table-wrap"><table class="mep-table compact"><thead><tr><th>Dự án</th><th>Kỳ</th><th>Tháng lương liên quan</th><th>Tổng nghĩa vụ</th><th>Đã nộp</th><th>Còn chưa nộp</th><th>Dự kiến nộp</th><th>Lần nộp gần nhất</th><th>Trạng thái</th></tr></thead><tbody id="salaryQuarterSummary"></tbody><tfoot id="salaryQuarterFoot"></tfoot></table></div></div>
+  <div class="mep-card"><div class="mep-card-head"><div><div class="mep-card-title">Lịch sử & nghĩa vụ thuế</div><div class="mep-card-sub">Giữ cả kỳ đã nộp xong và kỳ còn treo để đối chiếu lịch sử thuế theo dự án.</div></div></div><div class="mep-table-wrap"><table class="mep-table compact salary-filter-table"><thead><tr><th>Dự án <button class="sheet-filter-btn" data-tax-head-filter="project" title="Lọc Dự án">▼</button></th><th>Kỳ <button class="sheet-filter-btn" data-tax-head-filter="period" title="Lọc Kỳ">▼</button></th><th>Tháng lương liên quan</th><th>Tổng nghĩa vụ</th><th>Đã nộp</th><th>Còn chưa nộp</th><th>Dự kiến nộp</th><th>Lần nộp gần nhất</th><th>Trạng thái <button class="sheet-filter-btn" data-tax-head-filter="status" title="Lọc Trạng thái">▼</button></th></tr></thead><tbody id="salaryQuarterSummary"></tbody><tfoot id="salaryQuarterFoot"></tfoot></table></div></div>
 </section>
 
 <section class="view" id="receivablesView">
@@ -1779,11 +1879,10 @@ body{
     <div class="mhead"><div><h3 id="salaryRecordModalTitle">Thêm khoản lương / thuế</h3><div class="mep-card-sub">Ngày thực chi / thực nộp quyết định tháng ghi nhận dòng tiền</div></div><button class="btn" data-close="salaryRecordModal">✕</button></div>
     <div class="fg">
       <div class="field"><label>Dự án <span class="required-star">*</span></label><input id="pyProject" list="projectList"></div>
-      <div class="field"><label>Khoản mục</label><select id="pyType"><option value="salary">Lương thực nhận</option><option value="tax">Thuế TNCN</option><option value="insurance_vn">Bảo hiểm VN</option><option value="insurance_cn">Bảo hiểm TQ</option><option value="union">Phí công đoàn</option><option value="insurance">Bảo hiểm (dữ liệu cũ)</option><option value="meal">Tiền ăn</option><option value="other">Phụ cấp / khoản khác</option></select></div>
+      <div class="field"><label>Khoản mục</label><select id="pyType"><option value="salary">Lương thực nhận</option><option value="bonus">Thưởng</option><option value="tax">Thuế TNCN</option><option value="insurance_vn">Bảo hiểm VN</option><option value="insurance_cn">Bảo hiểm TQ</option><option value="union">Phí công đoàn</option><option value="insurance">Bảo hiểm (dữ liệu cũ)</option><option value="meal">Tiền ăn</option><option value="other">Phụ cấp / khoản khác</option></select></div>
       <div class="field"><label>Kỳ phát sinh <span class="required-star">*</span></label><input type="month" id="pyPeriod"></div>
       <div class="field"><label>Số tiền VND <span class="required-star">*</span></label><input id="pyAmount" inputmode="decimal" placeholder="0"></div>
       <div class="field"><label>Ngày thực chi / thực nộp</label><input type="date" id="pyActualDate"></div>
-      <div class="field"><label>Tài khoản chi / quỹ</label><input id="pyAccount" list="cashAccountList" placeholder="Chỉ cần nhập khi đã thanh toán"></div>
       <div class="field full"><label>Ghi chú</label><textarea id="pyNote" placeholder="Nội dung điều chỉnh, kỳ thuế, chứng từ..."></textarea></div>
     </div>
     <div class="section-note">Để trống ngày thực trả nếu khoản này mới phát sinh nhưng chưa chi tiền. Có thể gán ngày hàng loạt tại bảng chính.</div>
@@ -1797,8 +1896,8 @@ body{
     <div class="salary-import-grid">
       <div class="salary-import-box">
         <h4>Dán bảng chuẩn</h4>
-        <p>Copy đúng bảng nhân sự gửi. Không cần thêm ngày thực trả hoặc tài khoản chi; bạn sẽ gán ngày hàng loạt sau khi thanh toán.</p>
-        <textarea id="salaryPasteData" class="salary-paste" spellcheck="false" placeholder="Kỳ lương&#9;Dự án&#9;Lương thực nhận&#9;Thuế TNCN&#9;Bảo hiểm VN&#9;Bảo hiểm TQ&#9;Phí công đoàn&#9;Ghi chú"></textarea>
+        <p>Copy đúng bảng nhân sự gửi. Không cần thêm ngày thực trả; bạn sẽ gán ngày hàng loạt sau khi thanh toán.</p>
+        <textarea id="salaryPasteData" class="salary-paste" spellcheck="false" placeholder="Kỳ lương&#9;Dự án&#9;Lương thực nhận&#9;Thưởng&#9;Thuế TNCN&#9;Bảo hiểm VN&#9;Bảo hiểm TQ&#9;Phí công đoàn&#9;Ghi chú"></textarea>
         <div class="acts" style="margin-top:9px"><button class="btn primary" id="parseSalaryPaste">Đọc dữ liệu đã dán</button><button class="btn" id="fillSalaryPasteExample">Điền dòng mẫu</button></div>
       </div>
       <div class="salary-import-box">
@@ -6073,14 +6172,117 @@ async function deletePaymentRequest(id){
     if(await persistCashCloud('Xóa đề nghị thanh toán'))renderAll();
 }
 
-const PAYROLL_TYPE_LABELS={salary:'Lương thực nhận',tax:'Thuế TNCN',insurance_vn:'Bảo hiểm VN',insurance_cn:'Bảo hiểm TQ',union:'Phí công đoàn',insurance:'Bảo hiểm',meal:'Tiền ăn',other:'Phụ cấp / khoản khác'};
+const PAYROLL_TYPE_LABELS={salary:'Lương thực nhận',bonus:'Thưởng',tax:'Thuế TNCN',insurance_vn:'Bảo hiểm VN',insurance_cn:'Bảo hiểm TQ',union:'Phí công đoàn',insurance:'Bảo hiểm',meal:'Tiền ăn',other:'Phụ cấp / khoản khác'};
 const PAYROLL_SOURCE_LABELS={vn_paste:'Dán Excel',cn_excel:'Excel',excel:'Excel',manual:'Nhập tay',legacy_tax:'Lịch sử bàn giao'};
 const DEFAULT_PAYROLL_ACCOUNT='Tài khoản ngân hàng công ty';
 const salarySelectedIds=new Set();
+
+const salaryTaxHeaderFilters={project:'',period:'',status:''};
+let salaryTaxLastGroups=[];
+
+function salaryHeaderFilterValue(kind){
+    const map={project:'salaryProject',period:'salaryPeriod',type:'salaryType',status:'salaryStatus'};
+    return $(map[kind])?.value||'';
+}
+function setSalaryHeaderFilterValue(kind,value){
+    const map={project:'salaryProject',period:'salaryPeriod',type:'salaryType',status:'salaryStatus'};
+    const el=$(map[kind]);
+    if(!el)return;
+    el.value=value||'';
+    salarySelectedIds.clear();
+    renderPayroll();
+}
+function salaryHeaderFilterOptions(kind){
+    const rows=salaryViewRows();
+    if(kind==='project'){
+        return [...new Set(rows.map(x=>normProject(x.project)).filter(Boolean))]
+          .sort((a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'}))
+          .map(v=>({value:v,label:v}));
+    }
+    if(kind==='period'){
+        return [...new Set(rows.map(x=>x.payrollMonth).filter(Boolean))]
+          .sort().reverse().map(v=>({value:v,label:fmtMonth(v)}));
+    }
+    if(kind==='type'){
+        return [...new Set(rows.map(x=>x.type).filter(Boolean))]
+          .sort((a,b)=>(PAYROLL_TYPE_LABELS[a]||a).localeCompare(PAYROLL_TYPE_LABELS[b]||b))
+          .map(v=>({value:v,label:PAYROLL_TYPE_LABELS[v]||v}));
+    }
+    if(kind==='status'){
+        return [{value:'pending',label:'Chưa chi / chưa nộp'},{value:'paid',label:'Đã thực chi / đã nộp'}];
+    }
+    return [];
+}
+function taxHeaderFilterOptions(kind){
+    const rows=salaryTaxLastGroups||[];
+    if(kind==='project'){
+        return [...new Set(rows.map(x=>x.project).filter(Boolean))]
+          .sort((a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'}))
+          .map(v=>({value:v,label:v}));
+    }
+    if(kind==='period'){
+        return [...new Set(rows.map(x=>x.periodLabel).filter(Boolean))]
+          .sort((a,b)=>String(b).localeCompare(String(a)))
+          .map(v=>({value:v,label:v}));
+    }
+    if(kind==='status'){
+        return [{value:'open',label:'Chưa nộp hết'},{value:'paid',label:'Đã nộp xong'}];
+    }
+    return [];
+}
+function closeSalarySheetFilter(){
+    document.querySelector('.salary-sheet-filter-pop')?.remove();
+}
+function openSalarySheetFilter(button,kind,scope='salary'){
+    closeSalarySheetFilter();
+    const current=scope==='tax'?(salaryTaxHeaderFilters[kind]||''):salaryHeaderFilterValue(kind);
+    const options=scope==='tax'?taxHeaderFilterOptions(kind):salaryHeaderFilterOptions(kind);
+    const labels={
+      project:'Dự án',period:scope==='tax'?'Kỳ':'Kỳ phát sinh',
+      type:'Khoản mục',status:'Trạng thái'
+    };
+    const pop=document.createElement('div');
+    pop.className='salary-sheet-filter-pop';
+    pop.innerHTML=`<div class="salary-sheet-filter-title">${labels[kind]||'Lọc'}</div>
+      <div class="salary-sheet-filter-list">
+        <button class="salary-sheet-filter-option clear ${!current?'selected':''}" data-value="">Tất cả</button>
+        ${options.map(o=>`<button class="salary-sheet-filter-option ${String(current)===String(o.value)?'selected':''}" data-value="${esc(o.value)}">${esc(o.label)}</button>`).join('')}
+      </div>`;
+    document.body.appendChild(pop);
+
+    const r=button.getBoundingClientRect(),w=210;
+    pop.style.left=`${Math.max(6,Math.min(window.innerWidth-w-6,r.right-w))}px`;
+    pop.style.top=`${Math.min(window.innerHeight-310,r.bottom+4)}px`;
+
+    pop.querySelectorAll('[data-value]').forEach(opt=>opt.onclick=e=>{
+        e.stopPropagation();
+        const value=opt.dataset.value||'';
+        if(scope==='tax'){
+            salaryTaxHeaderFilters[kind]=value;
+            renderPayroll();
+        }else{
+            setSalaryHeaderFilterValue(kind,value);
+        }
+        closeSalarySheetFilter();
+    });
+}
+function syncSalaryFilterButtons(){
+    document.querySelectorAll('[data-salary-head-filter]').forEach(btn=>{
+        btn.classList.toggle('active',!!salaryHeaderFilterValue(btn.dataset.salaryHeadFilter));
+    });
+    document.querySelectorAll('[data-tax-head-filter]').forEach(btn=>{
+        btn.classList.toggle('active',!!salaryTaxHeaderFilters[btn.dataset.taxHeadFilter]);
+    });
+    const anyTop=['project','period','type','status'].some(k=>!!salaryHeaderFilterValue(k));
+    const clear=$('salaryClearHeaderFilters');
+    if(clear)clear.hidden=!anyTop;
+}
+
 let editingSalaryId=null,salaryImportPreview=[],salaryImportErrors=[];
 
 function payrollCashCategory(record){
     if(record.type==='salary')return 'Lương';
+    if(record.type==='bonus')return 'Thưởng';
     if(record.type==='tax')return 'Thuế TNCN tạm nộp';
     if(record.type==='insurance_vn')return 'Bảo hiểm Việt Nam';
     if(record.type==='insurance_cn')return 'Bảo hiểm Trung Quốc';
@@ -6089,7 +6291,7 @@ function payrollCashCategory(record){
     if(record.type==='meal')return 'Tiền ăn';
     return 'Chi phí khác';
 }
-function payrollSubCode(record){return record.type==='salary'?'L':record.type==='tax'?'TH':record.type==='insurance_vn'?'BHVN':record.type==='insurance_cn'?'BHTQ':record.type==='union'?'KPCD':record.type==='insurance'?'BH':record.type==='meal'?'TA':'NS'}
+function payrollSubCode(record){return record.type==='salary'?'L':record.type==='bonus'?'THUONG':record.type==='tax'?'TH':record.type==='insurance_vn'?'BHVN':record.type==='insurance_cn'?'BHTQ':record.type==='union'?'KPCD':record.type==='insurance'?'BH':record.type==='meal'?'TA':'NS'}
 function payrollKey(record){return [normProject(record.project),record.type||'other',record.payrollMonth||''].join('|')}
 function payrollQuarter(month){const m=String(month||'').match(/^(\d{4})-(\d{2})$/);return m?`${m[1]} · Q${Math.ceil(Number(m[2])/3)}`:'Chưa rõ kỳ'}
 function taxDueMonth(month){
@@ -6218,7 +6420,6 @@ function renderPayroll(){
               <td class="money">${money(x.amountVnd)}</td>
               <td>—</td>
               <td>—</td>
-              <td>${esc(x.account||'—')}</td>
               <td class="wrap"><span class="salary-source-badge">Lịch sử bàn giao</span><div class="mep-card-sub">DATALUONG</div></td>
               <td>${statusChip('Chưa nộp','approved')}</td>
               <td class="actions-cell"><button class="table-btn" data-pay-legacy-tax="${esc(x.legacyId)}">Ghi ngày nộp</button></td>
@@ -6234,12 +6435,11 @@ function renderPayroll(){
           <td class="money">${money(x.amountVnd)}</td>
           <td>${fmtDate(x.actualDate)}</td>
           <td>${x.actualDate?fmtMonth(monthOf(x.actualDate)):'—'}</td>
-          <td>${esc(x.account||'—')}</td>
           <td class="wrap">${esc(PAYROLL_SOURCE_LABELS[x.sourceType]||'Excel')}${x.sourceSheet?`<div class="mep-card-sub">${esc(x.sourceSheet)}</div>`:''}</td>
           <td>${statusChip(x.actualDate?paidLabel:pendingLabel,x.actualDate?'paid':'approved')}</td>
           <td class="actions-cell"><button class="table-btn" data-edit-salary="${esc(x.id)}">Sửa</button><button class="table-btn danger" data-del-salary="${esc(x.id)}">Xóa</button></td>
         </tr>`;
-    }).join('')||'<tr><td colspan="12" class="mep-empty">Chưa có dữ liệu lương và thuế phù hợp.</td></tr>';
+    }).join('')||'<tr><td colspan="11" class="mep-empty">Chưa có dữ liệu lương và thuế phù hợp.</td></tr>';
 
 
     if($('salaryFoot')){
@@ -6250,7 +6450,7 @@ function renderPayroll(){
         ? `<tr>
             <th colspan="5">TỔNG ĐANG HIỂN THỊ · ${rows.length} khoản</th>
             <th class="money">${money(visibleTotal)}</th>
-            <th colspan="6">Chưa chi: <b>${money(visiblePending)}</b> · Đã thực chi: <b>${money(visiblePaid)}</b></th>
+            <th colspan="5">Chưa chi: <b>${money(visiblePending)}</b> · Đã thực chi: <b>${money(visiblePaid)}</b></th>
           </tr>`
         : '';
     }
@@ -6295,12 +6495,7 @@ function renderPayroll(){
         + Nếu chỉ một tháng được nộp trong đợt đó -> giữ riêng theo tháng.
       Như vậy lịch sử không bị ép thành quý khi thực tế trước đây công ty nộp theo tháng.
     */
-    const q=String($('salarySearch')?.value||'').trim().toLowerCase(),
-          projectFilter=$('salaryProject')?.value||'',
-          periodFilter=$('salaryPeriod')?.value||'',
-          quarterFilter=$('salaryQuarter')?.value||'',
-          typeFilter=$('salaryType')?.value||'',
-          statusFilter=$('salaryStatus')?.value||'';
+    const q=String($('salarySearch')?.value||'').trim().toLowerCase();
 
     const taxSourceRows=[];
 
@@ -6331,12 +6526,6 @@ function renderPayroll(){
     });
 
     const filteredTaxRows=taxSourceRows.filter(x=>{
-        if(typeFilter&&typeFilter!=='tax')return false;
-        if(projectFilter&&normProject(x.project)!==normProject(projectFilter))return false;
-        if(periodFilter&&x.payrollMonth!==periodFilter)return false;
-        if(quarterFilter&&payrollQuarter(x.payrollMonth)!==quarterFilter)return false;
-        if(statusFilter==='paid'&&!x.actualDate)return false;
-        if(statusFilter==='pending'&&x.actualDate)return false;
         if(q&&!String(x.label||'').toLowerCase().includes(q))return false;
         return true;
     });
@@ -6399,7 +6588,17 @@ function renderPayroll(){
         }
     });
 
-    $('salaryQuarterSummary').innerHTML=Object.values(groups)
+    salaryTaxLastGroups=Object.values(groups);
+    const visibleTaxGroups=salaryTaxLastGroups.filter(g=>{
+        if(salaryTaxHeaderFilters.project&&normProject(g.project)!==normProject(salaryTaxHeaderFilters.project))return false;
+        if(salaryTaxHeaderFilters.period&&String(g.periodLabel||'')!==String(salaryTaxHeaderFilters.period))return false;
+        const outstanding=Math.max(0,g.total-g.paid);
+        if(salaryTaxHeaderFilters.status==='open'&&outstanding<=0)return false;
+        if(salaryTaxHeaderFilters.status==='paid'&&outstanding>0)return false;
+        return true;
+    });
+
+    $('salaryQuarterSummary').innerHTML=visibleTaxGroups
       .sort((a,b)=>{
           const aDate=(a.paidDates||[]).slice().sort().slice(-1)[0]||a.dueMonth||'';
           const bDate=(b.paidDates||[]).slice().sort().slice(-1)[0]||b.dueMonth||'';
@@ -6424,7 +6623,7 @@ function renderPayroll(){
       }).join('')||'<tr><td colspan="9" class="mep-empty">Chưa có dữ liệu thuế theo bộ lọc hiện tại.</td></tr>';
 
     if($('salaryQuarterFoot')){
-      const groupRows=Object.values(groups);
+      const groupRows=visibleTaxGroups;
       const totalTax=groupRows.reduce((s,g)=>s+num(g.total),0);
       const totalPaidTax=groupRows.reduce((s,g)=>s+num(g.paid),0);
       const totalOpenTax=Math.max(0,totalTax-totalPaidTax);
@@ -6438,11 +6637,13 @@ function renderPayroll(){
           </tr>`
         : '';
     }
+    syncSalaryFilterButtons();
+
 }
 
 function openSalaryRecord(id=null){
     editingSalaryId=id;const x=id?(cashCloudState.salaryRecords||[]).find(r=>r.id===id):null;
-    $('salaryRecordModalTitle').textContent=x?'Sửa khoản lương / thuế':'Thêm khoản lương / thuế';$('pyProject').value=x?.project||pfSelectedProject||'';$('pyType').value=x?.type||'salary';$('pyPeriod').value=x?.payrollMonth||CURRENT;$('pyAmount').value=x?.amountVnd?money(x.amountVnd):'';$('pyActualDate').value=x?.actualDate||'';$('pyAccount').value=x?.account||DEFAULT_PAYROLL_ACCOUNT;$('pyNote').value=x?.note||'';openModal('salaryRecordModal');
+    $('salaryRecordModalTitle').textContent=x?'Sửa khoản lương / thuế':'Thêm khoản lương / thuế';$('pyProject').value=x?.project||pfSelectedProject||'';$('pyType').value=x?.type||'salary';$('pyPeriod').value=x?.payrollMonth||CURRENT;$('pyAmount').value=x?.amountVnd?money(x.amountVnd):'';$('pyActualDate').value=x?.actualDate||'';$('pyNote').value=x?.note||'';openModal('salaryRecordModal');
 }
 
 async function deleteSalaryRecord(id){
@@ -6453,7 +6654,7 @@ async function deleteSalaryRecord(id){
 
 async function applySalaryPaymentDate(clear=false){
     if(!ensureMepWrite())return;if(!salarySelectedIds.size){alert('Chọn ít nhất một khoản.');return}
-    const actualDate=clear?'':$('salaryBatchDate').value,account=String($('salaryBatchAccount').value||DEFAULT_PAYROLL_ACCOUNT).trim()||DEFAULT_PAYROLL_ACCOUNT;if(!clear&&!actualDate){alert('Chọn ngày thực trả.');return}
+    const actualDate=clear?'':$('salaryBatchDate').value,account=DEFAULT_PAYROLL_ACCOUNT;if(!clear&&!actualDate){alert('Chọn ngày thực trả.');return}
     const arr=[...(cashCloudState.salaryRecords||[])];let changed=0;arr.forEach(x=>{if(!salarySelectedIds.has(x.id))return;x.actualDate=actualDate;if(!clear)x.account=account;x.updatedAt=new Date().toISOString();syncSalaryCash(x);changed++});cashCloudState.salaryRecords=arr;
     pushAudit('payroll',clear?'Bỏ ngày thực trả':'Gán ngày thực trả','',`${changed} khoản${actualDate?' · '+actualDate:''}`);if(await persistCashCloud(clear?'Bỏ ngày thực trả lương & thuế':'Gán ngày thực trả lương & thuế')){salarySelectedIds.clear();$('salaryBatchDate').value='';renderAll()}
 }
@@ -6476,7 +6677,7 @@ function normalizeImportDate(value){
     const s=String(value??'').trim();if(/^20\d{2}-\d{2}-\d{2}$/.test(s))return s;let m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](20\d{2})$/);return m?`${m[3]}-${pad(Number(m[2]))}-${pad(Number(m[1]))}`:'';
 }
 function payrollTypeFromText(value,fallback=''){
-    const raw=String(value??''),s=normalizeImportText(raw);if(/个税|个人所得税/.test(raw)||s.includes('thue tncn')||s.includes('thue thu nhap'))return 'tax';if(/工会费|工会经费/.test(raw)||s.includes('phi cong doan')||s.includes('kinh phi cong doan'))return 'union';if(/中方社保/.test(raw)||s.includes('bao hiem tq')||s.includes('bao hiem trung quoc'))return 'insurance_cn';if(/越籍社保|越南社保/.test(raw)||s.includes('bao hiem vn')||s.includes('bao hiem viet nam'))return 'insurance_vn';if(/社保/.test(raw)||s.includes('bao hiem'))return 'insurance';if(/伙食费/.test(raw)||s.includes('tien an'))return 'meal';if(/实发工资|员工工资|工资/.test(raw)||s.includes('luong thuc nhan')||s==='luong')return 'salary';if(s.includes('phu cap')||s.includes('khoan khac'))return 'other';return fallback;
+    const raw=String(value??''),s=normalizeImportText(raw);if(/个税|个人所得税/.test(raw)||s.includes('thue tncn')||s.includes('thue thu nhap'))return 'tax';if(/工会费|工会经费/.test(raw)||s.includes('phi cong doan')||s.includes('kinh phi cong doan'))return 'union';if(/中方社保/.test(raw)||s.includes('bao hiem tq')||s.includes('bao hiem trung quoc'))return 'insurance_cn';if(/越籍社保|越南社保/.test(raw)||s.includes('bao hiem vn')||s.includes('bao hiem viet nam'))return 'insurance_vn';if(/社保/.test(raw)||s.includes('bao hiem'))return 'insurance';if(/伙食费/.test(raw)||s.includes('tien an'))return 'meal';if(/奖金|奖励|年终奖/.test(raw)||s.includes('thuong')||s.includes('tien thuong'))return 'bonus';if(/实发工资|员工工资|工资/.test(raw)||s.includes('luong thuc nhan')||s==='luong')return 'salary';if(s.includes('phu cap')||s.includes('khoan khac'))return 'other';return fallback;
 }
 
 function setSalaryImportPreview(rows,errors=[],label=''){
@@ -6493,7 +6694,7 @@ function parseVietnamSalaryPaste(text){
     const longTypeIdx=find(['khoan muc','loai khoan']),longAmountIdx=find(['so tien vnd','so tien']);
     const insuranceVnIdx=find(['bao hiem vn','bao hiem viet nam']),insuranceCnIdx=find(['bao hiem tq','bao hiem trung quoc']);
     const genericInsuranceIdx=insuranceVnIdx<0&&insuranceCnIdx<0?find(['bao hiem']):-1;
-    const columns=[['salary',find(['luong thuc nhan'])],['tax',find(['thue tncn'])],['insurance_vn',insuranceVnIdx],['insurance_cn',insuranceCnIdx],['union',find(['phi cong doan','kinh phi cong doan'])],['insurance',genericInsuranceIdx],['meal',find(['tien an'])],['other',find(['phu cap khac','phu cap'])]];
+    const columns=[['salary',find(['luong thuc nhan'])],['bonus',find(['thuong','tien thuong'])],['tax',find(['thue tncn'])],['insurance_vn',insuranceVnIdx],['insurance_cn',insuranceCnIdx],['union',find(['phi cong doan','kinh phi cong doan'])],['insurance',genericInsuranceIdx],['meal',find(['tien an'])],['other',find(['phu cap khac','phu cap'])]];
     const rows=[],errors=[];if(periodIdx<0||projectIdx<0)return {rows:[],errors:['Thiếu cột Kỳ lương hoặc Dự án.']};
     table.slice(1).forEach((cells,i)=>{const project=normProject(cells[projectIdx]),period=normalizePayrollPeriod(cells[periodIdx]),actualDate=actualIdx>=0?normalizeImportDate(cells[actualIdx]):'',account=(accountIdx>=0?String(cells[accountIdx]||'').trim():'')||DEFAULT_PAYROLL_ACCOUNT,note=noteIdx>=0?String(cells[noteIdx]||'').trim():'';if(!project||!period){errors.push(`Dòng ${i+2}: thiếu Dự án hoặc Kỳ lương`);return}
         const base={project,payrollMonth:period,actualDate,account,note,sourceType:'vn_paste',sourceFile:'Dán Excel',sourceSheet:'Mẫu chuẩn'};
@@ -7601,6 +7802,19 @@ if($('overviewProject'))$('overviewProject').onchange=async()=>{
 ['inflowProject','inflowType','inflowStatus'].forEach(id=>{if($(id))$(id).onchange=renderInflows});
 ['requestProject','requestStatus','requestPriority'].forEach(id=>{if($(id))$(id).onchange=renderPaymentRequests});
 if($('salarySearch'))$('salarySearch').oninput=()=>{salarySelectedIds.clear();renderPayroll()};
+ document.querySelectorAll('[data-salary-head-filter]').forEach(btn=>btn.onclick=e=>{
+    e.stopPropagation();openSalarySheetFilter(btn,btn.dataset.salaryHeadFilter,'salary')
+ });
+ document.querySelectorAll('[data-tax-head-filter]').forEach(btn=>btn.onclick=e=>{
+    e.stopPropagation();openSalarySheetFilter(btn,btn.dataset.taxHeadFilter,'tax')
+ });
+ if($('salaryClearHeaderFilters'))$('salaryClearHeaderFilters').onclick=()=>{
+    ['salaryProject','salaryPeriod','salaryQuarter','salaryType','salaryStatus'].forEach(id=>{if($(id))$(id).value=''});
+    salarySelectedIds.clear();renderPayroll();
+ };
+ document.addEventListener('click',e=>{
+    if(!e.target.closest('.salary-sheet-filter-pop')&&!e.target.closest('.sheet-filter-btn'))closeSalarySheetFilter();
+ });
 ['salaryProject','salaryPeriod','salaryQuarter','salaryType','salaryStatus'].forEach(id=>{if($(id))$(id).onchange=()=>{salarySelectedIds.clear();renderPayroll()}});
 if($('debtProject'))$('debtProject').onchange=renderReceivables;
 if($('guaranteeStatus'))$('guaranteeStatus').onchange=renderFinance;
@@ -7684,7 +7898,7 @@ if($('salaryDeleteSelected'))$('salaryDeleteSelected').onclick=deleteSelectedSal
 
 if($('saveSalaryRecord'))$('saveSalaryRecord').onclick=async()=>{
     if(!ensureMepWrite())return;const project=normProject($('pyProject').value),payrollMonth=$('pyPeriod').value,amountVnd=parseTxnMoney($('pyAmount').value);if(!project||!payrollMonth||amountVnd<=0){alert('Cần nhập Dự án, Kỳ bảng lương và Số tiền VND.');return}
-    const arr=[...(cashCloudState.salaryRecords||[])],old=editingSalaryId?arr.find(x=>x.id===editingSalaryId):null,record={id:old?.id||mepId('payroll'),type:$('pyType').value,project,payrollMonth,amountVnd,actualDate:$('pyActualDate').value,account:$('pyAccount').value.trim()||DEFAULT_PAYROLL_ACCOUNT,note:$('pyNote').value.trim(),sourceType:old?.sourceType||'manual',sourceFile:old?.sourceFile||'',sourceSheet:old?.sourceSheet||'',batchId:old?.batchId||'',cashTxnId:old?.cashTxnId||'',createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
+    const arr=[...(cashCloudState.salaryRecords||[])],old=editingSalaryId?arr.find(x=>x.id===editingSalaryId):null,record={id:old?.id||mepId('payroll'),type:$('pyType').value,project,payrollMonth,amountVnd,actualDate:$('pyActualDate').value,account:DEFAULT_PAYROLL_ACCOUNT.trim()||DEFAULT_PAYROLL_ACCOUNT,note:$('pyNote').value.trim(),sourceType:old?.sourceType||'manual',sourceFile:old?.sourceFile||'',sourceSheet:old?.sourceSheet||'',batchId:old?.batchId||'',cashTxnId:old?.cashTxnId||'',createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
     const duplicate=arr.find(x=>payrollKey(x)===payrollKey(record)&&x.id!==record.id);if(duplicate){alert('Đã có khoản cùng Dự án + Khoản mục + Kỳ phát sinh. Hãy sửa dòng hiện có để tránh trùng.');return}syncSalaryCash(record);const i=arr.findIndex(x=>x.id===record.id);if(i>=0)arr[i]=record;else arr.push(record);cashCloudState.salaryRecords=arr;pushAudit('payroll',old?'Cập nhật khoản lương / thuế':'Thêm khoản lương / thuế',record.id,`${project} · ${payrollMonth} · ${PAYROLL_TYPE_LABELS[record.type]}`);if(await persistCashCloud(old?'Cập nhật khoản lương / thuế':'Thêm khoản lương / thuế')){$('salaryRecordModal').classList.remove('show');editingSalaryId=null;renderAll()}
 };
 
