@@ -2454,7 +2454,13 @@ function projectMonthPayments(project){
 function planningProjects(){
   return [...new Set(planningMonthPayments().map(p=>p.project||"—"))];
 }
+function projectLockRecord(project){
+  const snapshot=monthlyFundingSnapshots.get(monthSelect.value);
+  return projectMapRecord(snapshot?.projectLocks,project);
+}
 function isProjectLocked(project){
+  const lock=projectLockRecord(project);
+  if(lock&&typeof lock==="object")return lock.locked===true;
   const ps=projectMonthPayments(project);
   return !!ps.length && ps.some(p=>p.planLocked===true);
 }
@@ -2467,12 +2473,60 @@ function isMonthLocked(){
 }
 function isAnyProjectLocked(){return lockedProjectNames().length>0}
 function lockedAtText(project=""){
+  if(project){
+    const lock=projectLockRecord(project);
+    const lv=lock?.lockedAt;
+    if(lv){
+      try{return (typeof lv.toDate==="function"?lv.toDate():new Date(lv)).toLocaleString("vi-VN")}catch{}
+    }
+  }
   const ps=project?projectMonthPayments(project):activeMonthPayments();
   const p=ps.find(x=>x.planLockedAt);
   const v=p?.planLockedAt;
   if(!v)return"";
   try{return (typeof v.toDate==="function"?v.toDate():new Date(v)).toLocaleString("vi-VN")}catch{return""}
 }
+async function saveProjectLockState(project,locked){
+  const month=monthSelect.value;
+  const payload={
+    project,
+    locked:!!locked,
+    lockedAt:locked?serverTimestamp():null,
+    unlockedAt:locked?null:serverTimestamp(),
+    lockedBy:locked?(currentOperator||currentUser?.email||""):"",
+    unlockedBy:locked?"":(currentOperator||currentUser?.email||""),
+    updatedBy:currentOperator||currentUser?.email||"",
+    updatedAt:serverTimestamp()
+  };
+  await setDoc(doc(db,CASH_MONTHLY_SNAPSHOT_COLLECTION,month),{
+    month,
+    projectLocks:{[project]:payload},
+    projectLocksUpdatedAt:serverTimestamp(),
+    projectLocksUpdatedBy:currentOperator||currentUser?.email||""
+  },{merge:true});
+
+  const snap=monthlyFundingSnapshots.get(month)||emptyMonthlySnapshot(month);
+  snap.projectLocks=snap.projectLocks&&typeof snap.projectLocks==="object"?snap.projectLocks:{};
+  snap.projectLocks[project]={
+    ...payload,
+    lockedAt:locked?new Date():null,
+    unlockedAt:locked?null:new Date()
+  };
+  snap.exists=true;
+  monthlyFundingSnapshots.set(month,snap);
+}
+function reviewFieldsChanged(p){
+  const nextStatus=draftStatus.get(p.id)||"included";
+  const nextApproved=nextStatus==="excluded"
+    ?0
+    :Math.max(0,Number(draftApprovedAmount.get(p.id) ?? p.amount)||0);
+  const oldStatus=p.planReviewStatus||"included";
+  const oldApproved=oldStatus==="excluded"
+    ?0
+    :Math.max(0,Number(p.planApprovedAmount ?? p.amount)||0);
+  return oldStatus!==nextStatus || Math.abs(oldApproved-nextApproved)>0.0001 || p.planReviewMonth!==monthSelect.value;
+}
+
 function scopePayments(){
   return activeProject
     ? projectMonthPayments(activeProject)
@@ -2538,7 +2592,7 @@ function loadFundingStore(){
 }
 function saveFundingStore(obj){localStorage.setItem(FUNDING_KEY,JSON.stringify(obj))}
 function fundingKey(project){return `${monthSelect.value}|${project}`}
-function emptyMonthlySnapshot(month){return {month,balances:{},planning:{},cashPlanningByProject:{},internalDebtByProject:{},internalDebtSource:{},projectCatalog:[],reviewCutoffDate:"",exists:false}}
+function emptyMonthlySnapshot(month){return {month,balances:{},planning:{},cashPlanningByProject:{},internalDebtByProject:{},internalDebtSource:{},projectCatalog:[],projectLocks:{},reviewCutoffDate:"",exists:false}}
 function normalizeMonthlySnapshot(month,raw,exists=true){
   const value=raw&&typeof raw==="object"?raw:{};
   return {
@@ -2549,6 +2603,7 @@ function normalizeMonthlySnapshot(month,raw,exists=true){
     internalDebtByProject:value.internalDebtByProject&&typeof value.internalDebtByProject==="object"?value.internalDebtByProject:{},
     internalDebtSource:value.internalDebtSource&&typeof value.internalDebtSource==="object"?value.internalDebtSource:{},
     projectCatalog:Array.isArray(value.projectCatalog)?value.projectCatalog:[],
+    projectLocks:value.projectLocks&&typeof value.projectLocks==="object"?value.projectLocks:{},
     reviewCutoffDate:String(value.reviewCutoffDate||""),
     exists
   };
@@ -4714,29 +4769,80 @@ $("doConfirmBtn").onclick=async()=>{
   const scopeProject=activeProject;
   const ps=scopePayments().filter(p=>!scopeProject||norm(p.project)===norm(scopeProject));
   if(!ps.length)return;
+
   $("doConfirmBtn").disabled=true;
   $("doConfirmBtn").textContent=scopeProject?"Đang chốt dự án...":"Đang khóa...";
+
   try{
+    if(scopeProject){
+      // Only write rows whose review result really changed.
+      const changed=ps.filter(reviewFieldsChanged);
+
+      for(let i=0;i<changed.length;i+=400){
+        const batch=writeBatch(db);
+        changed.slice(i,i+400).forEach(p=>{
+          const status=draftStatus.get(p.id)||"included";
+          const approved=status==="excluded"
+            ?0
+            :Math.max(0,Number(draftApprovedAmount.get(p.id) ?? p.amount)||0);
+          batch.update(doc(db,"payments",p.id),{
+            planReviewStatus:status,
+            planApprovedAmount:approved,
+            planReviewMonth:monthSelect.value,
+            planReviewedAt:serverTimestamp(),
+            planReviewedBy:currentOperator||currentUser.email||"",
+            planReviewedByUid:currentUser.uid
+          });
+        });
+        await batch.commit();
+      }
+
+      // One Firebase write marks the whole project as locked.
+      await saveProjectLockState(scopeProject,true);
+
+      // Update local rows only; no full reload from Firebase.
+      ps.forEach(p=>{
+        const status=draftStatus.get(p.id)||"included";
+        p.planReviewStatus=status;
+        p.planApprovedAmount=status==="excluded"
+          ?0
+          :Math.max(0,Number(draftApprovedAmount.get(p.id) ?? p.amount)||0);
+        p.planReviewMonth=monthSelect.value;
+        p.planReviewedAt=new Date();
+        p.planReviewedBy=currentOperator||currentUser.email||"";
+        p.planReviewedByUid=currentUser.uid;
+      });
+
+      $("confirmModal").classList.remove("show");
+      render();
+
+      alert(changed.length
+        ?`✅ Đã chốt ${scopeProject}. Chỉ cập nhật ${changed.length} khoản có thay đổi.`
+        :`✅ Đã chốt ${scopeProject}. Không có khoản nào cần ghi lại.`);
+      return;
+    }
+
+    // Whole-month lock keeps the previous behavior.
     for(let i=0;i<ps.length;i+=400){
       const batch=writeBatch(db);
-      ps.slice(i,i+400).forEach(p=>batch.update(doc(db,"payments",p.id),{
-        planReviewStatus:draftStatus.get(p.id)||"included",
-        planApprovedAmount:(draftStatus.get(p.id)||"included")==="excluded"
-          ?0
-          :Math.max(0,Number(draftApprovedAmount.get(p.id) ?? p.amount)||0),
-        planReviewMonth:monthSelect.value,
-        planLocked:true,
-        planLockedAt:serverTimestamp(),
-        planLockedBy:currentOperator||currentUser.email||"",
-        planLockedByUid:currentUser.uid,
-        planReviewedAt:serverTimestamp(),
-        planLockedScope:scopeProject?"project":"month",
-        planLockedProject:scopeProject||""
-      }));
+      ps.slice(i,i+400).forEach(p=>{
+        const status=draftStatus.get(p.id)||"included";
+        batch.update(doc(db,"payments",p.id),{
+          planReviewStatus:status,
+          planApprovedAmount:status==="excluded"
+            ?0
+            :Math.max(0,Number(draftApprovedAmount.get(p.id) ?? p.amount)||0),
+          planReviewMonth:monthSelect.value,
+          planLocked:true,
+          planLockedAt:serverTimestamp(),
+          planLockedBy:currentOperator||currentUser.email||"",
+          planLockedByUid:currentUser.uid,
+          planReviewedAt:serverTimestamp()
+        });
+      });
       await batch.commit();
     }
 
-    // Update local rows only for the locked scope so draft decisions of other projects are preserved.
     const now=new Date();
     ps.forEach(p=>{
       p.planReviewStatus=draftStatus.get(p.id)||"included";
@@ -4748,19 +4854,14 @@ $("doConfirmBtn").onclick=async()=>{
       p.planLockedAt=now;
       p.planLockedBy=currentOperator||currentUser.email||"";
       p.planLockedByUid=currentUser.uid;
-      p.planLockedScope=scopeProject?"project":"month";
-      p.planLockedProject=scopeProject||"";
     });
 
     $("confirmModal").classList.remove("show");
     render();
-
-    alert(scopeProject
-      ?`✅ Đã chốt dự án ${scopeProject}. Các dự án khác vẫn tiếp tục duyệt được.`
-      :`✅ Đã khóa toàn bộ kế hoạch tháng ${monthValue(monthSelect.value)}.`);
+    alert(`✅ Đã khóa toàn bộ kế hoạch tháng ${monthValue(monthSelect.value)}.`);
   }catch(e){
     console.error(e);
-    alert("❌ Không thể khóa kế hoạch:\\n"+e.message);
+    alert("❌ Không thể khóa kế hoạch:\n"+e.message);
   }finally{
     $("doConfirmBtn").disabled=false;
     $("doConfirmBtn").textContent="XÁC NHẬN KHÓA";
@@ -4771,8 +4872,16 @@ $("unlockBtn").onclick=async()=>{
   const scopeProject=activeProject;
   const label=scopeProject?`dự án ${scopeProject}`:`toàn bộ kế hoạch tháng ${monthValue(monthSelect.value)}`;
   if(!confirm(`Mở khóa ${label}?\n\nSau khi mở khóa, có thể điều chỉnh lại Duyệt/Loại và xác nhận lại.`))return;
-  const ps=scopeProject?projectMonthPayments(scopeProject):activeMonthPayments();
+
   try{
+    if(scopeProject){
+      await saveProjectLockState(scopeProject,false);
+      render();
+      alert(`✅ Đã mở khóa ${scopeProject}.`);
+      return;
+    }
+
+    const ps=activeMonthPayments();
     for(let i=0;i<ps.length;i+=400){
       const batch=writeBatch(db);
       ps.slice(i,i+400).forEach(p=>batch.update(doc(db,"payments",p.id),{
@@ -4791,9 +4900,10 @@ $("unlockBtn").onclick=async()=>{
       p.planUnlockedByUid=currentUser.uid;
     });
     render();
-    alert(scopeProject?`✅ Đã mở khóa ${scopeProject}.`:"✅ Đã mở khóa toàn bộ kế hoạch tháng.");
+    alert("✅ Đã mở khóa toàn bộ kế hoạch tháng.");
   }catch(e){
-    alert("❌ Không thể mở khóa:\n"+e.message);
+    console.error(e);
+    alert("❌ Không thể mở khóa kế hoạch:\n"+e.message);
   }
 };
 $("signInBtn").onclick=()=>$("loginModal").classList.add("show");$("closeLoginBtn").onclick=()=>$("loginModal").classList.remove("show");$("signOutBtn").onclick=()=>signOut(auth);$("doLoginBtn").onclick=async()=>{const email=usernameToEmail($("usernameInput").value),pw=$("passwordInput").value;$("loginError").style.display="none";try{await setPersistence(auth,browserLocalPersistence);await signInWithEmailAndPassword(auth,email,pw);$("loginModal").classList.remove("show")}catch(e){$("loginError").textContent="Đăng nhập thất bại: "+e.message;$("loginError").style.display="block"}};
