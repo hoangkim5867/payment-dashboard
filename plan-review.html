@@ -2279,6 +2279,7 @@ button,input,select,textarea,
 <div class="footer-bar">
     <div class="footer-summary" id="footerSummary">Chưa có dữ liệu.</div>
     <div class="footer-actions">
+      <button id="resetReviewBtn" class="toolbar-btn exclude-btn" style="display:none">↺ Reset dữ liệu duyệt</button>
       <button id="unlockBtn" class="toolbar-btn exclude-btn" style="display:none">Mở khóa kế hoạch</button>
       <button id="confirmBtn" class="confirm-btn"><span data-i18n="confirmLock">XÁC NHẬN VÀ KHÓA KẾ HOẠCH</span></button>
     </div>
@@ -2540,41 +2541,6 @@ function scopePlanningPayments(){
 function isCurrentScopeLocked(){
   return activeProject?isProjectLocked(activeProject):isMonthLocked();
 }
-
-function unlockedPlanningProjects(){
-  return planningProjects().filter(project=>!isProjectLocked(project));
-}
-
-function nextUnlockedProject(afterProject=""){
-  const projects=planningProjects();
-  if(!projects.length)return "";
-
-  const start=Math.max(-1,projects.findIndex(p=>norm(p)===norm(afterProject)));
-  for(let step=1;step<=projects.length;step++){
-    const candidate=projects[(start+step)%projects.length];
-    if(candidate && !isProjectLocked(candidate))return candidate;
-  }
-  return "";
-}
-
-function syncReviewActionState(){
-  const btn=$("confirmBtn");
-  if(!btn)return;
-
-  const scopeLocked=isCurrentScopeLocked();
-  const hasRows=scopePlanningPayments().length>0;
-  btn.disabled=scopeLocked||!canConfirmPlan()||!hasRows;
-  btn.title=!canConfirmPlan()&&!scopeLocked
-    ?"Đăng nhập bằng tài khoản Người duyệt hoặc Quản trị viên"
-    :"";
-
-  const label=btn.querySelector("span");
-  if(label){
-    label.textContent=activeProject
-      ?(isChineseUI()?`锁定 ${activeProject}`:`CHỐT ${activeProject}`)
-      :(isChineseUI()?"确认并锁定整月":"XÁC NHẬN VÀ KHÓA TOÀN THÁNG");
-  }
-}
 function calcPayments(ps){
   let total=0,keep=0,gap=0,kc=0,ec=0,rc=0;
   (ps||[]).forEach(p=>{
@@ -2603,6 +2569,31 @@ function seedDraft(){
     draftApprovedAmount.set(p.id, st==="excluded" ? 0 : base);
   });
 }
+
+function resetDraftForPayments(ps){
+  (ps||[]).forEach(p=>{
+    draftStatus.set(p.id,"included");
+    draftApprovedAmount.set(p.id,Number(p.amount)||0);
+
+    p.planReviewStatus="";
+    p.planApprovedAmount=null;
+    p.planReviewMonth="";
+    p.planReviewedAt=null;
+    p.planReviewedBy="";
+    p.planReviewedByUid="";
+    p.planLocked=false;
+    p.planLockedAt=null;
+    p.planLockedBy="";
+    p.planLockedByUid="";
+  });
+}
+
+function currentResetScopePayments(){
+  return activeProject
+    ? activeMonthPayments().filter(p=>norm(p.project||"—")===norm(activeProject))
+    : activeMonthPayments();
+}
+
 function fillFilters(){
   const months=[...new Set(allPayments.filter(p=>p.deleted!==true).map(p=>p.paymentMonth).filter(Boolean))].sort().reverse();
   const prev=monthSelect.value;
@@ -3934,7 +3925,6 @@ function renderProjects(){
       const p=btn.dataset.project||"";
       activeProject=activeProject===p?"":p;
       render();
-      requestAnimationFrame(syncReviewActionState);
     };
   });
 }
@@ -4220,7 +4210,15 @@ function render(){
     $("monthStateChip").className="state-chip open";
   }
 
-  syncReviewActionState();
+  const confirmLabel=$("confirmBtn")?.querySelector("span");
+  if(confirmLabel){
+    confirmLabel.textContent=activeProject
+      ?(isChineseUI()?`锁定 ${activeProject}`:`CHỐT ${activeProject}`)
+      :(isChineseUI()?"确认并锁定整月":"XÁC NHẬN VÀ KHÓA TOÀN THÁNG");
+  }
+
+  $("confirmBtn").disabled=scopeLocked||!canConfirmPlan()||!scopePlanningPayments().length;
+  $("confirmBtn").title=!canConfirmPlan()&&!scopeLocked?"Đăng nhập bằng tài khoản Người duyệt hoặc Quản trị viên":"";
   $("keepAllBtn").disabled=!unlockedVisible.length;
   $("excludeAllBtn").disabled=!unlockedVisible.length;
 
@@ -4231,6 +4229,14 @@ function render(){
   $("unlockBtn").textContent=activeProject
     ?(isChineseUI()?`解锁 ${activeProject}`:`Mở khóa ${activeProject}`)
     :(isChineseUI()?"解锁整月":"Mở khóa toàn tháng");
+
+  const resetBtn=$("resetReviewBtn");
+  if(resetBtn){
+    resetBtn.style.display=isAdmin()?"":"none";
+    resetBtn.textContent=activeProject
+      ?(isChineseUI()?`↺ 重置 ${activeProject}`:`↺ Reset ${activeProject}`)
+      :(isChineseUI()?"↺ 重置本月审核":"↺ Reset duyệt tháng");
+  }
 
   const notice=$("lockNotice");
   if(activeProject&&isProjectLocked(activeProject)){
@@ -4308,7 +4314,13 @@ function render(){
       if(next==="excluded"){
         draftApprovedAmount.set(id,0);
       }else if((Number(draftApprovedAmount.get(id))||0)<=0){
-        draftApprovedAmount.set(id,Number(p?.planApprovedAmount ?? p?.amount)||0);
+        const savedApproved =
+          p?.planReviewMonth === monthSelect.value &&
+          p?.planApprovedAmount !== "" &&
+          p?.planApprovedAmount != null
+            ? Number(p.planApprovedAmount)
+            : Number(p?.amount)||0;
+        draftApprovedAmount.set(id,savedApproved);
       }
       render();
     };
@@ -4715,7 +4727,7 @@ loadHiddenReviewColumns();
 
 
 $("fundingViewBtn").onclick=()=>setReviewView("funding");
-$("paymentViewBtn").onclick=()=>{setReviewView("payment");requestAnimationFrame(syncReviewActionState)};
+$("paymentViewBtn").onclick=()=>setReviewView("payment");
 $("goPaymentAllBtn").onclick=()=>{activeProject="";setReviewView("payment");render()};
 $("importCashOpeningBtn").onclick=importOpeningFromCashControl;
 monthSelect.onchange=async()=>{
@@ -4747,7 +4759,7 @@ if($("fundingCutoffDate"))$("fundingCutoffDate").onchange=async()=>{
   render();
 };
 sortSelect.onchange=()=>{reviewHeaderSort={key:"",dir:""};render()};
-$("clearProjectBtn").onclick=()=>{activeProject="";render();requestAnimationFrame(syncReviewActionState)};
+$("clearProjectBtn").onclick=()=>{activeProject="";render()};
 $("refreshBtn").onclick=loadPayments;
 $("keepAllBtn").onclick=()=>{
   if(!canReview()){
@@ -4756,7 +4768,18 @@ $("keepAllBtn").onclick=()=>{
     $("loginError").textContent="Vui lòng đăng nhập bằng tài khoản Người duyệt hoặc Quản trị viên.";
     return;
   }
-  getVisible().filter(p=>!isProjectLocked(p.project)).forEach(p=>{draftStatus.set(p.id,"included");if((Number(draftApprovedAmount.get(p.id))||0)<=0)draftApprovedAmount.set(p.id,Number(p.planApprovedAmount ?? p.amount)||0)});
+  getVisible().filter(p=>!isProjectLocked(p.project)).forEach(p=>{
+    draftStatus.set(p.id,"included");
+    if((Number(draftApprovedAmount.get(p.id))||0)<=0){
+      const savedApproved =
+        p.planReviewMonth === monthSelect.value &&
+        p.planApprovedAmount !== "" &&
+        p.planApprovedAmount != null
+          ? Number(p.planApprovedAmount)
+          : Number(p.amount)||0;
+      draftApprovedAmount.set(p.id,savedApproved);
+    }
+  });
   render();
 };
 $("excludeAllBtn").onclick=()=>{
@@ -4842,21 +4865,11 @@ $("doConfirmBtn").onclick=async()=>{
       });
 
       $("confirmModal").classList.remove("show");
-
-      const nextProject=nextUnlockedProject(scopeProject);
-      activeProject=nextProject||"";
       render();
-      requestAnimationFrame(syncReviewActionState);
 
-      alert(
-        nextProject
-          ?(
-              changed.length
-                ?`✅ Đã chốt ${scopeProject}. Đã chuyển sang ${nextProject}.`
-                :`✅ Đã chốt ${scopeProject}. Đã chuyển sang ${nextProject}.`
-            )
-          :`✅ Đã chốt ${scopeProject}. Không còn dự án nào chờ chốt.`
-      );
+      alert(changed.length
+        ?`✅ Đã chốt ${scopeProject}. Chỉ cập nhật ${changed.length} khoản có thay đổi.`
+        :`✅ Đã chốt ${scopeProject}. Không có khoản nào cần ghi lại.`);
       return;
     }
 
@@ -4903,9 +4916,94 @@ $("doConfirmBtn").onclick=async()=>{
   }finally{
     $("doConfirmBtn").disabled=false;
     $("doConfirmBtn").textContent="XÁC NHẬN KHÓA";
-    syncReviewActionState();
   }
 };
+
+$("resetReviewBtn").onclick=async()=>{
+  if(!isAdmin())return;
+
+  const scopeProject=activeProject;
+  const ps=currentResetScopePayments();
+
+  if(!ps.length){
+    alert("Không có dữ liệu để reset.");
+    return;
+  }
+
+  const label=scopeProject
+    ?`dự án ${scopeProject}`
+    :`toàn bộ tháng ${monthValue(monthSelect.value)}`;
+
+  const ok=confirm(
+    `RESET DỮ LIỆU ĐÃ DUYỆT của ${label}?\n\n`+
+    `• Số tiền duyệt sẽ trở về Số tiền đề xuất ban đầu\n`+
+    `• Trạng thái Duyệt / Loại sẽ trở về mặc định Duyệt\n`+
+    `• Xóa trạng thái khóa/chốt của phạm vi này\n`+
+    `• KHÔNG xóa Payment gốc\n\n`+
+    `Dùng chức năng này khi muốn bắt đầu duyệt lại từ đầu.`
+  );
+  if(!ok)return;
+
+  const btn=$("resetReviewBtn");
+  btn.disabled=true;
+  const oldText=btn.textContent;
+  btn.textContent="Đang reset...";
+
+  try{
+    // Clear saved review fields on payments in batches.
+    for(let i=0;i<ps.length;i+=400){
+      const batch=writeBatch(db);
+      ps.slice(i,i+400).forEach(p=>{
+        batch.update(doc(db,"payments",p.id),{
+          planReviewStatus:"",
+          planApprovedAmount:null,
+          planReviewMonth:"",
+          planReviewedAt:null,
+          planReviewedBy:"",
+          planReviewedByUid:"",
+          planLocked:false,
+          planLockedAt:null,
+          planLockedBy:"",
+          planLockedByUid:"",
+          planUnlockedAt:serverTimestamp(),
+          planUnlockedBy:currentOperator||currentUser.email||"",
+          planUnlockedByUid:currentUser.uid
+        });
+      });
+      await batch.commit();
+    }
+
+    // Remove project-level lock marker too.
+    if(scopeProject){
+      await saveProjectLockState(scopeProject,false);
+    }else{
+      const projects=planningProjects();
+      for(const project of projects){
+        if(isProjectLocked(project)){
+          await saveProjectLockState(project,false);
+        }
+      }
+    }
+
+    // Reset local state immediately: original proposal amount becomes approved amount.
+    resetDraftForPayments(ps);
+    render();
+
+    alert(
+      scopeProject
+        ?`✅ Đã reset dữ liệu duyệt của ${scopeProject}. Số tiền duyệt đã trở về số đề xuất ban đầu.`
+        :`✅ Đã reset dữ liệu duyệt tháng ${monthValue(monthSelect.value)}. Có thể bắt đầu duyệt lại từ đầu.`
+    );
+  }catch(e){
+    console.error(e);
+    alert("❌ Không thể reset dữ liệu duyệt:\n"+e.message);
+  }finally{
+    btn.disabled=false;
+    btn.textContent=oldText;
+    render();
+  }
+};
+
 $("unlockBtn").onclick=async()=>{
   if(!canUnlock())return;
   const scopeProject=activeProject;
