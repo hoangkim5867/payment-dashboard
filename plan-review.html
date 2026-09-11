@@ -2446,12 +2446,18 @@ async function saveFundingCutoff(date){
 }
 function activeMonthPayments(){const m=monthSelect.value;return allPayments.filter(p=>p.deleted!==true&&p.paymentMonth===m)}
 function isPaidPayment(payment){
-  const date=String(payment?.processPaymentDate||"").slice(0,10), cutoff=fundingCutoffValue();
-  return /^\d{4}-\d{2}-\d{2}$/.test(date)&&(!cutoff||date<=cutoff);
+  const date=String(payment?.processPaymentDate||"").slice(0,10);
+  const actual=Number(payment?.processActualAmount)||0;
+
+  /* Plan Review is only for payments that still need to be planned.
+     Any item already paid must stay completely outside the review scope. */
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) || actual>0;
 }
 function planningMonthPayments(){return activeMonthPayments().filter(p=>!isPaidPayment(p))}
 function projectMonthPayments(project){
-  return activeMonthPayments().filter(p=>norm(p.project||"—")===norm(project||"—"));
+  return planningMonthPayments().filter(
+    p=>norm(p.project||"—")===norm(project||"—")
+  );
 }
 function planningProjects(){
   return [...new Set(planningMonthPayments().map(p=>p.project||"—"))];
@@ -2544,7 +2550,7 @@ function reviewFieldsChanged(p){
 function scopePayments(){
   return activeProject
     ? projectMonthPayments(activeProject)
-    : activeMonthPayments();
+    : planningMonthPayments();
 }
 function scopePlanningPayments(){
   return activeProject
@@ -2573,7 +2579,7 @@ function calcPayments(ps){
 function seedDraft(){
   draftStatus.clear();
   draftApprovedAmount.clear();
-  activeMonthPayments().forEach(p=>{
+  planningMonthPayments().forEach(p=>{
     const st=p.planReviewStatus==="excluded"?"excluded":"included";
     draftStatus.set(p.id,st);
 
@@ -2611,11 +2617,11 @@ function resetDraftStateForPayments(ps){
 
 function currentResetScopePayments(){
   if(activeProject){
-    return activeMonthPayments().filter(
+    return planningMonthPayments().filter(
       p=>norm(p.project||"—")===norm(activeProject)
     );
   }
-  return activeMonthPayments();
+  return planningMonthPayments();
 }
 
 async function clearProjectLockMarker(project){
