@@ -22024,7 +22024,8 @@ function activityActionLabel(action){
             REPAIR_CARRY_FORWARD_PROGRESS:"Khôi phục tiến trình dòng chuyển tháng",
             CANCEL:"Hủy khoản thanh toán",
             PASSWORD_CHANGE:"Đổi mật khẩu",
-            EXPORT_EXCEL:"Xuất Excel"
+            EXPORT_EXCEL:"Xuất Excel",
+            PLAN_REVIEW_COMMIT:"Chốt kế hoạch → Payment"
         },
         en:{
             ADD:"Add payment",
@@ -22036,7 +22037,8 @@ function activityActionLabel(action){
             REPAIR_CARRY_FORWARD_PROGRESS:"Restore carried-forward progress",
             CANCEL:"Cancel payment",
             PASSWORD_CHANGE:"Change password",
-            EXPORT_EXCEL:"Export Excel"
+            EXPORT_EXCEL:"Export Excel",
+            PLAN_REVIEW_COMMIT:"Plan Review → Payment"
         },
         zh:{
             ADD:"新增付款",
@@ -22048,7 +22050,8 @@ function activityActionLabel(action){
             REPAIR_CARRY_FORWARD_PROGRESS:"恢复转月付款进度",
             CANCEL:"取消付款",
             PASSWORD_CHANGE:"修改密码",
-            EXPORT_EXCEL:"导出 Excel"
+            EXPORT_EXCEL:"导出 Excel",
+            PLAN_REVIEW_COMMIT:"计划审核 → Payment"
         }
     };
 
@@ -22089,6 +22092,53 @@ function activityFieldLabel(field){
 function activityDetailText(item){
     const detail = String(item?.detail || "").trim();
     if(!detail) return "";
+
+    if(String(item?.action || "").toUpperCase() === "PLAN_REVIEW_COMMIT"){
+        try{
+            const data=JSON.parse(detail||"{}");
+            const project=String(data.project||item.project||"").trim();
+            const month=String(data.month||item.paymentMonth||"").trim();
+            const approved=Number(data.approvedCount)||0;
+            const reduced=Number(data.reducedCount)||0;
+            const excluded=Number(data.excludedCount)||0;
+            const updated=Number(data.updatedPaymentCount)||0;
+            const approvedTotal=Number(data.approvedTotal)||0;
+
+            if(currentLanguage==="zh"){
+                return [
+                    project||"全部项目",
+                    month,
+                    `核准 ${approved} 笔`,
+                    `调减 ${reduced} 笔`,
+                    `移出 ${excluded} 笔`,
+                    `更新 Payment ${updated} 笔`,
+                    `核准总额 ${formatMoney(approvedTotal)}`
+                ].filter(Boolean).join(" · ");
+            }
+            if(currentLanguage==="en"){
+                return [
+                    project||"All projects",
+                    month,
+                    `Approved ${approved}`,
+                    `Reduced ${reduced}`,
+                    `Excluded ${excluded}`,
+                    `Updated Payment ${updated}`,
+                    `Approved total ${formatMoney(approvedTotal)}`
+                ].filter(Boolean).join(" · ");
+            }
+            return [
+                project||"Tất cả dự án",
+                month,
+                `Duyệt ${approved} khoản`,
+                `Giảm ${reduced}`,
+                `Loại ${excluded}`,
+                `Cập nhật Payment ${updated} khoản`,
+                `Tổng duyệt ${formatMoney(approvedTotal)}`
+            ].filter(Boolean).join(" · ");
+        }catch(error){
+            return detail;
+        }
+    }
 
     if(String(item?.action || "").toUpperCase() === "EXPORT_EXCEL"){
         try{
@@ -22180,6 +22230,10 @@ function normalizeAuditIdentity(value){
 
 
 function isAdminActivityLog(item){
+    if(String(item?.action || "").trim().toUpperCase() === "PLAN_REVIEW_COMMIT"){
+        return false;
+    }
+
     if(String(item?.operatorRole || "").trim().toLowerCase() === "admin"){
         return true;
     }
@@ -22251,8 +22305,9 @@ async function renderActivityLog(){
 
                     const label = activityActionLabel(item.action);
                     const localizedDetail = activityDetailText(item);
-                    const isExcelExport =
-                        String(item.action || "").toUpperCase() === "EXPORT_EXCEL";
+                    const actionCode=String(item.action || "").toUpperCase();
+                    const isExcelExport = actionCode === "EXPORT_EXCEL";
+                    const isPlanReviewCommit = actionCode === "PLAN_REVIEW_COMMIT";
 
                     return `
                         <div class="audit-row">
@@ -22261,7 +22316,7 @@ async function renderActivityLog(){
                             <div>${escapeHTML(item.operator || "—")}</div>
                             <div class="audit-detail">
                                 ${
-                                    isExcelExport
+                                    (isExcelExport || isPlanReviewCommit)
                                         ? ""
                                         : `
                                             <strong>${escapeHTML(item.company || "")}</strong>
