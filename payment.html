@@ -13347,6 +13347,16 @@ body:not(.amount-range-dragging) #paymentTable tbody td.amount-total-selected{
 }
 </style>
 
+
+<style id="plan-review-payment-bridge-v1">
+.plan-review-audit-row{
+    background:color-mix(in srgb,var(--theme-soft,#eef4ff) 42%,transparent);
+}
+.plan-review-audit-row .audit-action{
+    color:var(--theme-primary,#17365d);
+}
+</style>
+
 </head>
 
 
@@ -20179,6 +20189,61 @@ async function loadPayments(){
 
 
 /* =====================================================
+   PLAN REVIEW → PAYMENT BRIDGE
+   Payment stays visually clean:
+   - excluded rows disappear from the working list
+   - reduced approvals reuse the existing Amount column
+   - no extra status column/tab is added
+===================================================== */
+
+function hasSavedPlanReview(payment){
+    if(!payment) return false;
+
+    const status = String(payment.planReviewStatus || "").trim().toLowerCase();
+    const reviewMonth = String(payment.planReviewMonth || "").trim();
+    const paymentMonth = String(payment.paymentMonth || "").trim();
+
+    return (
+        !!reviewMonth &&
+        reviewMonth === paymentMonth &&
+        ["included","excluded"].includes(status)
+    );
+}
+
+function isPlanReviewExcluded(payment){
+    return !!(
+        hasSavedPlanReview(payment) &&
+        String(payment.planReviewStatus || "").trim().toLowerCase() === "excluded"
+    );
+}
+
+function getPaymentPlanAmount(payment){
+    const original = Number(payment?.amount) || 0;
+
+    if(!hasSavedPlanReview(payment) || isPlanReviewExcluded(payment)){
+        return original;
+    }
+
+    const approved = Number(payment?.planApprovedAmount);
+
+    return Number.isFinite(approved) && approved >= 0
+        ? approved
+        : original;
+}
+
+function isPlanReviewReduced(payment){
+    if(!hasSavedPlanReview(payment) || isPlanReviewExcluded(payment)){
+        return false;
+    }
+
+    const original = Number(payment?.amount) || 0;
+    const approved = getPaymentPlanAmount(payment);
+
+    return approved >= 0 && approved < original - 0.0001;
+}
+
+
+/* =====================================================
    GET FILTERED PAYMENTS
 ===================================================== */
 
@@ -20230,6 +20295,7 @@ function getFilteredPayments(skipHeaderColumnIndex = null, scopeOverride = null,
         .filter(
             payment =>
                 payment.deleted !== true &&
+                !isPlanReviewExcluded(payment) &&
                 (isAdmin() || !isPaymentArchived(payment))
         )
         .filter(payment => !isPaymentLocallyHidden(payment))
@@ -20258,7 +20324,7 @@ function getFilteredPayments(skipHeaderColumnIndex = null, scopeOverride = null,
                 getSearchAmountKey(search);
 
             const itemAmount =
-                getSearchAmountKey(item.amount);
+                getSearchAmountKey(getPaymentPlanAmount(item));
 
             const matchAmount =
                 !!searchAmount &&
@@ -20758,11 +20824,15 @@ function updateSummary(
     const processRows = filtered.filter(item => !isPaymentCancelled(item));
 
     const sumPlanned = rows => rows.reduce(
-        (total,item) => total + (Number(item.amount) || 0),
+        (total,item) => total + getPaymentPlanAmount(item),
         0
     );
     const sumPaid = rows => rows.reduce(
-        (total,item) => total + (Number(item.processActualAmount) || Number(item.amount) || 0),
+        (total,item) => total + (
+            Number(item.processActualAmount) ||
+            getPaymentPlanAmount(item) ||
+            0
+        ),
         0
     );
     const setMeta = (id,count) => {
@@ -22202,6 +22272,134 @@ function isAdminActivityLog(item){
 }
 
 
+function planReviewAuditSummaries(){
+    const groups = new Map();
+
+    allPayments
+        .filter(p =>
+            p &&
+            p.deleted !== true &&
+            hasSavedPlanReview(p)
+        )
+        .forEach(p => {
+            const month = String(p.planReviewMonth || p.paymentMonth || "");
+            const project = String(p.project || "—");
+            const key = `${month}||${project}`;
+
+            if(!groups.has(key)){
+                groups.set(key,{
+                    month,
+                    project,
+                    included:0,
+                    reduced:0,
+                    excluded:0,
+                    proposal:0,
+                    approved:0,
+                    reviewedAt:null,
+                    operator:""
+                });
+            }
+
+            const g = groups.get(key);
+            const proposal = Number(p.amount) || 0;
+            const approved = isPlanReviewExcluded(p)
+                ? 0
+                : getPaymentPlanAmount(p);
+
+            g.proposal += proposal;
+            g.approved += approved;
+
+            if(isPlanReviewExcluded(p)){
+                g.excluded++;
+            }else{
+                g.included++;
+                if(isPlanReviewReduced(p)) g.reduced++;
+            }
+
+            const candidate =
+                p.planReviewedAt ||
+                p.planLockedAt ||
+                null;
+
+            if(candidate){
+                const dateValue = (() => {
+                    try{
+                        if(typeof candidate.toDate === "function") return candidate.toDate();
+                        if(typeof candidate.seconds === "number") return new Date(candidate.seconds * 1000);
+                        return new Date(candidate);
+                    }catch{
+                        return null;
+                    }
+                })();
+
+                const oldDate = (() => {
+                    try{
+                        if(!g.reviewedAt) return null;
+                        if(typeof g.reviewedAt.toDate === "function") return g.reviewedAt.toDate();
+                        if(typeof g.reviewedAt.seconds === "number") return new Date(g.reviewedAt.seconds * 1000);
+                        return new Date(g.reviewedAt);
+                    }catch{
+                        return null;
+                    }
+                })();
+
+                if(dateValue && (!oldDate || dateValue > oldDate)){
+                    g.reviewedAt = candidate;
+                }
+            }
+
+            if(!g.operator){
+                g.operator =
+                    p.planReviewedBy ||
+                    p.planLockedBy ||
+                    "";
+            }
+        });
+
+    return [...groups.values()]
+        .sort((a,b) => {
+            const ta = (()=>{try{return new Date(a.reviewedAt?.toDate ? a.reviewedAt.toDate() : a.reviewedAt || 0).getTime()||0}catch{return 0}})();
+            const tb = (()=>{try{return new Date(b.reviewedAt?.toDate ? b.reviewedAt.toDate() : b.reviewedAt || 0).getTime()||0}catch{return 0}})();
+            return tb - ta || b.month.localeCompare(a.month) || a.project.localeCompare(b.project);
+        });
+}
+
+function renderPlanReviewAuditRows(){
+    const rows = planReviewAuditSummaries();
+
+    if(!rows.length) return "";
+
+    return rows.map(item => {
+        const detail =
+            currentLanguage === "zh"
+                ? `已核准 ${item.included} 笔 · 调减 ${item.reduced} 笔 · 移出 ${item.excluded} 笔 · 核准 ${formatMoney(item.approved)}`
+                : currentLanguage === "en"
+                    ? `Approved ${item.included} · Reduced ${item.reduced} · Excluded ${item.excluded} · Approved total ${formatMoney(item.approved)}`
+                    : `Duyệt ${item.included} khoản · Giảm ${item.reduced} khoản · Loại ${item.excluded} khoản · Tổng duyệt ${formatMoney(item.approved)}`;
+
+        const label =
+            currentLanguage === "zh"
+                ? "计划审核"
+                : currentLanguage === "en"
+                    ? "PLAN REVIEW"
+                    : "DUYỆT KẾ HOẠCH";
+
+        return `
+            <div class="audit-row plan-review-audit-row">
+                <div>${escapeHTML(safeTimestampText(item.reviewedAt))}</div>
+                <div class="audit-action">${escapeHTML(label)}</div>
+                <div>${escapeHTML(item.operator || "—")}</div>
+                <div class="audit-detail">
+                    <strong>${escapeHTML(item.project)}</strong>
+                    · ${escapeHTML(item.month)}
+                    <div class="recycle-meta">${escapeHTML(detail)}</div>
+                </div>
+            </div>
+        `;
+    }).join("");
+}
+
+
 async function renderActivityLog(){
 
     const snapshot =
@@ -22232,7 +22430,9 @@ async function renderActivityLog(){
         item => !isAdminActivityLog(item)
     );
 
-    if(!visibleLogs.length){
+    const planReviewRows = renderPlanReviewAuditRows();
+
+    if(!visibleLogs.length && !planReviewRows){
 
         auditList.innerHTML =
             `<div class="empty">${escapeHTML(t("noAudit"))}</div>`;
@@ -22241,6 +22441,7 @@ async function renderActivityLog(){
     }
 
     auditList.innerHTML =
+        planReviewRows +
         visibleLogs
             .map(
                 item => {
@@ -25046,13 +25247,17 @@ function comparePaymentField(a,b,key,direction){
 
     const av =
         sortComparable(
-            a[key],
+            key === "amount"
+                ? getPaymentPlanAmount(a)
+                : a[key],
             type
         );
 
     const bv =
         sortComparable(
-            b[key],
+            key === "amount"
+                ? getPaymentPlanAmount(b)
+                : b[key],
             type
         );
 
@@ -26018,7 +26223,7 @@ function openPaymentTimeline(payment){
         </div>
         <div class="timeline-metric">
             <div class="timeline-metric-label">${escapeHTML(t("amount"))}</div>
-            <div class="timeline-metric-value">${escapeHTML(formatMoney(payment.amount))}</div>
+            <div class="timeline-metric-value">${escapeHTML(formatMoney(getPaymentPlanAmount(payment)))}</div>
         </div>
         <div class="timeline-metric">
             <div class="timeline-metric-label">CURRENT STEP</div>
@@ -26139,7 +26344,7 @@ function updatePaymentLiveTotalBar(rows){
     const copy = paymentBottomBarCopy();
 
     const totalPlan = visibleRows.reduce(
-        (sum,item) => sum + (Number(item.amount) || 0),
+        (sum,item) => sum + getPaymentPlanAmount(item),
         0
     );
 
@@ -26150,7 +26355,7 @@ function updatePaymentLiveTotalBar(rows){
             return sum + (
                 actual !== "" && actual != null && Number.isFinite(Number(actual))
                     ? Number(actual)
-                    : (Number(item.amount) || 0)
+                    : getPaymentPlanAmount(item)
             );
         },
         0
@@ -26161,7 +26366,7 @@ function updatePaymentLiveTotalBar(rows){
     );
 
     const selectedTotal = selectedRows.reduce(
-        (sum,item) => sum + (Number(item.amount) || 0),
+        (sum,item) => sum + getPaymentPlanAmount(item),
         0
     );
 
@@ -26231,6 +26436,7 @@ function renderPayments(){
         allPayments.filter(
             item =>
                 item.deleted !== true &&
+                !isPlanReviewExcluded(item) &&
                 (isAdmin() || !isPaymentArchived(item)) &&
                 (
                     !selectedPaymentMonth ||
@@ -26487,9 +26693,19 @@ function renderPayments(){
                 </td>
 
 
-                <td class="amount">
+                <td class="amount"
+                    ${isPlanReviewReduced(item)
+                        ? `title="${escapeHTML(
+                            currentLanguage === "zh"
+                                ? `计划审核调减：${formatMoney(item.amount)} → ${formatMoney(getPaymentPlanAmount(item))}`
+                                : currentLanguage === "en"
+                                    ? `Reduced in Plan Review: ${formatMoney(item.amount)} → ${formatMoney(getPaymentPlanAmount(item))}`
+                                    : `Plan Review duyệt giảm: ${formatMoney(item.amount)} → ${formatMoney(getPaymentPlanAmount(item))}`
+                        )}"`
+                        : ""}
+                >
                     ${formatMoney(
-                        item.amount
+                        getPaymentPlanAmount(item)
                     )}
                 </td>
 
@@ -37110,7 +37326,7 @@ exportExcelBtn.addEventListener(
                 { index:9,  label:COLUMN_LABELS[9], value:item => item.noMEPException ? "—" : (item.ipcNo || ""), width:12 },
                 { index:10,  label:COLUMN_LABELS[10], value:item => item.costType || "", width:18 },
                 { index:11,  label:COLUMN_LABELS[11], value:item => getPaymentContractType(item), width:18 },
-                { index:12,  label:COLUMN_LABELS[12], value:item => Number(item.amount) || 0, width:18 },
+                { index:12,  label:COLUMN_LABELS[12], value:item => getPaymentPlanAmount(item), width:18 },
                 { index:13,  label:COLUMN_LABELS[13], value:item => localizeCarryForwardRemark(item.remark || ""), width:30 },
                 { index:14,  label:COLUMN_LABELS[14], value:item => isDone(item.processPlatformPlan) ? "✓" : "", width:12 },
                 { index:15,  label:COLUMN_LABELS[15], value:item => isDone(item.processPaper) ? "✓" : "", width:10 },
@@ -37235,9 +37451,7 @@ exportExcelBtn.addEventListener(
                     ) =>
                         total +
                         (
-                            Number(
-                                item.amount
-                            ) || 0
+                            getPaymentPlanAmount(item)
                         ),
                     0
                 );
@@ -37915,7 +38129,7 @@ function getExcelExportColumns(scope){
         { index:9,  label:COLUMN_LABELS[9], value:item => item.noMEPException ? "—" : (item.ipcNo || ""), width:12 },
         { index:10, label:COLUMN_LABELS[10], value:item => item.costType || "", width:18 },
         { index:11, label:COLUMN_LABELS[11], value:item => getPaymentContractType(item), width:18 },
-        { index:12, label:COLUMN_LABELS[12], value:item => Number(item.amount) || 0, width:18 },
+        { index:12, label:COLUMN_LABELS[12], value:item => getPaymentPlanAmount(item), width:18 },
         { index:13, label:COLUMN_LABELS[13], value:item => localizeCarryForwardRemark(item.remark || ""), width:30 },
         { index:14, label:COLUMN_LABELS[14], value:item => isDone(item.processPlatformPlan) ? "✓" : "", width:12 },
         { index:15, label:COLUMN_LABELS[15], value:item => isDone(item.processPaper) ? "✓" : "", width:10 },
@@ -38011,7 +38225,7 @@ function appendExcelTotalRow(
                     Number(
                         sourceIndex === 21
                             ? item.processActualAmount
-                            : item.amount
+                            : getPaymentPlanAmount(item)
                     ) || 0
                 ),
             0
@@ -39091,7 +39305,10 @@ function getHeaderColumnRawValue(item,index){
         case 9: return item.noMEPException ? "" : item.ipcNo;
         case 10: return item.costType;
         case 11: return getPaymentContractType(item);
-        case 12: return Number.isFinite(Number(item.amount)) ? Number(item.amount) : "";
+        case 12: {
+            const value = getPaymentPlanAmount(item);
+            return Number.isFinite(Number(value)) ? Number(value) : "";
+        }
         case 13: return getHeaderColumnRemarkFilterValue(item.remark);
         case 14: return isDone(item.processPlatformPlan) ? "done" : "pending";
         case 15: return normalizePaperStatus(item.processPaper) || "pending";

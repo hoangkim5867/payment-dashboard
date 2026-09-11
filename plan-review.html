@@ -2540,6 +2540,41 @@ function scopePlanningPayments(){
 function isCurrentScopeLocked(){
   return activeProject?isProjectLocked(activeProject):isMonthLocked();
 }
+
+function unlockedPlanningProjects(){
+  return planningProjects().filter(project=>!isProjectLocked(project));
+}
+
+function nextUnlockedProject(afterProject=""){
+  const projects=planningProjects();
+  if(!projects.length)return "";
+
+  const start=Math.max(-1,projects.findIndex(p=>norm(p)===norm(afterProject)));
+  for(let step=1;step<=projects.length;step++){
+    const candidate=projects[(start+step)%projects.length];
+    if(candidate && !isProjectLocked(candidate))return candidate;
+  }
+  return "";
+}
+
+function syncReviewActionState(){
+  const btn=$("confirmBtn");
+  if(!btn)return;
+
+  const scopeLocked=isCurrentScopeLocked();
+  const hasRows=scopePlanningPayments().length>0;
+  btn.disabled=scopeLocked||!canConfirmPlan()||!hasRows;
+  btn.title=!canConfirmPlan()&&!scopeLocked
+    ?"Đăng nhập bằng tài khoản Người duyệt hoặc Quản trị viên"
+    :"";
+
+  const label=btn.querySelector("span");
+  if(label){
+    label.textContent=activeProject
+      ?(isChineseUI()?`锁定 ${activeProject}`:`CHỐT ${activeProject}`)
+      :(isChineseUI()?"确认并锁定整月":"XÁC NHẬN VÀ KHÓA TOÀN THÁNG");
+  }
+}
 function calcPayments(ps){
   let total=0,keep=0,gap=0,kc=0,ec=0,rc=0;
   (ps||[]).forEach(p=>{
@@ -3899,6 +3934,7 @@ function renderProjects(){
       const p=btn.dataset.project||"";
       activeProject=activeProject===p?"":p;
       render();
+      requestAnimationFrame(syncReviewActionState);
     };
   });
 }
@@ -4184,15 +4220,7 @@ function render(){
     $("monthStateChip").className="state-chip open";
   }
 
-  const confirmLabel=$("confirmBtn")?.querySelector("span");
-  if(confirmLabel){
-    confirmLabel.textContent=activeProject
-      ?(isChineseUI()?`锁定 ${activeProject}`:`CHỐT ${activeProject}`)
-      :(isChineseUI()?"确认并锁定整月":"XÁC NHẬN VÀ KHÓA TOÀN THÁNG");
-  }
-
-  $("confirmBtn").disabled=scopeLocked||!canConfirmPlan()||!scopePlanningPayments().length;
-  $("confirmBtn").title=!canConfirmPlan()&&!scopeLocked?"Đăng nhập bằng tài khoản Người duyệt hoặc Quản trị viên":"";
+  syncReviewActionState();
   $("keepAllBtn").disabled=!unlockedVisible.length;
   $("excludeAllBtn").disabled=!unlockedVisible.length;
 
@@ -4687,7 +4715,7 @@ loadHiddenReviewColumns();
 
 
 $("fundingViewBtn").onclick=()=>setReviewView("funding");
-$("paymentViewBtn").onclick=()=>setReviewView("payment");
+$("paymentViewBtn").onclick=()=>{setReviewView("payment");requestAnimationFrame(syncReviewActionState)};
 $("goPaymentAllBtn").onclick=()=>{activeProject="";setReviewView("payment");render()};
 $("importCashOpeningBtn").onclick=importOpeningFromCashControl;
 monthSelect.onchange=async()=>{
@@ -4719,7 +4747,7 @@ if($("fundingCutoffDate"))$("fundingCutoffDate").onchange=async()=>{
   render();
 };
 sortSelect.onchange=()=>{reviewHeaderSort={key:"",dir:""};render()};
-$("clearProjectBtn").onclick=()=>{activeProject="";render()};
+$("clearProjectBtn").onclick=()=>{activeProject="";render();requestAnimationFrame(syncReviewActionState)};
 $("refreshBtn").onclick=loadPayments;
 $("keepAllBtn").onclick=()=>{
   if(!canReview()){
@@ -4814,11 +4842,21 @@ $("doConfirmBtn").onclick=async()=>{
       });
 
       $("confirmModal").classList.remove("show");
-      render();
 
-      alert(changed.length
-        ?`✅ Đã chốt ${scopeProject}. Chỉ cập nhật ${changed.length} khoản có thay đổi.`
-        :`✅ Đã chốt ${scopeProject}. Không có khoản nào cần ghi lại.`);
+      const nextProject=nextUnlockedProject(scopeProject);
+      activeProject=nextProject||"";
+      render();
+      requestAnimationFrame(syncReviewActionState);
+
+      alert(
+        nextProject
+          ?(
+              changed.length
+                ?`✅ Đã chốt ${scopeProject}. Đã chuyển sang ${nextProject}.`
+                :`✅ Đã chốt ${scopeProject}. Đã chuyển sang ${nextProject}.`
+            )
+          :`✅ Đã chốt ${scopeProject}. Không còn dự án nào chờ chốt.`
+      );
       return;
     }
 
@@ -4865,6 +4903,7 @@ $("doConfirmBtn").onclick=async()=>{
   }finally{
     $("doConfirmBtn").disabled=false;
     $("doConfirmBtn").textContent="XÁC NHẬN KHÓA";
+    syncReviewActionState();
   }
 };
 $("unlockBtn").onclick=async()=>{
