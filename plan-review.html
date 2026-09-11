@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="plan-review-build" content="2026-09-11-frozen-plan-snapshot">
 <title>Duyệt kế hoạch thanh toán</title>
 <style>
 *{box-sizing:border-box}
@@ -2279,7 +2280,6 @@ button,input,select,textarea,
 <div class="footer-bar">
     <div class="footer-summary" id="footerSummary">Chưa có dữ liệu.</div>
     <div class="footer-actions">
-      <button id="resetReviewBtn" class="toolbar-btn exclude-btn" style="display:none">↺ Reset dữ liệu duyệt</button>
       <button id="unlockBtn" class="toolbar-btn exclude-btn" style="display:none">Mở khóa kế hoạch</button>
       <button id="confirmBtn" class="confirm-btn"><span data-i18n="confirmLock">XÁC NHẬN VÀ KHÓA KẾ HOẠCH</span></button>
     </div>
@@ -2385,19 +2385,15 @@ function isReviewOwner(){
   return !!currentUser&&currentRole==="admin"&&email==="lehoangoanh@cscecmep.internal";
 }
 
-/* Dedicated Plan Review reviewer.
-   IMPORTANT: this does NOT change the user's Payment role.
-   lujunye remains "staff" everywhere else. */
 function isPlanReviewReviewer(){
-  const email=String(currentUser?.email||"").trim().toLowerCase();
-  return !!currentUser&&currentRole==="staff"&&email==="lujunye@cscecmep.internal";
+  return false;
 }
 
 function hasPlanReviewAccess(){
-  return isReviewOwner()||isPlanReviewReviewer();
+  return isReviewOwner();
 }
 
-/* Full Plan Review operations for the owner + dedicated reviewer only. */
+/* Full Plan Review operations for owner admin only. */
 function canReview(){
   return hasPlanReviewAccess();
 }
@@ -2516,6 +2512,18 @@ async function saveProjectLockState(project,locked){
   snap.exists=true;
   monthlyFundingSnapshots.set(month,snap);
 }
+function planProposalAmount(p){
+  const current=Number(p?.amount)||0;
+  const sameMonth=String(p?.planReviewMonth||"")===String(monthSelect.value||"");
+  const frozen=Number(p?.planProposalAmount);
+  const projectLocked=!!p && isProjectLocked(p.project);
+
+  if(projectLocked && sameMonth && Number.isFinite(frozen) && frozen>=0){
+    return frozen;
+  }
+  return current;
+}
+
 function reviewFieldsChanged(p){
   const nextStatus=draftStatus.get(p.id)||"included";
   const nextApproved=nextStatus==="excluded"
@@ -2544,7 +2552,7 @@ function isCurrentScopeLocked(){
 function calcPayments(ps){
   let total=0,keep=0,gap=0,kc=0,ec=0,rc=0;
   (ps||[]).forEach(p=>{
-    const proposal=Number(p.amount)||0;
+    const proposal=planProposalAmount(p);
     total+=proposal;
     if((draftStatus.get(p.id)||"included")==="excluded"){
       ec++;
@@ -2563,37 +2571,19 @@ function seedDraft(){
   activeMonthPayments().forEach(p=>{
     const st=p.planReviewStatus==="excluded"?"excluded":"included";
     draftStatus.set(p.id,st);
-    const base = p.planApprovedAmount !== "" && p.planApprovedAmount != null
+
+    const hasSavedApproved =
+      String(p.planReviewMonth||"")===String(monthSelect.value||"") &&
+      p.planApprovedAmount !== "" &&
+      p.planApprovedAmount != null;
+
+    const base = hasSavedApproved
       ? Number(p.planApprovedAmount)
-      : Number(p.amount)||0;
+      : planProposalAmount(p);
+
     draftApprovedAmount.set(p.id, st==="excluded" ? 0 : base);
   });
 }
-
-function resetDraftForPayments(ps){
-  (ps||[]).forEach(p=>{
-    draftStatus.set(p.id,"included");
-    draftApprovedAmount.set(p.id,Number(p.amount)||0);
-
-    p.planReviewStatus="";
-    p.planApprovedAmount=null;
-    p.planReviewMonth="";
-    p.planReviewedAt=null;
-    p.planReviewedBy="";
-    p.planReviewedByUid="";
-    p.planLocked=false;
-    p.planLockedAt=null;
-    p.planLockedBy="";
-    p.planLockedByUid="";
-  });
-}
-
-function currentResetScopePayments(){
-  return activeProject
-    ? activeMonthPayments().filter(p=>norm(p.project||"—")===norm(activeProject))
-    : activeMonthPayments();
-}
-
 function fillFilters(){
   const months=[...new Set(allPayments.filter(p=>p.deleted!==true).map(p=>p.paymentMonth).filter(Boolean))].sort().reverse();
   const prev=monthSelect.value;
@@ -2765,11 +2755,11 @@ function projectPlanStats(){
     if(isPaidPayment(p)){
       const raw=p.processActualAmount;
       s.paidCount++;
-      s.paidActual+=raw!==""&&raw!=null&&Number.isFinite(Number(raw))?Number(raw):(Number(p.amount)||0);
+      s.paidActual+=raw!==""&&raw!=null&&Number.isFinite(Number(raw))?Number(raw):(planProposalAmount(p));
       map.set(project,s);
       return;
     }
-    const proposal=Number(p.amount)||0, st=draftStatus.get(p.id)||"included";
+    const proposal=planProposalAmount(p), st=draftStatus.get(p.id)||"included";
     s.count++;s.proposal+=proposal;
     if(st!=="excluded"){
       const approved=Math.max(0,Number(draftApprovedAmount.get(p.id) ?? proposal)||0);
@@ -3166,7 +3156,7 @@ function buildDetailSheet(){
   const rows=planningMonthPayments().slice().sort((a,b)=>String(a.project||"").localeCompare(String(b.project||""),undefined,{numeric:true,sensitivity:"base"})||timeValue(a.createdAt)-timeValue(b.createdAt));
   const headers=[L.project,L.person,L.company,L.contract,L.ipc,L.cost,L.content,L.proposal,L.approved,L.remark,L.review];
   const data=rows.map(p=>{
-    const proposal=Number(p.amount)||0,st=draftStatus.get(p.id)||"included",approved=st==="excluded"?0:Math.max(0,Number(draftApprovedAmount.get(p.id)??proposal)||0);
+    const proposal=planProposalAmount(p),st=draftStatus.get(p.id)||"included",approved=st==="excluded"?0:Math.max(0,Number(draftApprovedAmount.get(p.id)??proposal)||0);
     const status=st==="excluded"?L.excluded:(approved<proposal?L.reduced:L.included);
     return [p.project||"",p.personInCharge||"",p.company||"",p.contractNo||"",p.ipcNo||"",p.costType||"",p.contractName||"",proposal,approved,p.remark||"",status];
   });
@@ -4230,14 +4220,6 @@ function render(){
     ?(isChineseUI()?`解锁 ${activeProject}`:`Mở khóa ${activeProject}`)
     :(isChineseUI()?"解锁整月":"Mở khóa toàn tháng");
 
-  const resetBtn=$("resetReviewBtn");
-  if(resetBtn){
-    resetBtn.style.display=isAdmin()?"":"none";
-    resetBtn.textContent=activeProject
-      ?(isChineseUI()?`↺ 重置 ${activeProject}`:`↺ Reset ${activeProject}`)
-      :(isChineseUI()?"↺ 重置本月审核":"↺ Reset duyệt tháng");
-  }
-
   const notice=$("lockNotice");
   if(activeProject&&isProjectLocked(activeProject)){
     notice.className="notice show";
@@ -4261,7 +4243,7 @@ function render(){
 
   reviewBody.innerHTML=vis.length?vis.map(p=>{
     const st=draftStatus.get(p.id)||"included";
-    const proposal=Number(p.amount)||0;
+    const proposal=planProposalAmount(p);
     const approved=Math.max(0,Number(draftApprovedAmount.get(p.id) ?? proposal)||0);
     const rowLocked=isProjectLocked(p.project);
     const disabled=rowLocked?"disabled":"";
@@ -4314,13 +4296,7 @@ function render(){
       if(next==="excluded"){
         draftApprovedAmount.set(id,0);
       }else if((Number(draftApprovedAmount.get(id))||0)<=0){
-        const savedApproved =
-          p?.planReviewMonth === monthSelect.value &&
-          p?.planApprovedAmount !== "" &&
-          p?.planApprovedAmount != null
-            ? Number(p.planApprovedAmount)
-            : Number(p?.amount)||0;
-        draftApprovedAmount.set(id,savedApproved);
+        draftApprovedAmount.set(id,Number(p?.planApprovedAmount ?? p?.amount)||0);
       }
       render();
     };
@@ -4362,23 +4338,92 @@ function render(){
   if(currentReviewView==="funding")renderFundingView();
 }
 
-async function loadPayments(){
-  reviewBody.innerHTML='<tr><td colspan="12" class="empty">⏳ Đang tải dữ liệu...</td></tr>';
+async function fetchPaymentDocsOnce(){
   const snap=await getDocs(paymentsRef);
-  allPayments=snap.docs.map(d=>({id:d.id,...d.data()}));
-  fillFilters();
-  seedDraft();
-  if(authStateReady&&currentUser&&monthSelect.value){
-    try{await loadMonthlyFundingSnapshot(monthSelect.value,{quiet:true})}catch{}
+  return snap.docs.map(d=>({id:d.id,...d.data()}));
+}
+
+async function loadPayments(){
+  reviewBody.innerHTML='<tr><td colspan="12" class="empty">⏳ Đang tải dữ liệu Payment...</td></tr>';
+
+  let rows=[];
+  let firstError=null;
+
+  try{
+    rows=await fetchPaymentDocsOnce();
+  }catch(error){
+    firstError=error;
+    console.warn("PLAN REVIEW FIRST PAYMENT LOAD FAILED",error);
   }
+
+  /* One retry handles the occasional auth/persistence timing gap.
+     Never keep a silent all-zero screen. */
+  if(!rows.length && currentUser){
+    await new Promise(resolve=>setTimeout(resolve,350));
+    try{
+      rows=await fetchPaymentDocsOnce();
+    }catch(error){
+      if(!firstError)firstError=error;
+      console.error("PLAN REVIEW PAYMENT RETRY FAILED",error);
+    }
+  }
+
+  if(!rows.length){
+    allPayments=[];
+    fillFilters();
+    seedDraft();
+    render();
+
+    const message=firstError
+      ? `❌ Không tải được dữ liệu Payment: ${escapeHtml(firstError.message||String(firstError))}`
+      : `⚠️ Firebase trả về 0 Payment. Hãy bấm Làm mới; nếu Payment vẫn có dữ liệu thì kiểm tra quyền đọc collection payments.`;
+
+    reviewBody.innerHTML=`<tr><td colspan="12" class="empty">${message}</td></tr>`;
+
+    const notice=$("lockNotice");
+    if(notice){
+      notice.className="notice show";
+      notice.textContent=firstError
+        ?`Không đọc được Payment: ${firstError.message||firstError}`
+        :"Plan Review hiện không nhận được dữ liệu từ collection payments.";
+    }
+    return;
+  }
+
+  allPayments=rows;
+  fillFilters();
+
+  /* Prefer the current calendar month if it exists in Payment. */
+  const currentMonth=new Date().toISOString().slice(0,7);
+  const availableMonths=[...new Set(
+    allPayments
+      .filter(p=>p.deleted!==true)
+      .map(p=>p.paymentMonth)
+      .filter(Boolean)
+  )];
+  if(availableMonths.includes(currentMonth)){
+    monthSelect.value=currentMonth;
+  }
+
+  seedDraft();
+
+  if(authStateReady&&currentUser&&monthSelect.value){
+    try{
+      await loadMonthlyFundingSnapshot(monthSelect.value,{quiet:true});
+    }catch(error){
+      console.warn("MONTHLY SNAPSHOT OPTIONAL LOAD FAILED",error);
+    }
+  }
+
   syncFundingCutoffInput(true);
+
+  /* Open the payment list after a successful load so data visibility is obvious. */
+  currentReviewView="payment";
+  setReviewView("payment");
   render();
 }
 async function loadProfile(user){if(!user){currentProfile=null;currentOperator="";currentRole="";return}const snap=await getDoc(doc(db,"authUsers",user.uid));if(!snap.exists()){currentProfile=null;currentOperator=user.email||"";currentRole="";return}currentProfile=snap.data();currentOperator=String(currentProfile.displayName||user.email||"").trim();currentRole=String(currentProfile.role||"").toLowerCase()}
 function roleDisplayName(role){
-  if(isPlanReviewReviewer()){
-    return isChineseUI()?"审核人":"NGƯỜI DUYỆT";
-  }
   if(isChineseUI()){
     if(role==="admin")return "管理员";
     if(role==="reviewer")return "审核人";
@@ -4760,7 +4805,7 @@ if($("fundingCutoffDate"))$("fundingCutoffDate").onchange=async()=>{
 };
 sortSelect.onchange=()=>{reviewHeaderSort={key:"",dir:""};render()};
 $("clearProjectBtn").onclick=()=>{activeProject="";render()};
-$("refreshBtn").onclick=loadPayments;
+$("refreshBtn").onclick=async()=>{await loadPayments()};
 $("keepAllBtn").onclick=()=>{
   if(!canReview()){
     $("loginModal").classList.add("show");
@@ -4768,18 +4813,7 @@ $("keepAllBtn").onclick=()=>{
     $("loginError").textContent="Vui lòng đăng nhập bằng tài khoản Người duyệt hoặc Quản trị viên.";
     return;
   }
-  getVisible().filter(p=>!isProjectLocked(p.project)).forEach(p=>{
-    draftStatus.set(p.id,"included");
-    if((Number(draftApprovedAmount.get(p.id))||0)<=0){
-      const savedApproved =
-        p.planReviewMonth === monthSelect.value &&
-        p.planApprovedAmount !== "" &&
-        p.planApprovedAmount != null
-          ? Number(p.planApprovedAmount)
-          : Number(p.amount)||0;
-      draftApprovedAmount.set(p.id,savedApproved);
-    }
-  });
+  getVisible().filter(p=>!isProjectLocked(p.project)).forEach(p=>{draftStatus.set(p.id,"included");if((Number(draftApprovedAmount.get(p.id))||0)<=0)draftApprovedAmount.set(p.id,Number(p.planApprovedAmount ?? p.amount)||0)});
   render();
 };
 $("excludeAllBtn").onclick=()=>{
@@ -4826,18 +4860,28 @@ $("doConfirmBtn").onclick=async()=>{
 
   try{
     if(scopeProject){
-      // Only write rows whose review result really changed.
-      const changed=ps.filter(reviewFieldsChanged);
+      // Freeze every row's proposal at the moment the project is locked.
+      // Review fields are written together so later Payment edits do not alter this snapshot.
+      const changed=ps.filter(p=>{
+        const missingProposalSnapshot =
+          String(p.planReviewMonth||"")!==String(monthSelect.value||"") ||
+          p.planProposalAmount === "" ||
+          p.planProposalAmount == null ||
+          !Number.isFinite(Number(p.planProposalAmount));
+        return reviewFieldsChanged(p) || missingProposalSnapshot;
+      });
 
       for(let i=0;i<changed.length;i+=400){
         const batch=writeBatch(db);
         changed.slice(i,i+400).forEach(p=>{
           const status=draftStatus.get(p.id)||"included";
+          const proposal=Number(p.amount)||0;
           const approved=status==="excluded"
             ?0
-            :Math.max(0,Number(draftApprovedAmount.get(p.id) ?? p.amount)||0);
+            :Math.max(0,Number(draftApprovedAmount.get(p.id) ?? proposal)||0);
           batch.update(doc(db,"payments",p.id),{
             planReviewStatus:status,
+            planProposalAmount:proposal,
             planApprovedAmount:approved,
             planReviewMonth:monthSelect.value,
             planReviewedAt:serverTimestamp(),
@@ -4854,10 +4898,12 @@ $("doConfirmBtn").onclick=async()=>{
       // Update local rows only; no full reload from Firebase.
       ps.forEach(p=>{
         const status=draftStatus.get(p.id)||"included";
+        const proposal=Number(p.amount)||0;
         p.planReviewStatus=status;
+        p.planProposalAmount=proposal;
         p.planApprovedAmount=status==="excluded"
           ?0
-          :Math.max(0,Number(draftApprovedAmount.get(p.id) ?? p.amount)||0);
+          :Math.max(0,Number(draftApprovedAmount.get(p.id) ?? proposal)||0);
         p.planReviewMonth=monthSelect.value;
         p.planReviewedAt=new Date();
         p.planReviewedBy=currentOperator||currentUser.email||"";
@@ -4897,9 +4943,10 @@ $("doConfirmBtn").onclick=async()=>{
     const now=new Date();
     ps.forEach(p=>{
       p.planReviewStatus=draftStatus.get(p.id)||"included";
+      p.planProposalAmount=Number(p.amount)||0;
       p.planApprovedAmount=p.planReviewStatus==="excluded"
         ?0
-        :Math.max(0,Number(draftApprovedAmount.get(p.id) ?? p.amount)||0);
+        :Math.max(0,Number(draftApprovedAmount.get(p.id) ?? p.planProposalAmount)||0);
       p.planReviewMonth=monthSelect.value;
       p.planLocked=true;
       p.planLockedAt=now;
@@ -4918,92 +4965,6 @@ $("doConfirmBtn").onclick=async()=>{
     $("doConfirmBtn").textContent="XÁC NHẬN KHÓA";
   }
 };
-
-$("resetReviewBtn").onclick=async()=>{
-  if(!isAdmin())return;
-
-  const scopeProject=activeProject;
-  const ps=currentResetScopePayments();
-
-  if(!ps.length){
-    alert("Không có dữ liệu để reset.");
-    return;
-  }
-
-  const label=scopeProject
-    ?`dự án ${scopeProject}`
-    :`toàn bộ tháng ${monthValue(monthSelect.value)}`;
-
-  const ok=confirm(
-    `RESET DỮ LIỆU ĐÃ DUYỆT của ${label}?\n\n`+
-    `• Số tiền duyệt sẽ trở về Số tiền đề xuất ban đầu\n`+
-    `• Trạng thái Duyệt / Loại sẽ trở về mặc định Duyệt\n`+
-    `• Xóa trạng thái khóa/chốt của phạm vi này\n`+
-    `• KHÔNG xóa Payment gốc\n\n`+
-    `Dùng chức năng này khi muốn bắt đầu duyệt lại từ đầu.`
-  );
-  if(!ok)return;
-
-  const btn=$("resetReviewBtn");
-  btn.disabled=true;
-  const oldText=btn.textContent;
-  btn.textContent="Đang reset...";
-
-  try{
-    // Clear saved review fields on payments in batches.
-    for(let i=0;i<ps.length;i+=400){
-      const batch=writeBatch(db);
-      ps.slice(i,i+400).forEach(p=>{
-        batch.update(doc(db,"payments",p.id),{
-          planReviewStatus:"",
-          planApprovedAmount:null,
-          planReviewMonth:"",
-          planReviewedAt:null,
-          planReviewedBy:"",
-          planReviewedByUid:"",
-          planLocked:false,
-          planLockedAt:null,
-          planLockedBy:"",
-          planLockedByUid:"",
-          planUnlockedAt:serverTimestamp(),
-          planUnlockedBy:currentOperator||currentUser.email||"",
-          planUnlockedByUid:currentUser.uid
-        });
-      });
-      await batch.commit();
-    }
-
-    // Remove project-level lock marker too.
-    if(scopeProject){
-      await saveProjectLockState(scopeProject,false);
-    }else{
-      const projects=planningProjects();
-      for(const project of projects){
-        if(isProjectLocked(project)){
-          await saveProjectLockState(project,false);
-        }
-      }
-    }
-
-    // Reset local state immediately: original proposal amount becomes approved amount.
-    resetDraftForPayments(ps);
-    render();
-
-    alert(
-      scopeProject
-        ?`✅ Đã reset dữ liệu duyệt của ${scopeProject}. Số tiền duyệt đã trở về số đề xuất ban đầu.`
-        :`✅ Đã reset dữ liệu duyệt tháng ${monthValue(monthSelect.value)}. Có thể bắt đầu duyệt lại từ đầu.`
-    );
-  }catch(e){
-    console.error(e);
-    alert("❌ Không thể reset dữ liệu duyệt:\n"+e.message);
-  }finally{
-    btn.disabled=false;
-    btn.textContent=oldText;
-    render();
-  }
-};
-
 $("unlockBtn").onclick=async()=>{
   if(!canUnlock())return;
   const scopeProject=activeProject;
@@ -5013,8 +4974,22 @@ $("unlockBtn").onclick=async()=>{
   try{
     if(scopeProject){
       await saveProjectLockState(scopeProject,false);
+
+      projectMonthPayments(scopeProject).forEach(p=>{
+        draftStatus.set(
+          p.id,
+          p.planReviewStatus==="excluded" ? "excluded" : "included"
+        );
+        const currentProposal=Number(p.amount)||0;
+        const currentStatus=draftStatus.get(p.id)||"included";
+        draftApprovedAmount.set(
+          p.id,
+          currentStatus==="excluded" ? 0 : currentProposal
+        );
+      });
+
       render();
-      alert(`✅ Đã mở khóa ${scopeProject}.`);
+      alert(`✅ Đã mở khóa ${scopeProject}. Số đề xuất đã cập nhật theo Payment hiện tại.`);
       return;
     }
 
@@ -5054,10 +5029,12 @@ onAuthStateChanged(auth,async user=>{
     return;
   }
   if(!hasPlanReviewAccess()){
-    alert(isChineseUI()
+    document.body.classList.remove("auth-checking");
+    const msg=isChineseUI()
       ?"🔒 当前账号没有计划审核权限。"
-      :"🔒 Tài khoản này chưa được cấp quyền Plan Review.");
-    window.location.replace("./index.html");
+      :"🔒 Tài khoản này chưa được cấp quyền Plan Review.";
+    alert(msg);
+    reviewBody.innerHTML=`<tr><td colspan="12" class="empty">${escapeHtml(msg)}</td></tr>`;
     return;
   }
   document.body.classList.remove("auth-checking");
