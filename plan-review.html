@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="plan-review-build" content="2026-09-11-frozen-plan-snapshot">
+<meta name="plan-review-build" content="2026-09-11-frozen-plan-with-hard-reset">
 <title>Duyệt kế hoạch thanh toán</title>
 <style>
 *{box-sizing:border-box}
@@ -2280,6 +2280,7 @@ button,input,select,textarea,
 <div class="footer-bar">
     <div class="footer-summary" id="footerSummary">Chưa có dữ liệu.</div>
     <div class="footer-actions">
+      <button id="resetReviewBtn" class="toolbar-btn exclude-btn" style="display:none">↺ RESET DUYỆT</button>
       <button id="unlockBtn" class="toolbar-btn exclude-btn" style="display:none">Mở khóa kế hoạch</button>
       <button id="confirmBtn" class="confirm-btn"><span data-i18n="confirmLock">XÁC NHẬN VÀ KHÓA KẾ HOẠCH</span></button>
     </div>
@@ -2402,6 +2403,9 @@ function canConfirmPlan(){
 }
 function canUnlock(){
   return hasPlanReviewAccess();
+}
+function canResetReview(){
+  return isReviewOwner();
 }
 function monthEndDate(month){
   const parts=String(month||"").split("-").map(Number), year=parts[0], value=parts[1];
@@ -2584,6 +2588,84 @@ function seedDraft(){
     draftApprovedAmount.set(p.id, st==="excluded" ? 0 : base);
   });
 }
+
+function resetDraftStateForPayments(ps){
+  (ps||[]).forEach(p=>{
+    p.planReviewStatus="";
+    p.planProposalAmount=null;
+    p.planApprovedAmount=null;
+    p.planReviewMonth="";
+    p.planReviewedAt=null;
+    p.planReviewedBy="";
+    p.planReviewedByUid="";
+    p.planLocked=false;
+    p.planLockedAt=null;
+    p.planLockedBy="";
+    p.planLockedByUid="";
+
+    draftStatus.set(p.id,"included");
+    draftApprovedAmount.set(p.id,Number(p.amount)||0);
+  });
+}
+
+function currentResetScopePayments(){
+  if(activeProject){
+    return activeMonthPayments().filter(
+      p=>norm(p.project||"—")===norm(activeProject)
+    );
+  }
+  return activeMonthPayments();
+}
+
+async function clearProjectLockMarker(project){
+  const month=monthSelect.value;
+  const snap=monthlyFundingSnapshots.get(month)||emptyMonthlySnapshot(month);
+
+  if(snap.projectLocks&&typeof snap.projectLocks==="object"){
+    const next={...snap.projectLocks};
+    delete next[project];
+
+    // Also remove normalized duplicate keys if any.
+    Object.keys(next).forEach(key=>{
+      const row=next[key];
+      const rowProject=(row&&typeof row==="object")?row.project:key;
+      if(norm(rowProject)===norm(project))delete next[key];
+    });
+
+    snap.projectLocks=next;
+    monthlyFundingSnapshots.set(month,snap);
+
+    await setDoc(
+      doc(db,CASH_MONTHLY_SNAPSHOT_COLLECTION,month),
+      {
+        month,
+        projectLocks:next,
+        projectLocksUpdatedAt:serverTimestamp(),
+        projectLocksUpdatedBy:currentOperator||currentUser?.email||""
+      },
+      {merge:true}
+    );
+  }
+}
+
+async function clearAllProjectLockMarkers(){
+  const month=monthSelect.value;
+  const snap=monthlyFundingSnapshots.get(month)||emptyMonthlySnapshot(month);
+  snap.projectLocks={};
+  monthlyFundingSnapshots.set(month,snap);
+
+  await setDoc(
+    doc(db,CASH_MONTHLY_SNAPSHOT_COLLECTION,month),
+    {
+      month,
+      projectLocks:{},
+      projectLocksUpdatedAt:serverTimestamp(),
+      projectLocksUpdatedBy:currentOperator||currentUser?.email||""
+    },
+    {merge:true}
+  );
+}
+
 function fillFilters(){
   const months=[...new Set(allPayments.filter(p=>p.deleted!==true).map(p=>p.paymentMonth).filter(Boolean))].sort().reverse();
   const prev=monthSelect.value;
@@ -4212,6 +4294,14 @@ function render(){
   $("keepAllBtn").disabled=!unlockedVisible.length;
   $("excludeAllBtn").disabled=!unlockedVisible.length;
 
+  const resetBtn=$("resetReviewBtn");
+  if(resetBtn){
+    resetBtn.style.display=canResetReview()?"":"none";
+    resetBtn.textContent=activeProject
+      ?(isChineseUI()?`↺ 重置 ${activeProject}`:`↺ RESET ${activeProject}`)
+      :(isChineseUI()?"↺ 重置本月审核":"↺ RESET DUYỆT THÁNG");
+  }
+
   const canShowUnlock=activeProject
     ?isProjectLocked(activeProject)&&canUnlock()
     :locked&&canUnlock();
@@ -4296,7 +4386,10 @@ function render(){
       if(next==="excluded"){
         draftApprovedAmount.set(id,0);
       }else if((Number(draftApprovedAmount.get(id))||0)<=0){
-        draftApprovedAmount.set(id,Number(p?.planApprovedAmount ?? p?.amount)||0);
+        const proposal=isProjectLocked(p?.project)
+          ?planProposalAmount(p)
+          :(Number(p?.amount)||0);
+        draftApprovedAmount.set(id,proposal);
       }
       render();
     };
@@ -4965,6 +5058,97 @@ $("doConfirmBtn").onclick=async()=>{
     $("doConfirmBtn").textContent="XÁC NHẬN KHÓA";
   }
 };
+
+$("resetReviewBtn").onclick=async()=>{
+  if(!canResetReview())return;
+
+  const scopeProject=activeProject;
+  const ps=currentResetScopePayments();
+
+  if(!ps.length){
+    alert("Không có dữ liệu Payment trong phạm vi này để reset.");
+    return;
+  }
+
+  const label=scopeProject
+    ?`dự án ${scopeProject}`
+    :`toàn bộ tháng ${monthValue(monthSelect.value)}`;
+
+  const ok=confirm(
+    `RESET TOÀN BỘ DỮ LIỆU DUYỆT của ${label}?\n\n`+
+    `• Xóa trạng thái Duyệt / Loại cũ\n`+
+    `• Xóa số tiền duyệt cũ\n`+
+    `• Xóa snapshot số đề xuất đã chốt cũ\n`+
+    `• Xóa trạng thái khóa/chốt\n`+
+    `• Số duyệt trở về số hiện tại bên Payment\n`+
+    `• KHÔNG xóa Payment\n\n`+
+    `Sau reset có thể duyệt lại từ đầu.`
+  );
+  if(!ok)return;
+
+  const btn=$("resetReviewBtn");
+  btn.disabled=true;
+  const oldText=btn.textContent;
+  btn.textContent="Đang reset...";
+
+  try{
+    for(let i=0;i<ps.length;i+=400){
+      const batch=writeBatch(db);
+
+      ps.slice(i,i+400).forEach(p=>{
+        batch.update(doc(db,"payments",p.id),{
+          planReviewStatus:"",
+          planProposalAmount:null,
+          planApprovedAmount:null,
+          planReviewMonth:"",
+          planReviewedAt:null,
+          planReviewedBy:"",
+          planReviewedByUid:"",
+          planLocked:false,
+          planLockedAt:null,
+          planLockedBy:"",
+          planLockedByUid:"",
+          planUnlockedAt:serverTimestamp(),
+          planUnlockedBy:currentOperator||currentUser.email||"",
+          planUnlockedByUid:currentUser.uid
+        });
+      });
+
+      await batch.commit();
+    }
+
+    if(scopeProject){
+      await clearProjectLockMarker(scopeProject);
+    }else{
+      await clearAllProjectLockMarkers();
+    }
+
+    resetDraftStateForPayments(ps);
+
+    // Stay on current project if resetting one project.
+    // If whole month, return to All Projects.
+    if(!scopeProject)activeProject="";
+
+    render();
+    requestAnimationFrame(()=>{
+      if(typeof syncReviewActionState==="function")syncReviewActionState();
+    });
+
+    alert(
+      scopeProject
+        ?`✅ Đã reset ${scopeProject}. Số duyệt đã trở về số Payment hiện tại.`
+        :`✅ Đã reset toàn bộ duyệt tháng ${monthValue(monthSelect.value)}. Có thể làm lại từ đầu.`
+    );
+  }catch(error){
+    console.error("RESET PLAN REVIEW ERROR",error);
+    alert("❌ Không reset được dữ liệu duyệt:\n"+(error.message||error));
+  }finally{
+    btn.disabled=false;
+    btn.textContent=oldText;
+    render();
+  }
+};
+
 $("unlockBtn").onclick=async()=>{
   if(!canUnlock())return;
   const scopeProject=activeProject;
