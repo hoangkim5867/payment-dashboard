@@ -30,6 +30,10 @@
     @media(max-width:680px){main{place-items:start center;padding-top:54px}.grid{grid-template-columns:1fr}.card-primary{grid-row:auto;min-height:190px}.card{min-height:132px}.heading{margin-bottom:22px}}
     @media(max-width:480px){.chat-launcher{right:14px;bottom:calc(14px + env(safe-area-inset-bottom))}.chat-panel{right:14px;bottom:calc(78px + env(safe-area-inset-bottom));height:min(520px,calc(100dvh - 98px));border-radius:16px}}
     @media(prefers-reduced-motion:reduce){.chat-launcher,.chat-panel{transition:none}}
+
+    .lang-switch{display:inline-flex;gap:2px;padding:3px;border:1px solid #d4dee8;border-radius:9px;background:#fff;margin-left:auto}
+    .lang-switch button{height:26px;min-width:34px;padding:0 8px;border:0;border-radius:6px;color:#6b7d8f;background:transparent;font-size:9px;font-weight:850}
+    .lang-switch button.active{color:#fff;background:var(--navy)}
   </style>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-6QQBQ1C6FE"></script>
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-6QQBQ1C6FE');</script>
@@ -37,27 +41,32 @@
 <body>
   <header class="topbar">
     <a class="brand" href="./"><img class="brand-mark" src="./logo.png" alt="CSCEC"><span>中建二局安装工程有限公司</span></a>
-    <div class="account-bar" id="accountBar" hidden><div class="account-copy"><strong id="accountName">—</strong><small id="accountRole">—</small></div><button class="logout-btn" id="logoutButton" type="button">Đăng xuất</button></div>
+    <div class="lang-switch" id="langSwitch">
+      <button type="button" data-lang="vi">VI</button>
+      <button type="button" data-lang="zh">中文</button>
+      <button type="button" data-lang="en">EN</button>
+    </div>
+    <div class="account-bar" id="accountBar" hidden><div class="account-copy"><strong id="accountName">—</strong><small id="accountRole">—</small></div><button class="logout-btn" id="logoutButton" type="button" data-i18n="logout">Đăng xuất</button></div>
   </header>
   <main>
     <section class="workspace">
-      <div class="heading"><h1>Select a function</h1></div>
+      <div class="heading"><h1 data-i18n="selectFunction">Chọn chức năng</h1></div>
       <div class="grid">
-        <a class="card card-primary" href="./payment.html"><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 9h16M8 13h3M8 16h6"/></svg></span><span class="card-copy"><h2>Payment Management</h2><p>Track payment progress and history</p></span><span class="arrow">→</span></a>
-        <a class="card" href="https://drive.google.com/drive/folders/1rfkI9U__twlV4KeHNCPvI_gxG8RrYmP6" target="_blank" rel="noopener"><span class="icon"><svg viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/></svg></span><span class="card-copy"><h2>Project Documents</h2><p>Contracts, IPCs and supporting documents</p></span><span class="arrow">↗</span></a>
-        <a class="card" href="./payment-archive.html"><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 6h16v14H4zM8 3h8v6H8zM8 13h8M8 16h6"/></svg></span><span class="card-copy"><h2>Payment Archive</h2><p>Closed months and payment documents</p></span><span class="arrow">→</span></a>
-        <a class="card" href="./plan-review.html" data-private-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 9l2 2 5-5M8 15h8"/></svg></span><span class="card-copy"><h2>Plan Review</h2><p>Review, approve and lock payment plans</p><span class="private-badge">Admin only</span></span><span class="arrow">→</span></a>
-        <a class="card" href="./cash-control.html" data-private-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M3 18h18"/></svg></span><span class="card-copy"><h2>Cash Control</h2><p>Project cash flow and current balances</p><span class="private-badge">Admin only</span></span><span class="arrow">→</span></a>
-        <a class="card" href="./contract-master.html" data-admin-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg></span><span class="card-copy"><h2>Contract Master</h2><p>Contracts and MEP master data</p><span class="private-badge">Admin only</span></span><span class="arrow">→</span></a>
+        <a class="card card-primary" href="./payment.html"><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 9h16M8 13h3M8 16h6"/></svg></span><span class="card-copy"><h2 data-i18n="paymentManagement">Quản lý thanh toán</h2><p data-i18n="paymentManagementDesc">Theo dõi tiến độ và lịch sử thanh toán</p></span><span class="arrow">→</span></a>
+        <a class="card" href="https://drive.google.com/drive/folders/1rfkI9U__twlV4KeHNCPvI_gxG8RrYmP6" target="_blank" rel="noopener"><span class="icon"><svg viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/></svg></span><span class="card-copy"><h2 data-i18n="projectDocuments">Hồ sơ dự án</h2><p data-i18n="projectDocumentsDesc">Hợp đồng, IPC và hồ sơ hỗ trợ</p></span><span class="arrow">↗</span></a>
+        <a class="card" href="./payment-archive.html"><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 6h16v14H4zM8 3h8v6H8zM8 13h8M8 16h6"/></svg></span><span class="card-copy"><h2 data-i18n="paymentArchive">Kho chứng từ thanh toán</h2><p data-i18n="paymentArchiveDesc">Tháng đã chốt và chứng từ thanh toán</p></span><span class="arrow">→</span></a>
+        <a class="card" href="./plan-review.html" data-private-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 9l2 2 5-5M8 15h8"/></svg></span><span class="card-copy"><h2 data-i18n="planReview">Duyệt kế hoạch</h2><p data-i18n="planReviewDesc">Xem xét, phê duyệt và khóa kế hoạch thanh toán</p><span class="private-badge" data-i18n="privateOnly">Nội bộ</span></span><span class="arrow">→</span></a>
+        <a class="card" href="./cash-control.html" data-private-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M3 18h18"/></svg></span><span class="card-copy"><h2 data-i18n="cashControl">Dòng tiền dự án</h2><p data-i18n="cashControlDesc">Theo dõi dòng tiền và số dư dự án</p><span class="private-badge" data-i18n="privateOnly">Nội bộ</span></span><span class="arrow">→</span></a>
+        <a class="card" href="./contract-master.html" data-admin-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg></span><span class="card-copy"><h2 data-i18n="contractMaster">Danh mục hợp đồng</h2><p data-i18n="contractMasterDesc">Hợp đồng và dữ liệu MEP</p><span class="private-badge" data-i18n="adminOnly">Chỉ Admin</span></span><span class="arrow">→</span></a>
       </div>
     </section>
   </main>
   <section class="auth-gate" id="authGate">
     <form class="login-card" id="loginForm">
       <div class="login-brand"><img src="./logo.png" alt="CSCEC"><div><strong>中建二局安装工程有限公司</strong><span></span></div></div>
-      <label for="loginUsername">Tên đăng nhập</label><input id="loginUsername" autocomplete="username" placeholder="Tên đăng nhập" required>
-      <label for="loginPassword">Mật khẩu</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Mật khẩu" required>
-      <button class="login-submit" id="loginSubmit" type="submit">Đăng nhập</button>
+      <label for="loginUsername" data-i18n="username">Tên đăng nhập</label><input id="loginUsername" autocomplete="username" placeholder="Tên đăng nhập" data-i18n-placeholder="usernamePlaceholder" required>
+      <label for="loginPassword" data-i18n="password">Mật khẩu</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Mật khẩu" data-i18n-placeholder="passwordPlaceholder" required>
+      <button class="login-submit" id="loginSubmit" type="submit" data-i18n="login">Đăng nhập</button>
       <div class="login-error" id="loginError"></div>
       <p class="login-note"></p>
     </form>
@@ -68,27 +77,27 @@
   <section class="chat-panel" id="chatPanel" aria-label="Team chat" hidden>
     <div class="chat-head">
       <span class="chat-head-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18.5 3.5 21v-5A8.5 8.5 0 1 1 7 19.5Z"/></svg></span>
-      <span class="chat-head-copy"><strong>Team chat</strong><small>Anonymous nicknames</small></span>
+      <span class="chat-head-copy"><strong data-i18n="teamChat">Chat nhóm</strong><small data-i18n="anonymousNicknames">Biệt danh ẩn danh</small></span>
       <button class="chat-close" id="chatClose" type="button" aria-label="Close chat">×</button>
     </div>
-    <div class="chat-identity"><span>You are chatting as</span><button class="chat-name" id="chatNameButton" type="button">Set nickname</button></div>
+    <div class="chat-identity"><span data-i18n="chattingAs">Bạn đang chat với tên</span><button class="chat-name" id="chatNameButton" type="button" data-i18n="setNickname">Đặt biệt danh</button></div>
     <div class="chat-log" id="chatLog" aria-live="polite"><div class="chat-empty">Loading messages…</div></div>
     <form class="chat-form" id="chatForm">
       <button class="chat-tool" id="chatImageButton" type="button" aria-label="Choose an image" title="Choose an image" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m4 17 5-5 4 4 2-2 5 4"/></svg></button>
       <button class="chat-tool" id="chatEmojiButton" type="button" aria-label="Choose an emoji" title="Emoji" aria-expanded="false" disabled>☺</button>
-      <input id="chatMessage" type="text" maxlength="500" autocomplete="off" placeholder="Message or paste an image…" aria-label="Message" disabled>
-      <button class="chat-send" id="chatSend" type="submit" disabled>Send</button>
+      <input id="chatMessage" type="text" maxlength="500" autocomplete="off" placeholder="Nhắn tin hoặc dán ảnh…" data-i18n-placeholder="messagePlaceholder" aria-label="Message" disabled>
+      <button class="chat-send" id="chatSend" type="submit" disabled data-i18n="send">Gửi</button>
       <input id="chatImageInput" type="file" accept="image/*" hidden>
       <div class="chat-emoji-panel" id="chatEmojiPanel" aria-label="Emoji" hidden></div>
     </form>
     <div class="chat-name-layer" id="chatNameLayer" hidden>
       <form class="chat-name-card" id="chatNameForm">
-        <h3>Choose a nickname</h3>
-        <p>Use any nickname — no real name required.</p>
-        <input id="chatNameInput" type="text" maxlength="30" autocomplete="nickname" placeholder="Nickname" required>
+        <h3 data-i18n="chooseNickname">Chọn biệt danh</h3>
+        <p data-i18n="nicknameHint">Dùng bất kỳ biệt danh nào — không cần tên thật.</p>
+        <input id="chatNameInput" type="text" maxlength="30" autocomplete="nickname" placeholder="Biệt danh" data-i18n-placeholder="nicknamePlaceholder" required>
         <div class="chat-name-actions">
-          <button class="chat-name-cancel" id="chatNameCancel" type="button">Cancel</button>
-          <button class="chat-name-save" type="submit">Continue</button>
+          <button class="chat-name-cancel" id="chatNameCancel" type="button" data-i18n="cancel">Hủy</button>
+          <button class="chat-name-save" type="submit" data-i18n="continue">Tiếp tục</button>
         </div>
       </form>
     </div>
@@ -97,6 +106,25 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
     import { getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged,setPersistence,browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
     import { getFirestore,collection,addDoc,query,orderBy,limit,onSnapshot,serverTimestamp,getDoc,doc } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+
+    const I18N={
+      vi:{logout:"Đăng xuất",selectFunction:"Chọn chức năng",paymentManagement:"Quản lý thanh toán",paymentManagementDesc:"Theo dõi tiến độ và lịch sử thanh toán",projectDocuments:"Hồ sơ dự án",projectDocumentsDesc:"Hợp đồng, IPC và hồ sơ hỗ trợ",paymentArchive:"Kho chứng từ thanh toán",paymentArchiveDesc:"Tháng đã chốt và chứng từ thanh toán",planReview:"Duyệt kế hoạch",planReviewDesc:"Xem xét, phê duyệt và khóa kế hoạch thanh toán",cashControl:"Dòng tiền dự án",cashControlDesc:"Theo dõi dòng tiền và số dư dự án",contractMaster:"Danh mục hợp đồng",contractMasterDesc:"Hợp đồng và dữ liệu MEP",privateOnly:"Nội bộ",adminOnly:"Chỉ Admin",username:"Tên đăng nhập",usernamePlaceholder:"Tên đăng nhập",password:"Mật khẩu",passwordPlaceholder:"Mật khẩu",login:"Đăng nhập",loggingIn:"Đang đăng nhập...",loginMissing:"Hãy nhập tên đăng nhập.",loginFailed:"Đăng nhập thất bại. Kiểm tra lại tên đăng nhập và mật khẩu.",noProfile:"Tài khoản chưa có hồ sơ hoặc chưa được cấp quyền.",permissionCheckFailed:"Không kiểm tra được quyền đăng nhập. Hãy thử lại.",adminRole:"Quản trị viên",staffRole:"Nhân viên",teamChat:"Chat nhóm",anonymousNicknames:"Biệt danh ẩn danh",chattingAs:"Bạn đang chat với tên",setNickname:"Đặt biệt danh",noMessages:"Chưa có tin nhắn. Hãy bắt đầu cuộc trò chuyện.",loadingMessages:"Đang tải tin nhắn…",chatUnavailable:"Chat tạm thời không khả dụng.",messagePlaceholder:"Nhắn tin hoặc dán ảnh…",send:"Gửi",chooseNickname:"Chọn biệt danh",nicknameHint:"Dùng bất kỳ biệt danh nào — không cần tên thật.",nicknamePlaceholder:"Biệt danh",cancel:"Hủy",continue:"Tiếp tục"},
+      zh:{logout:"退出登录",selectFunction:"选择功能",paymentManagement:"付款管理",paymentManagementDesc:"跟踪付款进度及历史记录",projectDocuments:"项目资料",projectDocumentsDesc:"合同、IPC及相关支持资料",paymentArchive:"付款档案",paymentArchiveDesc:"已关闭月份及付款凭证",planReview:"付款计划审核",planReviewDesc:"审核、批准并锁定付款计划",cashControl:"项目资金流",cashControlDesc:"查看项目资金流及当前余额",contractMaster:"合同台账",contractMasterDesc:"合同及MEP基础数据",privateOnly:"内部使用",adminOnly:"仅管理员",username:"用户名",usernamePlaceholder:"请输入用户名",password:"密码",passwordPlaceholder:"请输入密码",login:"登录",loggingIn:"正在登录...",loginMissing:"请输入用户名。",loginFailed:"登录失败，请检查用户名和密码。",noProfile:"该账号未建立资料或尚未授权。",permissionCheckFailed:"无法验证登录权限，请重试。",adminRole:"管理员",staffRole:"员工",teamChat:"团队聊天",anonymousNicknames:"匿名昵称",chattingAs:"当前昵称",setNickname:"设置昵称",noMessages:"暂无消息，开始聊天吧。",loadingMessages:"正在加载消息…",chatUnavailable:"聊天暂时不可用。",messagePlaceholder:"输入消息或粘贴图片…",send:"发送",chooseNickname:"选择昵称",nicknameHint:"可使用任意昵称，无需真实姓名。",nicknamePlaceholder:"昵称",cancel:"取消",continue:"继续"},
+      en:{logout:"Sign out",selectFunction:"Select a function",paymentManagement:"Payment Management",paymentManagementDesc:"Track payment progress and history",projectDocuments:"Project Documents",projectDocumentsDesc:"Contracts, IPCs and supporting documents",paymentArchive:"Payment Archive",paymentArchiveDesc:"Closed months and payment documents",planReview:"Plan Review",planReviewDesc:"Review, approve and lock payment plans",cashControl:"Cash Control",cashControlDesc:"Project cash flow and current balances",contractMaster:"Contract Master",contractMasterDesc:"Contracts and MEP master data",privateOnly:"Internal only",adminOnly:"Admin only",username:"Username",usernamePlaceholder:"Username",password:"Password",passwordPlaceholder:"Password",login:"Sign in",loggingIn:"Signing in...",loginMissing:"Enter your username.",loginFailed:"Sign-in failed. Check your username and password.",noProfile:"This account has no profile or access permission.",permissionCheckFailed:"Could not verify access. Please try again.",adminRole:"Administrator",staffRole:"Staff",teamChat:"Team chat",anonymousNicknames:"Anonymous nicknames",chattingAs:"You are chatting as",setNickname:"Set nickname",noMessages:"No messages yet. Start the conversation.",loadingMessages:"Loading messages…",chatUnavailable:"Chat is temporarily unavailable.",messagePlaceholder:"Message or paste an image…",send:"Send",chooseNickname:"Choose a nickname",nicknameHint:"Use any nickname — no real name required.",nicknamePlaceholder:"Nickname",cancel:"Cancel",continue:"Continue"}
+    };
+    const LANG_KEY="cscec_home_language_v1";
+    let currentLang=localStorage.getItem(LANG_KEY)||"vi";
+    if(!["vi","zh","en"].includes(currentLang))currentLang="vi";
+    const t=key=>I18N[currentLang]?.[key]??I18N.vi[key]??key;
+    const applyLanguage=()=>{
+      document.documentElement.lang=currentLang==="zh"?"zh-CN":currentLang;
+      document.querySelectorAll("[data-i18n]").forEach(el=>el.textContent=t(el.dataset.i18n));
+      document.querySelectorAll("[data-i18n-placeholder]").forEach(el=>el.placeholder=t(el.dataset.i18nPlaceholder));
+      document.querySelectorAll("#langSwitch [data-lang]").forEach(btn=>btn.classList.toggle("active",btn.dataset.lang===currentLang));
+      document.title=currentLang==="zh"?"中建二局安装 · 付款系统":currentLang==="vi"?"CSCEC MEP · Hệ thống thanh toán":"CSCEC MEP · Payment";
+    };
+    document.querySelectorAll("#langSwitch [data-lang]").forEach(btn=>btn.addEventListener("click",()=>{currentLang=btn.dataset.lang;localStorage.setItem(LANG_KEY,currentLang);applyLanguage();}));
 
     const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
     const app=initializeApp(firebaseConfig);
@@ -125,14 +153,14 @@
       loginPassword.value="";
     };
     loginForm.addEventListener("submit",async event=>{
-      event.preventDefault();loginError.style.display="none";loginSubmit.disabled=true;loginSubmit.textContent="Đang đăng nhập...";
+      event.preventDefault();loginError.style.display="none";loginSubmit.disabled=true;loginSubmit.textContent=t("loggingIn");
       try{
         const email=usernameToEmail(loginUsername.value);
-        if(!email)throw new Error("Hãy nhập tên đăng nhập.");
+        if(!email)throw new Error(t("loginMissing"));
         await setPersistence(auth,browserLocalPersistence);
         await signInWithEmailAndPassword(auth,email,loginPassword.value);
-      }catch(error){showLoginError("Đăng nhập thất bại. Kiểm tra lại tên đăng nhập và mật khẩu.")}
-      finally{loginSubmit.disabled=false;loginSubmit.textContent="Đăng nhập"}
+      }catch(error){showLoginError(t("loginFailed"))}
+      finally{loginSubmit.disabled=false;loginSubmit.textContent=t("login")}
     });
     logoutButton.addEventListener("click",()=>signOut(auth));
     onAuthStateChanged(auth,async user=>{
@@ -142,17 +170,17 @@
         const profile=profileSnapshot.exists()?profileSnapshot.data():null;
         const role=String(profile?.role||"").toLowerCase();
         if(!profile||!["admin","staff"].includes(role)){
-          await signOut(auth);showLoginError("Tài khoản chưa có hồ sơ hoặc chưa được cấp quyền.");return;
+          await signOut(auth);showLoginError(t("noProfile"));return;
         }
         accountName.textContent=String(profile.displayName?profile.displayName:user.email||"User");
-        accountRole.textContent=role==="admin"?"Quản trị viên":"";
+        accountRole.textContent=role==="admin"?t("adminRole"):t("staffRole");
         accountBar.hidden=false;authGate.hidden=true;
         const privateAccess=isPrivateOwner(user,profile);
         document.querySelectorAll("[data-private-card]").forEach(card=>card.hidden=!privateAccess);
 
         const adminAccess=role==="admin";
         document.querySelectorAll("[data-admin-card]").forEach(card=>card.hidden=!adminAccess);
-      }catch(error){await signOut(auth);showLoginError("Không kiểm tra được quyền đăng nhập. Hãy thử lại.")}
+      }catch(error){await signOut(auth);showLoginError(t("permissionCheckFailed"))}
     });
     const launcher=document.getElementById("chatLauncher");
     const panel=document.getElementById("chatPanel");
@@ -183,7 +211,7 @@
     const cleanText=value=>value.trim().slice(0,500);
     const setComposerState=()=>{
       const ready=Boolean(currentName());
-      nameButton.textContent=ready?currentName():"Set nickname";
+      nameButton.textContent=ready?currentName():t("setNickname");
       messageInput.disabled=!ready||sending;
       sendButton.disabled=!ready||sending;
       imageButton.disabled=!ready||sending;
@@ -201,7 +229,7 @@
         .slice()
         .reverse()
         .filter(messageDoc=>messageDoc.data().room===CHAT_ROOM);
-      if(!messages.length){showChatMessage("No messages yet. Start the conversation.");return;}
+      if(!messages.length){showChatMessage(t("noMessages"));return;}
       const fragment=document.createDocumentFragment();
       const nickname=currentName();
       messages.forEach(messageDoc=>{
@@ -237,11 +265,11 @@
     };
     const startMessages=()=>{
       if(stopMessages)return;
-      showChatMessage("Loading messages…");
+      showChatMessage(t("loadingMessages"));
       const recent=query(collection(db,"messages"),orderBy("time","desc"),limit(50));
       stopMessages=onSnapshot(recent,renderMessages,error=>{
         console.error("Chat read failed",error);
-        showChatMessage("Chat is temporarily unavailable.");
+        showChatMessage(t("chatUnavailable"));
       });
     };
     const openChat=()=>{
@@ -345,7 +373,7 @@
         alert(error?.message==="GIF_TOO_LARGE"||error?.message==="IMAGE_TOO_LARGE"?"This image is too large. Please choose a smaller one.":"Image could not be sent. Please try again.");
       }finally{
         sending=false;
-        sendButton.textContent="Send";
+        sendButton.textContent=t("send");
         imageInput.value="";
         setComposerState();
         messageInput.focus();
@@ -383,6 +411,7 @@
       if(!emojiPanel.hidden&&!emojiPanel.contains(event.target)&&event.target!==emojiButton){emojiPanel.hidden=true;emojiButton.setAttribute("aria-expanded","false");}
     });
     document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!panel.hidden){if(!emojiPanel.hidden){emojiPanel.hidden=true;emojiButton.setAttribute("aria-expanded","false");}else if(!nameLayer.hidden&&currentName())hideNameEditor();else closeChat();}});
+    applyLanguage();
     setComposerState();
   </script>
 </body>
