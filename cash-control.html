@@ -4046,6 +4046,26 @@ async function verifyLoanDriveFolder(token,folderId){
   if(info.capabilities&&info.capabilities.canAddChildren===false)throw new Error(`Không có quyền upload vào thư mục “${info.name||folderId}”.`);
   return info;
 }
+async function makeLoanPdfLinkViewable(token,fileId){
+  if(!fileId)throw new Error(cashLang==='zh'?'上传完成但未取得Drive文件ID。':'Upload xong nhưng không lấy được File ID từ Drive.');
+  const url=`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/permissions?supportsAllDrives=true`;
+  const res=await fetch(url,{
+    method:'POST',
+    headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
+    body:JSON.stringify({type:'anyone',role:'reader',allowFileDiscovery:false})
+  });
+  const text=await res.text();
+  if(!res.ok){
+    let detail=driveErrorMessage(text,res.status);
+    if(/domainPolicy|sharing|permission|anyone/i.test(String(text||''))){
+      detail=cashLang==='zh'
+        ? 'PDF已上传，但Google Drive不允许设置“知道链接的任何人可查看”。请检查Drive共享政策。'
+        : 'PDF đã upload nhưng Google Drive không cho đặt “Bất kỳ ai có link đều xem được”. Hãy kiểm tra chính sách chia sẻ của Drive.';
+    }
+    throw new Error(detail);
+  }
+  return true;
+}
 async function uploadLoanPdf(recordId,file){
   if(!ensureMepWrite())return;
   if(!file||(!String(file.type||'').includes('pdf')&&!/\.pdf$/i.test(file.name||''))){alert(cashLang==='zh'?'请选择PDF文件。':'Chỉ chọn file PDF.');return}
@@ -4078,7 +4098,10 @@ async function uploadLoanPdf(recordId,file){
     const responseText=await res.text();
     if(!res.ok)throw new Error(driveErrorMessage(responseText,res.status));
     const out=JSON.parse(responseText||'{}');
-    const pdfLink={fileId:out.id,name:out.name||safeName,webViewLink:out.webViewLink||`https://drive.google.com/file/d/${out.id}/view`,uploadedAt:new Date().toISOString()};
+    // Chỉ mở quyền xem cho chính FILE PDF vừa upload; folder Drive vẫn giữ Restricted.
+    // Người khác chỉ xem được khi có đúng link file, không có quyền vào Cash Control hay duyệt cả folder.
+    await makeLoanPdfLinkViewable(token,out.id);
+    const pdfLink={fileId:out.id,name:out.name||safeName,webViewLink:out.webViewLink||`https://drive.google.com/file/d/${out.id}/view`,uploadedAt:new Date().toISOString(),shareMode:'anyoneWithLinkViewer'};
     cashCloudState.loanPdfLinks={...(cashCloudState.loanPdfLinks||{}),[String(recordId)]:pdfLink};
     const arr=[...manual()],i=arr.findIndex(r=>String(r.id)===String(recordId));
     if(i>=0){arr[i]={...arr[i],loanPdf:pdfLink};cashCloudState.manualRecords=arr}
