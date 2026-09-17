@@ -44923,6 +44923,18 @@ function archivePaymentSemanticKey(payment){
     ].map(value => String(value || "").trim().toUpperCase()).join("|");
 }
 
+/* Archive rows must be unique by the real Payment document ID.
+   The semantic key is kept only as a legacy fallback for old rows that
+   genuinely do not have a Payment ID.  This prevents two valid payments
+   with identical project/company/contract/IPC/amount/date from collapsing
+   into one archive row. */
+function archivePaymentMapKey(payment){
+    const paymentId = String(payment?.id || "").trim();
+    return paymentId
+        ? `ID|${paymentId}`
+        : `SEM|${archivePaymentSemanticKey(payment)}`;
+}
+
 function archiveDetailRowToPayment(row,month,index){
     return {
         id:String(row?.paymentId || `archive-${month}-${index}`),
@@ -45124,10 +45136,10 @@ async function closeMonthToPaymentArchive(){
                 isPaymentPaid(payment)
             )
             .forEach(payment =>
-                combinedMap.set(archivePaymentSemanticKey(payment),payment)
+                combinedMap.set(archivePaymentMapKey(payment),payment)
             );
         paidPayments.forEach(payment =>
-            combinedMap.set(archivePaymentSemanticKey(payment),payment)
+            combinedMap.set(archivePaymentMapKey(payment),payment)
         );
         const archivePayments = [...combinedMap.values()];
 
