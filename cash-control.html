@@ -1057,6 +1057,20 @@ body{
 #payrollView .staff-group-cn{background:#eef4ff;color:#2957a4;border-color:#cfddfa}
 #payrollView .staff-group-unknown{background:#f5f6f8;color:#667085}
 </style>
+
+<style id="v40-font-fix">
+html,body,button,input,select,textarea{
+  font-family:"Segoe UI","Microsoft YaHei","PingFang SC","Noto Sans CJK SC",Arial,sans-serif!important;
+}
+#loansView .loan-history-head>div>div:first-child{display:flex!important;align-items:center!important;gap:9px!important;flex-wrap:wrap!important;min-height:27px}
+#loanHistoryTitle{display:inline-flex!important;align-items:center;margin:0!important;font-size:13px!important;line-height:1.25!important;font-weight:850!important;letter-spacing:0!important;color:var(--nav)!important}
+#loanPairChip{display:inline-flex;align-items:center;min-width:0}
+.loan-pair-chip{display:inline-flex!important;align-items:center!important;gap:7px!important;min-height:27px;padding:4px 5px 4px 9px!important;border:1px solid #cfd9e6;border-radius:999px;background:#f7f9fc;color:#344054;font-size:10px!important;line-height:1.1!important;font-weight:750!important;white-space:nowrap}
+.loan-pair-chip button{width:20px!important;height:20px!important;min-width:20px!important;padding:0!important;border:0!important;border-radius:50%!important;background:#e8edf3!important;color:#475467!important;display:inline-grid!important;place-items:center!important;font:700 14px/1 "Segoe UI","Microsoft YaHei",Arial,sans-serif!important}
+.loan-pair-chip button:hover{background:#dce4ee!important;color:#172033!important}
+#loanHistorySub{margin-top:3px!important;font-size:9.5px!important;line-height:1.4!important}
+html[lang="zh-CN"] #reportsView,html[lang="zh-CN"] #loansView{font-family:"Microsoft YaHei","PingFang SC","Noto Sans CJK SC","Segoe UI",Arial,sans-serif!important}
+</style>
 </head><body class="auth-checking">
 <div class="app"><header class="top"><div class="brand"><div class="mark">₫</div><div><h1>MEP CASH CONTROL</h1><small>Điều hành dòng tiền · Công nợ · Thanh toán · Tín dụng dự án</small></div></div><div class="topright">
 <div class="lang-switch">
@@ -8015,6 +8029,251 @@ onAuthStateChanged(auth,user=>{
     }
 });
 
+
+/* ===== V40: real module-scope 3-language sync ===== */
+const V40_LANG={
+  vi:{
+    brand:'Điều hành dòng tiền · Công nợ · Thanh toán · Tín dụng dự án',rules:['Nguyên tắc','Kế hoạch = tiền dự kiến.','Thực tế = tiền thật đã vào / ra.','Vay nội bộ không tính là chi phí.'],more:'Nghiệp vụ khác',collapse:'Thu gọn nghiệp vụ khác',
+    nav:{funds:'Tổng quan vốn',planHub:'Còn phải thu / chi',expenses:'Dòng tiền thực tế',loans:'Vay nội bộ',inflows:'Thu CĐT & IPC',payroll:'Lương & thuế',receivables:'Công nợ phải thu / trả',finance:'Bảo lãnh & tín dụng',masterProjects:'Dự án & hợp đồng',reports:'Báo cáo quản trị'},
+    funds:{kicker:'TỔNG QUAN VỐN',title:'Tổng quan vốn theo dự án',sub:'Mỗi dự án một dòng: số dư thực tế, kế hoạch thu/chi và phần thiếu hoặc dư dự kiến.',cutoff:'Chốt đến ngày',export:'⇩ Xuất báo cáo tháng',add:'＋ Thu / Chi thực tế',metrics:['Số dư đầu kỳ','Dự kiến thu','Kế hoạch chi','Nguồn sau kế hoạch','Số dư tại ngày chốt','Thuế chưa nộp'],sheet:'Tình hình vốn dự án',search:'Tìm dự án...',heads:['Dự án','Đầu kỳ','Dự kiến thu còn lại','KH thanh toán còn lại','CP gián tiếp còn lại','Lương / BH còn chi','Thuế chưa nộp','Khác còn chi','Nguồn sau kế hoạch','Thực thu đến ngày','Thực chi đến ngày','Số dư tại ngày chốt','Trạng thái']},
+    plan:{kicker:'CÒN PHẢI THU / CHI TRONG THÁNG',title:'Còn phải thu / chi trong tháng',sub:'Chỉ hiện các khoản chưa thu, chưa chi hoặc chưa nộp trong tháng đang xem.',export:'⇩ Xuất danh sách còn lại',tabs:['Tất cả','Chưa thu','Thanh toán','Chi phí gián tiếp','Lương / BH','Thuế TNCN','Khác'],summary:['Còn phải thu','Lương / BH / TNCN','Còn phải chi khác'],summarySmall:['Quản lý IPC / khoản thu →','Mở Lương & thuế →','Mở chi tiết →'],sheet:'Chi tiết khoản còn lại theo dự án',note:'Khoản đã thực thu / thực chi / nộp xong sẽ tự rời khỏi danh sách.',search:'Tìm dự án hoặc nội dung...',heads:['Dự án','Loại','Nội dung','Kỳ / dự kiến','Số tiền','Trạng thái','Nguồn']},
+    report:{title:'Báo cáo quản trị',sub:'Chỉ giữ 3 góc nhìn cần dùng: dòng tiền thực tế, kế hoạch vốn và nghĩa vụ đang treo.',all:'Tất cả dự án',hide:'Ẩn dự án không phát sinh trong tháng',buttons:['⇩ Excel quản trị','Excel dòng tiền mới','Excel dòng tiền cũ','In / PDF'],titles:['01 · Dòng tiền thực tế tháng','02 · Kế hoạch vốn tháng','03 · Nghĩa vụ / tồn đọng'],subs:['Tiền thật đã vào / ra. Không trộn kế hoạch chưa xảy ra.','Số dư + thu dự kiến − nhu cầu chi. Chi phí gián tiếp tách riêng khỏi kế hoạch thanh toán.','Các khoản dự án còn đang treo: thanh toán, lương/BH, thuế, vay nội bộ và phải thu CĐT.'],heads:[['Dự án','Đầu kỳ','Thu CĐT / khác','Nhận nội bộ','Thanh toán thực trả','Chi khác','Cho vay / chuyển nội bộ','Cuối kỳ'],['Dự án','Số dư hiện có','Dự kiến thu còn lại','Kế hoạch thanh toán còn lại','Chi phí gián tiếp còn lại','Lương còn chi','Thuế đến hạn','Khác còn chi','Tổng nhu cầu còn lại','Nguồn sau kế hoạch','Trạng thái'],['Dự án','Thanh toán chờ trả','Thuế chưa nộp','Lương / BH còn chi','Vay nội bộ còn nợ','Phải thu CĐT','Tổng nghĩa vụ chi']],empty:['Không có phát sinh thực tế trong kỳ.','Không có kế hoạch trong kỳ.','Không có nghĩa vụ tồn đọng.'],total:'TỔNG',status:['ĐỦ','SÁT NGƯỠNG','THIẾU']},
+    loan:{title:'Vay nội bộ',sub:'Theo dõi tiền giữa các dự án: ai cho vay, ai đang vay và còn bao nhiêu chưa hoàn.',gross:'Đã cho vay',repaid:'Đã hoàn',outstanding:'Còn đang vay',pairs:'cặp dự án',debtTitle:'Dư nợ hiện tại',debtSub:'Danh sách dư nợ hiện tại. Lịch sử bên dưới luôn hiện đầy đủ; click một cặp để lọc nhanh đúng cặp đó.',history:'Lịch sử giao dịch',historySub:'Cho vay · hoàn vay · điều chuyển. Click giao dịch cụ thể để xem PDF.',heads:['Bên cho vay','Bên vay','Còn nợ','Ngày','Loại','Từ dự án','Đến dự án','Số tiền','Nội dung','Hồ sơ / sửa'],detail:'Hồ sơ giao dịch',searchDebt:'Tìm bên cho vay / bên vay...',search:'Tìm dự án, nội dung...',drive:'⚙ Drive',export:'⇩ Xuất Excel',add:'＋ Thêm giao dịch',types:{loan:'Cho vay',repayment:'Hoàn vay',transfer:'Điều chuyển'},clear:'Bỏ lọc'}
+  },
+  zh:{
+    brand:'项目资金 · 应收应付 · 付款 · 授信管理',rules:['原则','计划 = 预计金额。','实际 = 实际已收 / 已支金额。','内部借款不计入费用。'],more:'其他业务',collapse:'收起其他业务',
+    nav:{funds:'资金总览',planHub:'待收 / 待付',expenses:'实际收支明细',loans:'内部借款与调剂',inflows:'业主收款与 IPC',payroll:'工资与税费',receivables:'应收 / 应付',finance:'保函与授信',masterProjects:'项目与合同',reports:'管理报表'},
+    funds:{kicker:'资金总览',title:'项目资金总览',sub:'每个项目一行：实际余额、预计收支计划及预计资金缺口或结余。',cutoff:'截止日期',export:'⇩ 导出月报',add:'＋ 实际收 / 支',metrics:['期初余额','预计收款','计划支出','计划后可用资金','截至日余额','未缴税费'],sheet:'项目资金情况表',search:'搜索项目...',heads:['项目','期初余额','剩余预计收款','剩余付款计划','剩余间接费','待付工资 / 社保','未缴税费','其他待支出','计划后可用资金','截至日实际收入','截至日实际支出','截至日余额','状态']},
+    plan:{kicker:'本月待收待付',title:'本月待收待付',sub:'仅显示当前月份尚未收款、支付或缴纳的项目。',export:'⇩ 导出剩余清单',tabs:['全部','待收','付款','间接费','工资 / 社保','个人所得税','其他'],summary:['待收','工资 / 社保 / 个税','其他待支付'],summarySmall:['管理 IPC / 收款 →','打开工资与税费 →','查看明细 →'],sheet:'各项目剩余项目明细',note:'已实际收款、支付或缴清的项目会自动移出此清单。',search:'搜索项目或内容...',heads:['项目','类型','内容','期间 / 预计','金额','状态','来源']},
+    report:{title:'管理报表',sub:'仅保留 3 个核心视角：实际现金流、资金计划和未结义务。',all:'全部项目',hide:'隐藏本月无发生额的项目',buttons:['⇩ 管理 Excel','新现金流 Excel','旧现金流 Excel','打印 / PDF'],titles:['01 · 本月实际现金流','02 · 本月资金计划','03 · 未结义务 / 待处理事项'],subs:['仅统计实际已收 / 已支，不混入尚未发生的计划。','现有余额 + 预计收入 − 支出需求。间接费与付款计划分开显示。','项目仍未结清的项目：付款、工资/社保、税费、内部借款及业主应收。'],heads:[['项目','期初余额','业主 / 其他收入','内部转入','实际付款','其他支出','借出 / 内部转出','期末余额'],['项目','当前余额','剩余预计收入','剩余付款计划','剩余间接费','待付工资','到期税费','其他待支出','剩余资金需求合计','计划后可用资金','状态'],['项目','待付款','未缴税费','待付工资 / 社保','内部借款未还','业主应收','支出义务合计']],empty:['本期无实际收支发生。','本期无资金计划。','没有未结义务。'],total:'合计',status:['充足','接近临界','不足']},
+    loan:{title:'内部借款',sub:'跟踪项目之间的借款、还款及未归还余额。',gross:'累计借出',repaid:'累计归还',outstanding:'未归还余额',pairs:'组项目',debtTitle:'当前未归还',debtSub:'当前未归还余额。下方交易历史默认显示全部；点击一组项目可快速筛选该项目往来。',history:'交易历史',historySub:'借出 · 还款 · 调剂。点击具体交易查看 PDF 附件。',heads:['借出方','借入方','未归还','日期','类型','转出项目','转入项目','金额','说明','附件 / 编辑'],detail:'交易附件',searchDebt:'搜索借出方 / 借入方...',search:'搜索项目、说明...',drive:'⚙ Drive 设置',export:'⇩ 导出 Excel',add:'＋ 新增交易',types:{loan:'借出',repayment:'还款',transfer:'内部调剂'},clear:'清除筛选'}
+  },
+  en:{
+    brand:'Project cash flow · AR/AP · Payments · Credit',rules:['Rules','Plan = expected amount.','Actual = actual cash received / paid.','Internal loans are not treated as expenses.'],more:'Other operations',collapse:'Collapse other operations',
+    nav:{funds:'Cash position',planHub:'Outstanding inflow / outflow',expenses:'Actual cash ledger',loans:'Internal loans & transfers',inflows:'Client receipts & IPC',payroll:'Payroll & tax',receivables:'AR / AP',finance:'Guarantees & credit',masterProjects:'Projects & contracts',reports:'Management reports'},
+    funds:{kicker:'CASH POSITION',title:'Project cash position',sub:'One row per project: actual balance, planned inflows/outflows, and projected surplus or funding gap.',cutoff:'Cut-off date',export:'⇩ Export monthly report',add:'＋ Actual in / out',metrics:['Opening balance','Expected inflow','Planned outflow','Funds after plan','Balance at cut-off','Unpaid tax'],sheet:'Project cash position',search:'Search projects...',heads:['Project','Opening','Remaining expected inflow','Remaining payment plan','Remaining indirect cost','Remaining payroll / insurance','Unpaid tax','Other remaining outflow','Funds after plan','Actual inflow to date','Actual outflow to date','Balance at cut-off','Status']},
+    plan:{kicker:'MONTHLY OUTSTANDING',title:'Monthly outstanding inflow / outflow',sub:'Shows only items still uncollected, unpaid, or unsettled in the selected month.',export:'⇩ Export outstanding list',tabs:['All','Receivable','Payment','Indirect cost','Payroll / insurance','Personal income tax','Other'],summary:['Receivable','Payroll / insurance / PIT','Other payable'],summarySmall:['Manage IPC / receipts →','Open payroll & tax →','Open details →'],sheet:'Outstanding items by project',note:'Items disappear automatically after they are actually received, paid, or settled.',search:'Search project or description...',heads:['Project','Type','Description','Period / planned','Amount','Status','Source']},
+    report:{title:'Management reports',sub:'Three core views only: actual cash flow, funding plan, and outstanding obligations.',all:'All projects',hide:'Hide projects with no activity this month',buttons:['⇩ Management Excel','New cash-flow Excel','Legacy cash-flow Excel','Print / PDF'],titles:['01 · Monthly actual cash flow','02 · Monthly funding plan','03 · Outstanding obligations'],subs:['Actual cash received / paid only; excludes unrealized plans.','Current balance + expected inflow − funding needs. Indirect costs are shown separately from the payment plan.','Open project items: payments, payroll/insurance, tax, internal loans, and client receivables.'],heads:[['Project','Opening','Client / other inflow','Internal inflow','Actual payment','Other outflow','Lending / internal transfer','Closing'],['Project','Current balance','Remaining expected inflow','Remaining payment plan','Remaining indirect cost','Remaining payroll','Tax due','Other remaining outflow','Total remaining need','Funds after plan','Status'],['Project','Pending payment','Unpaid tax','Payroll / insurance due','Internal loan outstanding','Client receivable','Total outflow obligation']],empty:['No actual cash activity in this period.','No funding plan in this period.','No outstanding obligations.'],total:'TOTAL',status:['FUNDED','NEAR LIMIT','GAP']},
+    loan:{title:'Internal loans',sub:'Track inter-project lending, repayments, and outstanding balances.',gross:'Total lent',repaid:'Total repaid',outstanding:'Outstanding',pairs:'project pairs',debtTitle:'Current outstanding',debtSub:'Current outstanding balances. The history below shows all transactions; click a pair to filter it.',history:'Transaction history',historySub:'Lending · repayment · transfer. Click a transaction to view its PDF.',heads:['Lender','Borrower','Outstanding','Date','Type','From project','To project','Amount','Description','Attachment / edit'],detail:'Transaction attachment',searchDebt:'Search lender / borrower...',search:'Search project, description...',drive:'⚙ Drive',export:'⇩ Export Excel',add:'＋ Add transaction',types:{loan:'Lend',repayment:'Repayment',transfer:'Internal transfer'},clear:'Clear filter'}
+  }
+};
+function v40(){return V40_LANG[cashLang]||V40_LANG.vi}
+function v40set(id,text){const el=$(id);if(el)el.textContent=text}
+function v40list(selector,arr){document.querySelectorAll(selector).forEach((el,i)=>{if(arr[i]!=null)el.textContent=arr[i]})}
+function v40LabelWithInput(id,text){const input=$(id),label=input?.closest('label');if(!label)return;[...label.childNodes].forEach(n=>{if(n.nodeType===3)n.remove()});label.append(document.createTextNode(' '+text))}
+function syncV40TopAndSidebar(){
+  const d=v40();document.documentElement.lang=cashLang==='zh'?'zh-CN':cashLang==='en'?'en':'vi';
+  const brand=document.querySelector('.brand small');if(brand)brand.textContent=d.brand;
+  document.querySelectorAll('.cc-simple-side .nav[data-view]').forEach(btn=>{const label=btn.querySelector('.nav-label'),t=d.nav[btn.dataset.view];if(label&&t)label.textContent=t});
+  const note=document.querySelector('.cc-side-note');if(note)note.textContent=cashLang==='zh'?'4 个主要模块':cashLang==='en'?'4 main modules':'4 màn hình chính';
+  const foot=document.querySelector('.cc-sidefoot');if(foot)foot.innerHTML=`<b>${d.rules[0]}</b><br>${d.rules[1]}<br>${d.rules[2]}<br>${d.rules[3]}`;
+  const more=$('ccMoreToggle');if(more){const open=$('ccMore')?.classList.contains('open');more.textContent=(open?'− ':'＋ ')+(open?d.collapse:d.more)}
+  ['vi','zh','en'].forEach(l=>document.getElementById('lang'+(l==='vi'?'Vi':l==='zh'?'Zh':'En'))?.classList.toggle('active',cashLang===l));
+}
+function syncV40Funds(){const d=v40().funds,view=$('fundsView');if(!view)return;const q=s=>view.querySelector(s);if(q('.cc-kicker'))q('.cc-kicker').textContent=d.kicker;if(q('.cc-page-head h2'))q('.cc-page-head h2').textContent=d.title;if(q('.cc-page-head p'))q('.cc-page-head p').textContent=d.sub;if(q('.funds-cutoff-control span'))q('.funds-cutoff-control span').textContent=d.cutoff;v40set('fundsExport',d.export);v40set('fundsAddTxn',d.add);v40list('#fundsView .cc-top-strip>div>span',d.metrics);if(q('.cc-sheet-head b'))q('.cc-sheet-head b').textContent=d.sheet;if($('fundsSearch'))$('fundsSearch').placeholder=d.search;v40list('#fundsView .cc-table thead th',d.heads);const total=$('fundsFoot')?.querySelector('th:first-child');if(total)total.textContent=v40().report.total}
+function syncV40Plan(){const d=v40().plan,view=$('planHubView');if(!view)return;const q=s=>view.querySelector(s);if(q('.cc-kicker'))q('.cc-kicker').textContent=d.kicker;if(q('.cc-page-head h2'))q('.cc-page-head h2').textContent=d.title;if(q('.cc-page-head p'))q('.cc-page-head p').textContent=d.sub;v40set('planHubExport',d.export);v40list('#planHubView .cc-plan-tab',d.tabs);v40list('#planHubView .cc-mini-link>span',d.summary);v40list('#planHubView .cc-mini-link>small',d.summarySmall);if(q('.cc-sheet-head b'))q('.cc-sheet-head b').textContent=d.sheet;if(q('.cc-sheet-head span'))q('.cc-sheet-head span').textContent=d.note;if($('planHubSearch'))$('planHubSearch').placeholder=d.search;v40list('#planHubView .cc-table thead th',d.heads);document.querySelectorAll('#planHubBody .cc-status').forEach(el=>{const raw=(el.textContent||'').toUpperCase();const i=/CHƯA THU|待收|RECEIV/.test(raw)?1:/PAYMENT|付款/.test(raw)?2:/间接|GIÁN TIẾP|INDIRECT/.test(raw)?3:/LƯƠNG|工资|PAYROLL/.test(raw)?4:/THUẾ|个税|TAX/.test(raw)?5:6;el.textContent=d.tabs[i]});const empty=$('planHubBody')?.querySelector('.mep-empty');if(empty)empty.textContent=cashLang==='zh'?'本月没有符合条件的剩余项目。':cashLang==='en'?'No matching outstanding items this month.':'Không còn khoản phù hợp trong tháng này.'}
+function syncV40Report(){const d=v40().report,view=$('reportsView');if(!view)return;const head=view.querySelector('.head');if(head?.querySelector('h2'))head.querySelector('h2').textContent=d.title;if(head?.querySelector('p'))head.querySelector('p').textContent=d.sub;if($('rProject')?.options[0])$('rProject').options[0].textContent=d.all;v40LabelWithInput('reportHideZero',d.hide);['exportCashExcelBtn','exportModernCashExcelBtn','exportLegacyCashExcelBtn'].forEach((id,i)=>v40set(id,d.buttons[i]));const pb=view.querySelector('button[onclick*="print"]');if(pb)pb.textContent=d.buttons[3];const cards=[...view.querySelectorAll(':scope>.mep-card')];cards.forEach((card,i)=>{if(card.querySelector('.mep-card-title'))card.querySelector('.mep-card-title').textContent=d.titles[i];if(card.querySelector('.mep-card-sub'))card.querySelector('.mep-card-sub').textContent=d.subs[i];card.querySelectorAll('thead th').forEach((th,j)=>{if(d.heads[i]?.[j]!=null)th.textContent=d.heads[i][j]})});document.querySelectorAll('#reportsView tfoot tr').forEach(tr=>{const th=tr.querySelector('th:first-child');if(th)th.textContent=d.total});const empties=[...document.querySelectorAll('#reportsView .mep-empty')];empties.forEach((el,i)=>{const raw=String(el.textContent||'');if(/phát sinh thực tế|actual cash|实际收支/.test(raw))el.textContent=d.empty[0];else if(/kế hoạch trong kỳ|funding plan|资金计划/.test(raw))el.textContent=d.empty[1];else if(/nghĩa vụ tồn đọng|outstanding obligations|未结义务/.test(raw))el.textContent=d.empty[2]});document.querySelectorAll('#reportPlanBody .cc-status').forEach(el=>{const raw=(el.textContent||'').toUpperCase();el.textContent=/THIẾU|不足|GAP/.test(raw)?d.status[2]:/SÁT|临界|NEAR/.test(raw)?d.status[1]:d.status[0]})}
+function syncV40Loans(){const d=v40().loan;v40set('loanPageTitle',d.title);v40set('loanPageSub',d.sub);v40set('loanGrossLabel',d.gross);v40set('repayGrossLabel',d.repaid);v40set('loanOutstandingLabel',d.outstanding);v40set('loanPairsLabel',d.pairs);v40set('loanDebtTitle',d.debtTitle);v40set('loanDebtSub',d.debtSub);v40set('loanHistoryTitle',d.history);if($('loanHistorySub'))$('loanHistorySub').textContent=loanPairFilter?(cashLang==='zh'?`已筛选：${loanPairFilter.lender} ↔ ${loanPairFilter.borrower} · 点击具体交易查看 PDF 附件。`:cashLang==='en'?`Filtered: ${loanPairFilter.lender} ↔ ${loanPairFilter.borrower} · Click a transaction to view its PDF.`:`Đang lọc: ${loanPairFilter.lender} ↔ ${loanPairFilter.borrower} · Click giao dịch cụ thể để xem PDF.`):d.historySub;['loanThLender','loanThBorrower','loanThOutstanding','loanThDate','loanThType','loanThFrom','loanThTo','loanThAmount','loanThDesc','loanThAction'].forEach((id,i)=>v40set(id,d.heads[i]));v40set('loanDetailTitle',d.detail);if($('debtSearch'))$('debtSearch').placeholder=d.searchDebt;if($('loanSearch'))$('loanSearch').placeholder=d.search;v40set('loanDriveConfigBtn',d.drive);v40set('exportLoanExcelBtn',d.export);v40set('addTransferBtn',d.add);if($('clearLoanPairHighlight'))$('clearLoanPairHighlight').title=d.clear;const dl=$('debtLender'),db=$('debtBorrower'),lp=$('loanProject'),lt=$('loanType');if(dl?.options[0])dl.options[0].textContent=cashLang==='zh'?'全部借出方':cashLang==='en'?'All lenders':'Tất cả bên cho vay';if(db?.options[0])db.options[0].textContent=cashLang==='zh'?'全部借入方':cashLang==='en'?'All borrowers':'Tất cả bên vay';if(lp?.options[0])lp.options[0].textContent=cashLang==='zh'?'全部项目':cashLang==='en'?'All projects':'Tất cả dự án';if(lt){const labels=[cashLang==='zh'?'全部类型':cashLang==='en'?'All types':'Tất cả loại',d.types.loan,d.types.repayment,d.types.transfer];[...lt.options].forEach((o,i)=>{if(labels[i])o.textContent=labels[i]})}}
+function syncV40All(){syncV40TopAndSidebar();syncV40Funds();syncV40Plan();syncV40Report();syncV40Loans()}
+const _v40Sync=syncCashI18nUI;syncCashI18nUI=function(){const r=_v40Sync.apply(this,arguments);syncV40All();return r};
+const _v40Report=renderReport;renderReport=function(){const r=_v40Report.apply(this,arguments);syncV40Report();return r};
+const _v40Funds=renderFunds;renderFunds=function(){const r=_v40Funds.apply(this,arguments);syncV40Funds();return r};
+const _v40Plan=renderPlanHub;renderPlanHub=function(){const r=_v40Plan.apply(this,arguments);syncV40Plan();return r};
+const _v40Loans=renderLoans;renderLoans=function(){const r=_v40Loans.apply(this,arguments);syncV40Loans();return r};
+loanTypeText=function(type){const d=v40().loan.types;return type==='loan'?d.loan:type==='repayment'?d.repayment:d.transfer};
+
+/* ===== V41: COMPLETE 3-LANGUAGE UI SYNC (module scope) ===== */
+Object.assign(CASH_I18N,{
+  'Chi tiết nghĩa vụ thuế đang treo':{vi:'Chi tiết nghĩa vụ thuế đang treo',zh:'未缴税费明细',en:'Outstanding tax obligations'},
+  'Chỉ hiển thị nghĩa vụ chưa có ngày thực nộp. Lương tháng mới không bị nhập nhầm vào kỳ thuế cũ.':{vi:'Chỉ hiển thị nghĩa vụ chưa có ngày thực nộp. Lương tháng mới không bị nhập nhầm vào kỳ thuế cũ.',zh:'仅显示尚无实际缴纳日期的税费义务。新月份工资不会误计入旧税期。',en:'Shows only tax obligations without an actual payment date. New payroll months are not mixed into older tax periods.'},
+  'Tổng chưa nộp':{vi:'Tổng chưa nộp',zh:'未缴合计',en:'Total outstanding'},
+  'Số kỳ đang treo':{vi:'Số kỳ đang treo',zh:'未结期间数',en:'Open periods'},
+  'Kỳ gần nhất phải nộp':{vi:'Kỳ gần nhất phải nộp',zh:'最近应缴月份',en:'Next due month'},
+  'Kỳ thuế':{vi:'Kỳ thuế',zh:'税期',en:'Tax period'},
+  'Tháng lương / kỳ phát sinh':{vi:'Tháng lương / kỳ phát sinh',zh:'工资月份 / 发生期',en:'Payroll month / accrual period'},
+  'Project này hiện không có thuế chưa nộp.':{vi:'Project này hiện không có thuế chưa nộp.',zh:'该项目目前没有未缴税费。',en:'This project currently has no outstanding tax.'},
+  'Lưu online vào Cash Control.':{vi:'Lưu online vào Cash Control.',zh:'在线保存至 Cash Control。',en:'Save online to Cash Control.'},
+  'Chỉnh sửa này lưu online trong Cash Control, không sửa file Excel gốc.':{vi:'Chỉnh sửa này lưu online trong Cash Control, không sửa file Excel gốc.',zh:'此修改在线保存到 Cash Control，不会修改原始 Excel 文件。',en:'This edit is saved online in Cash Control and does not change the original Excel file.'},
+  'Khoản này được lưu online trong Cash Control.':{vi:'Khoản này được lưu online trong Cash Control.',zh:'此项目在线保存在 Cash Control。',en:'This item is stored online in Cash Control.'},
+  'Tiền ra':{vi:'Tiền ra',zh:'资金流出',en:'Money out'},
+  'Tiền vào':{vi:'Tiền vào',zh:'资金流入',en:'Money in'},
+  'CHI':{vi:'CHI',zh:'支出',en:'OUTFLOW'},
+  'THU':{vi:'THU',zh:'收入',en:'INFLOW'},
+  'Tài khoản ngân hàng / quỹ':{vi:'Tài khoản ngân hàng / quỹ',zh:'银行账户 / 资金账户',en:'Bank account / fund'},
+  'Mã / phân nhóm':{vi:'Mã / phân nhóm',zh:'编码 / 分组',en:'Code / group'},
+  'không bắt buộc':{vi:'không bắt buộc',zh:'非必填',en:'optional'},
+  'Dự kiến':{vi:'Dự kiến',zh:'计划',en:'Planned'},
+  'Chưa thực hiện':{vi:'Chưa thực hiện',zh:'尚未执行',en:'Not completed'},
+  'Đã thực hiện':{vi:'Đã thực hiện',zh:'已执行',en:'Completed'},
+  'Đã thu / chi':{vi:'Đã thu / chi',zh:'已收 / 已支',en:'Received / paid'},
+  'Ngày dự kiến':{vi:'Ngày dự kiến',zh:'预计日期',en:'Expected date'},
+  'Số tiền thực tế':{vi:'Số tiền thực tế',zh:'实际金额',en:'Actual amount'},
+  'Mặc định = số tiền trên':{vi:'Mặc định = số tiền trên',zh:'默认 = 上方金额',en:'Default = amount above'},
+  '＋ Ghi chú':{vi:'＋ Ghi chú',zh:'＋ 备注',en:'＋ Notes'},
+  'Ghi chú thêm nếu cần...':{vi:'Ghi chú thêm nếu cần...',zh:'如有需要请填写备注...',en:'Add notes if needed...'},
+  'Chọn / nhập dự án':{vi:'Chọn / nhập dự án',zh:'选择 / 输入项目',en:'Select / enter project'},
+  'VD: BIDV 1234, Tiền mặt':{vi:'VD: BIDV 1234, Tiền mặt',zh:'例如：BIDV 1234、现金',en:'e.g. BIDV 1234, Cash'},
+  'VD: Thu tiền chủ đầu tư, phí ngân hàng...':{vi:'VD: Thu tiền chủ đầu tư, phí ngân hàng...',zh:'例如：业主收款、银行手续费...',en:'e.g. client receipt, bank fee...'},
+  'Sửa Lương & nhân sự':{vi:'Sửa Lương & nhân sự',zh:'编辑工资与人员',en:'Edit payroll & personnel'},
+  'Sửa Tài chính & bảo lãnh':{vi:'Sửa Tài chính & bảo lãnh',zh:'编辑财务与保函',en:'Edit finance & guarantees'},
+  'Sửa lịch sử Cash Control':{vi:'Sửa lịch sử Cash Control',zh:'编辑 Cash Control 历史',en:'Edit Cash Control history'},
+  'Sửa khoản thu':{vi:'Sửa khoản thu',zh:'编辑收入',en:'Edit inflow'},
+  'Sửa khoản chi':{vi:'Sửa khoản chi',zh:'编辑支出',en:'Edit outflow'},
+  'Thêm thu / chi':{vi:'Thêm thu / chi',zh:'新增收 / 支',en:'Add in / out'},
+  'Thêm Thu / Chi':{vi:'Thêm Thu / Chi',zh:'新增收 / 支',en:'Add in / out'},
+  'Lịch sử giao dịch':{vi:'Lịch sử giao dịch',zh:'交易历史',en:'Transaction history'},
+  'Đang lọc':{vi:'Đang lọc',zh:'已筛选',en:'Filtered'},
+  'Click giao dịch cụ thể để xem PDF.':{vi:'Click giao dịch cụ thể để xem PDF.',zh:'点击具体交易查看 PDF 附件。',en:'Click a transaction to view its PDF.'},
+  'Bỏ lọc':{vi:'Bỏ lọc',zh:'清除筛选',en:'Clear filter'},
+  '↻ Làm mới':{vi:'↻ Làm mới',zh:'↻ 刷新',en:'↻ Refresh'},
+  'Làm mới':{vi:'Làm mới',zh:'刷新',en:'Refresh'},
+  'Chọn dự án để link Payment':{vi:'Chọn dự án để liên kết Payment',zh:'选择项目以关联 Payment',en:'Choose a project to link Payment'},
+  'Cash Control: online · đã đồng bộ':{vi:'Cash Control: online · đã đồng bộ',zh:'Cash Control：在线 · 已同步',en:'Cash Control: online · synced'}
+});
+
+const V41_GROUP_EN={direct:'Direct project cost',indirect:'Project indirect cost',personnel:'Personnel cost',finance:'Finance cost',tax:'Tax & fees',deposit:'Deposits / guarantees',other:'Other costs',receipt:'Project receipt'};
+const V41_SUB_EN={
+  'Vật tư':'Materials','Vật tư & thiết bị chính':'Main materials & equipment','Thầu phụ':'Subcontractor','Nhân công':'Labor','Nhân công khoán':'Contract labor','Máy móc':'Machinery','Máy móc & thiết bị thi công':'Construction machinery & equipment','Vận chuyển & kho bãi':'Transport & warehousing','QA/QC & đo kiểm':'QA/QC & testing','Bảo hộ lao động / HSE':'PPE / HSE','Chi trực tiếp khác':'Other direct cost','Chi phí gián tiếp':'Indirect cost','Chi hành chính':'Administrative expense','Lán trại & điều hành công trường':'Site facilities & management','Lương Việt Nam':'Vietnamese payroll','Lương Trung Quốc':'Chinese payroll','Bảo hiểm Việt Nam':'Vietnam insurance','Bảo hiểm Trung Quốc':'China insurance','Tiền ăn':'Meal allowance','Phí công đoàn':'Union fee','Lương BCH công trường':'Site management payroll','Lương khối văn phòng phân bổ':'Allocated office payroll','Phí bảo lãnh':'Guarantee fee','Phí sử dụng hạn mức tín dụng':'Credit facility fee','Phí ngân hàng':'Bank fee','Chi phí tài chính khác':'Other finance cost','Thuế TNCN tạm nộp':'Prepaid personal income tax','Thuế nhập khẩu & VAT khâu nhập khẩu':'Import duty & import VAT','Thuế GTGT ngoại tỉnh':'Out-of-province VAT','Thuế phí khác':'Other taxes & fees','Tiền ký quỹ dự thầu':'Bid deposit','Ký quỹ thực hiện':'Performance deposit','Ký quỹ tạm ứng':'Advance-payment deposit','Ký quỹ khác':'Other deposits','Khoản phải trả khác':'Other payables','Hoàn ứng / hoàn trả':'Reimbursement / refund','Chi phí khác':'Other expense','Chưa phân loại':'Unclassified','Tiền thu chủ đầu tư':'Client receipt','Thu hoàn ứng / hoàn trả':'Refund / reimbursement received','Thu khác':'Other inflow','Thuế':'Tax','Tiền thu':'Inflow','Tiền ký quỹ':'Deposit','Chi phí tài chính & bảo lãnh':'Finance & guarantee cost','Thưởng':'Bonus'
+};
+
+groupLabel=function(g){return cashLang==='zh'?g.zh:cashLang==='en'?(V41_GROUP_EN[g.code]||g.vi):g.vi};
+subLabelValue=function(v){return cashLang==='zh'?(SUB_ZH[v]||v):cashLang==='en'?(V41_SUB_EN[v]||cashT(v)||v):v};
+
+function v41Lang(){return cashLang==='zh'?'zh':cashLang==='en'?'en':'vi'}
+function v41Pick(row){return row?.[v41Lang()]??row?.vi??''}
+function v41Set(id,row){const el=$(id);if(el)el.textContent=v41Pick(row)}
+function v41MonthText(value){
+  const m=String(value||'').match(/^(\d{4})-(\d{2})$/);if(!m)return '';
+  const y=Number(m[1]),mo=Number(m[2]);
+  if(cashLang==='zh')return `${y}年${mo}月`;
+  if(cashLang==='en')return new Intl.DateTimeFormat('en-US',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(y,mo-1,1)));
+  return `Tháng ${mo}/${y}`;
+}
+function v41EnhanceMonthInputs(){
+  const locale=cashLang==='zh'?'zh-CN':cashLang==='en'?'en-US':'vi-VN';
+  document.querySelectorAll('input[type="month"]').forEach(input=>{
+    input.lang=locale;
+    let wrap=input.closest('.v41-month-wrap');
+    if(!wrap){
+      wrap=document.createElement('div');wrap.className='v41-month-wrap';
+      input.parentNode.insertBefore(wrap,input);wrap.appendChild(input);
+      const label=document.createElement('span');label.className='v41-month-display';wrap.appendChild(label);
+      const refresh=()=>{label.textContent=v41MonthText(input.value)};
+      input.addEventListener('input',refresh);input.addEventListener('change',refresh);
+    }
+    const label=wrap.querySelector('.v41-month-display');if(label)label.textContent=v41MonthText(input.value);
+  });
+  document.querySelectorAll('input[type="date"]').forEach(input=>input.lang=locale);
+}
+function v41EnsureStyle(){
+  if($('v41I18nStyle'))return;
+  const st=document.createElement('style');st.id='v41I18nStyle';st.textContent=`
+    .v41-month-wrap{position:relative;width:100%;min-width:0}.v41-month-wrap>input[type=month]{width:100%;color:transparent!important;-webkit-text-fill-color:transparent!important;caret-color:transparent}.v41-month-display{position:absolute;left:14px;right:48px;top:50%;transform:translateY(-50%);pointer-events:none;color:#172033;font:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.v41-month-wrap>input[type=month]:disabled+.v41-month-display{opacity:.55}
+    #taxOutstandingModal .cc-kpi-row{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;margin:10px 0 14px!important}#taxOutstandingModal .cc-kpi-row>div{display:block!important;border:1px solid #dbe4ee!important;border-radius:10px!important;background:#f8fbfe!important;padding:10px 12px!important;min-height:72px!important}#taxOutstandingModal .cc-kpi-row span{display:block!important;margin:0 0 5px!important;color:#667085!important;font-size:10px!important;font-weight:800!important}#taxOutstandingModal .cc-kpi-row b{display:block!important;margin:0!important;color:#102f50!important;font-size:18px!important;line-height:1.25!important}
+  `;document.head.appendChild(st);
+}
+
+function syncV41Top(){
+  const d={
+    vi:{refresh:'↻ Làm mới',login:'Đăng nhập',logout:'Đăng xuất'},zh:{refresh:'↻ 刷新',login:'登录',logout:'退出登录'},en:{refresh:'↻ Refresh',login:'Sign in',logout:'Sign out'}
+  }[v41Lang()];
+  if($('refreshBtn'))$('refreshBtn').textContent=d.refresh;
+  if($('cashLoginBtn'))$('cashLoginBtn').textContent=d.login;
+  if($('cashLogoutBtn'))$('cashLogoutBtn').textContent=d.logout;
+  document.documentElement.lang=cashLang==='zh'?'zh-CN':cashLang==='en'?'en':'vi';
+  v41EnhanceMonthInputs();
+}
+
+function syncV41TaxModal(projectOverride=''){
+  const modal=$('taxOutstandingModal');if(!modal)return;
+  const d={
+    vi:{title:'Thuế chưa nộp',sub:'Chỉ hiển thị nghĩa vụ chưa có ngày thực nộp. Lương tháng mới không bị nhập nhầm vào kỳ thuế cũ.',stats:['Tổng chưa nộp','Số kỳ đang treo','Kỳ gần nhất phải nộp'],heads:['Kỳ thuế','Tháng lương / kỳ phát sinh','Dự kiến nộp','Nguồn','Còn chưa nộp'],total:'Tổng chưa nộp',empty:'Project này hiện không có thuế chưa nộp.'},
+    zh:{title:'未缴税费',sub:'仅显示尚无实际缴纳日期的税费义务。新月份工资不会误计入旧税期。',stats:['未缴合计','未结期间数','最近应缴月份'],heads:['税期','工资月份 / 发生期','预计缴纳','来源','尚未缴纳'],total:'未缴合计',empty:'该项目目前没有未缴税费。'},
+    en:{title:'Outstanding tax',sub:'Shows only tax obligations without an actual payment date. New payroll months are not mixed into older tax periods.',stats:['Total outstanding','Open periods','Next due month'],heads:['Tax period','Payroll month / accrual period','Planned payment','Source','Outstanding'],total:'Total outstanding',empty:'This project currently has no outstanding tax.'}
+  }[v41Lang()];
+  const current=String(projectOverride||modal.dataset.project||'').trim();if(current)modal.dataset.project=current;
+  if($('taxOutstandingTitle'))$('taxOutstandingTitle').textContent=current?`${d.title} · ${current}`:d.title;
+  if($('taxOutstandingSub'))$('taxOutstandingSub').textContent=d.sub;
+  [...modal.querySelectorAll('.cc-kpi-row>div>span')].forEach((el,i)=>{if(d.stats[i])el.textContent=d.stats[i]});
+  [...modal.querySelectorAll('.tax-detail-table thead th')].forEach((el,i)=>{if(d.heads[i])el.textContent=d.heads[i]});
+  const foot=modal.querySelector('.tax-detail-table tfoot th:first-child');if(foot)foot.textContent=d.total;
+  const empty=modal.querySelector('.mep-empty');if(empty)empty.textContent=d.empty;
+  modal.querySelectorAll('.tax-source-pill').forEach(el=>{const raw=String(el.textContent||'').trim();if(CASH_I18N[raw])el.textContent=cashT(raw)});
+}
+
+function syncV41TxnModal(){
+  const modal=$('txnModal');if(!modal)return;
+  const dir=$('fDirection')?.value||'out',paid=$('fStatus')?.value==='paid';
+  const d={
+    vi:{add:'Thêm Thu / Chi',addLower:'Thêm thu / chi',saveOnline:'Lưu online vào Cash Control.',out:['CHI','Tiền ra','SỐ TIỀN CHI'],inn:['THU','Tiền vào','SỐ TIỀN THU'],acc:'PHÂN LOẠI KẾ TOÁN',major:'Nhóm lớn',sub:'Phân nhóm',info:'THÔNG TIN GIAO DỊCH',project:'Dự án *',account:'Tài khoản ngân hàng / quỹ',content:'Nội dung *',period:'Kỳ phát sinh',code:'Mã / phân nhóm',optional:'không bắt buộc',status:'TRẠNG THÁI',planned:['Dự kiến','Chưa thực hiện'],done:['Đã thực hiện','Đã thu / chi'],expected:'Ngày dự kiến',actualDate:'Ngày thực tế',actualAmount:'Số tiền thực tế',note:'＋ Ghi chú',cancel:'Hủy',save:'Lưu giao dịch'},
+    zh:{add:'新增收 / 支',addLower:'新增收 / 支',saveOnline:'在线保存至 Cash Control。',out:['支出','资金流出','支出金额'],inn:['收入','资金流入','收入金额'],acc:'会计分类',major:'一级分类',sub:'二级分类',info:'交易信息',project:'项目 *',account:'银行账户 / 资金账户',content:'内容 *',period:'发生期',code:'编码 / 分组',optional:'非必填',status:'状态',planned:['计划','尚未执行'],done:['已执行','已收 / 已支'],expected:'预计日期',actualDate:'实际日期',actualAmount:'实际金额',note:'＋ 备注',cancel:'取消',save:'保存交易'},
+    en:{add:'Add in / out',addLower:'Add in / out',saveOnline:'Save online to Cash Control.',out:['OUTFLOW','Money out','OUTFLOW AMOUNT'],inn:['INFLOW','Money in','INFLOW AMOUNT'],acc:'ACCOUNTING CLASSIFICATION',major:'Major category',sub:'Subcategory',info:'TRANSACTION DETAILS',project:'Project *',account:'Bank account / fund',content:'Description *',period:'Accrual period',code:'Code / group',optional:'optional',status:'STATUS',planned:['Planned','Not completed'],done:['Completed','Received / paid'],expected:'Expected date',actualDate:'Actual date',actualAmount:'Actual amount',note:'＋ Notes',cancel:'Cancel',save:'Save transaction'}
+  }[v41Lang()];
+  if($('txnTitle')){
+    let title=d.add;
+    if(editingId){
+      const map={legacy_salary:{vi:'Sửa Lương & nhân sự',zh:'编辑工资与人员',en:'Edit payroll & personnel'},legacy_finance:{vi:'Sửa Tài chính & bảo lãnh',zh:'编辑财务与保函',en:'Edit finance & guarantees'},history_cash:{vi:'Sửa lịch sử Cash Control',zh:'编辑 Cash Control 历史',en:'Edit Cash Control history'}};
+      title=map[editingSource]?.[v41Lang()]||(dir==='in'?(v41Lang()==='zh'?'编辑收入':v41Lang()==='en'?'Edit inflow':'Sửa khoản thu'):(v41Lang()==='zh'?'编辑支出':v41Lang()==='en'?'Edit outflow':'Sửa khoản chi'));
+    }else{
+      const raw=String($('txnTitle').textContent||'');const suffix=raw.includes('·')?raw.split('·').slice(1).join('·').trim():'';title=suffix?`${d.addLower} · ${suffix}`:d.add;
+    }
+    $('txnTitle').textContent=title;
+  }
+  if($('legacyEditNote')){
+    $('legacyEditNote').textContent=editingId
+      ? ((editingSource==='legacy_salary'||editingSource==='legacy_finance'||editingSource==='history_cash')
+          ? (v41Lang()==='zh'?'此修改在线保存到 Cash Control，不会修改原始 Excel 文件。':v41Lang()==='en'?'This edit is saved online in Cash Control and does not change the original Excel file.':'Chỉnh sửa này lưu online trong Cash Control, không sửa file Excel gốc.')
+          : (v41Lang()==='zh'?'此项目在线保存在 Cash Control。':v41Lang()==='en'?'This item is stored online in Cash Control.':'Khoản này được lưu online trong Cash Control.'))
+      : d.saveOnline;
+  }
+  const dirButtons=[...modal.querySelectorAll('[data-txn-direction]')];
+  if(dirButtons[0]){dirButtons[0].querySelector('b').textContent=d.out[0];dirButtons[0].querySelector('small').textContent=d.out[1]}
+  if(dirButtons[1]){dirButtons[1].querySelector('b').textContent=d.inn[0];dirButtons[1].querySelector('small').textContent=d.inn[1]}
+  if($('txnAmountLabel'))$('txnAmountLabel').textContent=(dir==='in'?d.inn:d.out)[2];
+  if($('accClassTitle'))$('accClassTitle').textContent=d.acc;if($('majorLabel'))$('majorLabel').textContent=d.major;if($('subLabel'))$('subLabel').textContent=d.sub;
+  const sections=[...modal.querySelectorAll('.txn-section-title')];if(sections[0])sections[0].textContent=d.info;if(sections[1])sections[1].textContent=d.status;
+  const fields=[...modal.querySelectorAll('.txn-grid .field')];
+  const setField=(id,label,placeholder)=>{const input=$(id);if(!input)return;const lab=input.closest('.field')?.querySelector('label');if(lab){if(id==='fSubCode'){lab.childNodes[0].nodeValue=label+' ';const opt=lab.querySelector('.optional');if(opt)opt.textContent=d.optional}else lab.textContent=label}if(placeholder!=null)input.placeholder=placeholder};
+  setField('fProject',d.project,v41Lang()==='zh'?'选择 / 输入项目':v41Lang()==='en'?'Select / enter project':'Chọn / nhập dự án');
+  setField('fAccount',d.account,v41Lang()==='zh'?'例如：BIDV 1234、现金':v41Lang()==='en'?'e.g. BIDV 1234, Cash':'VD: BIDV 1234, Tiền mặt');
+  setField('fDescription',d.content,v41Lang()==='zh'?'例如：业主收款、银行手续费...':v41Lang()==='en'?'e.g. client receipt, bank fee...':'VD: Thu tiền chủ đầu tư, phí ngân hàng...');
+  setField('fPeriod',d.period,null);setField('fSubCode',d.code,'LVN, BHVN, TH...');setField('fExpected',d.expected,null);setField('fActualDate',d.actualDate,null);setField('fActualAmount',d.actualAmount,v41Lang()==='zh'?'默认 = 上方金额':v41Lang()==='en'?'Default = amount above':'Mặc định = số tiền trên');
+  const stat=[...modal.querySelectorAll('[data-txn-status]')];if(stat[0]){stat[0].querySelector('b').textContent=d.planned[0];stat[0].querySelector('small').textContent=d.planned[1]}if(stat[1]){stat[1].querySelector('b').textContent=d.done[0];stat[1].querySelector('small').textContent=d.done[1]}
+  if($('txnNoteToggle'))$('txnNoteToggle').textContent=d.note;if($('fNote'))$('fNote').placeholder=v41Lang()==='zh'?'如有需要请填写备注...':v41Lang()==='en'?'Add notes if needed...':'Ghi chú thêm nếu cần...';
+  const footer=modal.querySelector('.txn-modern-foot');if(footer){const bs=[...footer.querySelectorAll('button')];if(bs[0])bs[0].textContent=d.cancel;if($('saveTxn'))$('saveTxn').textContent=d.save}
+  _v41Acc($('fMajorCategory')?.value||'', $('fAccountingSub')?.value||'');
+  _v41UpdateHint();
+  v41EnhanceMonthInputs();
+}
+
+function syncV41LoanFilter(){
+  if(typeof syncV40Loans==='function')syncV40Loans();
+  if($('loanPairChip')&&loanPairFilter){const btn=$('clearLoanPairHighlight');if(btn)btn.title=cashLang==='zh'?'清除筛选':cashLang==='en'?'Clear filter':'Bỏ lọc'}
+}
+
+function syncV41Generic(){
+  const scope=document;
+  scope.querySelectorAll('h1,h2,h3,h4,p,small,label,button,th,option,.txn-section-title,.optional,.txn-direction b,.txn-direction small,.txn-status b,.txn-status small,.salary-source-badge,.tax-source-pill').forEach(el=>{
+    if(typeof cashTranslateElement==='function')cashTranslateElement(el);
+    if(el.children.length===0){const raw=String(el.textContent||'').trim();if(CASH_I18N[raw])el.textContent=cashT(raw)}
+  });
+  scope.querySelectorAll('input[placeholder],textarea[placeholder],input[title],button[title],select[title]').forEach(el=>{if(typeof cashTranslateElement==='function')cashTranslateElement(el)});
+}
+function syncV41All(){v41EnsureStyle();syncV41Top();syncV41Generic();syncV41TaxModal();syncV41TxnModal();syncV41LoanFilter()}
+
+const _v41SyncV40All=syncV40All;syncV40All=function(){const r=_v41SyncV40All.apply(this,arguments);syncV41All();return r};
+const _v41RenderAll=renderAll;renderAll=function(){const r=_v41RenderAll.apply(this,arguments);syncV41All();return r};
+const _v41OpenModal=openModal;openModal=function(id){const r=_v41OpenModal.apply(this,arguments);syncV41All();return r};
+const _v41OpenTax=openTaxOutstanding;openTaxOutstanding=function(project){const r=_v41OpenTax.apply(this,arguments);if($('taxOutstandingModal'))$('taxOutstandingModal').dataset.project=normProject(project);syncV41TaxModal(normProject(project));return r};
+const _v41TxnDir=syncTxnDirectionUI;syncTxnDirectionUI=function(){const r=_v41TxnDir.apply(this,arguments);syncV41TxnModal();return r};
+const _v41Acc=renderAccSelectors;renderAccSelectors=function(){const r=_v41Acc.apply(this,arguments);if($('txnModal')?.classList.contains('show'))syncV41TxnModal();return r};
+const _v41UpdateHint=updateAccHint;updateAccHint=function(){const r=_v41UpdateHint.apply(this,arguments);const hint=$('accountingHint');if(hint&&cashLang==='en'){const g=(ACC_GROUPS[$('fDirection')?.value||'out']||[]).find(x=>x.code===$('fMajorCategory')?.value);const sub=$('fAccountingSub')?.value||'';hint.textContent=`Accounting: ${g?groupLabel(g):'—'} → ${subLabelValue(sub)}`};return r};
+
+// Run once after all V40 wrappers are in place.
+syncV41All();
+/* ===== END V41 ===== */
+
+
 hydrateProjectBalanceSnapshotCache();
 applyCashLanguage();
 // Do not render the historical ledger before Firebase Auth resolves. This
@@ -8286,6 +8545,297 @@ setTimeout(()=>{
 #taxOutstandingModal .tax-money{font-weight:900;font-variant-numeric:tabular-nums}
 @media(max-width:760px){#taxOutstandingModal .cc-kpi-row{grid-template-columns:1fr!important}#taxOutstandingModal .tax-detail-wrap{max-height:55vh}}
 </style>
+
+
+<!-- ===== MULTILINGUAL SYNC + HOVER SIDEBAR PATCH 2026-09-18 ===== -->
+<style id="cc-i18n-hover-sidebar-v38">
+/* Desktop: keep only a slim hot-edge; reveal the navigation on hover/focus. */
+@media (min-width:901px){
+  .shell{
+    grid-template-columns:18px minmax(0,1fr)!important;
+    position:relative!important;
+  }
+  .cc-simple-side{
+    position:fixed!important;
+    left:0!important;
+    top:68px!important;
+    bottom:0!important;
+    width:252px!important;
+    height:calc(100vh - 68px)!important;
+    z-index:190!important;
+    transform:translateX(calc(-100% + 18px))!important;
+    transition:transform .18s ease,box-shadow .18s ease!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    scrollbar-width:none!important;
+    box-shadow:none!important;
+  }
+  .cc-simple-side::-webkit-scrollbar{width:0!important;height:0!important}
+  .cc-simple-side::after{
+    content:'›';
+    position:absolute;
+    right:0;
+    top:46%;
+    width:18px;
+    height:54px;
+    display:grid;
+    place-items:center;
+    border-radius:9px 0 0 9px;
+    background:rgba(255,255,255,.10);
+    color:#c8d8e8;
+    font-size:18px;
+    font-weight:900;
+    pointer-events:none;
+    opacity:.95;
+  }
+  .cc-simple-side>*{
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .10s ease!important;
+  }
+  .cc-simple-side:hover,
+  .cc-simple-side:focus-within{
+    transform:translateX(0)!important;
+    box-shadow:12px 0 34px rgba(10,31,53,.20)!important;
+  }
+  .cc-simple-side:hover::after,
+  .cc-simple-side:focus-within::after{content:'‹';background:rgba(255,255,255,.16)}
+  .cc-simple-side:hover>*,
+  .cc-simple-side:focus-within>*{
+    opacity:1;
+    pointer-events:auto;
+  }
+  .main{
+    grid-column:2/-1!important;
+    width:100%!important;
+    max-width:none!important;
+    margin-left:0!important;
+    padding-left:12px!important;
+  }
+}
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr!important}
+  .cc-simple-side{
+    position:static!important;
+    width:auto!important;
+    height:auto!important;
+    transform:none!important;
+    box-shadow:none!important;
+    overflow-x:auto!important;
+  }
+  .cc-simple-side>*{opacity:1!important;pointer-events:auto!important}
+  .cc-simple-side::after{display:none!important}
+  .main{grid-column:1!important}
+}
+</style>
+<script id="cc-i18n-hover-sidebar-v38-script">
+(function(){
+  if(typeof CASH_I18N==='undefined') return;
+
+  const MORE={
+    "Dòng tiền thực tế":{vi:"Dòng tiền thực tế",zh:"实际收支明细",en:"Actual cash ledger"},
+    "Vay nội bộ":{vi:"Vay nội bộ",zh:"内部借款与调剂",en:"Internal loans & transfers"},
+    "Nghiệp vụ khác":{vi:"Nghiệp vụ khác",zh:"其他业务",en:"Other operations"},
+    "Thu gọn nghiệp vụ khác":{vi:"Thu gọn nghiệp vụ khác",zh:"收起其他业务",en:"Collapse other operations"},
+    "Báo cáo chi tiết":{vi:"Báo cáo chi tiết",zh:"详细报表",en:"Detailed reports"},
+    "Nguyên tắc":{vi:"Nguyên tắc",zh:"原则",en:"Rules"},
+    "Đăng nhập":{vi:"Đăng nhập",zh:"登录",en:"Sign in"},
+    "Đăng xuất":{vi:"Đăng xuất",zh:"退出登录",en:"Sign out"},
+    "↻ Làm mới":{vi:"↻ Làm mới",zh:"↻ 刷新",en:"↻ Refresh"},
+    "↑ Gộp dữ liệu máy này":{vi:"↑ Gộp dữ liệu máy này",zh:"↑ 合并本机数据",en:"↑ Merge local data"},
+    "Đang kiểm tra đăng nhập...":{vi:"Đang kiểm tra đăng nhập...",zh:"正在检查登录状态...",en:"Checking sign-in..."},
+    "Cash Control: chưa kết nối":{vi:"Cash Control: chưa kết nối",zh:"资金系统：未连接",en:"Cash Control: disconnected"},
+    "Chọn dự án để link Payment":{vi:"Chọn dự án để liên kết Payment",zh:"选择项目以关联付款",en:"Choose a project to link Payment"},
+
+    "资金总览 · CASH POSITION":{vi:"TỔNG QUAN VỐN",zh:"资金总览",en:"CASH POSITION"},
+    "Tổng quan vốn theo dự án":{vi:"Tổng quan vốn theo dự án",zh:"项目资金总览",en:"Project cash position"},
+    "Mỗi dự án một dòng: số dư thật, kế hoạch thu/chi và phần thiếu hoặc dư dự kiến.":{vi:"Mỗi dự án một dòng: số dư thực tế, kế hoạch thu/chi và phần thiếu hoặc dư dự kiến.",zh:"每个项目一行：实际余额、预计收支计划及预计资金缺口或结余。",en:"One row per project: actual balance, planned inflows/outflows, and projected surplus or funding gap."},
+    "Chốt đến ngày":{vi:"Chốt đến ngày",zh:"截止日期",en:"Cut-off date"},
+    "⇩ Xuất báo cáo tháng":{vi:"⇩ Xuất báo cáo tháng",zh:"⇩ 导出月报",en:"⇩ Export monthly report"},
+    "＋ Thu / Chi thực tế":{vi:"＋ Thu / Chi thực tế",zh:"＋ 实际收 / 支",en:"＋ Actual in / out"},
+    "Số dư đầu kỳ":{vi:"Số dư đầu kỳ",zh:"期初余额",en:"Opening balance"},
+    "Dự kiến thu":{vi:"Dự kiến thu",zh:"预计收款",en:"Expected inflow"},
+    "Kế hoạch chi":{vi:"Kế hoạch chi",zh:"计划支出",en:"Planned outflow"},
+    "Nguồn sau kế hoạch":{vi:"Nguồn sau kế hoạch",zh:"计划后可用资金",en:"Funds after plan"},
+    "Số dư tại ngày chốt":{vi:"Số dư tại ngày chốt",zh:"截至日余额",en:"Balance at cut-off"},
+    "资金情况表 · Tình hình vốn dự án":{vi:"Tình hình vốn dự án",zh:"项目资金情况表",en:"Project cash position"},
+    "Click dự án để mở sổ dòng tiền thực tế.":{vi:"Bấm dự án để mở sổ dòng tiền thực tế.",zh:"点击项目可打开实际收支明细。",en:"Click a project to open its actual cash ledger."},
+    "Dự án":{vi:"Dự án",zh:"项目",en:"Project"},
+    "Đầu kỳ":{vi:"Đầu kỳ",zh:"期初余额",en:"Opening"},
+    "Dự kiến thu còn lại":{vi:"Dự kiến thu còn lại",zh:"剩余预计收款",en:"Remaining expected inflow"},
+    "KH Payment còn lại":{vi:"KH thanh toán còn lại",zh:"剩余付款计划",en:"Remaining payment plan"},
+    "间接费 còn lại":{vi:"CP gián tiếp còn lại",zh:"剩余间接费",en:"Remaining indirect cost"},
+    "Lương còn chi":{vi:"Lương / BH còn chi",zh:"待付工资 / 社保",en:"Remaining payroll / insurance"},
+    "Khác còn chi":{vi:"Khác còn chi",zh:"其他待支出",en:"Other remaining outflow"},
+    "Thực thu đến ngày":{vi:"Thực thu đến ngày",zh:"截至日实际收入",en:"Actual inflow to date"},
+    "Thực chi đến ngày":{vi:"Thực chi đến ngày",zh:"截至日实际支出",en:"Actual outflow to date"},
+    "Trạng thái":{vi:"Trạng thái",zh:"状态",en:"Status"},
+    "TỔNG":{vi:"TỔNG",zh:"合计",en:"TOTAL"},
+    "SÁT NGƯỠNG":{vi:"SÁT NGƯỠNG",zh:"接近临界",en:"NEAR LIMIT"},
+    "ĐỦ NGUỒN":{vi:"ĐỦ NGUỒN",zh:"资金充足",en:"FUNDED"},
+    "THIẾU NGUỒN":{vi:"THIẾU NGUỒN",zh:"资金不足",en:"FUNDING GAP"},
+    "Chưa có dự án.":{vi:"Chưa có dự án.",zh:"暂无项目。",en:"No projects yet."},
+    "Tìm dự án...":{vi:"Tìm dự án...",zh:"搜索项目...",en:"Search projects..."},
+
+    "本月待收待付 · MONTHLY REMAINING":{vi:"CÒN PHẢI THU / CHI TRONG THÁNG",zh:"本月待收待付",en:"MONTHLY OUTSTANDING"},
+    "Còn phải thu / chi trong tháng":{vi:"Còn phải thu / chi trong tháng",zh:"本月待收待付",en:"Monthly outstanding inflow / outflow"},
+    "Chỉ hiện các khoản chưa thu, chưa chi hoặc chưa nộp tại tháng đang xem.":{vi:"Chỉ hiện các khoản chưa thu, chưa chi hoặc chưa nộp trong tháng đang xem.",zh:"仅显示当前月份尚未收款、支付或缴纳的项目。",en:"Shows only items still uncollected, unpaid, or unsettled in the selected month."},
+    "⇩ Xuất danh sách còn lại":{vi:"⇩ Xuất danh sách còn lại",zh:"⇩ 导出剩余清单",en:"⇩ Export outstanding list"},
+    "Tất cả":{vi:"Tất cả",zh:"全部",en:"All"},
+    "Chưa thu":{vi:"Chưa thu",zh:"待收",en:"Receivable"},
+    "Payment":{vi:"Thanh toán",zh:"付款",en:"Payment"},
+    "间接费":{vi:"Chi phí gián tiếp",zh:"间接费",en:"Indirect cost"},
+    "Lương / BH":{vi:"Lương / BH",zh:"工资 / 社保",en:"Payroll / insurance"},
+    "Thuế TNCN":{vi:"Thuế TNCN",zh:"个人所得税",en:"Personal income tax"},
+    "Khác":{vi:"Khác",zh:"其他",en:"Other"},
+    "Quản lý IPC / khoản thu →":{vi:"Quản lý IPC / khoản thu →",zh:"管理 IPC / 收款 →",en:"Manage IPC / receipts →"},
+    "Mở Lương & thuế →":{vi:"Mở Lương & thuế →",zh:"打开工资与税费 →",en:"Open payroll & tax →"},
+    "Mở chi tiết →":{vi:"Mở chi tiết →",zh:"查看明细 →",en:"Open details →"},
+    "Chi tiết khoản còn lại theo dự án":{vi:"Chi tiết khoản còn lại theo dự án",zh:"各项目剩余项目明细",en:"Outstanding items by project"},
+    "Khoản đã thực thu / thực chi / nộp xong sẽ tự rời khỏi danh sách.":{vi:"Khoản đã thực thu / thực chi / nộp xong sẽ tự rời khỏi danh sách.",zh:"已实际收款、支付或缴清的项目会自动移出此清单。",en:"Items disappear automatically after they are actually received, paid, or settled."},
+    "Tìm dự án hoặc nội dung...":{vi:"Tìm dự án hoặc nội dung...",zh:"搜索项目或内容...",en:"Search project or description..."},
+    "Loại":{vi:"Loại",zh:"类型",en:"Type"},
+    "Nội dung":{vi:"Nội dung",zh:"内容",en:"Description"},
+    "Kỳ / dự kiến":{vi:"Kỳ / dự kiến",zh:"期间 / 预计",en:"Period / planned"},
+    "Số tiền":{vi:"Số tiền",zh:"金额",en:"Amount"},
+    "Nguồn":{vi:"Nguồn",zh:"来源",en:"Source"},
+    "Không còn khoản phù hợp trong tháng này.":{vi:"Không còn khoản phù hợp trong tháng này.",zh:"本月没有符合条件的剩余项目。",en:"No matching outstanding items this month."}
+  };
+  Object.assign(CASH_I18N,MORE);
+
+  const langValue=(key)=>{
+    const row=CASH_I18N[key]||MORE[key];
+    return row?.[cashLang]||key;
+  };
+  const txt=(sel,key)=>{const el=document.querySelector(sel);if(el)el.textContent=langValue(key)};
+  const attr=(sel,name,key)=>{const el=document.querySelector(sel);if(el)el.setAttribute(name,langValue(key))};
+  const setList=(selector,keys)=>{
+    document.querySelectorAll(selector).forEach((el,i)=>{if(keys[i])el.textContent=langValue(keys[i])});
+  };
+
+  function syncSidebarLanguage(){
+    const nav={
+      funds:"Tổng quan vốn",
+      planHub:"Còn phải thu / chi",
+      expenses:"Dòng tiền thực tế",
+      loans:"Vay nội bộ",
+      inflows:"Thu CĐT & IPC",
+      payroll:"Lương & thuế",
+      receivables:"Công nợ phải thu / trả",
+      finance:"Bảo lãnh & tín dụng",
+      masterProjects:"Dự án & hợp đồng",
+      reports:"Báo cáo chi tiết"
+    };
+    document.querySelectorAll('.cc-simple-side .nav[data-view]').forEach(btn=>{
+      const k=nav[btn.dataset.view],label=btn.querySelector('.nav-label');
+      if(k&&label)label.textContent=langValue(k);
+    });
+    txt('.cc-side-note','4 màn hình chính');
+    const more=document.getElementById('ccMoreToggle');
+    if(more){
+      const opened=document.getElementById('ccMore')?.classList.contains('open');
+      more.textContent=(opened?'− ':'＋ ')+langValue(opened?'Thu gọn nghiệp vụ khác':'Nghiệp vụ khác');
+    }
+    const foot=document.querySelector('.cc-sidefoot');
+    if(foot){
+      const parts={
+        vi:['Nguyên tắc','Kế hoạch = tiền dự kiến.','Thực tế = tiền thật đã vào / ra.','Vay nội bộ không tính là chi phí.'],
+        zh:['原则','计划 = 预计金额。','实际 = 实际已收 / 已支金额。','内部借款不计入费用。'],
+        en:['Rules','Plan = expected amount.','Actual = actual cash received / paid.','Internal loans are not treated as expenses.']
+      }[cashLang]||[];
+      foot.innerHTML=`<b>${parts[0]}</b><br>${parts[1]}<br>${parts[2]}<br>${parts[3]}`;
+    }
+  }
+
+  function syncTopLanguage(){
+    txt('.brand small','Điều hành dòng tiền · Công nợ · Thanh toán · Tín dụng dự án');
+    txt('#cashLoginBtn','Đăng nhập');
+    txt('#cashLogoutBtn','Đăng xuất');
+    txt('#refreshBtn','↻ Làm mới');
+    txt('#cloudMigrateBtn','↑ Gộp dữ liệu máy này');
+    document.documentElement.lang=cashLang==='zh'?'zh-CN':cashLang==='en'?'en':'vi';
+    ['vi','zh','en'].forEach(l=>document.getElementById('lang'+(l==='vi'?'Vi':l==='zh'?'Zh':'En'))?.classList.toggle('active',cashLang===l));
+  }
+
+  function syncFundsLanguage(){
+    txt('#fundsView .cc-kicker','资金总览 · CASH POSITION');
+    txt('#fundsView .cc-page-head h2','Tổng quan vốn theo dự án');
+    txt('#fundsView .cc-page-head p','Mỗi dự án một dòng: số dư thật, kế hoạch thu/chi và phần thiếu hoặc dư dự kiến.');
+    txt('#fundsView .funds-cutoff-control > span','Chốt đến ngày');
+    txt('#fundsExport','⇩ Xuất báo cáo tháng');
+    txt('#fundsAddTxn','＋ Thu / Chi thực tế');
+    setList('#fundsView .cc-top-strip > div > span',['Số dư đầu kỳ','Dự kiến thu','Kế hoạch chi','Nguồn sau kế hoạch','Số dư tại ngày chốt','Thuế chưa nộp']);
+    txt('#fundsView .cc-sheet-head b','资金情况表 · Tình hình vốn dự án');
+    attr('#fundsSearch','placeholder','Tìm dự án...');
+    setList('#fundsView .cc-table thead th',['Dự án','Đầu kỳ','Dự kiến thu còn lại','KH Payment còn lại','间接费 còn lại','Lương còn chi','Thuế chưa nộp','Khác còn chi','Nguồn sau kế hoạch','Thực thu đến ngày','Thực chi đến ngày','Số dư tại ngày chốt','Trạng thái']);
+    document.querySelectorAll('#fundsView .cc-status').forEach(el=>{
+      const raw=String(el.textContent||'').trim();
+      const canonical=raw==='资金充足'||raw==='FUNDED'?'ĐỦ NGUỒN':raw==='资金不足'||raw==='FUNDING GAP'?'THIẾU NGUỒN':raw==='接近临界'||raw==='NEAR LIMIT'?'SÁT NGƯỠNG':raw;
+      if(CASH_I18N[canonical])el.textContent=langValue(canonical);
+    });
+    const total=document.querySelector('#fundsFoot th:first-child');if(total)total.textContent=langValue('TỔNG');
+    const note=document.querySelector('#fundsView .cc-sheet-head span');
+    if(note){
+      const cutoff=document.getElementById('fundsCutoffDate')?.value||'';
+      const date=(typeof fmtDate==='function'&&cutoff)?fmtDate(cutoff):cutoff;
+      note.textContent=cashLang==='zh'?`余额截止 ${date||'—'} · 点击项目可打开实际收支明细。`:cashLang==='en'?`Balance cut off at ${date||'—'} · Click a project to open its actual cash ledger.`:`Chốt số dư đến ${date||'—'} · Bấm dự án để mở sổ dòng tiền thực tế.`;
+    }
+  }
+
+  function syncPlanHubLanguage(){
+    txt('#planHubView .cc-kicker','本月待收待付 · MONTHLY REMAINING');
+    txt('#planHubView .cc-page-head h2','Còn phải thu / chi trong tháng');
+    txt('#planHubView .cc-page-head p','Chỉ hiện các khoản chưa thu, chưa chi hoặc chưa nộp tại tháng đang xem.');
+    txt('#planHubExport','⇩ Xuất danh sách còn lại');
+    setList('#planHubView .cc-plan-tab',['Tất cả','Chưa thu','Payment','间接费','Lương / BH','Thuế TNCN','Khác']);
+    setList('#planHubView .cc-mini-link > span',['Còn phải thu','Lương / BH / TNCN','Còn phải chi khác']);
+    setList('#planHubView .cc-mini-link > small',['Quản lý IPC / khoản thu →','Mở Lương & thuế →','Mở chi tiết →']);
+    txt('#planHubView .cc-sheet-head b','Chi tiết khoản còn lại theo dự án');
+    txt('#planHubView .cc-sheet-head span','Khoản đã thực thu / thực chi / nộp xong sẽ tự rời khỏi danh sách.');
+    attr('#planHubSearch','placeholder','Tìm dự án hoặc nội dung...');
+    setList('#planHubView .cc-table thead th',['Dự án','Loại','Nội dung','Kỳ / dự kiến','Số tiền','Trạng thái','Nguồn']);
+  }
+
+  function syncExecutiveLanguage(){
+    syncTopLanguage();
+    syncSidebarLanguage();
+    syncFundsLanguage();
+    syncPlanHubLanguage();
+    /* Let the existing large dictionary handle the remaining screens. */
+    document.querySelectorAll('.view.active h1,.view.active h2,.view.active h3,.view.active h4,.view.active p,.view.active small,.view.active label,.view.active button,.view.active th,.view.active option,.view.active .metric-label,.view.active .metric-foot,.view.active .mep-card-title,.view.active .mep-card-sub,.view.active .selection-count,.view.active .section-note,.view.active .salary-readonly,.view.active .salary-source-badge').forEach(el=>{
+      if(typeof cashTranslateElement==='function') cashTranslateElement(el);
+    });
+  }
+  window.syncExecutiveLanguage=syncExecutiveLanguage;
+
+  if(typeof syncCashI18nUI==='function'){
+    const oldSync=syncCashI18nUI;
+    syncCashI18nUI=function(){const r=oldSync.apply(this,arguments);syncExecutiveLanguage();return r};
+  }
+  if(typeof applyCashLanguage==='function'){
+    const oldApply=applyCashLanguage;
+    applyCashLanguage=function(){const r=oldApply.apply(this,arguments);syncExecutiveLanguage();return r};
+  }
+  if(typeof renderFunds==='function'){
+    const oldRenderFunds=renderFunds;
+    renderFunds=function(){const r=oldRenderFunds.apply(this,arguments);syncExecutiveLanguage();return r};
+  }
+  if(typeof renderPlanHub==='function'){
+    const oldRenderPlanHub=renderPlanHub;
+    renderPlanHub=function(){const r=oldRenderPlanHub.apply(this,arguments);syncExecutiveLanguage();return r};
+  }
+
+  const moreBtn=document.getElementById('ccMoreToggle');
+  if(moreBtn){
+    moreBtn.onclick=()=>{
+      document.getElementById('ccMore')?.classList.toggle('open');
+      syncSidebarLanguage();
+    };
+  }
+
+  syncExecutiveLanguage();
+})();
+</script>
 </body></html>
 
 <style>
