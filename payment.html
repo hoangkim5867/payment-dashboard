@@ -15102,6 +15102,18 @@ html[data-theme="ivorybunny"] .process-inline-input{
 </div>
 
 <style id="cross-month-import-confirm-style">
+/* Manual Add opens this confirmation while #paymentModal is still open.
+   Keep it above the Payment modal (which uses z-index:10000). */
+#crossMonthImportConfirmModal{
+    z-index:120000 !important;
+}
+#crossMonthImportConfirmModal.show{
+    display:flex !important;
+}
+#crossMonthImportConfirmModal > .modal-box{
+    position:relative !important;
+    z-index:1 !important;
+}
 .cross-month-import-summary{
     margin:4px 0 12px;
     padding:10px 12px;
@@ -30948,26 +30960,51 @@ savePaymentBtn.addEventListener(
 
             else{
 
-                const duplicate =
-                    !data.noMEPException &&
-                    allPayments.some(
-                        payment =>
-                            payment.deleted !== true &&
-                            normalize(payment.paymentMonth) === normalize(data.paymentMonth) &&
-                            normalize(payment.project) === normalize(data.project) &&
-                            normalize(payment.contractNo) === normalize(data.contractNo) &&
-                            normalize(payment.ipcNo) === normalize(data.ipcNo)
-                    );
+                /* =================================================
+                   MANUAL ADD — ZERO-READ DUPLICATE CHECK
 
-                if(duplicate){
+                   Important:
+                   - Do NOT query Firestore here.
+                   - Check the month already loaded in `allPayments` (0 reads).
+                   - If Excel Paste already loaded the full-history cache during
+                     this browser session, reuse that cache too (still 0 extra reads).
 
-                    alert(
-                        "⚠ " +
-                        t("duplicatePayment")
-                    );
+                   This keeps manual Save instant and prevents a network query from
+                   leaving the button stuck while still catching the common duplicate
+                   case immediately.
+                ================================================= */
+                let manualDuplicate = null;
 
-                    return;
+                if(!data.noMEPException){
+                    const manualDuplicateCandidates =
+                        getManualDuplicateCandidates(data);
+
+                    manualDuplicate =
+                        findManualDuplicatePayment(
+                            data,
+                            manualDuplicateCandidates
+                        );
                 }
+
+                if(manualDuplicate){
+                    const manualRows = [{
+                        data,
+                        crossMonthDuplicate:manualDuplicate
+                    }];
+
+                    const continueManualAdd =
+                        await requestCrossMonthImportDecision(manualRows);
+
+                    if(!continueManualAdd){
+                        return;
+                    }
+
+                    /* Keep the same supplemental marker/behavior as Excel Paste. */
+                    markCrossMonthImportsAsSupplemental(manualRows);
+                }
+
+                savePaymentBtn.textContent =
+                    t("saving");
 
                 const createdPaymentRef =
                     await addDoc(
@@ -31073,6 +31110,115 @@ savePaymentBtn.addEventListener(
 
     }
 );
+
+
+/* =====================================================
+   MANUAL ADD — LIGHTWEIGHT DUPLICATE LOOKUP
+   Do not read the whole payments collection on Save.
+===================================================== */
+
+function getManualDuplicateCandidates(data){
+
+    const seen = new Set();
+    const candidates = [];
+
+    const pushCandidate = payment => {
+        if(!payment){
+            return;
+        }
+
+        const id = String(payment.id || "");
+        const fallback = [
+            payment.paymentMonth,
+            payment.project,
+            payment.contractNo,
+            payment.ipcNo,
+            payment.amount
+        ].join("|");
+        const key = id || fallback;
+
+        if(key && !seen.has(key)){
+            seen.add(key);
+            candidates.push(payment);
+        }
+    };
+
+    /*
+       The active Payment month is already in memory because the page listens
+       to that month in realtime.  Reading it here costs ZERO additional
+       Firestore document reads.
+    */
+    allPayments.forEach(pushCandidate);
+
+    /*
+       Excel Paste may already have loaded the full payment history once for
+       its own preview/duplicate check.  Reuse that in-memory cache when it is
+       available, but NEVER trigger a history read from Manual Add.
+    */
+    if(importDuplicateHistoryLoaded){
+        importDuplicateHistoryPayments.forEach(pushCandidate);
+    }
+
+    return candidates;
+}
+
+function findManualDuplicatePayment(data,candidates){
+
+    const matches = (candidates || []).filter(
+        payment =>
+            payment &&
+            payment.deleted !== true &&
+            paymentContractKey(
+                payment.project,
+                payment.contractNo
+            ) === paymentContractKey(
+                data.project,
+                data.contractNo
+            ) &&
+            normalize(payment.ipcNo) === normalize(data.ipcNo)
+    );
+
+    if(!matches.length){
+        return null;
+    }
+
+    /* Keep the same priority used by Excel Paste: another month first. */
+    const crossMonth = matches.filter(
+        payment =>
+            normalize(payment.paymentMonth) !==
+            normalize(data.paymentMonth)
+    );
+
+    crossMonth.sort((a,b) => {
+        const score = payment => {
+            const existingAmount = Number(
+                isPaymentPaid(payment)
+                    ? payment.processActualAmount
+                    : payment.amount
+            ) || 0;
+            const sameAmount =
+                Math.abs(existingAmount - (Number(data.amount) || 0)) < 0.5;
+
+            return (
+                (sameAmount ? 4 : 0) +
+                (isPaymentPaid(payment) ? 2 : 0) +
+                (isPaymentCarriedForward(payment) ? 1 : 0)
+            );
+        };
+
+        return score(b) - score(a);
+    });
+
+    if(crossMonth.length){
+        return crossMonth[0];
+    }
+
+    return matches.find(
+        payment =>
+            normalize(payment.paymentMonth) ===
+            normalize(data.paymentMonth)
+    ) || null;
+}
 
 
 
