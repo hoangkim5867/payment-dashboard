@@ -2042,7 +2042,7 @@ html[lang="zh-CN"] #reportsView,html[lang="zh-CN"] #loansView{font-family:"Micro
       <div><span>Số kỳ đang treo</span><b id="taxOutstandingPeriods">0</b></div>
       <div><span>Kỳ gần nhất phải nộp</span><b id="taxOutstandingNextDue">—</b></div>
     </div>
-    <div class="tax-detail-wrap"><table class="tax-detail-table"><thead><tr><th>Kỳ thuế</th><th>Tháng lương / kỳ phát sinh</th><th>Dự kiến nộp</th><th>Nguồn</th><th class="money-head">Còn chưa nộp</th></tr></thead><tbody id="taxOutstandingDetailBody"></tbody><tfoot id="taxOutstandingDetailFoot"></tfoot></table></div>
+    <div class="tax-detail-wrap"><table class="tax-detail-table"><thead><tr><th>Kỳ thuế</th><th>Tháng lương / kỳ phát sinh</th><th>Dự kiến nộp</th><th class="money-head">Còn chưa nộp</th><th>Nguồn</th></tr></thead><tbody id="taxOutstandingDetailBody"></tbody><tfoot id="taxOutstandingDetailFoot"></tfoot></table></div>
   </div>
 </div>
 <script type="module">
@@ -2263,15 +2263,126 @@ function excelCashIpc(x){
     return excelIsHumanCostRow(x)?'':(x?.ipcNo||x?.subCode||'');
 }
 function excelCashType(x){
-    // Company-wide payroll / insurance / bonus / union / TNCN are grouped as 职工薪酬.
-    // Project/import/VAT taxes remain 税费.
-    if(excelIsHumanCostRow(x))return '职工薪酬';
-    return excelChineseCostType(x?.category,x?.direction);
+    // Export type follows the language currently selected in Cash Control.
+    if(excelIsHumanCostRow(x))return cashLang==='zh'?'职工薪酬':cashLang==='en'?'Employee compensation':'Chi phí nhân sự';
+    if(cashLang==='zh')return excelChineseCostType(x?.category,x?.direction);
+    if(cashLang==='en')return excelExportText(x?.category||'', 'en');
+    return String(x?.category||'');
+}
+function excelExportMonthText(month,lang=cashLang){
+    const m=String(month||'').match(/^(\d{4})-(\d{2})$/);if(!m)return String(month||'');
+    const y=m[1],mo=m[2];
+    if(lang==='zh')return `${y}年${mo}月`;
+    if(lang==='en'){
+        const names=['January','February','March','April','May','June','July','August','September','October','November','December'];
+        return `${names[Number(mo)-1]||mo} ${y}`;
+    }
+    return `Tháng ${mo}/${y}`;
+}
+function excelLinkedPayrollRecord(x){
+    const id=String(x?.linkedRecordId||'');
+    if(!id)return null;
+    return (cashCloudState.salaryRecords||[]).find(r=>String(r.id||'')===id)||null;
+}
+function excelPayrollTypeFromCash(x,record=null){
+    if(record?.type)return record.type;
+    const sub=String(x?.subCode||'').toUpperCase(),cat=String(x?.category||''),desc=String(x?.description||'');
+    if(sub==='BHTQ'||/Bảo hiểm Trung Quốc|Bảo hiểm TQ|中国社保|中方社保/i.test(cat+' '+desc))return 'insurance_cn';
+    if(sub==='BHVN'||/Bảo hiểm Việt Nam|Bảo hiểm VN|越南社保|越籍社保/i.test(cat+' '+desc))return 'insurance_vn';
+    if(sub==='KPCD'||/Phí công đoàn|工会经费|工会费/i.test(cat+' '+desc))return 'union';
+    if(sub==='TH'||/Thuế TNCN|个人所得税/i.test(cat+' '+desc))return 'tax';
+    if(sub==='THUONG'||/Thưởng|奖金/i.test(cat+' '+desc))return 'bonus';
+    if(sub==='TA'||/Tiền ăn|伙食费/i.test(cat+' '+desc))return 'meal';
+    if(sub==='L'||sub==='LVN'||sub==='LTQ'||/Lương|工资/i.test(cat+' '+desc))return 'salary';
+    if(sub==='BH'||/Bảo hiểm|保险|社保/i.test(cat+' '+desc))return 'insurance';
+    return 'other';
+}
+function excelPayrollLabel(x,lang=cashLang,withMonth=false){
+    const record=excelLinkedPayrollRecord(x),type=excelPayrollTypeFromCash(x,record),group=record?inferPayrollStaffGroup(record):'';
+    const dict={
+      vi:{salary:'Lương thực nhận',salary_vn:'Lương Việt Nam',salary_cn:'Lương Trung Quốc',bonus:'Thưởng',tax:'Thuế TNCN',insurance_vn:'Bảo hiểm VN',insurance_cn:'Bảo hiểm TQ',union:'Phí công đoàn',insurance:'Bảo hiểm',meal:'Tiền ăn',other:'Nhân sự / khoản khác'},
+      zh:{salary:'实发工资',salary_vn:'越籍员工工资',salary_cn:'中方员工工资',bonus:'奖金',tax:'个人所得税',insurance_vn:'越南社保',insurance_cn:'中国社保',union:'工会经费',insurance:'社保',meal:'伙食费',other:'人员 / 其他'},
+      en:{salary:'Net salary',salary_vn:'Vietnamese payroll',salary_cn:'Chinese payroll',bonus:'Bonus',tax:'Personal income tax',insurance_vn:'Vietnam insurance',insurance_cn:'China insurance',union:'Union fee',insurance:'Insurance',meal:'Meal allowance',other:'Payroll / other'}
+    };
+    let key=type;
+    if(type==='salary'&&group==='vn')key='salary_vn';
+    if(type==='salary'&&group==='cn')key='salary_cn';
+    const label=(dict[lang]||dict.vi)[key]||(dict[lang]||dict.vi).other;
+    if(!withMonth)return label;
+    const month=record?.payrollMonth||x?.period||'';
+    if(!month)return label;
+    const monthText=excelExportMonthText(month,lang);
+    return lang==='zh'?`${monthText}${label}`:`${label} · ${monthText}`;
+}
+function excelCashCompany(x){
+    if(x&&(x.source==='payroll'||x.linkedModule==='payroll'))return excelPayrollLabel(x,cashLang,false);
+    return x?.company||x?.counterparty||'';
 }
 function excelCashContent(x){
+    if(x&&(x.source==='payroll'||x.linkedModule==='payroll'))return excelPayrollLabel(x,cashLang,true);
     let content=String(x?.contractName||x?.description||'').trim();
-    if(excelIsPersonalIncomeTaxRow(x)&&!/个人所得税/.test(content))content=content?`${content} · 个人所得税`:'个人所得税';
+    if(excelIsPersonalIncomeTaxRow(x)&&cashLang==='zh'&&!/个人所得税/.test(content))content=content?`${content} · 个人所得税`:'个人所得税';
+    if(excelIsPersonalIncomeTaxRow(x)&&cashLang==='en'&&!/personal income tax/i.test(content))content=content?`${content} · Personal income tax`:'Personal income tax';
     return content;
+}
+function excelInternalCounterpartyLabel(lang=cashLang){
+    if(lang==='zh')return '内部调剂';
+    if(lang==='en')return 'Internal transfer';
+    return 'Điều chuyển nội bộ';
+}
+function excelTransferTypeLabel(x,lang=cashLang,perspectiveProject=''){
+    const type=String(x?.transferType||'transfer'),from=normProject(x?.fromProject),to=normProject(x?.toProject),p=normProject(perspectiveProject);
+    if(lang==='zh'){
+        if(type==='loan')return p?(p===from?'借出':'借入'):'借款';
+        if(type==='repayment')return p?(p===from?'还款':'收回借款'):'还款';
+        return p?(p===from?'内部转出':'内部转入'):'内部调拨';
+    }
+    if(lang==='en'){
+        if(type==='loan')return p?(p===from?'Lent out':'Borrowed in'):'Internal loan';
+        if(type==='repayment')return p?(p===from?'Loan repayment':'Loan repaid to lender'):'Repayment';
+        return p?(p===from?'Internal transfer out':'Internal transfer in'):'Internal transfer';
+    }
+    if(type==='loan')return p?(p===from?'Cho vay':'Nhận vay'):'Vay nội bộ';
+    if(type==='repayment')return p?(p===from?'Hoàn vay':'Nhận hoàn vay'):'Hoàn vay';
+    return p?(p===from?'Điều chuyển đi':'Nhận điều chuyển'):'Điều chuyển nội bộ';
+}
+function excelTransferContent(x,lang=cashLang){
+    const type=String(x?.transferType||'transfer');
+    const from=normProject(x?.fromProject),to=normProject(x?.toProject);
+    const lender=normProject(x?.lender||(type==='loan'?from:type==='repayment'?to:''));
+    const borrower=normProject(x?.borrower||(type==='loan'?to:type==='repayment'?from:''));
+    if(lang==='zh'){
+        if(type==='loan')return `${borrower||to}向${lender||from}借款`;
+        if(type==='repayment')return `${borrower||from}归还${lender||to}借款`;
+        return `${from}调拨至${to}`;
+    }
+    if(lang==='en'){
+        if(type==='loan')return `${borrower||to} borrowed from ${lender||from}`;
+        if(type==='repayment')return `${borrower||from} repaid ${lender||to}`;
+        return `${from} transferred funds to ${to}`;
+    }
+    if(type==='loan')return `${borrower||to} vay ${lender||from}`;
+    if(type==='repayment')return `${borrower||from} hoàn trả ${lender||to}`;
+    return `${from} điều chuyển sang ${to}`;
+}
+function excelLedgerDescription(row,lang=cashLang){
+    const rid=String(row?.recordId||'');
+    if(rid){
+        const txn=allExpenses().find(x=>String(x.id||'')===rid);
+        if(txn)return excelCashContent(txn);
+        const transfer=allTransfers().find(x=>String(x.id||'')===rid);
+        if(transfer)return excelTransferContent(transfer,lang);
+    }
+    return String(row?.desc||'');
+}
+function excelExportText(value,lang=cashLang){
+    const raw=String(value??'').trim();if(!raw)return raw;
+    if(lang==='zh')return SUB_ZH[raw]||CASH_I18N[raw]?.zh||excelChineseCostType(raw)||raw;
+    if(lang==='en'){
+        const enMap={'Lương Việt Nam':'Vietnamese payroll','Lương Trung Quốc':'Chinese payroll','Bảo hiểm Việt Nam':'Vietnam insurance','Bảo hiểm Trung Quốc':'China insurance','Phí công đoàn':'Union fee','Tiền ăn':'Meal allowance','Thuế TNCN tạm nộp':'Prepaid personal income tax','Chi phí gián tiếp':'Indirect cost','Chi hành chính':'Administrative expense','Vật tư':'Materials','Thầu phụ':'Subcontract','Nhân công':'Labor','Chi phí khác':'Other expense','Khoản phải trả khác':'Other payables'};
+        return enMap[raw]||CASH_I18N[raw]?.en||raw;
+    }
+    return CASH_I18N[raw]?.vi||raw;
 }
 
 function inferAccGroup(category,direction='out'){
@@ -4343,10 +4454,13 @@ function excelSafeName(value){
         .slice(0,31) || 'Sheet';
 }
 
-function excelSourceLabel(source){
-    return sourceName(source)
-        .replace('HỆ THỐNG THANH TOÁN','Payment')
-        .replace('LỊCH SỬ CASH CONTROL','Cash Control lịch sử');
+function excelSourceLabel(source,lang=cashLang){
+    const dict={
+      vi:{payment:'Payment',payroll:'Lương & thuế',legacy_salary:'Lương & nhân sự',legacy_finance:'Tài chính & bảo lãnh',history_cash:'Cash Control lịch sử',legacy_vnb:'Vay nội bộ',manual:'Nhập trực tiếp'},
+      zh:{payment:'Payment',payroll:'工资与税费',legacy_salary:'工资与人事历史',legacy_finance:'财务与保函历史',history_cash:'Cash Control 历史',legacy_vnb:'内部借款历史',manual:'手工录入'},
+      en:{payment:'Payment',payroll:'Payroll & tax',legacy_salary:'Payroll history',legacy_finance:'Finance & guarantee history',history_cash:'Cash Control history',legacy_vnb:'Internal loan history',manual:'Manual entry'}
+    };
+    return (dict[lang]||dict.vi)[source]||sourceName(source);
 }
 
 function excelApplyBaseStyle(ws, rangeRef){
@@ -4491,7 +4605,7 @@ function modernCashExportRows(month,project){
 
         rows.push({
             date:x.actualDate,
-            company:x.company||x.counterparty||'',
+            company:excelCashCompany(x),
             contractNo:x.contractNo||'',
             content:excelCashContent(x),
             ipc:excelCashIpc(x),
@@ -4510,11 +4624,11 @@ function modernCashExportRows(month,project){
         if(x.fromProject===project){
             rows.push({
                 date:x.actualDate,
-                company:x.toProject||'',
+                company:excelInternalCounterpartyLabel(cashLang),
                 contractNo:'',
-                content:x.description||`${x.fromProject}→${x.toProject}`,
+                content:excelTransferContent(x,cashLang),
                 ipc:'',
-                type:'调剂',
+                type:excelTransferTypeLabel(x,cashLang,project),
                 income:0,
                 expense:amount
             });
@@ -4523,11 +4637,11 @@ function modernCashExportRows(month,project){
         if(x.toProject===project){
             rows.push({
                 date:x.actualDate,
-                company:x.fromProject||'',
+                company:excelInternalCounterpartyLabel(cashLang),
                 contractNo:'',
-                content:x.description||`${x.fromProject}→${x.toProject}`,
+                content:excelTransferContent(x,cashLang),
                 ipc:'',
-                type:'调剂',
+                type:excelTransferTypeLabel(x,cashLang,project),
                 income:amount,
                 expense:0
             });
@@ -4887,7 +5001,7 @@ function legacyCashExportRows(month,project){
 
         rows.push({
             date:x.actualDate,
-            company:x.company||x.counterparty||'',
+            company:excelCashCompany(x),
             contractNo:x.contractNo||'',
             content:excelCashContent(x),
             ipc:excelCashIpc(x),
@@ -4914,11 +5028,11 @@ function legacyCashExportRows(month,project){
         if(x.fromProject===project){
             rows.push({
                 date:x.actualDate,
-                company:x.toProject||'',
-                contractNo:x.description||'',
-                content:x.description||`${x.fromProject}→${x.toProject}`,
+                company:excelInternalCounterpartyLabel(cashLang),
+                contractNo:'',
+                content:excelTransferContent(x,cashLang),
                 ipc:'',
-                type:'调剂',
+                type:excelTransferTypeLabel(x,cashLang,project),
                 income:-amount,
                 subcontract:0,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0,
                 sortText:x.description||''
@@ -4928,11 +5042,11 @@ function legacyCashExportRows(month,project){
         if(x.toProject===project){
             rows.push({
                 date:x.actualDate,
-                company:x.fromProject||'',
-                contractNo:x.description||'',
-                content:x.description||`${x.fromProject}→${x.toProject}`,
+                company:excelInternalCounterpartyLabel(cashLang),
+                contractNo:'',
+                content:excelTransferContent(x,cashLang),
                 ipc:'',
-                type:'调剂',
+                type:excelTransferTypeLabel(x,cashLang,project),
                 income:amount,
                 subcontract:0,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0,
                 sortText:x.description||''
@@ -5536,15 +5650,20 @@ if(exportProjectLedgerExcelBtn){
     };
 }
 
-function buildLegacyCombinedReportSheet(month,selectedProject){
+function buildLegacyCombinedReportSheet(month,selectedProject,lang=cashLang){
     const projects=(selectedProject?[selectedProject]:allProjects()).filter(p=>legacyCashExportRows(month,p).length>0||opening(p,month)!==0);
+    const d={
+      vi:{projectCash:'dòng tiền dự án',headers:['Ngày','Tên công ty / đối tượng','Số hợp đồng','Nội dung','IPC','Loại','Thu','Thầu phụ','Vật tư','Chi trực tiếp khác','Chi phí gián tiếp','Chi phí tài chính','Phải trả khác','Số dư'],opening:'Số dư đầu kỳ'},
+      zh:{projectCash:'项目现金流',headers:['日期','公司 / 对象','合同编号','内容','IPC','类型','收入','分包款','材料款','其他直接费用','间接费','财务费用','其他应付款','余额'],opening:'期初余额'},
+      en:{projectCash:'Project cash flow',headers:['Date','Company / counterparty','Contract No.','Description','IPC','Type','Inflow','Subcontract','Materials','Other direct cost','Indirect cost','Finance cost','Other payables','Balance'],opening:'Opening balance'}
+    }[lang]||{};
     const rows=[];
     projects.forEach((project,idx)=>{
         if(idx)rows.push([]);
-        rows.push([`${project}项目现金流`]);
-        rows.push(['日期','公司名称','合同编号','合同内容','IPC','类型','收入','分包款','材料款','其他直接费用','间接费','财务费用','其他应付款','余额']);
+        rows.push([lang==='zh'?`${project}${d.projectCash}`:`${project} · ${d.projectCash}`]);
+        rows.push(d.headers);
         let balance=opening(project,month);
-        rows.push(['','期初余额','','','','','','','','','','','',balance]);
+        rows.push(['',d.opening,'','','','','','','','','','','',balance]);
         legacyCashExportRows(month,project).forEach(x=>{
             const expense=num(x.subcontract)+num(x.material)+num(x.otherDirect)+num(x.indirect)+num(x.financial)+num(x.otherPayable);
             balance+=num(x.income)-expense;
@@ -5555,23 +5674,16 @@ function buildLegacyCombinedReportSheet(month,selectedProject){
     excelApplyBaseStyle(ws,ws['!ref']);
     ws['!merges']=ws['!merges']||[];
     for(let r=0;r<rows.length;r++){
-        if(rows[r]?.length===1 && String(rows[r][0]||'').includes('项目现金流')){
+        if(rows[r]?.length===1){
             ws['!merges'].push({s:{r,c:0},e:{r,c:13}});
             const c=ws[XLSX.utils.encode_cell({r,c:0})];
             if(c)c.s={font:{name:'Arial',sz:13,bold:true,color:{rgb:'17365D'}},fill:{patternType:'solid',fgColor:{rgb:'EAF2F8'}},alignment:{vertical:'center',horizontal:'left'}};
             continue;
         }
-        if(rows[r]?.[0]==='日期'){
-            excelStyleHeader(ws,r,13);
-            continue;
-        }
-        if(rows[r]?.[1]==='期初余额'){
+        if(rows[r]?.[0]===d.headers[0]){excelStyleHeader(ws,r,13);continue;}
+        if(rows[r]?.[1]===d.opening){
             for(let c=0;c<=13;c++){
-                const cell=ws[XLSX.utils.encode_cell({r,c})];
-                if(!cell)continue;
-                cell.s=cell.s||{};
-                cell.s.fill={patternType:'solid',fgColor:{rgb:'F3F7FB'}};
-                cell.s.font={...(cell.s.font||{}),bold:true,color:{rgb:'17365D'}};
+                const cell=ws[XLSX.utils.encode_cell({r,c})];if(!cell)continue;cell.s=cell.s||{};cell.s.fill={patternType:'solid',fgColor:{rgb:'F3F7FB'}};cell.s.font={...(cell.s.font||{}),bold:true,color:{rgb:'17365D'}};
             }
         }
     }
@@ -5580,47 +5692,109 @@ function buildLegacyCombinedReportSheet(month,selectedProject){
     return ws;
 }
 function exportCashManagementExcel(){
-    if(!window.XLSX){alert('Không tải được thư viện Excel. Kiểm tra Internet rồi thử lại.');return;}
+    if(!window.XLSX){alert(cashLang==='zh'?'Excel 库未加载，请检查网络后重试。':cashLang==='en'?'Excel library failed to load. Check your connection and try again.':'Không tải được thư viện Excel. Kiểm tra Internet rồi thử lại.');return;}
+    const lang=cashLang;
     const month=$('rMonth')?.value||$('fundsMonth')?.value||CURRENT;
     const project=$('rProject')?.value||'';
-    const scope=project?project:'TẤT CẢ DỰ ÁN';
+    const T={
+      vi:{scope:'TẤT CẢ DỰ ÁN',overviewTitle:'TỔNG QUAN VỐN',overviewSheet:'01_Tổng quan vốn',overview:['Dự án','Đầu kỳ','Thực thu','Thực chi','Số dư thực tế','Dự kiến thu','KH Payment','Chi phí gián tiếp','Lương','Thuế đến hạn','Khác','Tổng nhu cầu','Dự kiến cuối kỳ','Payment chờ trả','Thuế chưa nộp','Lương/BH còn chi','Vay nội bộ còn nợ','Phải thu CĐT'],actualTitle:'DÒNG TIỀN THỰC TẾ · KIỂU MỚI',actualSheet:'02A_Dòng tiền mới',actual:['Ngày','Dự án','Nguồn','Nhóm','Chi tiết','Nội dung','Thu','Chi','Biến động','Số dư sau giao dịch'],actualSub:'chỉ tiền thật',legacySheet:'02B_Dòng tiền cũ',planTitle:'KẾ HOẠCH VỐN',planSheet:'03_Kế hoạch vốn',plan:['Dự án','Số dư thực tế','Dự kiến thu','KH Payment','Chi phí gián tiếp','Lương','Thuế đến hạn','Khác','Tổng nhu cầu','Dự kiến cuối kỳ','Trạng thái'],funded:'ĐỦ NGUỒN',gap:'THIẾU NGUỒN',taxTitle:'THUẾ CHƯA NỘP',taxSheet:'04_Thuế chưa nộp',taxSummaryTitle:'TỔNG HỢP THEO DỰ ÁN',taxDetailTitle:'CHI TIẾT THUẾ CHƯA NỘP',taxSummaryHeads:['Dự án','Tổng chưa nộp','Số kỳ đang treo','Kỳ gần nhất phải nộp'],taxDetailHeads:['Dự án','Kỳ thuế','Tháng lương / kỳ phát sinh','Dự kiến nộp','Còn chưa nộp','Nguồn'],taxSubtotal:'Tổng dự án',taxGrand:'TỔNG CỘNG',taxEmpty:'Không có thuế chưa nộp',loanTitle:'VAY NỘI BỘ',loanSheet:'05_Vay nội bộ',debtNow:'DƯ NỢ HIỆN TẠI',debtHeads:['Bên cho vay','Bên vay','Còn nợ'],history:'LỊCH SỬ THÁNG',loanHeads:['Ngày','Loại','Từ dự án','Đến dự án','Số tiền','Nội dung']},
+      zh:{scope:'全部项目',overviewTitle:'资金概览',overviewSheet:'01_资金概览',overview:['项目','期初余额','实际收入','实际支出','实际余额','预计收入','付款计划','间接费','工资','到期税费','其他','资金需求合计','预计期末余额','待付款','未缴税费','待付工资/社保','内部借款未还','业主应收'],actualTitle:'实际现金流 · 新版',actualSheet:'02A_实际现金流_新',actual:['日期','项目','来源','分类','明细','内容','收入','支出','净变动','交易后余额'],actualSub:'仅实际收支',legacySheet:'02B_实际现金流_旧',planTitle:'资金计划',planSheet:'03_资金计划',plan:['项目','实际余额','预计收入','付款计划','间接费','工资','到期税费','其他','资金需求合计','预计期末余额','状态'],funded:'资金充足',gap:'资金不足',taxTitle:'未缴税费',taxSheet:'04_未缴税费',taxSummaryTitle:'项目汇总',taxDetailTitle:'未缴税费明细',taxSummaryHeads:['项目','未缴总额','未结期间数','最近应缴月份'],taxDetailHeads:['项目','税期','工资月份 / 发生期','预计缴纳','尚未缴纳','来源'],taxSubtotal:'项目小计',taxGrand:'总计',taxEmpty:'暂无未缴税费',loanTitle:'内部借款',loanSheet:'05_内部借款',debtNow:'当前未归还',debtHeads:['出借方','借款方','未还余额'],history:'本月交易历史',loanHeads:['日期','类型','转出项目','转入项目','金额','内容']},
+      en:{scope:'ALL PROJECTS',overviewTitle:'CASH POSITION OVERVIEW',overviewSheet:'01_Cash overview',overview:['Project','Opening','Actual inflow','Actual outflow','Actual balance','Expected inflow','Payment plan','Indirect cost','Payroll','Tax due','Other','Total funding need','Projected closing','Payments pending','Unpaid tax','Payroll/insurance pending','Internal loan outstanding','Client receivable'],actualTitle:'ACTUAL CASH FLOW · NEW',actualSheet:'02A_Actual cash new',actual:['Date','Project','Source','Category','Detail','Description','Inflow','Outflow','Movement','Balance after transaction'],actualSub:'actual cash only',legacySheet:'02B_Actual cash old',planTitle:'FUNDING PLAN',planSheet:'03_Funding plan',plan:['Project','Actual balance','Expected inflow','Payment plan','Indirect cost','Payroll','Tax due','Other','Total funding need','Projected closing','Status'],funded:'FUNDED',gap:'FUNDING GAP',taxTitle:'UNPAID TAX',taxSheet:'04_Unpaid tax',taxSummaryTitle:'PROJECT SUMMARY',taxDetailTitle:'UNPAID TAX DETAIL',taxSummaryHeads:['Project','Total unpaid','Open periods','Nearest due period'],taxDetailHeads:['Project','Tax period','Salary month / accrual period','Planned payment','Outstanding','Source'],taxSubtotal:'Project subtotal',taxGrand:'GRAND TOTAL',taxEmpty:'No unpaid tax',loanTitle:'INTERNAL LOANS',loanSheet:'05_Internal loans',debtNow:'CURRENT OUTSTANDING',debtHeads:['Lender','Borrower','Outstanding'],history:'MONTHLY HISTORY',loanHeads:['Date','Type','From project','To project','Amount','Description']}
+    }[lang];
+    const scope=project?project:T.scope;
     const wb=XLSX.utils.book_new();
     const planRows=ccPlanRows(month),taxMap=outstandingTaxByProject();
     const projects=(project?[project]:allProjects());
 
-    /* 01 · 资金概览: actual + plan + outstanding in one project-level sheet. */
-    const overviewRows=[['Dự án','Đầu kỳ','Thực thu','Thực chi','Số dư thực tế','Dự kiến thu','KH Payment','间接费','Lương','Thuế đến hạn','Khác','Tổng nhu cầu','Dự kiến cuối kỳ','Payment chờ trả','Thuế chưa nộp','Lương/BH còn chi','Vay nội bộ còn nợ','Phải thu CĐT']];
+    const overviewRows=[T.overview];
     projects.forEach(p=>{
         const st=ccPlanProjectStats(p,month,planRows,taxMap),paymentOpen=reportPaymentOutstanding(p,month),payrollOpen=reportPayrollOutstanding(p,month),internal=reportInternalDebt(p),ar=filteredInflows(p).reduce((sum,x)=>sum+inflowOutstanding(x),0),need=st.payment+st.indirect+st.payroll+st.taxPlan+st.other;
         overviewRows.push([p,st.op,st.actualIn,st.actualOut,st.actualBalance,st.expectedIn,st.payment,st.indirect,st.payroll,st.taxPlan,st.other,need,st.projected,paymentOpen,st.taxOutstanding,payrollOpen,internal,ar]);
     });
     const ws1=XLSX.utils.aoa_to_sheet([[],[],[],...overviewRows]);
-    excelStyleTitle(ws1,'资金概览 · TỔNG QUAN VỐN',`${fmtMonth(month)} · ${scope}`,17);excelApplyBaseStyle(ws1,ws1['!ref']);excelStyleHeader(ws1,3,17);excelFormatMoneyColumns(ws1,Array.from({length:17},(_,i)=>i+1),4,3+overviewRows.length-1);ws1['!cols']=[{wch:18},...Array(17).fill({wch:17})];ws1['!autofilter']={ref:`A4:R${3+overviewRows.length}`};ws1['!freeze']={xSplit:1,ySplit:4};XLSX.utils.book_append_sheet(wb,ws1,'01_资金概览');
+    excelStyleTitle(ws1,T.overviewTitle,`${fmtMonth(month)} · ${scope}`,17);excelApplyBaseStyle(ws1,ws1['!ref']);excelStyleHeader(ws1,3,17);excelFormatMoneyColumns(ws1,Array.from({length:17},(_,i)=>i+1),4,3+overviewRows.length-1);ws1['!cols']=[{wch:18},...Array(17).fill({wch:17})];ws1['!autofilter']={ref:`A4:R${3+overviewRows.length}`};ws1['!freeze']={xSplit:1,ySplit:4};XLSX.utils.book_append_sheet(wb,ws1,T.overviewSheet);
 
-    /* 02A · actual cash flow — new consolidated ledger. */
     const ledger=excelBuildLedger(month,project);
-    const modernRows=[['Ngày','Dự án','Nguồn','Nhóm','Chi tiết','Nội dung','Thu','Chi','Biến động','Số dư sau giao dịch'],...ledger.map(x=>[x.date,x.project,excelSourceLabel(x.source),x.category,x.paymentSubtype||'',x.desc,x.cashIn||'',x.cashOut||'',x.movement,x.balance])];
-    const ws2a=XLSX.utils.aoa_to_sheet([[],[],[],...modernRows]);excelStyleTitle(ws2a,'实际现金流 · KIỂU MỚI',`${fmtMonth(month)} · ${scope} · chỉ tiền thật`,9);excelApplyBaseStyle(ws2a,ws2a['!ref']);excelStyleHeader(ws2a,3,9);excelFormatMoneyColumns(ws2a,[6,7,8,9],4,3+modernRows.length-1);ws2a['!cols']=[{wch:13},{wch:18},{wch:20},{wch:24},{wch:24},{wch:46},{wch:18},{wch:18},{wch:18},{wch:22}];ws2a['!autofilter']={ref:`A4:J${Math.max(4,3+modernRows.length)}`};ws2a['!freeze']={xSplit:2,ySplit:4};
+    const modernRows=[T.actual,...ledger.map(x=>[x.date,x.project,excelSourceLabel(x.source,lang),excelExportText(x.category,lang),x.paymentSubtype||'',excelLedgerDescription(x,lang),x.cashIn||'',x.cashOut||'',x.movement,x.balance])];
+    const ws2a=XLSX.utils.aoa_to_sheet([[],[],[],...modernRows]);excelStyleTitle(ws2a,T.actualTitle,`${fmtMonth(month)} · ${scope} · ${T.actualSub}`,9);excelApplyBaseStyle(ws2a,ws2a['!ref']);excelStyleHeader(ws2a,3,9);excelFormatMoneyColumns(ws2a,[6,7,8,9],4,3+modernRows.length-1);ws2a['!cols']=[{wch:13},{wch:18},{wch:20},{wch:24},{wch:24},{wch:46},{wch:18},{wch:18},{wch:18},{wch:22}];ws2a['!autofilter']={ref:`A4:J${Math.max(4,3+modernRows.length)}`};ws2a['!freeze']={xSplit:2,ySplit:4};
     for(let r=4;r<=3+modernRows.length-1;r++){
         const c=ws2a[XLSX.utils.encode_cell({r,c:9})];
         if(c){c.z='#,##0';c.s={...(c.s||{}),font:{...((c.s||{}).font||{}),bold:true},fill:{fgColor:{rgb:'F2F6FA'}},border:{...((c.s||{}).border||{}),left:{style:'thin',color:{rgb:'C7D3E0'}}},alignment:{...((c.s||{}).alignment||{}),horizontal:'right',vertical:'center'}};}
     }
-    XLSX.utils.book_append_sheet(wb,ws2a,'02A_实际现金流_新');
+    XLSX.utils.book_append_sheet(wb,ws2a,T.actualSheet);
 
-    /* 02B · actual cash flow — old handed-over workbook layout. */
-    const ws2b=buildLegacyCombinedReportSheet(month,project);XLSX.utils.book_append_sheet(wb,ws2b,'02B_实际现金流_旧');
+    const ws2b=buildLegacyCombinedReportSheet(month,project,lang);XLSX.utils.book_append_sheet(wb,ws2b,T.legacySheet);
 
-    /* 03 · 资金计划 */
-    const planAOA=[['Dự án','Số dư thực tế','Dự kiến thu','KH Payment','间接费','Lương','Thuế đến hạn','Khác','Tổng nhu cầu','Dự kiến cuối kỳ','Trạng thái']];
-    projects.forEach(p=>{const st=ccPlanProjectStats(p,month,planRows,taxMap),need=st.payment+st.indirect+st.payroll+st.taxPlan+st.other;planAOA.push([p,st.actualBalance,st.expectedIn,st.payment,st.indirect,st.payroll,st.taxPlan,st.other,need,st.projected,st.projected<0?'THIẾU NGUỒN':'ĐỦ NGUỒN']);});
-    const ws3=XLSX.utils.aoa_to_sheet([[],[],[],...planAOA]);excelStyleTitle(ws3,'资金计划 · KẾ HOẠCH VỐN',`${fmtMonth(month)} · ${scope}`,10);excelApplyBaseStyle(ws3,ws3['!ref']);excelStyleHeader(ws3,3,10);excelFormatMoneyColumns(ws3,[1,2,3,4,5,6,7,8,9],4,3+planAOA.length-1);ws3['!cols']=[{wch:18},...Array(9).fill({wch:18}),{wch:16}];ws3['!autofilter']={ref:`A4:K${3+planAOA.length}`};ws3['!freeze']={xSplit:1,ySplit:4};XLSX.utils.book_append_sheet(wb,ws3,'03_资金计划');
+    const planAOA=[T.plan];
+    projects.forEach(p=>{const st=ccPlanProjectStats(p,month,planRows,taxMap),need=st.payment+st.indirect+st.payroll+st.taxPlan+st.other;planAOA.push([p,st.actualBalance,st.expectedIn,st.payment,st.indirect,st.payroll,st.taxPlan,st.other,need,st.projected,st.projected<0?T.gap:T.funded]);});
+    const ws3=XLSX.utils.aoa_to_sheet([[],[],[],...planAOA]);excelStyleTitle(ws3,T.planTitle,`${fmtMonth(month)} · ${scope}`,10);excelApplyBaseStyle(ws3,ws3['!ref']);excelStyleHeader(ws3,3,10);excelFormatMoneyColumns(ws3,[1,2,3,4,5,6,7,8,9],4,3+planAOA.length-1);ws3['!cols']=[{wch:18},...Array(9).fill({wch:18}),{wch:16}];ws3['!autofilter']={ref:`A4:K${3+planAOA.length}`};ws3['!freeze']={xSplit:1,ySplit:4};XLSX.utils.book_append_sheet(wb,ws3,T.planSheet);
 
-    /* 04 · 内部拆借 */
-    const debts=debtPositions().filter(x=>!project||x.lender===project||x.borrower===project);const transfers=allTransfers().filter(x=>monthOf(x.actualDate)===month).filter(x=>!project||x.fromProject===project||x.toProject===project).sort((a,b)=>String(b.actualDate).localeCompare(String(a.actualDate)));
-    const ws5=XLSX.utils.aoa_to_sheet([[],[],[],['DƯ NỢ HIỆN TẠI'],['Bên cho vay','Bên vay','Còn nợ'],...debts.map(x=>[x.lender,x.borrower,x.amount]),[],['LỊCH SỬ THÁNG'],['Ngày','Loại','Từ dự án','Đến dự án','Số tiền','Nội dung'],...transfers.map(x=>[x.actualDate,x.transferType==='loan'?'Cho vay':x.transferType==='repayment'?'Hoàn vay':'Điều chuyển',x.fromProject,x.toProject,x.amount,x.description||''])]);
-    excelStyleTitle(ws5,'内部拆借 · VAY NỘI BỘ',`${fmtMonth(month)} · ${scope}`,5);excelApplyBaseStyle(ws5,ws5['!ref']);excelStyleHeader(ws5,4,2);const histHeader=7+debts.length+1;excelStyleHeader(ws5,histHeader,5);excelFormatMoneyColumns(ws5,[2],5,5+debts.length);excelFormatMoneyColumns(ws5,[4],histHeader+1,histHeader+transfers.length);ws5['!cols']=[{wch:18},{wch:20},{wch:18},{wch:18},{wch:18},{wch:42}];XLSX.utils.book_append_sheet(wb,ws5,'04_内部拆借');
+    /* 04 · Unpaid tax: project summary + project-by-project detail + grand total. */
+    const allTaxOutstanding=outstandingTaxRows().filter(x=>!project||normProject(x.project)===normProject(project));
+    const taxProjects=[...new Set(allTaxOutstanding.map(x=>normProject(x.project)).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+    const taxSummaryRows=taxProjects.map(p=>{
+        const rows=allTaxOutstanding.filter(x=>normProject(x.project)===p);
+        const total=rows.reduce((s,x)=>s+num(x.amount),0);
+        const periods=new Set(rows.map(x=>`${x.quarter||''}|${x.dueMonth||''}`)).size;
+        const due=rows.map(x=>x.dueMonth).filter(x=>/^\d{4}-\d{2}$/.test(String(x||''))).sort()[0]||'';
+        return [p,total,periods,due?excelExportMonthText(due,lang):'—'];
+    });
+    const taxAOA=[[],[],[],[T.taxSummaryTitle],T.taxSummaryHeads,...taxSummaryRows,[],[T.taxDetailTitle],T.taxDetailHeads];
+    const taxSummaryTitleRow=3,taxSummaryHeaderRow=4;
+    const taxDetailTitleRow=taxAOA.length-2,taxDetailHeaderRow=taxAOA.length-1;
+    const taxSubtotalRows=[];
+    taxProjects.forEach(p=>{
+        const rows=allTaxOutstanding.filter(x=>normProject(x.project)===p);
+        rows.forEach(x=>taxAOA.push([
+            p,
+            x.quarter||'—',
+            /^\d{4}-\d{2}$/.test(String(x.period||''))?excelExportMonthText(x.period,lang):(x.period||'—'),
+            /^\d{4}-\d{2}$/.test(String(x.dueMonth||''))?excelExportMonthText(x.dueMonth,lang):(x.dueMonth||'—'),
+            num(x.amount),
+            excelExportText(x.source||'',lang)
+        ]));
+        const subtotal=rows.reduce((s,x)=>s+num(x.amount),0);
+        taxAOA.push([`${p} · ${T.taxSubtotal}`,'','','',subtotal,'']);
+        taxSubtotalRows.push(taxAOA.length-1);
+    });
+    if(!taxProjects.length)taxAOA.push([T.taxEmpty,'','','',0,'']);
+    const taxGrandTotal=allTaxOutstanding.reduce((s,x)=>s+num(x.amount),0);
+    taxAOA.push([T.taxGrand,'','','',taxGrandTotal,'']);
+    const taxGrandRow=taxAOA.length-1;
+    const wsTax=XLSX.utils.aoa_to_sheet(taxAOA);
+    excelStyleTitle(wsTax,T.taxTitle,`${fmtMonth(month)} · ${scope}`,5);
+    excelApplyBaseStyle(wsTax,wsTax['!ref']);
+    excelStyleHeader(wsTax,taxSummaryHeaderRow,3);
+    excelStyleHeader(wsTax,taxDetailHeaderRow,5);
+    excelFormatMoneyColumns(wsTax,[1],5,4+taxSummaryRows.length);
+    excelFormatMoneyColumns(wsTax,[4],taxDetailHeaderRow+1,taxGrandRow);
+    wsTax['!cols']=[{wch:22},{wch:18},{wch:25},{wch:19},{wch:20},{wch:22}];
+    wsTax['!freeze']={xSplit:1,ySplit:taxDetailHeaderRow+1};
+    wsTax['!merges']=wsTax['!merges']||[];
+    wsTax['!merges'].push({s:{r:taxSummaryTitleRow,c:0},e:{r:taxSummaryTitleRow,c:5}});
+    wsTax['!merges'].push({s:{r:taxDetailTitleRow,c:0},e:{r:taxDetailTitleRow,c:5}});
+    [taxSummaryTitleRow,taxDetailTitleRow].forEach(R=>{
+        const c=wsTax[XLSX.utils.encode_cell({r:R,c:0})];
+        if(c)c.s={font:{name:'Arial',sz:11,bold:true,color:{rgb:'17365D'}},fill:{patternType:'solid',fgColor:{rgb:'EAF1F8'}},alignment:{vertical:'center'},border:{bottom:{style:'thin',color:{rgb:'C8D5E3'}}}};
+    });
+    taxSubtotalRows.forEach(R=>{
+        for(let C=0;C<=5;C++){
+            const c=wsTax[XLSX.utils.encode_cell({r:R,c:C})];
+            if(c)c.s={...(c.s||{}),font:{...((c.s||{}).font||{}),bold:true,color:{rgb:'17365D'}},fill:{patternType:'solid',fgColor:{rgb:'F4F7FA'}},border:{...((c.s||{}).border||{}),top:{style:'thin',color:{rgb:'C8D5E3'}}}};
+        }
+    });
+    for(let C=0;C<=5;C++){
+        const c=wsTax[XLSX.utils.encode_cell({r:taxGrandRow,c:C})];
+        if(c)c.s={...(c.s||{}),font:{...((c.s||{}).font||{}),bold:true,color:{rgb:'FFFFFF'}},fill:{patternType:'solid',fgColor:{rgb:'17365D'}},border:{...((c.s||{}).border||{}),top:{style:'medium',color:{rgb:'17365D'}}}};
+    }
+    XLSX.utils.book_append_sheet(wb,wsTax,T.taxSheet);
 
-    const fileScope=project?project.replace(/\s+/g,'_'):'ALL_PROJECTS';XLSX.writeFile(wb,`Cash_Management_${month}_${fileScope}.xlsx`);
+    const debts=debtPositions().filter(x=>!project||x.lender===project||x.borrower===project);
+    const transfers=allTransfers().filter(x=>monthOf(x.actualDate)===month).filter(x=>!project||x.fromProject===project||x.toProject===project).sort((a,b)=>String(b.actualDate).localeCompare(String(a.actualDate)));
+    const ws5=XLSX.utils.aoa_to_sheet([[],[],[],[T.debtNow],T.debtHeads,...debts.map(x=>[x.lender,x.borrower,x.amount]),[],[T.history],T.loanHeads,...transfers.map(x=>[x.actualDate,excelTransferTypeLabel(x,lang,''),x.fromProject,x.toProject,x.amount,excelTransferContent(x,lang)])]);
+    excelStyleTitle(ws5,T.loanTitle,`${fmtMonth(month)} · ${scope}`,5);excelApplyBaseStyle(ws5,ws5['!ref']);excelStyleHeader(ws5,4,2);const histHeader=7+debts.length+1;excelStyleHeader(ws5,histHeader,5);excelFormatMoneyColumns(ws5,[2],5,5+debts.length);excelFormatMoneyColumns(ws5,[4],histHeader+1,histHeader+transfers.length);ws5['!cols']=[{wch:18},{wch:20},{wch:18},{wch:18},{wch:18},{wch:42}];XLSX.utils.book_append_sheet(wb,ws5,T.loanSheet);
+
+    const fileScope=project?project.replace(/\s+/g,'_'):'ALL_PROJECTS';XLSX.writeFile(wb,`Cash_Management_${lang}_${month}_${fileScope}.xlsx`);
 }
 
 const exportCashExcelBtn=$('exportCashExcelBtn');
@@ -6978,9 +7152,9 @@ function openTaxOutstanding(project){
     if($('taxOutstandingDetailBody'))$('taxOutstandingDetailBody').innerHTML=rows.map(x=>{
         const overdue=!!(x.dueMonth&&x.dueMonth<CURRENT);
         const sourceTone=/Lương|thuế/i.test(String(x.source||''))?'payroll':'legacy';
-        return `<tr><td><span class="tax-period-pill">${esc(x.quarter||'—')}</span></td><td>${/^\d{4}-\d{2}$/.test(x.period)?fmtMonth(x.period):esc(x.period||'—')}</td><td>${x.dueMonth?`<span class="tax-due ${overdue?'overdue':''}">${fmtMonth(x.dueMonth)}</span>`:'—'}</td><td><span class="tax-source-pill ${sourceTone}">${esc(x.source)}</span></td><td class="money tax-money">${money(x.amount)}</td></tr>`;
+        return `<tr><td><span class="tax-period-pill">${esc(x.quarter||'—')}</span></td><td>${/^\d{4}-\d{2}$/.test(x.period)?fmtMonth(x.period):esc(x.period||'—')}</td><td>${x.dueMonth?`<span class="tax-due ${overdue?'overdue':''}">${fmtMonth(x.dueMonth)}</span>`:'—'}</td><td class="money tax-money">${money(x.amount)}</td><td><span class="tax-source-pill ${sourceTone}">${esc(x.source)}</span></td></tr>`;
     }).join('')||'<tr><td colspan="5" class="mep-empty">Project này hiện không có thuế chưa nộp.</td></tr>';
-    if($('taxOutstandingDetailFoot'))$('taxOutstandingDetailFoot').innerHTML=rows.length?`<tr><th colspan="4">Tổng chưa nộp</th><th class="money">${money(total)}</th></tr>`:'';
+    if($('taxOutstandingDetailFoot'))$('taxOutstandingDetailFoot').innerHTML=rows.length?`<tr><th colspan="3">Tổng chưa nộp</th><th class="money">${money(total)}</th><th></th></tr>`:'';
     openModal('taxOutstandingModal');
 }
 function fundsMonthLastDate(month){
@@ -8187,9 +8361,9 @@ function syncV41Top(){
 function syncV41TaxModal(projectOverride=''){
   const modal=$('taxOutstandingModal');if(!modal)return;
   const d={
-    vi:{title:'Thuế chưa nộp',sub:'Chỉ hiển thị nghĩa vụ chưa có ngày thực nộp. Lương tháng mới không bị nhập nhầm vào kỳ thuế cũ.',stats:['Tổng chưa nộp','Số kỳ đang treo','Kỳ gần nhất phải nộp'],heads:['Kỳ thuế','Tháng lương / kỳ phát sinh','Dự kiến nộp','Nguồn','Còn chưa nộp'],total:'Tổng chưa nộp',empty:'Project này hiện không có thuế chưa nộp.'},
-    zh:{title:'未缴税费',sub:'仅显示尚无实际缴纳日期的税费义务。新月份工资不会误计入旧税期。',stats:['未缴合计','未结期间数','最近应缴月份'],heads:['税期','工资月份 / 发生期','预计缴纳','来源','尚未缴纳'],total:'未缴合计',empty:'该项目目前没有未缴税费。'},
-    en:{title:'Outstanding tax',sub:'Shows only tax obligations without an actual payment date. New payroll months are not mixed into older tax periods.',stats:['Total outstanding','Open periods','Next due month'],heads:['Tax period','Payroll month / accrual period','Planned payment','Source','Outstanding'],total:'Total outstanding',empty:'This project currently has no outstanding tax.'}
+    vi:{title:'Thuế chưa nộp',sub:'Chỉ hiển thị nghĩa vụ chưa có ngày thực nộp. Lương tháng mới không bị nhập nhầm vào kỳ thuế cũ.',stats:['Tổng chưa nộp','Số kỳ đang treo','Kỳ gần nhất phải nộp'],heads:['Kỳ thuế','Tháng lương / kỳ phát sinh','Dự kiến nộp','Còn chưa nộp','Nguồn'],total:'Tổng chưa nộp',empty:'Project này hiện không có thuế chưa nộp.'},
+    zh:{title:'未缴税费',sub:'仅显示尚无实际缴纳日期的税费义务。新月份工资不会误计入旧税期。',stats:['未缴合计','未结期间数','最近应缴月份'],heads:['税期','工资月份 / 发生期','预计缴纳','尚未缴纳','来源'],total:'未缴合计',empty:'该项目目前没有未缴税费。'},
+    en:{title:'Outstanding tax',sub:'Shows only tax obligations without an actual payment date. New payroll months are not mixed into older tax periods.',stats:['Total outstanding','Open periods','Next due month'],heads:['Tax period','Payroll month / accrual period','Planned payment','Outstanding','Source'],total:'Total outstanding',empty:'This project currently has no outstanding tax.'}
   }[v41Lang()];
   const current=String(projectOverride||modal.dataset.project||'').trim();if(current)modal.dataset.project=current;
   if($('taxOutstandingTitle'))$('taxOutstandingTitle').textContent=current?`${d.title} · ${current}`:d.title;
@@ -8532,7 +8706,8 @@ setTimeout(()=>{
 #taxOutstandingModal .tax-detail-table th:nth-child(1),#taxOutstandingModal .tax-detail-table td:nth-child(1){width:120px}
 #taxOutstandingModal .tax-detail-table th:nth-child(2),#taxOutstandingModal .tax-detail-table td:nth-child(2){width:190px}
 #taxOutstandingModal .tax-detail-table th:nth-child(3),#taxOutstandingModal .tax-detail-table td:nth-child(3){width:140px}
-#taxOutstandingModal .tax-detail-table th:nth-child(4),#taxOutstandingModal .tax-detail-table td:nth-child(4){width:180px}
+#taxOutstandingModal .tax-detail-table th:nth-child(4),#taxOutstandingModal .tax-detail-table td:nth-child(4){width:150px}
+#taxOutstandingModal .tax-detail-table th:nth-child(5),#taxOutstandingModal .tax-detail-table td:nth-child(5){width:180px}
 #taxOutstandingModal .tax-detail-table .money-head,#taxOutstandingModal .tax-detail-table .money{text-align:right}
 #taxOutstandingModal .tax-detail-table tbody tr:hover{background:#f8fbfe}
 #taxOutstandingModal .tax-detail-table tfoot th{position:sticky;bottom:0;background:#edf4fa;color:#17395e;border-top:1px solid #c6d6e5;border-bottom:0;font-weight:950}
