@@ -1004,6 +1004,95 @@ body{
   .salary-history-summary{grid-template-columns:1fr 1fr}
 }
 
+
+/* ===== FUNDS TABLE FLOW V11 — grouped, column-safe ===== */
+#fundsView .cc-table thead .funds-group-row th{
+  background:#eef3f8!important;
+  color:#52677d!important;
+  border-bottom:1px solid #d9e3ed!important;
+  font-size:8px!important;
+  font-weight:900!important;
+  letter-spacing:.35px!important;
+  text-transform:uppercase!important;
+  text-align:center!important;
+  vertical-align:middle!important;
+  padding:6px!important;
+  position:sticky;
+  top:0;
+  z-index:5;
+}
+#fundsView .cc-table thead .funds-detail-row th{
+  position:sticky;
+  top:27px;
+  z-index:4;
+}
+#fundsView .cc-table .funds-current-balance{background:#f7fbff!important}
+#fundsView .cc-table .funds-total-need{background:#fffaf0!important}
+#fundsView .cc-table .funds-projected-balance{background:#f5fbf7!important}
+#fundsView .cc-table tfoot .funds-current-balance,
+#fundsView .cc-table tfoot .funds-total-need,
+#fundsView .cc-table tfoot .funds-projected-balance{font-weight:900!important}
+
+
+/* ===== FUNDS V12 VISUAL FIX ===== */
+#fundsView .cc-table thead .funds-group-row th{
+  height:25px!important;
+  line-height:1.1!important;
+  box-sizing:border-box!important;
+}
+#fundsView .cc-table thead .funds-detail-row th{
+  top:25px!important;
+  height:31px!important;
+  box-sizing:border-box!important;
+  background:#102b49!important;
+  color:#fff!important;
+}
+#fundsView .funds-group-project{
+  min-width:112px!important;
+  border-right:1px solid #d9e3ed!important;
+}
+#fundsView #fundsFoot th,
+#fundsView #fundsFoot td{
+  background:#102b49!important;
+  color:#fff!important;
+  border-color:#294767!important;
+  font-weight:900!important;
+}
+#fundsView #fundsFoot .funds-current-balance,
+#fundsView #fundsFoot .funds-total-need,
+#fundsView #fundsFoot .funds-projected-balance{
+  background:#173b60!important;
+  color:#fff!important;
+}
+#fundsView .funds-current-balance{color:#173556!important}
+#fundsView .funds-total-need{color:#6b4f14!important}
+#fundsView .funds-projected-balance{color:#176c48!important}
+#fundsView .funds-projected-balance.neg{color:#b42318!important}
+
+/* Excel-like copy selection */
+#fundsView .cc-table{cursor:cell}
+#fundsView .funds-detail-row th,
+#fundsView #fundsBody td,
+#fundsView #fundsFoot th,
+#fundsView #fundsFoot td{user-select:none}
+#fundsView .funds-cell-selected{
+  position:relative;
+  background:#eaf3ff!important;
+  color:#173556!important;
+  box-shadow:inset 0 0 0 1px rgba(69,128,196,.22);
+}
+#fundsView .funds-cell-selected b,
+#fundsView .funds-cell-selected .pos,
+#fundsView .funds-cell-selected .neg{color:#173556!important}
+#fundsView .funds-cell-anchor{box-shadow:inset 0 0 0 2px #5b8fd1!important}
+#fundsCopyToast{
+  position:fixed;right:20px;bottom:20px;z-index:99999;
+  background:#173756;color:#fff;border-radius:9px;padding:8px 12px;
+  font-size:10px;font-weight:800;box-shadow:0 8px 26px rgba(16,43,73,.2);
+  opacity:0;transform:translateY(8px);pointer-events:none;transition:.18s ease
+}
+#fundsCopyToast.show{opacity:1;transform:translateY(0)}
+
 </style>
 <style id="cc-no-double-sidebar-gap">
 /* Fix: sidebar already occupies a CSS-grid column; do not offset main twice. */
@@ -1275,13 +1364,36 @@ html[lang="zh-CN"] #reportsView,html[lang="zh-CN"] #loansView{font-family:"Micro
     <div><span>Số dư đầu kỳ</span><b id="fundsOpening">0</b></div>
     <div><span>Dự kiến thu</span><b id="fundsExpectedIn">0</b></div>
     <div><span>Kế hoạch chi</span><b id="fundsPlannedOut">0</b></div>
-    <div><span>Nguồn sau kế hoạch</span><b id="fundsProjected">0</b></div>
+    <div><span>Số dư dự kiến sau kế hoạch</span><b id="fundsProjected">0</b></div>
     <div><span>Số dư tại ngày chốt</span><b id="fundsActual">0</b></div>
     <div><span>Thuế chưa nộp</span><b id="fundsTaxOutstanding">0</b></div>
   </div>
   <div class="cc-sheet">
     <div class="cc-sheet-head"><div><b>资金情况表 · Tình hình vốn dự án</b><span>Click dự án để mở sổ dòng tiền thực tế.</span></div><input id="fundsSearch" placeholder="Tìm dự án..."></div>
-    <div class="cc-table-wrap"><table class="cc-table"><thead><tr><th>Dự án</th><th>Đầu kỳ</th><th>Dự kiến thu còn lại</th><th>KH Payment còn lại</th><th>间接费 còn lại</th><th>Lương còn chi</th><th>Thuế chưa nộp</th><th>Khác còn chi</th><th>Nguồn sau kế hoạch</th><th>Thực thu đến ngày</th><th>Thực chi đến ngày</th><th>Số dư tại ngày chốt</th><th>Trạng thái</th></tr></thead><tbody id="fundsBody"></tbody><tfoot id="fundsFoot"></tfoot></table></div>
+    <div class="cc-table-wrap"><table class="cc-table"><thead>
+      <tr class="funds-group-row">
+        <th class="funds-group-project"></th>
+        <th colspan="4" data-funds-group="actual">THỰC TẾ ĐẾN NGÀY CHỐT</th>
+        <th colspan="7" data-funds-group="remaining">KẾ HOẠCH CÒN LẠI</th>
+        <th colspan="2" data-funds-group="projected">DỰ KIẾN SAU KẾ HOẠCH</th>
+      </tr>
+      <tr class="funds-detail-row">
+        <th id="fundsProjectHead">Dự án</th>
+        <th>Đầu kỳ</th>
+        <th>Thực thu đến ngày</th>
+        <th>Thực chi đến ngày</th>
+        <th>Số dư tại ngày chốt</th>
+        <th>Dự kiến thu còn lại</th>
+        <th>KH Payment còn lại</th>
+        <th>CP gián tiếp còn lại</th>
+        <th>Lương / BH còn chi</th>
+        <th>Thuế chưa nộp</th>
+        <th>Khác còn chi</th>
+        <th>Tổng nhu cầu còn lại</th>
+        <th>Số dư dự kiến sau kế hoạch</th>
+        <th>Trạng thái</th>
+      </tr>
+    </thead><tbody id="fundsBody"></tbody><tfoot id="fundsFoot"></tfoot></table></div>
   </div>
 </section>
 
@@ -8226,7 +8338,7 @@ function renderFunds(){
         const projected=st.actualBalance+st.expectedIn-remainingPlannedOut;
         return {...st,payroll,taxPlan:st.taxOutstanding,remainingPlannedOut,projected};
     });
-    const totals=rows.reduce((a,x)=>{Object.keys(a).forEach(k=>a[k]+=num(x[k]));return a},{op:0,expectedIn:0,payment:0,indirect:0,payroll:0,taxPlan:0,taxOutstanding:0,other:0,projected:0,actualIn:0,actualOut:0,actualBalance:0});
+    const totals=rows.reduce((a,x)=>{Object.keys(a).forEach(k=>a[k]+=num(x[k]));return a},{op:0,expectedIn:0,payment:0,indirect:0,payroll:0,taxPlan:0,taxOutstanding:0,other:0,remainingPlannedOut:0,projected:0,actualIn:0,actualOut:0,actualBalance:0});
     $('fundsOpening').textContent=money(totals.op);
     $('fundsExpectedIn').textContent=money(totals.expectedIn);
     $('fundsPlannedOut').textContent=money(totals.payment+totals.indirect+totals.payroll+totals.taxOutstanding+totals.other);
@@ -8236,11 +8348,208 @@ function renderFunds(){
     const sheetNote=document.querySelector('#fundsView .cc-sheet-head span');
     if(sheetNote)sheetNote.textContent=`Chốt số dư đến ${fmtDate(cutoff)} · Click dự án để mở sổ dòng tiền thực tế.`;
 
-    $('fundsBody').innerHTML=rows.map(x=>{const remainingNeed=x.remainingPlannedOut||0,cls=x.projected<0?'bad':(remainingNeed>0&&x.projected<remainingNeed*.1)?'warn':'good',label=x.projected<0?'THIẾU NGUỒN':cls==='warn'?'SÁT NGƯỠNG':'ĐỦ NGUỒN';return `<tr><td><button class="project-link" data-cc-project="${esc(x.project)}">${esc(x.project)}</button></td><td class="money">${money(x.op)}</td><td class="money">${money(x.expectedIn)}</td><td class="money">${money(x.payment)}</td><td class="money">${money(x.indirect)}</td><td class="money">${money(x.payroll)}</td><td class="money">${x.taxOutstanding>0?`<button class="tax-outstanding-btn" data-tax-project="${esc(x.project)}">${money(x.taxOutstanding)}</button>`:`<span class="tax-outstanding-btn zero">0</span>`}</td><td class="money">${money(x.other)}</td><td class="money ${x.projected<0?'neg':'pos'}"><b>${money(x.projected)}</b></td><td class="money pos">${money(x.actualIn)}</td><td class="money neg">${money(x.actualOut)}</td><td class="money"><b>${money(x.actualBalance)}</b></td><td><span class="cc-status ${cls}">${label}</span></td></tr>`}).join('')||'<tr><td colspan="13" class="mep-empty">Chưa có dự án.</td></tr>';
+    $('fundsBody').innerHTML=rows.map(x=>{
+      const remainingNeed=x.remainingPlannedOut||0,
+            cls=x.projected<0?'bad':(remainingNeed>0&&x.projected<remainingNeed*.1)?'warn':'good',
+            label=x.projected<0?'THIẾU NGUỒN':cls==='warn'?'SÁT NGƯỠNG':'ĐỦ NGUỒN';
+      return `<tr>
+        <td><button class="project-link" data-cc-project="${esc(x.project)}">${esc(x.project)}</button></td>
+
+        <td class="money">${money(x.op)}</td>
+        <td class="money pos">${money(x.actualIn)}</td>
+        <td class="money neg">${money(x.actualOut)}</td>
+        <td class="money funds-current-balance"><b>${money(x.actualBalance)}</b></td>
+
+        <td class="money">${money(x.expectedIn)}</td>
+        <td class="money">${money(x.payment)}</td>
+        <td class="money">${money(x.indirect)}</td>
+        <td class="money">${money(x.payroll)}</td>
+        <td class="money">${x.taxOutstanding>0?`<button class="tax-outstanding-btn" data-tax-project="${esc(x.project)}">${money(x.taxOutstanding)}</button>`:`<span class="tax-outstanding-btn zero">0</span>`}</td>
+        <td class="money">${money(x.other)}</td>
+        <td class="money funds-total-need"><b>${money(remainingNeed)}</b></td>
+
+        <td class="money funds-projected-balance ${x.projected<0?'neg':'pos'}"><b>${money(x.projected)}</b></td>
+        <td><span class="cc-status ${cls}">${label}</span></td>
+      </tr>`;
+    }).join('')||'<tr><td colspan="14" class="mep-empty">Chưa có dự án.</td></tr>';
     document.querySelectorAll('[data-tax-project]').forEach(btn=>btn.onclick=e=>{e.stopPropagation();openTaxOutstanding(btn.dataset.taxProject||'')});
-    $('fundsFoot').innerHTML=`<tr><th>TỔNG</th><th class="money">${money(totals.op)}</th><th class="money">${money(totals.expectedIn)}</th><th class="money">${money(totals.payment)}</th><th class="money">${money(totals.indirect)}</th><th class="money">${money(totals.payroll)}</th><th class="money">${money(totals.taxOutstanding)}</th><th class="money">${money(totals.other)}</th><th class="money">${money(totals.projected)}</th><th class="money">${money(totals.actualIn)}</th><th class="money">${money(totals.actualOut)}</th><th class="money">${money(totals.actualBalance)}</th><th></th></tr>`;
+    $('fundsFoot').innerHTML=`<tr>
+      <th>TỔNG</th>
+
+      <td class="money">${money(totals.op)}</td>
+      <td class="money">${money(totals.actualIn)}</td>
+      <td class="money">${money(totals.actualOut)}</td>
+      <td class="money funds-current-balance">${money(totals.actualBalance)}</td>
+
+      <td class="money">${money(totals.expectedIn)}</td>
+      <td class="money">${money(totals.payment)}</td>
+      <td class="money">${money(totals.indirect)}</td>
+      <td class="money">${money(totals.payroll)}</td>
+      <td class="money">${money(totals.taxOutstanding)}</td>
+      <td class="money">${money(totals.other)}</td>
+      <td class="money funds-total-need">${money(totals.remainingPlannedOut)}</td>
+
+      <td class="money funds-projected-balance">${money(totals.projected)}</td>
+      <td></td>
+    </tr>`;
     document.querySelectorAll('[data-cc-project]').forEach(b=>b.onclick=()=>{pfSelectedProject=b.dataset.ccProject;if($('commandMonth'))$('commandMonth').value=month;showView('command')});
+    bindFundsGridCopy();
 }
+
+/* ===== Funds table Excel-like copy ===== */
+let fundsGridSelection=null;
+let fundsGridDragging=false;
+let fundsGridAnchor=null;
+
+function fundsGridRows(){
+  const detail=document.querySelector('#fundsView .funds-detail-row');
+  const body=[...document.querySelectorAll('#fundsBody tr')].filter(tr=>!tr.querySelector('.mep-empty'));
+  const foot=[...document.querySelectorAll('#fundsFoot tr')];
+  return [detail,...body,...foot].filter(Boolean);
+}
+
+function fundsCellText(cell){
+  if(!cell)return '';
+  const clone=cell.cloneNode(true);
+  clone.querySelectorAll('button').forEach(btn=>{
+    btn.replaceWith(document.createTextNode((btn.textContent||'').trim()));
+  });
+  return (clone.textContent||'').replace(/\s+/g,' ').trim();
+}
+
+function clearFundsGridSelection(){
+  document.querySelectorAll('#fundsView .funds-cell-selected,#fundsView .funds-cell-anchor').forEach(el=>{
+    el.classList.remove('funds-cell-selected','funds-cell-anchor');
+  });
+  fundsGridSelection=null;
+  fundsGridAnchor=null;
+}
+
+function fundsCellPosition(cell){
+  const rows=fundsGridRows();
+  const r=rows.findIndex(tr=>tr===cell.parentElement);
+  if(r<0)return null;
+  const c=[...rows[r].children].indexOf(cell);
+  return c<0?null:{r,c};
+}
+
+function paintFundsGridSelection(a,b){
+  if(!a||!b)return;
+  const rows=fundsGridRows();
+  const r1=Math.min(a.r,b.r),r2=Math.max(a.r,b.r);
+  const c1=Math.min(a.c,b.c),c2=Math.max(a.c,b.c);
+
+  document.querySelectorAll('#fundsView .funds-cell-selected,#fundsView .funds-cell-anchor').forEach(el=>{
+    el.classList.remove('funds-cell-selected','funds-cell-anchor');
+  });
+
+  for(let r=r1;r<=r2;r++){
+    const cells=[...(rows[r]?.children||[])];
+    for(let c=c1;c<=c2;c++){
+      cells[c]?.classList.add('funds-cell-selected');
+    }
+  }
+  [...(rows[a.r]?.children||[])][a.c]?.classList.add('funds-cell-anchor');
+  fundsGridSelection={r1,r2,c1,c2};
+}
+
+function fundsGridSelectedTSV(){
+  if(!fundsGridSelection)return '';
+  const {r1,r2,c1,c2}=fundsGridSelection;
+  const rows=fundsGridRows();
+  const lines=[];
+  for(let r=r1;r<=r2;r++){
+    const cells=[...(rows[r]?.children||[])];
+    const vals=[];
+    for(let c=c1;c<=c2;c++)vals.push(fundsCellText(cells[c]));
+    lines.push(vals.join('\t'));
+  }
+  return lines.join('\n');
+}
+
+function showFundsCopyToast(text){
+  let el=document.getElementById('fundsCopyToast');
+  if(!el){
+    el=document.createElement('div');
+    el.id='fundsCopyToast';
+    document.body.appendChild(el);
+  }
+  el.textContent=text;
+  el.classList.add('show');
+  clearTimeout(el._timer);
+  el._timer=setTimeout(()=>el.classList.remove('show'),1200);
+}
+
+async function copyFundsGridSelection(){
+  const text=fundsGridSelectedTSV();
+  if(!text)return;
+  let ok=false;
+  try{
+    await navigator.clipboard.writeText(text);
+    ok=true;
+  }catch(e){}
+  if(!ok){
+    const ta=document.createElement('textarea');
+    ta.value=text;
+    ta.style.position='fixed';
+    ta.style.left='-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try{ok=document.execCommand('copy')}catch(e){}
+    ta.remove();
+  }
+  if(ok)showFundsCopyToast(
+    cashLang==='zh'?'已复制，可直接粘贴到 Excel':
+    cashLang==='en'?'Copied — paste directly into Excel':
+    'Đã copy — dán thẳng vào Excel'
+  );
+}
+
+function bindFundsGridCopy(){
+  const table=document.querySelector('#fundsView .cc-table');
+  if(!table||table.dataset.excelCopyBound==='1')return;
+  table.dataset.excelCopyBound='1';
+
+  table.addEventListener('mousedown',e=>{
+    if(e.button!==0)return;
+    const cell=e.target.closest('.funds-detail-row th,#fundsBody td,#fundsFoot th,#fundsFoot td');
+    if(!cell||!table.contains(cell))return;
+
+    // Keep normal project/tax button clicks. Hold Alt if user wants to select such a cell.
+    if(e.target.closest('button')&&!e.altKey)return;
+
+    const pos=fundsCellPosition(cell);
+    if(!pos)return;
+    e.preventDefault();
+    fundsGridDragging=true;
+    fundsGridAnchor=pos;
+    paintFundsGridSelection(pos,pos);
+  });
+
+  table.addEventListener('mouseover',e=>{
+    if(!fundsGridDragging||!fundsGridAnchor)return;
+    const cell=e.target.closest('.funds-detail-row th,#fundsBody td,#fundsFoot th,#fundsFoot td');
+    if(!cell)return;
+    const pos=fundsCellPosition(cell);
+    if(pos)paintFundsGridSelection(fundsGridAnchor,pos);
+  });
+
+  document.addEventListener('mouseup',()=>{fundsGridDragging=false});
+
+  document.addEventListener('mousedown',e=>{
+    if(!e.target.closest('#fundsView .cc-table'))clearFundsGridSelection();
+  });
+
+  document.addEventListener('keydown',e=>{
+    if((e.ctrlKey||e.metaKey)&&String(e.key).toLowerCase()==='c'&&fundsGridSelection){
+      const active=document.activeElement;
+      if(active&&/INPUT|TEXTAREA|SELECT/.test(active.tagName))return;
+      e.preventDefault();
+      copyFundsGridSelection();
+    }
+  });
+}
+
 function planHubRemainingRows(month){
     const rows=ccPlanRows(month).filter(x=>x.type!=='payroll'&&x.type!=='tax');
     const targetIdx=monthIndex(month);
@@ -9176,7 +9485,7 @@ const V40_LANG={
   vi:{
     brand:'Điều hành dòng tiền · Công nợ · Thanh toán · Tín dụng dự án',rules:['Nguyên tắc','Kế hoạch = tiền dự kiến.','Thực tế = tiền thật đã vào / ra.','Vay nội bộ không tính là chi phí.'],more:'Nghiệp vụ khác',collapse:'Thu gọn nghiệp vụ khác',
     nav:{funds:'Tổng quan vốn',planHub:'Còn phải thu / chi',expenses:'Dòng tiền thực tế',loans:'Vay nội bộ',inflows:'Thu CĐT & IPC',payroll:'Lương & thuế',receivables:'Công nợ phải thu / trả',finance:'Bảo lãnh & tín dụng',masterProjects:'Dự án & hợp đồng',reports:'Báo cáo quản trị'},
-    funds:{kicker:'TỔNG QUAN VỐN',title:'Tổng quan vốn theo dự án',sub:'Mỗi dự án một dòng: số dư thực tế, kế hoạch thu/chi và phần thiếu hoặc dư dự kiến.',cutoff:'Chốt đến ngày',export:'⇩ Xuất báo cáo tháng',add:'＋ Thu / Chi thực tế',metrics:['Số dư đầu kỳ','Dự kiến thu','Kế hoạch chi','Nguồn sau kế hoạch','Số dư tại ngày chốt','Thuế chưa nộp'],sheet:'Tình hình vốn dự án',search:'Tìm dự án...',heads:['Dự án','Đầu kỳ','Dự kiến thu còn lại','KH thanh toán còn lại','CP gián tiếp còn lại','Lương / BH còn chi','Thuế chưa nộp','Khác còn chi','Nguồn sau kế hoạch','Thực thu đến ngày','Thực chi đến ngày','Số dư tại ngày chốt','Trạng thái']},
+    funds:{kicker:'TỔNG QUAN VỐN',title:'Tổng quan vốn theo dự án',sub:'Mỗi dự án một dòng: số dư thực tế, kế hoạch thu/chi và phần thiếu hoặc dư dự kiến.',cutoff:'Chốt đến ngày',export:'⇩ Xuất báo cáo tháng',add:'＋ Thu / Chi thực tế',metrics:['Số dư đầu kỳ','Dự kiến thu','Kế hoạch chi','Số dư dự kiến sau kế hoạch','Số dư tại ngày chốt','Thuế chưa nộp'],sheet:'Tình hình vốn dự án',search:'Tìm dự án...',groups:['THỰC TẾ ĐẾN NGÀY CHỐT','KẾ HOẠCH CÒN LẠI','DỰ KIẾN SAU KẾ HOẠCH'],heads:['Dự án','Đầu kỳ','Thực thu đến ngày','Thực chi đến ngày','Số dư tại ngày chốt','Dự kiến thu còn lại','KH thanh toán còn lại','CP gián tiếp còn lại','Lương / BH còn chi','Thuế chưa nộp','Khác còn chi','Tổng nhu cầu còn lại','Số dư dự kiến sau kế hoạch','Trạng thái']},
     plan:{kicker:'CÒN PHẢI THU / CHI TRONG THÁNG',title:'Còn phải thu / chi trong tháng',sub:'Chỉ hiện các khoản chưa thu, chưa chi hoặc chưa nộp trong tháng đang xem.',export:'⇩ Xuất danh sách còn lại',tabs:['Tất cả','Chưa thu','Thanh toán','Chi phí gián tiếp','Lương / BH','Thuế TNCN','Khác'],summary:['Còn phải thu','Lương / BH / TNCN','Còn phải chi khác'],summarySmall:['Quản lý IPC / khoản thu →','Mở Lương & thuế →','Mở chi tiết →'],sheet:'Chi tiết khoản còn lại theo dự án',note:'Khoản đã thực thu / thực chi / nộp xong sẽ tự rời khỏi danh sách.',search:'Tìm dự án hoặc nội dung...',heads:['Dự án','Loại','Nội dung','Kỳ / dự kiến','Số tiền','Trạng thái','Nguồn']},
     report:{title:'Báo cáo quản trị',sub:'Chỉ giữ 3 góc nhìn cần dùng: dòng tiền thực tế, kế hoạch vốn và nghĩa vụ đang treo.',all:'Tất cả dự án',hide:'Ẩn dự án không phát sinh trong tháng',buttons:['⇩ Excel quản trị','Excel dòng tiền mới','Excel dòng tiền cũ','In / PDF'],titles:['01 · Dòng tiền thực tế tháng','02 · Kế hoạch vốn tháng','03 · Nghĩa vụ / tồn đọng'],subs:['Tiền thật đã vào / ra. Không trộn kế hoạch chưa xảy ra.','Số dư + thu dự kiến − nhu cầu chi. Chi phí gián tiếp tách riêng khỏi kế hoạch thanh toán.','Các khoản dự án còn đang treo: thanh toán, lương/BH, thuế, vay nội bộ và phải thu CĐT.'],heads:[['Dự án','Đầu kỳ','Thu CĐT / khác','Nhận nội bộ','Thanh toán thực trả','Chi khác','Cho vay / chuyển nội bộ','Cuối kỳ'],['Dự án','Số dư hiện có','Dự kiến thu còn lại','Kế hoạch thanh toán còn lại','Chi phí gián tiếp còn lại','Lương còn chi','Thuế đến hạn','Khác còn chi','Tổng nhu cầu còn lại','Nguồn sau kế hoạch','Trạng thái'],['Dự án','Thanh toán chờ trả','Thuế chưa nộp','Lương / BH còn chi','Vay nội bộ còn nợ','Phải thu CĐT','Tổng nghĩa vụ chi']],empty:['Không có phát sinh thực tế trong kỳ.','Không có kế hoạch trong kỳ.','Không có nghĩa vụ tồn đọng.'],total:'TỔNG',status:['ĐỦ','SÁT NGƯỠNG','THIẾU']},
     loan:{title:'Vay nội bộ',sub:'Theo dõi tiền giữa các dự án: ai cho vay, ai đang vay và còn bao nhiêu chưa hoàn.',gross:'Đã cho vay',repaid:'Đã hoàn',outstanding:'Còn đang vay',pairs:'cặp dự án',debtTitle:'Dư nợ hiện tại',debtSub:'Danh sách dư nợ hiện tại. Lịch sử bên dưới luôn hiện đầy đủ; click một cặp để lọc nhanh đúng cặp đó.',history:'Lịch sử giao dịch',historySub:'Cho vay · hoàn vay · điều chuyển. Click giao dịch cụ thể để xem PDF.',heads:['Bên cho vay','Bên vay','Còn nợ','Ngày','Loại','Từ dự án','Đến dự án','Số tiền','Nội dung','Hồ sơ / sửa'],detail:'Hồ sơ giao dịch',searchDebt:'Tìm bên cho vay / bên vay...',search:'Tìm dự án, nội dung...',drive:'⚙ Drive',export:'⇩ Xuất Excel',add:'＋ Thêm giao dịch',types:{loan:'Cho vay',repayment:'Hoàn vay',transfer:'Điều chuyển'},clear:'Bỏ lọc'}
@@ -9184,7 +9493,7 @@ const V40_LANG={
   zh:{
     brand:'项目资金 · 应收应付 · 付款 · 授信管理',rules:['原则','计划 = 预计金额。','实际 = 实际已收 / 已支金额。','内部借款不计入费用。'],more:'其他业务',collapse:'收起其他业务',
     nav:{funds:'资金总览',planHub:'待收 / 待付',expenses:'实际收支明细',loans:'内部借款与调剂',inflows:'业主收款与 IPC',payroll:'工资与税费',receivables:'应收 / 应付',finance:'保函与授信',masterProjects:'项目与合同',reports:'管理报表'},
-    funds:{kicker:'资金总览',title:'项目资金总览',sub:'每个项目一行：实际余额、预计收支计划及预计资金缺口或结余。',cutoff:'截止日期',export:'⇩ 导出月报',add:'＋ 实际收 / 支',metrics:['期初余额','预计收款','计划支出','计划后可用资金','截至日余额','未缴税费'],sheet:'项目资金情况表',search:'搜索项目...',heads:['项目','期初余额','剩余预计收款','剩余付款计划','剩余间接费','待付工资 / 社保','未缴税费','其他待支出','计划后可用资金','截至日实际收入','截至日实际支出','截至日余额','状态']},
+    funds:{kicker:'资金总览',title:'项目资金总览',sub:'每个项目一行：实际余额、预计收支计划及预计资金缺口或结余。',cutoff:'截止日期',export:'⇩ 导出月报',add:'＋ 实际收 / 支',metrics:['期初余额','预计收款','计划支出','计划后预计余额','截至日余额','未缴税费'],sheet:'项目资金情况表',search:'搜索项目...',groups:['截至日实际情况','剩余计划','计划后预计'],heads:['项目','期初余额','截至日实际收入','截至日实际支出','截至日余额','剩余预计收款','剩余付款计划','剩余间接费','待付工资 / 社保','未缴税费','其他待支出','剩余资金需求合计','计划后预计余额','状态']},
     plan:{kicker:'本月待收待付',title:'本月待收待付',sub:'仅显示当前月份尚未收款、支付或缴纳的项目。',export:'⇩ 导出剩余清单',tabs:['全部','待收','付款','间接费','工资 / 社保','个人所得税','其他'],summary:['待收','工资 / 社保 / 个税','其他待支付'],summarySmall:['管理 IPC / 收款 →','打开工资与税费 →','查看明细 →'],sheet:'各项目剩余项目明细',note:'已实际收款、支付或缴清的项目会自动移出此清单。',search:'搜索项目或内容...',heads:['项目','类型','内容','期间 / 预计','金额','状态','来源']},
     report:{title:'管理报表',sub:'仅保留 3 个核心视角：实际现金流、资金计划和未结义务。',all:'全部项目',hide:'隐藏本月无发生额的项目',buttons:['⇩ 管理 Excel','新现金流 Excel','旧现金流 Excel','打印 / PDF'],titles:['01 · 本月实际现金流','02 · 本月资金计划','03 · 未结义务 / 待处理事项'],subs:['仅统计实际已收 / 已支，不混入尚未发生的计划。','现有余额 + 预计收入 − 支出需求。间接费与付款计划分开显示。','项目仍未结清的项目：付款、工资/社保、税费、内部借款及业主应收。'],heads:[['项目','期初余额','业主 / 其他收入','内部转入','实际付款','其他支出','借出 / 内部转出','期末余额'],['项目','当前余额','剩余预计收入','剩余付款计划','剩余间接费','待付工资','到期税费','其他待支出','剩余资金需求合计','计划后可用资金','状态'],['项目','待付款','未缴税费','待付工资 / 社保','内部借款未还','业主应收','支出义务合计']],empty:['本期无实际收支发生。','本期无资金计划。','没有未结义务。'],total:'合计',status:['充足','接近临界','不足']},
     loan:{title:'内部借款',sub:'跟踪项目之间的借款、还款及未归还余额。',gross:'累计借出',repaid:'累计归还',outstanding:'未归还余额',pairs:'组项目',debtTitle:'当前未归还',debtSub:'当前未归还余额。下方交易历史默认显示全部；点击一组项目可快速筛选该项目往来。',history:'交易历史',historySub:'借出 · 还款 · 调剂。点击具体交易查看 PDF 附件。',heads:['借出方','借入方','未归还','日期','类型','转出项目','转入项目','金额','说明','附件 / 编辑'],detail:'交易附件',searchDebt:'搜索借出方 / 借入方...',search:'搜索项目、说明...',drive:'⚙ Drive 设置',export:'⇩ 导出 Excel',add:'＋ 新增交易',types:{loan:'借出',repayment:'还款',transfer:'内部调剂'},clear:'清除筛选'}
@@ -9192,7 +9501,7 @@ const V40_LANG={
   en:{
     brand:'Project cash flow · AR/AP · Payments · Credit',rules:['Rules','Plan = expected amount.','Actual = actual cash received / paid.','Internal loans are not treated as expenses.'],more:'Other operations',collapse:'Collapse other operations',
     nav:{funds:'Cash position',planHub:'Outstanding inflow / outflow',expenses:'Actual cash ledger',loans:'Internal loans & transfers',inflows:'Client receipts & IPC',payroll:'Payroll & tax',receivables:'AR / AP',finance:'Guarantees & credit',masterProjects:'Projects & contracts',reports:'Management reports'},
-    funds:{kicker:'CASH POSITION',title:'Project cash position',sub:'One row per project: actual balance, planned inflows/outflows, and projected surplus or funding gap.',cutoff:'Cut-off date',export:'⇩ Export monthly report',add:'＋ Actual in / out',metrics:['Opening balance','Expected inflow','Planned outflow','Funds after plan','Balance at cut-off','Unpaid tax'],sheet:'Project cash position',search:'Search projects...',heads:['Project','Opening','Remaining expected inflow','Remaining payment plan','Remaining indirect cost','Remaining payroll / insurance','Unpaid tax','Other remaining outflow','Funds after plan','Actual inflow to date','Actual outflow to date','Balance at cut-off','Status']},
+    funds:{kicker:'CASH POSITION',title:'Project cash position',sub:'One row per project: actual balance, planned inflows/outflows, and projected surplus or funding gap.',cutoff:'Cut-off date',export:'⇩ Export monthly report',add:'＋ Actual in / out',metrics:['Opening balance','Expected inflow','Planned outflow','Projected balance after plan','Balance at cut-off','Unpaid tax'],sheet:'Project cash position',search:'Search projects...',groups:['ACTUAL TO CUT-OFF','REMAINING PLAN','PROJECTED AFTER PLAN'],heads:['Project','Opening','Actual inflow to date','Actual outflow to date','Balance at cut-off','Remaining expected inflow','Remaining payment plan','Remaining indirect cost','Remaining payroll / insurance','Unpaid tax','Other remaining outflow','Total remaining need','Projected balance after plan','Status']},
     plan:{kicker:'MONTHLY OUTSTANDING',title:'Monthly outstanding inflow / outflow',sub:'Shows only items still uncollected, unpaid, or unsettled in the selected month.',export:'⇩ Export outstanding list',tabs:['All','Receivable','Payment','Indirect cost','Payroll / insurance','Personal income tax','Other'],summary:['Receivable','Payroll / insurance / PIT','Other payable'],summarySmall:['Manage IPC / receipts →','Open payroll & tax →','Open details →'],sheet:'Outstanding items by project',note:'Items disappear automatically after they are actually received, paid, or settled.',search:'Search project or description...',heads:['Project','Type','Description','Period / planned','Amount','Status','Source']},
     report:{title:'Management reports',sub:'Three core views only: actual cash flow, funding plan, and outstanding obligations.',all:'All projects',hide:'Hide projects with no activity this month',buttons:['⇩ Management Excel','New cash-flow Excel','Legacy cash-flow Excel','Print / PDF'],titles:['01 · Monthly actual cash flow','02 · Monthly funding plan','03 · Outstanding obligations'],subs:['Actual cash received / paid only; excludes unrealized plans.','Current balance + expected inflow − funding needs. Indirect costs are shown separately from the payment plan.','Open project items: payments, payroll/insurance, tax, internal loans, and client receivables.'],heads:[['Project','Opening','Client / other inflow','Internal inflow','Actual payment','Other outflow','Lending / internal transfer','Closing'],['Project','Current balance','Remaining expected inflow','Remaining payment plan','Remaining indirect cost','Remaining payroll','Tax due','Other remaining outflow','Total remaining need','Funds after plan','Status'],['Project','Pending payment','Unpaid tax','Payroll / insurance due','Internal loan outstanding','Client receivable','Total outflow obligation']],empty:['No actual cash activity in this period.','No funding plan in this period.','No outstanding obligations.'],total:'TOTAL',status:['FUNDED','NEAR LIMIT','GAP']},
     loan:{title:'Internal loans',sub:'Track inter-project lending, repayments, and outstanding balances.',gross:'Total lent',repaid:'Total repaid',outstanding:'Outstanding',pairs:'project pairs',debtTitle:'Current outstanding',debtSub:'Current outstanding balances. The history below shows all transactions; click a pair to filter it.',history:'Transaction history',historySub:'Lending · repayment · transfer. Click a transaction to view its PDF.',heads:['Lender','Borrower','Outstanding','Date','Type','From project','To project','Amount','Description','Attachment / edit'],detail:'Transaction attachment',searchDebt:'Search lender / borrower...',search:'Search project, description...',drive:'⚙ Drive',export:'⇩ Export Excel',add:'＋ Add transaction',types:{loan:'Lend',repayment:'Repayment',transfer:'Internal transfer'},clear:'Clear filter'}
@@ -9211,7 +9520,39 @@ function syncV40TopAndSidebar(){
   const more=$('ccMoreToggle');if(more){const open=$('ccMore')?.classList.contains('open');more.textContent=(open?'− ':'＋ ')+(open?d.collapse:d.more)}
   ['vi','zh','en'].forEach(l=>document.getElementById('lang'+(l==='vi'?'Vi':l==='zh'?'Zh':'En'))?.classList.toggle('active',cashLang===l));
 }
-function syncV40Funds(){const d=v40().funds,view=$('fundsView');if(!view)return;const q=s=>view.querySelector(s);if(q('.cc-kicker'))q('.cc-kicker').textContent=d.kicker;if(q('.cc-page-head h2'))q('.cc-page-head h2').textContent=d.title;if(q('.cc-page-head p'))q('.cc-page-head p').textContent=d.sub;if(q('.funds-cutoff-control span'))q('.funds-cutoff-control span').textContent=d.cutoff;v40set('fundsExport',d.export);v40set('fundsAddTxn',d.add);v40list('#fundsView .cc-top-strip>div>span',d.metrics);if(q('.cc-sheet-head b'))q('.cc-sheet-head b').textContent=d.sheet;if($('fundsSearch'))$('fundsSearch').placeholder=d.search;v40list('#fundsView .cc-table thead th',d.heads);const total=$('fundsFoot')?.querySelector('th:first-child');if(total)total.textContent=v40().report.total}
+function syncV40Funds(){
+  const d=v40().funds,view=$('fundsView');if(!view)return;
+  const q=s=>view.querySelector(s);
+  if(q('.cc-kicker'))q('.cc-kicker').textContent=d.kicker;
+  if(q('.cc-page-head h2'))q('.cc-page-head h2').textContent=d.title;
+  if(q('.cc-page-head p'))q('.cc-page-head p').textContent=d.sub;
+  if(q('.funds-cutoff-control span'))q('.funds-cutoff-control span').textContent=d.cutoff;
+  v40set('fundsExport',d.export);v40set('fundsAddTxn',d.add);
+  v40list('#fundsView .cc-top-strip>div>span',d.metrics);
+  if(q('.cc-sheet-head b'))q('.cc-sheet-head b').textContent=d.sheet;
+  if($('fundsSearch'))$('fundsSearch').placeholder=d.search;
+
+  view.querySelectorAll('.funds-group-row [data-funds-group]').forEach((el,i)=>{
+    if(d.groups?.[i]!=null)el.textContent=d.groups[i];
+  });
+  view.querySelectorAll('.funds-detail-row th').forEach((el,i)=>{
+    if(d.heads?.[i]!=null)el.textContent=d.heads[i];
+  });
+
+  const total=$('fundsFoot')?.querySelector('th:first-child');
+  if(total)total.textContent=v40().report.total;
+  verifyFundsHeaderMap();
+}
+
+function verifyFundsHeaderMap(){
+  const d=v40().funds;
+  const cells=[...document.querySelectorAll('#fundsView .funds-detail-row th')];
+  if(!d?.heads||cells.length!==d.heads.length)return;
+  cells.forEach((cell,i)=>{
+    if(cell.textContent!==d.heads[i])cell.textContent=d.heads[i];
+  });
+}
+
 function syncV40Plan(){const d=v40().plan,view=$('planHubView');if(!view)return;const q=s=>view.querySelector(s);if(q('.cc-kicker'))q('.cc-kicker').textContent=d.kicker;if(q('.cc-page-head h2'))q('.cc-page-head h2').textContent=d.title;if(q('.cc-page-head p'))q('.cc-page-head p').textContent=d.sub;v40set('planHubExport',d.export);v40list('#planHubView .cc-plan-tab',d.tabs);v40list('#planHubView .cc-mini-link>span',d.summary);v40list('#planHubView .cc-mini-link>small',d.summarySmall);if(q('.cc-sheet-head b'))q('.cc-sheet-head b').textContent=d.sheet;if(q('.cc-sheet-head span'))q('.cc-sheet-head span').textContent=d.note;if($('planHubSearch'))$('planHubSearch').placeholder=d.search;v40list('#planHubView .cc-table thead th',d.heads);document.querySelectorAll('#planHubBody .cc-status').forEach(el=>{const raw=(el.textContent||'').toUpperCase();const i=/CHƯA THU|待收|RECEIV/.test(raw)?1:/PAYMENT|付款/.test(raw)?2:/间接|GIÁN TIẾP|INDIRECT/.test(raw)?3:/LƯƠNG|工资|PAYROLL/.test(raw)?4:/THUẾ|个税|TAX/.test(raw)?5:6;el.textContent=d.tabs[i]});const empty=$('planHubBody')?.querySelector('.mep-empty');if(empty)empty.textContent=cashLang==='zh'?'本月没有符合条件的剩余项目。':cashLang==='en'?'No matching outstanding items this month.':'Không còn khoản phù hợp trong tháng này.'}
 function syncV40Report(){const d=v40().report,view=$('reportsView');if(!view)return;const head=view.querySelector('.head');if(head?.querySelector('h2'))head.querySelector('h2').textContent=d.title;if(head?.querySelector('p'))head.querySelector('p').textContent=d.sub;if($('rProject')?.options[0])$('rProject').options[0].textContent=d.all;v40LabelWithInput('reportHideZero',d.hide);['exportCashExcelBtn','exportModernCashExcelBtn','exportLegacyCashExcelBtn'].forEach((id,i)=>v40set(id,d.buttons[i]));const pb=view.querySelector('button[onclick*="print"]');if(pb)pb.textContent=d.buttons[3];const cards=[...view.querySelectorAll(':scope>.mep-card')];cards.forEach((card,i)=>{if(card.querySelector('.mep-card-title'))card.querySelector('.mep-card-title').textContent=d.titles[i];if(card.querySelector('.mep-card-sub'))card.querySelector('.mep-card-sub').textContent=d.subs[i];card.querySelectorAll('thead th').forEach((th,j)=>{if(d.heads[i]?.[j]!=null)th.textContent=d.heads[i][j]})});document.querySelectorAll('#reportsView tfoot tr').forEach(tr=>{const th=tr.querySelector('th:first-child');if(th)th.textContent=d.total});const empties=[...document.querySelectorAll('#reportsView .mep-empty')];empties.forEach((el,i)=>{const raw=String(el.textContent||'');if(/phát sinh thực tế|actual cash|实际收支/.test(raw))el.textContent=d.empty[0];else if(/kế hoạch trong kỳ|funding plan|资金计划/.test(raw))el.textContent=d.empty[1];else if(/nghĩa vụ tồn đọng|outstanding obligations|未结义务/.test(raw))el.textContent=d.empty[2]});document.querySelectorAll('#reportPlanBody .cc-status').forEach(el=>{const raw=(el.textContent||'').toUpperCase();el.textContent=/THIẾU|不足|GAP/.test(raw)?d.status[2]:/SÁT|临界|NEAR/.test(raw)?d.status[1]:d.status[0]})}
 function syncV40Loans(){const d=v40().loan;v40set('loanPageTitle',d.title);v40set('loanPageSub',d.sub);v40set('loanGrossLabel',d.gross);v40set('repayGrossLabel',d.repaid);v40set('loanOutstandingLabel',d.outstanding);v40set('loanPairsLabel',d.pairs);v40set('loanDebtTitle',d.debtTitle);v40set('loanDebtSub',d.debtSub);v40set('loanHistoryTitle',d.history);if($('loanHistorySub'))$('loanHistorySub').textContent=loanPairFilter?(cashLang==='zh'?`已筛选：${loanPairFilter.lender} ↔ ${loanPairFilter.borrower} · 点击具体交易查看 PDF 附件。`:cashLang==='en'?`Filtered: ${loanPairFilter.lender} ↔ ${loanPairFilter.borrower} · Click a transaction to view its PDF.`:`Đang lọc: ${loanPairFilter.lender} ↔ ${loanPairFilter.borrower} · Click giao dịch cụ thể để xem PDF.`):d.historySub;['loanThLender','loanThBorrower','loanThOutstanding','loanThDate','loanThType','loanThFrom','loanThTo','loanThAmount','loanThDesc','loanThAction'].forEach((id,i)=>v40set(id,d.heads[i]));v40set('loanDetailTitle',d.detail);if($('debtSearch'))$('debtSearch').placeholder=d.searchDebt;if($('loanSearch'))$('loanSearch').placeholder=d.search;v40set('loanDriveConfigBtn',d.drive);v40set('exportLoanExcelBtn',d.export);v40set('addTransferBtn',d.add);if($('clearLoanPairHighlight'))$('clearLoanPairHighlight').title=d.clear;const dl=$('debtLender'),db=$('debtBorrower'),lp=$('loanProject'),lt=$('loanType');if(dl?.options[0])dl.options[0].textContent=cashLang==='zh'?'全部借出方':cashLang==='en'?'All lenders':'Tất cả bên cho vay';if(db?.options[0])db.options[0].textContent=cashLang==='zh'?'全部借入方':cashLang==='en'?'All borrowers':'Tất cả bên vay';if(lp?.options[0])lp.options[0].textContent=cashLang==='zh'?'全部项目':cashLang==='en'?'All projects':'Tất cả dự án';if(lt){const labels=[cashLang==='zh'?'全部类型':cashLang==='en'?'All types':'Tất cả loại',d.types.loan,d.types.repayment,d.types.transfer];[...lt.options].forEach((o,i)=>{if(labels[i])o.textContent=labels[i]})}}
@@ -9798,7 +10139,7 @@ setTimeout(()=>{
     "Số dư đầu kỳ":{vi:"Số dư đầu kỳ",zh:"期初余额",en:"Opening balance"},
     "Dự kiến thu":{vi:"Dự kiến thu",zh:"预计收款",en:"Expected inflow"},
     "Kế hoạch chi":{vi:"Kế hoạch chi",zh:"计划支出",en:"Planned outflow"},
-    "Nguồn sau kế hoạch":{vi:"Nguồn sau kế hoạch",zh:"计划后可用资金",en:"Funds after plan"},
+    "Nguồn sau kế hoạch":{vi:"Số dư dự kiến sau kế hoạch",zh:"计划后预计余额",en:"Projected balance after plan"},"Số dư dự kiến sau kế hoạch":{vi:"Số dư dự kiến sau kế hoạch",zh:"计划后预计余额",en:"Projected balance after plan"},"Tổng nhu cầu còn lại":{vi:"Tổng nhu cầu còn lại",zh:"剩余资金需求合计",en:"Total remaining need"},
     "Số dư tại ngày chốt":{vi:"Số dư tại ngày chốt",zh:"截至日余额",en:"Balance at cut-off"},
     "资金情况表 · Tình hình vốn dự án":{vi:"Tình hình vốn dự án",zh:"项目资金情况表",en:"Project cash position"},
     "Click dự án để mở sổ dòng tiền thực tế.":{vi:"Bấm dự án để mở sổ dòng tiền thực tế.",zh:"点击项目可打开实际收支明细。",en:"Click a project to open its actual cash ledger."},
@@ -9906,16 +10247,23 @@ setTimeout(()=>{
     txt('#fundsView .funds-cutoff-control > span','Chốt đến ngày');
     txt('#fundsExport','⇩ Xuất báo cáo tháng');
     txt('#fundsAddTxn','＋ Thu / Chi thực tế');
-    setList('#fundsView .cc-top-strip > div > span',['Số dư đầu kỳ','Dự kiến thu','Kế hoạch chi','Nguồn sau kế hoạch','Số dư tại ngày chốt','Thuế chưa nộp']);
-    txt('#fundsView .cc-sheet-head b','资金情况表 · Tình hình vốn dự án');
-    attr('#fundsSearch','placeholder','Tìm dự án...');
-    setList('#fundsView .cc-table thead th',['Dự án','Đầu kỳ','Dự kiến thu còn lại','KH Payment còn lại','间接费 còn lại','Lương còn chi','Thuế chưa nộp','Khác còn chi','Nguồn sau kế hoạch','Thực thu đến ngày','Thực chi đến ngày','Số dư tại ngày chốt','Trạng thái']);
+    const fundsLang=v40().funds;
+    setList('#fundsView .cc-top-strip > div > span',fundsLang.metrics);
+    txt('#fundsView .cc-sheet-head b',fundsLang.sheet);
+    attr('#fundsSearch','placeholder',fundsLang.search);
+    document.querySelectorAll('#fundsView .funds-group-row [data-funds-group]').forEach((el,i)=>{
+      if(fundsLang.groups?.[i]!=null)el.textContent=fundsLang.groups[i];
+    });
+    document.querySelectorAll('#fundsView .funds-detail-row th').forEach((el,i)=>{
+      if(fundsLang.heads?.[i]!=null)el.textContent=fundsLang.heads[i];
+    });
     document.querySelectorAll('#fundsView .cc-status').forEach(el=>{
       const raw=String(el.textContent||'').trim();
       const canonical=raw==='资金充足'||raw==='FUNDED'?'ĐỦ NGUỒN':raw==='资金不足'||raw==='FUNDING GAP'?'THIẾU NGUỒN':raw==='接近临界'||raw==='NEAR LIMIT'?'SÁT NGƯỠNG':raw;
       if(CASH_I18N[canonical])el.textContent=langValue(canonical);
     });
     const total=document.querySelector('#fundsFoot th:first-child');if(total)total.textContent=langValue('TỔNG');
+    verifyFundsHeaderMap();
     const note=document.querySelector('#fundsView .cc-sheet-head span');
     if(note){
       const cutoff=document.getElementById('fundsCutoffDate')?.value||'';
