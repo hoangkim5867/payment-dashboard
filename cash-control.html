@@ -855,6 +855,155 @@ body{
 .cc-sheet{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}.cc-sheet-head{min-height:48px;padding:8px 10px;background:#f8fafc;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}.cc-sheet-head b{display:block;color:var(--nav);font-size:11px}.cc-sheet-head span{display:block;margin-top:2px;color:var(--muted);font-size:9px}.cc-sheet-head input{width:220px;border:1px solid #d7dee8;border-radius:7px;padding:7px 8px;font-size:10px}.cc-table-wrap{overflow:auto;max-height:calc(100vh - 270px)}.cc-table{width:100%;min-width:1320px;border-collapse:separate;border-spacing:0}.cc-table th{position:sticky;top:0;z-index:3;background:#102b49;color:#fff;padding:8px;font-size:8.8px;text-align:left;white-space:nowrap}.cc-table td,.cc-table tfoot th{padding:8px;border-right:1px solid #eef1f4;border-bottom:1px solid #eef1f4;font-size:9.5px;white-space:nowrap}.cc-table tbody tr:hover td{background:#f5f9ff}.cc-table .money{text-align:right;font-weight:850;font-variant-numeric:tabular-nums}.cc-table .project-link{border:0;background:none;padding:0;color:#15395f;font-weight:900}.cc-table .project-link:hover{text-decoration:underline}.cc-status{display:inline-flex;padding:4px 7px;border-radius:999px;font-size:8px;font-weight:900}.cc-status.good{background:#ecfdf3;color:#027a48}.cc-status.warn{background:#fff7ed;color:#b45309}.cc-status.bad{background:#fff1f0;color:#b42318}
 .cc-plan-tabs{display:flex;gap:5px;margin-bottom:8px}.cc-plan-tab{height:30px;border:1px solid var(--line);background:#fff;border-radius:7px;padding:0 10px;font-size:9px;font-weight:850;color:#667085}.cc-plan-tab.active{background:var(--nav);border-color:var(--nav);color:#fff}.cc-plan-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:8px}.cc-mini-link{text-align:left;border:1px solid var(--line);border-radius:9px;background:#fff;padding:9px 10px}.cc-mini-link span,.cc-mini-link small{display:block}.cc-mini-link span{font-size:9px;color:var(--muted);font-weight:850}.cc-mini-link b{display:block;margin:4px 0;font-size:15px;color:var(--nav)}.cc-mini-link small{font-size:8.5px;color:#60758c}.cc-mini-link:hover{background:#f8fbff;border-color:#bfd4ef}.plan-table{min-width:980px}
 @media(max-width:900px){.cc-simple-side{width:auto!important}.cc-simple-side+.main{margin-left:0!important}.cc-page-head{align-items:flex-start;flex-direction:column}.cc-top-strip{grid-template-columns:repeat(2,1fr)}.cc-plan-summary{grid-template-columns:1fr}.cc-table-wrap{max-height:none}}
+
+/* ===== PROJECT PAYROLL HISTORY ===== */
+.salary-history-box{
+  max-width:1480px!important;
+  width:min(96vw,1480px)!important;
+}
+.salary-history-toolbar{
+  display:grid;
+  grid-template-columns:minmax(180px,1.15fr) minmax(220px,1.8fr) 150px 150px 145px;
+  gap:8px;
+  margin-bottom:10px;
+}
+.salary-history-toolbar input,
+.salary-history-toolbar select{
+  width:100%;
+  min-height:38px;
+  border:1px solid #d7e0ea;
+  border-radius:9px;
+  background:#fff;
+  color:#24364b;
+  padding:8px 10px;
+  font-size:11px;
+  outline:none;
+}
+.salary-history-summary{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  border:1px solid #e1e8ef;
+  border-radius:11px;
+  overflow:hidden;
+  margin-bottom:10px;
+  background:#fff;
+}
+.salary-history-stat{
+  padding:10px 12px;
+  border-right:1px solid #e7edf3;
+}
+.salary-history-stat:last-child{border-right:0}
+.salary-history-stat span{
+  display:block;
+  font-size:8px;
+  font-weight:900;
+  color:#7a8797;
+  text-transform:uppercase;
+  letter-spacing:.35px;
+}
+.salary-history-stat b{
+  display:block;
+  margin-top:5px;
+  color:#173556;
+  font-size:14px;
+}
+.salary-history-stat.pending b{color:#b42318}
+.salary-history-table-wrap{
+  overflow:auto;
+  max-height:62vh;
+  border:1px solid #e1e8ef;
+  border-radius:10px;
+}
+.salary-history-table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  min-width:1220px;
+}
+.salary-history-table th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#173756;
+  color:#fff;
+  padding:9px 10px;
+  font-size:9px;
+  text-align:left;
+  white-space:nowrap;
+}
+.salary-history-table td{
+  padding:8px 10px;
+  border-bottom:1px solid #edf1f5;
+  border-right:1px solid #f2f4f7;
+  font-size:10px;
+  color:#34465b;
+  vertical-align:top;
+  white-space:nowrap;
+}
+.salary-history-table td.wrap{
+  white-space:normal;
+  min-width:240px;
+  max-width:380px;
+  line-height:1.45;
+}
+.salary-history-table .money{
+  text-align:right;
+  font-weight:850;
+  font-variant-numeric:tabular-nums;
+}
+.salary-history-source{
+  display:inline-flex;
+  align-items:center;
+  border-radius:999px;
+  padding:3px 7px;
+  font-size:8px;
+  font-weight:900;
+  border:1px solid #dce3eb;
+  background:#f5f7fa;
+  color:#58687b;
+}
+.salary-history-source.excel{background:#eef4ff;border-color:#c7d7fe;color:#2957a4}
+.salary-history-source.manual{background:#ecfdf3;border-color:#abefc6;color:#067647}
+.salary-history-source.legacy{background:#fff7ed;border-color:#fed7aa;color:#b45309}
+
+.salary-history-edited{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  margin-left:6px;
+  padding:3px 7px;
+  border-radius:999px;
+  background:#eef4ff;
+  border:1px solid #c7d7fe;
+  color:#2957a4;
+  font-size:8px;
+  font-weight:900;
+  vertical-align:middle;
+}
+.salary-history-edited::before{
+  content:"✎";
+  font-size:8px;
+}
+
+.staff-group-common{display:inline-flex;padding:3px 7px;border-radius:999px;background:#f4f6f8;color:#667085;border:1px solid #e2e7ef;font-size:9px;font-weight:900}
+.staff-group-both{display:inline-flex;padding:3px 7px;border-radius:999px;background:#fff7ed;color:#b45309;border:1px solid #fed7aa;font-size:9px;font-weight:900}
+.salary-history-empty{
+  padding:36px 16px!important;
+  text-align:center!important;
+  color:#98a2b3!important;
+  font-size:11px!important;
+}
+.salary-history-footnote{
+  margin-top:8px;
+  color:#7a8797;
+  font-size:9px;
+  line-height:1.5;
+}
+@media(max-width:980px){
+  .salary-history-toolbar{grid-template-columns:1fr 1fr}
+  .salary-history-summary{grid-template-columns:1fr 1fr}
+}
+
 </style>
 <style id="cc-no-double-sidebar-gap">
 /* Fix: sidebar already occupies a CSS-grid column; do not offset main twice. */
@@ -1367,7 +1516,7 @@ html[lang="zh-CN"] #reportsView,html[lang="zh-CN"] #loansView{font-family:"Micro
 <section class="view" id="payrollView">
   <div class="head">
     <div><h2>Lương & thuế theo dự án</h2><p>Tách kỳ phát sinh khỏi ngày tiền thực sự đi. Thuế được cộng dồn theo quý của từng dự án và chỉ vào dòng tiền khi thực nộp.</p></div>
-    <div class="acts"><button class="btn" id="downloadSalaryVNTemplate">⇩ Mẫu nhập</button><button class="btn" id="openSalaryImport">⇧ Nhập Excel / Dán dữ liệu</button><button class="btn primary" id="addSalaryRecord">＋ Thêm khoản</button></div>
+    <div class="acts"><button class="btn" id="openSalaryHistory">↺ Lịch sử dự án</button><button class="btn" id="downloadSalaryVNTemplate">⇩ Mẫu nhập</button><button class="btn" id="openSalaryImport">⇧ Nhập Excel / Dán dữ liệu</button><button class="btn primary" id="addSalaryRecord">＋ Thêm khoản</button></div>
   </div>
   <div class="section-note"><b>Quy tắc:</b> lương T7/T8/T9 tạo nghĩa vụ thuế Q3 và khoản thuế đó dự kiến nộp ở T10. Lương phát trong T10 thuộc kỳ mới, không cộng vào đợt thuế Q3 đang nộp. Dòng tiền thực tế luôn theo <b>ngày thực trả / thực nộp</b>.</div>
   <div class="salary-summary-strip">
@@ -1911,6 +2060,74 @@ html[lang="zh-CN"] #reportsView,html[lang="zh-CN"] #loansView{font-family:"Micro
     </div>
     <div class="section-note">Để trống ngày thực trả nếu khoản này mới phát sinh nhưng chưa chi tiền. Có thể gán ngày hàng loạt tại bảng chính.</div>
     <div class="mfoot"><button class="btn" data-close="salaryRecordModal">Hủy</button><button class="btn primary" id="saveSalaryRecord">Lưu khoản</button></div>
+  </div>
+</div>
+
+
+<div class="modal" id="salaryHistoryModal">
+  <div class="mbox salary-history-box">
+    <div class="mhead">
+      <div>
+        <h3 id="salaryHistoryTitle">Lịch sử lương dự án</h3>
+        <div class="mep-card-sub" id="salaryHistorySub">Xem toàn bộ lương · BH · thuế của một dự án từ dữ liệu lịch sử đến các file Excel đã nhập.</div>
+      </div>
+      <button class="btn" data-close="salaryHistoryModal">✕</button>
+    </div>
+
+    <div class="salary-history-toolbar">
+      <select id="salaryHistoryProject"><option value="">Chọn dự án</option></select>
+      <input id="salaryHistorySearch" placeholder="Tìm khoản mục, nội dung, file nguồn...">
+      <input id="salaryHistoryPeriod" type="month" title="Lọc theo kỳ phát sinh">
+      <select id="salaryHistorySource">
+        <option value="">Tất cả nguồn</option>
+        <option value="excel">Excel đã nhập</option>
+        <option value="manual">Nhập tay</option>
+        <option value="legacy">DATALUONG lịch sử</option>
+      </select>
+      <select id="salaryHistoryStatus">
+        <option value="">Tất cả trạng thái</option>
+        <option value="paid">Đã thực chi / nộp</option>
+        <option value="pending">Chưa thực chi / nộp</option>
+      </select>
+    </div>
+
+    <div class="salary-history-summary">
+      <div class="salary-history-stat"><span id="salaryHistoryTotalLabel">Tổng lịch sử</span><b id="salaryHistoryTotal">0</b></div>
+      <div class="salary-history-stat"><span id="salaryHistoryPaidLabel">Đã thực chi / nộp</span><b id="salaryHistoryPaid">0</b></div>
+      <div class="salary-history-stat pending"><span id="salaryHistoryPendingLabel">Còn chưa chi / nộp</span><b id="salaryHistoryPending">0</b></div>
+      <div class="salary-history-stat"><span id="salaryHistoryRowsLabel">Số khoản</span><b id="salaryHistoryRows">0</b></div>
+    </div>
+
+    <div class="mep-toolbar" style="margin-bottom:8px">
+      <div class="mep-card-sub" id="salaryHistoryHint">Dữ liệu lịch sử. Các dòng Excel đã nhập có thể sửa trực tiếp; chỉnh sửa được lưu online trong Cash Control và không sửa file Excel gốc.</div>
+      <button class="btn" id="exportSalaryHistory">⇩ Xuất lịch sử Excel</button>
+    </div>
+
+    <div class="salary-history-table-wrap">
+      <table class="salary-history-table">
+        <thead>
+          <tr>
+            <th id="shColPeriod">Kỳ phát sinh</th>
+            <th id="shColStaff">Nhóm nhân sự</th>
+            <th id="shColType">Khoản mục</th>
+            <th id="shColDesc">Nội dung chuẩn</th>
+            <th id="shColRawDesc">Nội dung gốc</th>
+            <th id="shColAmount">Số tiền VND</th>
+            <th id="shColPaidDate">Ngày thực chi / nộp</th>
+            <th id="shColCashMonth">Tháng dòng tiền</th>
+            <th id="shColSource">Nguồn / file</th>
+            <th id="shColStatus">Trạng thái</th>
+            <th id="shColAction">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody id="salaryHistoryBody">
+          <tr><td colspan="11" class="salary-history-empty">Chọn một dự án để xem toàn bộ lịch sử.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="salary-history-footnote" id="salaryHistoryFootnote">
+      Các dòng cũ từ DATALUONG giữ nguyên nội dung gốc để đối chiếu; các file Excel nhập mới hiển thị cả tên file và sheet nguồn.
+    </div>
   </div>
 </div>
 
@@ -6477,7 +6694,7 @@ const PAYROLL_SOURCE_LABELS=new Proxy(PAYROLL_SOURCE_BASE_LABELS,{get(target,pro
 const DEFAULT_PAYROLL_ACCOUNT='Tài khoản ngân hàng công ty';
 const salarySelectedIds=new Set();
 
-let editingSalaryId=null,salaryImportPreview=[],salaryImportErrors=[];
+let editingSalaryId=null,editingLegacySalaryId=null,salaryImportPreview=[],salaryImportErrors=[];
 
 function payrollCashCategory(record){
     if(record.type==='salary')return 'Lương';
@@ -6537,6 +6754,629 @@ function syncSalaryCash(record){
     if(index>=0)arr[index]={...arr[index],...cash};else arr.push(cash);
     record.cashTxnId=id;
     cashCloudState.manualRecords=arr;
+}
+
+
+const SALARY_HISTORY_I18N={
+  vi:{
+    button:'↺ Lịch sử dự án',
+    title:'Lịch sử lương dự án',
+    sub:'Xem toàn bộ lương · BH · thuế của một dự án từ dữ liệu lịch sử đến các file Excel đã nhập.',
+    project:'Chọn dự án',
+    search:'Tìm khoản mục, nội dung, file nguồn...',
+    allSource:'Tất cả nguồn', excel:'Excel đã nhập', manual:'Nhập tay', legacy:'DATALUONG lịch sử',
+    allStatus:'Tất cả trạng thái', paid:'Đã thực chi / nộp', pending:'Chưa thực chi / nộp',
+    total:'Tổng lịch sử', paidTotal:'Đã thực chi / nộp', pendingTotal:'Còn chưa chi / nộp', rows:'Số khoản',
+    hint:'DATALUONG lịch sử là dữ liệu gốc nên không xóa, nhưng có thể sửa bằng lớp ghi đè. Các khoản nhập từ Excel hoặc nhập trên web có thể sửa/xóa trực tiếp.',
+    export:'⇩ Xuất lịch sử Excel',
+    cols:['Kỳ phát sinh','Nhóm nhân sự','Khoản mục','Nội dung chuẩn','Nội dung gốc','Số tiền VND','Ngày thực chi / nộp','Tháng dòng tiền','Nguồn / file','Trạng thái'],
+    empty:'Chọn một dự án để xem toàn bộ lịch sử.',
+    noRows:'Không có dữ liệu phù hợp.',
+    foot:'Các dòng cũ từ DATALUONG giữ nguyên nội dung gốc để đối chiếu; các file Excel nhập mới hiển thị cả tên file và sheet nguồn.',
+    excelBadge:'Excel đã nhập', manualBadge:'Nhập tay', legacyBadge:'DATALUONG lịch sử',
+    paidChip:'Đã thực chi', pendingChip:'Chưa thực chi', commonGroup:'Chung', bothGroup:'VN+TQ', editedBadge:'Đã chỉnh sửa'
+  },
+  zh:{
+    button:'↺ 项目工资历史',
+    title:'项目工资历史',
+    sub:'查看单个项目从历史数据到后续 Excel 导入的全部工资、社保及税费明细。',
+    project:'选择项目',
+    search:'搜索科目、内容、来源文件...',
+    allSource:'全部来源', excel:'已导入 Excel', manual:'手工录入', legacy:'DATALUONG 历史',
+    allStatus:'全部状态', paid:'已实际支付 / 缴纳', pending:'未支付 / 未缴纳',
+    total:'历史总额', paidTotal:'已实际支付 / 缴纳', pendingTotal:'尚未支付 / 缴纳', rows:'笔数',
+    hint:'DATALUONG 历史属于原始数据，不可删除，但可通过覆盖值修改。已导入 Excel 或网页录入的记录可直接修改/删除。',
+    export:'⇩ 导出历史 Excel',
+    cols:['发生期','人员组','项目','标准内容','原始内容','金额 VND','实际支付 / 缴纳日期','现金流月份','来源 / 文件','状态'],
+    empty:'请选择一个项目查看完整历史。',
+    noRows:'没有符合条件的数据。',
+    foot:'DATALUONG 历史行保留原始内容用于核对；新导入 Excel 同时显示文件名和工作表。',
+    excelBadge:'已导入 Excel', manualBadge:'手工录入', legacyBadge:'DATALUONG 历史',
+    paidChip:'已实际支付', pendingChip:'未支付', commonGroup:'公共', bothGroup:'中越合计', editedBadge:'已修改'
+  },
+  en:{
+    button:'↺ Project history',
+    title:'Project payroll history',
+    sub:'View all payroll, insurance and tax items for one project, from legacy data through later Excel imports.',
+    project:'Select project',
+    search:'Search category, content or source file...',
+    allSource:'All sources', excel:'Imported Excel', manual:'Manual entry', legacy:'DATALUONG history',
+    allStatus:'All statuses', paid:'Actually paid / submitted', pending:'Unpaid / not submitted',
+    total:'Historical total', paidTotal:'Actually paid / submitted', pendingTotal:'Still unpaid', rows:'Items',
+    hint:'DATALUONG history cannot be deleted, but it can be edited through saved overrides. Excel-imported and web-entered records can be edited or deleted directly.',
+    export:'⇩ Export history Excel',
+    cols:['Accrual period','Staff group','Category','Standard content','Original content','Amount VND','Actual payment / submission date','Cash-flow month','Source / file','Status'],
+    empty:'Select a project to view its full history.',
+    noRows:'No matching records.',
+    foot:'Legacy DATALUONG rows keep the original content for reconciliation; later Excel imports show the source filename and sheet.',
+    excelBadge:'Imported Excel', manualBadge:'Manual entry', legacyBadge:'DATALUONG history',
+    paidChip:'Actually paid', pendingChip:'Unpaid', commonGroup:'Common', bothGroup:'VN+CN total', editedBadge:'Edited'
+  }
+};
+
+function salaryHistoryText(){
+  return SALARY_HISTORY_I18N[cashLang]||SALARY_HISTORY_I18N.vi;
+}
+
+function syncSalaryHistoryLabels(){
+  const T=salaryHistoryText();
+  if($('openSalaryHistory'))$('openSalaryHistory').textContent=T.button;
+  if($('salaryHistoryTitle'))$('salaryHistoryTitle').textContent=T.title;
+  if($('salaryHistorySub'))$('salaryHistorySub').textContent=T.sub;
+  if($('salaryHistorySearch'))$('salaryHistorySearch').placeholder=T.search;
+  if($('salaryHistoryHint'))$('salaryHistoryHint').textContent=T.hint;
+  if($('exportSalaryHistory'))$('exportSalaryHistory').textContent=T.export;
+  if($('salaryHistoryTotalLabel'))$('salaryHistoryTotalLabel').textContent=T.total;
+  if($('salaryHistoryPaidLabel'))$('salaryHistoryPaidLabel').textContent=T.paidTotal;
+  if($('salaryHistoryPendingLabel'))$('salaryHistoryPendingLabel').textContent=T.pendingTotal;
+  if($('salaryHistoryRowsLabel'))$('salaryHistoryRowsLabel').textContent=T.rows;
+  if($('salaryHistoryFootnote'))$('salaryHistoryFootnote').textContent=T.foot;
+
+  const heads=['shColPeriod','shColStaff','shColType','shColDesc','shColRawDesc','shColAmount','shColPaidDate','shColCashMonth','shColSource','shColStatus'];
+  heads.forEach((id,i)=>{if($(id))$(id).textContent=T.cols[i]});
+  if($('shColAction'))$('shColAction').textContent=cashLang==='zh'?'操作':cashLang==='en'?'Actions':'Thao tác';
+
+  const src=$('salaryHistorySource');
+  if(src){
+    const m={'':T.allSource,excel:T.excel,manual:T.manual,legacy:T.legacy};
+    [...src.options].forEach(o=>{if(m[o.value]!==undefined)o.textContent=m[o.value]});
+  }
+  const st=$('salaryHistoryStatus');
+  if(st){
+    const m={'':T.allStatus,paid:T.paid,pending:T.pending};
+    [...st.options].forEach(o=>{if(m[o.value]!==undefined)o.textContent=m[o.value]});
+  }
+}
+
+function legacyPayrollHistoryType(x){
+  if(x?.payrollTypeOverride)return x.payrollTypeOverride;
+  const sub=String(x?.subCode||'').toUpperCase();
+  const bySub={LVN:'salary',LTQ:'salary',BHVN:'insurance_vn',BHTQ:'insurance_cn',KPCD:'union',TH:'tax',TA:'meal'};
+  return bySub[sub]||payrollTypeFromText([x?.description,x?.category,x?.originalSubClass].join(' '),'other');
+}
+
+function legacyPayrollHistoryMonth(x){
+  if(/^\d{4}-\d{2}$/.test(String(x?.payrollMonthOverride||'')))return x.payrollMonthOverride;
+  const period=String(x?.period||'').slice(0,7);
+  if(/^\d{4}-\d{2}$/.test(period))return period;
+
+  const desc=String(x?.description||'');
+  let m=desc.match(/(20\d{2})\s*(?:年|[\/.-])\s*(\d{1,2})\s*月?/);
+  if(m && Number(m[2])>=1 && Number(m[2])<=12)return `${m[1]}-${pad(Number(m[2]))}`;
+
+  m=desc.match(/(?:^|[^\d])(\d{1,2})\s*月份?/);
+  if(m && x?.actualDate){
+    const payrollMonth=Number(m[1]), actual=String(x.actualDate).match(/^(20\d{2})-(\d{2})/);
+    if(actual && payrollMonth>=1 && payrollMonth<=12){
+      let y=Number(actual[1]), actualMonth=Number(actual[2]);
+      if(payrollMonth>actualMonth+3)y-=1;
+      return `${y}-${pad(payrollMonth)}`;
+    }
+  }
+  return '';
+}
+
+
+function salaryHistoryGroup(row){
+  const type=row?.type||'other';
+  // Theo quy ước dữ liệu của công ty: khoản tiền ăn là của nhân sự Trung Quốc.
+  if(type==='meal')return 'cn';
+
+  const g=row?.staffGroup||inferPayrollStaffGroup(row?.raw||row);
+  if(g==='vn'||g==='cn')return g;
+
+  const txt=String(row?.description||row?.rawDescription||row?.raw?.description||row?.raw?.category||'');
+  if(/越籍|越南/.test(txt))return 'vn';
+  if(/中方|中国|中国籍/.test(txt))return 'cn';
+
+  // Thuế TNCN lịch sử trước đây không tách VN/TQ = tổng hai nhóm.
+  if(type==='tax')return 'both';
+  // Công đoàn cũ không phân nhóm nhân sự.
+  if(type==='union')return 'common';
+  return 'unknown';
+}
+function salaryHistoryGroupLabel(row){
+  const g=salaryHistoryGroup(row),T=salaryHistoryText();
+  if(g==='vn')return 'VN';
+  if(g==='cn')return 'TQ';
+  if(g==='both')return T.bothGroup||(cashLang==='zh'?'中越合计':cashLang==='en'?'VN+CN total':'VN+TQ');
+  if(g==='common')return T.commonGroup||'Chung';
+  return cashT('Chưa xác định');
+}
+function salaryHistoryMonthLabel(month,lang=cashLang){
+  const m=String(month||'').match(/^(\d{4})-(\d{2})$/);if(!m)return '';
+  if(lang==='zh')return `${m[1]}年${m[2]}月`;
+  if(lang==='en')return new Intl.DateTimeFormat('en-US',{month:'long',year:'numeric'}).format(new Date(Number(m[1]),Number(m[2])-1,1));
+  return `Tháng ${m[2]}/${m[1]}`;
+}
+function salaryHistoryStandardContent(row,lang=cashLang){
+  const month=salaryHistoryMonthLabel(row?.payrollMonth,lang),
+        g=salaryHistoryGroup(row),
+        type=row?.type||'other';
+
+  if(lang==='zh'){
+    const who=g==='vn'?'越籍员工':g==='cn'?'中方员工':'';
+    const taxWho=g==='vn'?'越籍员工':g==='cn'?'中方员工':g==='both'?'中越合计':'';
+    const map={
+      salary:`${who||'员工'}实发工资`,
+      bonus:`${who||'员工'}奖金`,
+      insurance_vn:'越籍员工社保',
+      insurance_cn:'中方员工社保',
+      insurance:`${who||'员工'}社保`,
+      union:'工会经费',
+      tax:`${taxWho?taxWho+' ':''}个人所得税`,
+      meal:'中方员工伙食费',
+      other:'其他人事费用'
+    };
+    const base=map[type]||map.other;
+    return month?`${base} ${month}`:base;
+  }
+
+  if(lang==='en'){
+    const who=g==='vn'?'VN':g==='cn'?'CN':'';
+    const taxWho=g==='vn'?'VN':g==='cn'?'CN':g==='both'?'VN+CN total':'';
+    const map={
+      salary:`Net salary${who?' - '+who:''}`,
+      bonus:`Bonus${who?' - '+who:''}`,
+      insurance_vn:'Vietnam social insurance',
+      insurance_cn:'China social insurance',
+      insurance:`Social insurance${who?' - '+who:''}`,
+      union:'Trade union fee',
+      tax:`Personal income tax${taxWho?' - '+taxWho:''}`,
+      meal:'CN staff meal allowance',
+      other:'Other payroll cost'
+    };
+    const base=map[type]||map.other;
+    return month?`${base} ${month}`:base;
+  }
+
+  const who=g==='vn'?'VN':g==='cn'?'TQ':'';
+  const taxWho=g==='vn'?'VN':g==='cn'?'TQ':g==='both'?'VN+TQ':'';
+  const map={
+    salary:`Lương thực nhận${who?' '+who:''}`,
+    bonus:`Thưởng${who?' '+who:''}`,
+    insurance_vn:'Bảo hiểm VN',
+    insurance_cn:'Bảo hiểm TQ',
+    insurance:`Bảo hiểm${who?' '+who:''}`,
+    union:'Phí công đoàn',
+    tax:`Thuế TNCN${taxWho?' '+taxWho:''}`,
+    meal:'Tiền ăn TQ',
+    other:'Chi phí nhân sự khác'
+  };
+  const base=map[type]||map.other;
+  return month?`${base} (${month})`:base;
+}
+function salaryHistoryRawContent(row){
+  return String(row?.rawDescription||row?.description||row?.raw?.description||row?.raw?.category||row?.raw?.originalSubClass||'').trim();
+}
+function salaryHistoryDedupeKey(row){
+  const type=row?.type||'other', g=salaryHistoryGroup(row);
+  const groupKey=['tax','union'].includes(type)?'*':g;
+  return [normProject(row?.project),groupKey,type,row?.payrollMonth||'',Math.round(num(row?.amount)*100)/100,row?.actualDate||''].join('|');
+}
+
+function salaryHistoryAllRows(){
+  const current=(cashCloudState.salaryRecords||[]).map(x=>{
+    const sourceKind=x.sourceType==='manual'?'manual':'excel';
+    const sourceText=sourceKind==='manual'
+      ? cashT('Nhập tay')
+      : [x.sourceFile||PAYROLL_SOURCE_LABELS[x.sourceType]||'Excel',x.sourceSheet].filter(Boolean).join(' · ');
+    return {
+      id:`current:${x.id}`,
+      currentRecordId:x.id,
+      project:normProject(x.project),
+      staffGroup:inferPayrollStaffGroup(x),
+      type:x.type||'other',
+      payrollMonth:x.payrollMonth||'',
+      amount:num(x.amountVnd),
+      actualDate:x.actualDate||'',
+      description:'',
+      rawDescription:x.note||'',
+      sourceKind,
+      sourceText,
+      sourceFile:x.sourceFile||'',
+      sourceSheet:x.sourceSheet||'',
+      status:x.actualDate?'paid':'pending',
+      raw:x
+    };
+  });
+
+  const legacy=legacySalary().map(x=>{
+    const payrollMonth=legacyPayrollHistoryMonth(x);
+    return {
+      id:`legacy:${x.id}`,
+      currentRecordId:'',
+      project:normProject(x.project),
+      staffGroup:inferPayrollStaffGroup(x),
+      type:legacyPayrollHistoryType(x),
+      payrollMonth,
+      amount:num(x.amount),
+      actualDate:x.status==='paid'?(x.actualDate||''):'',
+      description:'',
+      rawDescription:x.description||x.category||x.originalSubClass||'',
+      sourceKind:'legacy',
+      sourceText:'DATALUONG',
+      sourceFile:'DATALUONG',
+      sourceSheet:'Lịch sử',
+      hasLegacyOverride:!!((cashCloudState.legacyOverrides||{})[x.id]),
+      status:x.status==='paid'?'paid':'pending',
+      raw:x
+    };
+  });
+
+  /*
+    Nếu cùng một khoản đã được nhập lại vào module mới, ưu tiên bản mới
+    (có file/sheet nguồn rõ hơn) để lịch sử không hiện hai lần.
+  */
+  const seen=new Set();
+  const out=[];
+  [...current,...legacy].forEach(x=>{
+    const key=salaryHistoryDedupeKey(x);
+    if(seen.has(key))return;
+    seen.add(key);
+    out.push(x);
+  });
+  return out;
+}
+
+function salaryHistoryFilteredRows(){
+  const project=$('salaryHistoryProject')?.value||'',
+        q=String($('salaryHistorySearch')?.value||'').trim().toLowerCase(),
+        period=$('salaryHistoryPeriod')?.value||'',
+        source=$('salaryHistorySource')?.value||'',
+        status=$('salaryHistoryStatus')?.value||'';
+
+  if(!project)return [];
+
+  return salaryHistoryAllRows()
+    .filter(x=>
+      normProject(x.project)===normProject(project) &&
+      (!period||x.payrollMonth===period) &&
+      (!source||x.sourceKind===source) &&
+      (!status||x.status===status) &&
+      (!q||[
+        PAYROLL_TYPE_LABELS[x.type]||x.type,
+        salaryHistoryGroupLabel(x),
+        salaryHistoryStandardContent(x),
+        salaryHistoryRawContent(x),
+        x.sourceText,
+        x.sourceFile,
+        x.sourceSheet
+      ].join(' ').toLowerCase().includes(q))
+    )
+    .sort((a,b)=>
+      String(b.payrollMonth||b.actualDate||'').localeCompare(String(a.payrollMonth||a.actualDate||'')) ||
+      String(b.actualDate||'').localeCompare(String(a.actualDate||'')) ||
+      String(a.type||'').localeCompare(String(b.type||''))
+    );
+}
+
+function populateSalaryHistoryProjects(preferred=''){
+  const sel=$('salaryHistoryProject');if(!sel)return;
+  const current=preferred||sel.value||$('salaryProject')?.value||'';
+  const projects=[...new Set(salaryHistoryAllRows().map(x=>normProject(x.project)).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const T=salaryHistoryText();
+  sel.innerHTML=`<option value="">${esc(T.project)}</option>`+projects.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
+  if(current && projects.some(p=>normProject(p)===normProject(current)))sel.value=projects.find(p=>normProject(p)===normProject(current));
+}
+
+function renderSalaryHistory(){
+  syncSalaryHistoryLabels();
+  const project=$('salaryHistoryProject')?.value||'',
+        rows=salaryHistoryFilteredRows(),
+        T=salaryHistoryText();
+
+  if(!project){
+    $('salaryHistoryTotal').textContent='0';
+    $('salaryHistoryPaid').textContent='0';
+    $('salaryHistoryPending').textContent='0';
+    $('salaryHistoryRows').textContent='0';
+    $('salaryHistoryBody').innerHTML=`<tr><td colspan="11" class="salary-history-empty">${esc(T.empty)}</td></tr>`;
+    return;
+  }
+
+  const total=rows.reduce((s,x)=>s+num(x.amount),0),
+        paid=rows.filter(x=>x.status==='paid').reduce((s,x)=>s+num(x.amount),0),
+        pending=rows.filter(x=>x.status==='pending').reduce((s,x)=>s+num(x.amount),0);
+
+  $('salaryHistoryTotal').textContent=money(total);
+  $('salaryHistoryPaid').textContent=money(paid);
+  $('salaryHistoryPending').textContent=money(pending);
+  $('salaryHistoryRows').textContent=rows.length.toLocaleString('vi-VN');
+
+  $('salaryHistoryBody').innerHTML=rows.map(x=>{
+    const typeLabel=PAYROLL_TYPE_LABELS[x.type]||x.type||'—';
+    const sourceLabel=x.sourceKind==='legacy'?T.legacyBadge:x.sourceKind==='manual'?T.manualBadge:T.excelBadge;
+    const statusLabel=x.status==='paid'?T.paidChip:T.pendingChip;
+    const statusTone=x.status==='paid'?'green':'blue';
+    const sourceDetail=x.sourceKind==='legacy'
+      ? 'DATALUONG'
+      : [x.sourceFile,x.sourceSheet].filter(Boolean).join(' · ') || x.sourceText || '—';
+    const desc=salaryHistoryStandardContent(x),rawDesc=salaryHistoryRawContent(x);
+
+    return `<tr>
+      <td>${x.payrollMonth?fmtMonth(x.payrollMonth):'<span class="muted">—</span>'}</td>
+      <td><span class="staff-group-${esc(salaryHistoryGroup(x))}">${esc(salaryHistoryGroupLabel(x))}</span></td>
+      <td><b>${esc(typeLabel)}</b></td>
+      <td class="wrap"><b>${esc(desc||'—')}</b></td>
+      <td class="wrap">${esc(rawDesc||'—')}</td>
+      <td class="money">${money(x.amount)}</td>
+      <td>${x.actualDate?fmtDate(x.actualDate):'—'}</td>
+      <td>${x.actualDate?fmtMonth(monthOf(x.actualDate)):'—'}</td>
+      <td class="wrap">
+        <span class="salary-history-source ${esc(x.sourceKind)}">${esc(sourceLabel)}</span>
+        ${x.sourceKind==='legacy'&&x.hasLegacyOverride?`<span class="salary-history-edited">${esc(T.editedBadge||'Đã chỉnh sửa')}</span>`:''}
+        <div class="mep-card-sub">${esc(sourceDetail)}</div>
+      </td>
+      <td>${statusChip(statusLabel,statusTone)}</td>
+      <td class="actions-cell">${
+        x.currentRecordId
+          ? `<button class="table-btn" data-edit-salary-history="${esc(x.currentRecordId)}">${esc(cashLang==='zh'?'修改':cashLang==='en'?'Edit':'Sửa')}</button>
+             <button class="table-btn danger" data-delete-salary-history="${esc(x.currentRecordId)}">${esc(cashLang==='zh'?'删除':cashLang==='en'?'Delete':'Xóa')}</button>`
+          : `<button class="table-btn" data-edit-legacy-salary-history="${esc(x.raw?.id||String(x.id||'').replace(/^legacy:/,''))}">${esc(cashLang==='zh'?'修改':cashLang==='en'?'Edit':'Sửa')}</button>
+             <span class="muted" style="margin-left:5px">${esc(
+               x.hasLegacyOverride
+                 ? (cashLang==='zh'?'原始数据 · 已有覆盖值 · 不可删除':cashLang==='en'?'Source data · override saved · cannot delete':'Dữ liệu gốc · đã có ghi đè · không xóa')
+                 : (cashLang==='zh'?'原始数据 · 不可删除':cashLang==='en'?'Source data · cannot delete':'Dữ liệu gốc · không xóa')
+             )}</span>`
+      }</td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="11" class="salary-history-empty">${esc(T.noRows)}</td></tr>`;
+
+  document.querySelectorAll('[data-edit-salary-history]').forEach(btn=>{
+    btn.onclick=()=>{
+      const id=btn.dataset.editSalaryHistory||'';
+      if(!id)return;
+      $('salaryHistoryModal')?.classList.remove('show');
+      showView('payroll');
+      openSalaryRecord(id);
+      if($('legacyEditNote')){
+        const x=(cashCloudState.salaryRecords||[]).find(r=>r.id===id);
+        if(x?.sourceType==='excel'){
+          $('legacyEditNote').textContent=cashLang==='zh'
+            ?'此记录来源于已导入 Excel。修改只保存到 Cash Control，不会修改原 Excel 文件。'
+            :cashLang==='en'
+              ?'This record came from an imported Excel file. Changes are saved in Cash Control only; the original Excel file is not modified.'
+              :'Khoản này được nhập từ Excel. Sửa tại đây chỉ cập nhật dữ liệu trong Cash Control, không sửa file Excel gốc.';
+        }
+      }
+    };
+  });
+
+  document.querySelectorAll('[data-delete-salary-history]').forEach(btn=>{
+    btn.onclick=async()=>{
+      const id=btn.dataset.deleteSalaryHistory||'';
+      if(!id)return;
+      await deleteSalaryRecord(id);
+      populateSalaryHistoryProjects($('salaryHistoryProject')?.value||'');
+      renderSalaryHistory();
+    };
+  });
+
+  document.querySelectorAll('[data-edit-legacy-salary-history]').forEach(btn=>{
+    btn.onclick=()=>{
+      const id=btn.dataset.editLegacySalaryHistory||'';
+      if(!id)return;
+      $('salaryHistoryModal')?.classList.remove('show');
+      showView('payroll');
+      openLegacySalaryRecord(id);
+    };
+  });
+}
+
+function openSalaryHistory(){
+  populateSalaryHistoryProjects($('salaryProject')?.value||'');
+  $('salaryHistorySearch').value='';
+  $('salaryHistoryPeriod').value='';
+  $('salaryHistorySource').value='';
+  $('salaryHistoryStatus').value='';
+  renderSalaryHistory();
+  openModal('salaryHistoryModal');
+}
+
+function exportSalaryHistoryExcel(){
+  if(typeof XLSX==='undefined'){alert('Thư viện Excel chưa tải xong.');return}
+  const project=$('salaryHistoryProject')?.value||'';
+  if(!project){alert(salaryHistoryText().project);return}
+  const rows=salaryHistoryFilteredRows();
+  if(!rows.length){alert(salaryHistoryText().noRows);return}
+
+  const T=salaryHistoryText(),
+        total=rows.reduce((s,x)=>s+num(x.amount),0),
+        paid=rows.filter(x=>x.status==='paid').reduce((s,x)=>s+num(x.amount),0),
+        pending=rows.filter(x=>x.status!=='paid').reduce((s,x)=>s+num(x.amount),0);
+
+  const title=cashLang==='zh'
+    ?`${project} · 工资 / 社保 / 税费历史明细`
+    :cashLang==='en'
+      ?`${project} · Payroll / insurance / tax history`
+      :`${project} · Lịch sử lương / BH / thuế`;
+
+  const summaryLabels=cashLang==='zh'
+    ?['历史总额','已实际支付 / 缴纳','尚未支付 / 缴纳','笔数']
+    :cashLang==='en'
+      ?['Historical total','Actually paid / submitted','Still unpaid','Items']
+      :['Tổng lịch sử','Đã thực chi / nộp','Còn chưa chi / nộp','Số khoản'];
+
+  const headers=T.cols.slice();
+  const aoa=[
+    [title],
+    [summaryLabels[0],total,summaryLabels[1],paid,summaryLabels[2],pending,summaryLabels[3],rows.length],
+    [],
+    headers
+  ];
+
+  rows.forEach(x=>{
+    aoa.push([
+      x.payrollMonth||'',
+      salaryHistoryGroupLabel(x),
+      PAYROLL_TYPE_LABELS[x.type]||x.type||'',
+      salaryHistoryStandardContent(x),
+      salaryHistoryRawContent(x),
+      num(x.amount),
+      x.actualDate||'',
+      monthOf(x.actualDate),
+      x.sourceKind==='legacy'
+        ?(`DATALUONG${x.hasLegacyOverride?' · '+(T.editedBadge||'Đã chỉnh sửa'):''}`)
+        :[x.sourceFile||x.sourceText,x.sourceSheet].filter(Boolean).join(' / '),
+      x.status==='paid'?T.paidChip:T.pendingChip
+    ]);
+  });
+
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  const endCol=headers.length-1;
+  ws['!merges']=[XLSX.utils.decode_range(`A1:${XLSX.utils.encode_col(endCol)}1`)];
+  ws['!autofilter']={ref:`A4:${XLSX.utils.encode_col(endCol)}${aoa.length}`};
+  ws['!cols']=[
+    {wch:13},{wch:13},{wch:20},{wch:34},{wch:34},
+    {wch:18},{wch:17},{wch:16},{wch:34},{wch:18}
+  ];
+  ws['!rows']=[
+    {hpt:28},{hpt:23},{hpt:7},{hpt:25},
+    ...rows.map(()=>({hpt:28}))
+  ];
+
+  const border={
+    top:{style:'thin',color:{rgb:'D9E2F0'}},
+    bottom:{style:'thin',color:{rgb:'D9E2F0'}},
+    left:{style:'thin',color:{rgb:'E8EDF4'}},
+    right:{style:'thin',color:{rgb:'E8EDF4'}}
+  };
+  const center={horizontal:'center',vertical:'center'};
+  const wrap={vertical:'center',wrapText:true};
+
+  // Title
+  const titleCell=ws.A1;
+  titleCell.s={
+    font:{name:'Aptos',sz:16,bold:true,color:{rgb:'FFFFFF'}},
+    fill:{fgColor:{rgb:'173756'}},
+    alignment:{horizontal:'left',vertical:'center'},
+    border
+  };
+
+  // Summary strip (A2:H2)
+  const summaryColors=['EAF2FF','EAF8F0','FFF1F0','F4F6F8'];
+  for(let c=0;c<8;c++){
+    const cell=ws[XLSX.utils.encode_cell({r:1,c})];
+    if(!cell)continue;
+    const block=Math.floor(c/2);
+    cell.s={
+      font:{name:'Aptos',sz:10,bold:c%2===0,color:{rgb:c%2===0?'667085':'173756'}},
+      fill:{fgColor:{rgb:summaryColors[block]}},
+      alignment:{horizontal:c%2===0?'left':'right',vertical:'center'},
+      border
+    };
+    if(c%2===1){
+      cell.s.font={name:'Aptos',sz:11,bold:true,color:{rgb:block===2?'B42318':block===1?'067647':'173756'}};
+      if(c===7)cell.z='0';
+      else cell.z='#,##0';
+    }
+  }
+
+  // Header row
+  for(let c=0;c<=endCol;c++){
+    const cell=ws[XLSX.utils.encode_cell({r:3,c})];
+    if(!cell)continue;
+    cell.s={
+      font:{name:'Aptos',sz:10,bold:true,color:{rgb:'FFFFFF'}},
+      fill:{fgColor:{rgb:'24547A'}},
+      alignment:center,
+      border
+    };
+  }
+
+  // Data rows
+  for(let r=4;r<aoa.length;r++){
+    const idx=r-4, row=rows[idx];
+    const isPending=row.status!=='paid';
+    const rowFill=idx%2===0?'FFFFFF':'F8FAFC';
+
+    for(let c=0;c<=endCol;c++){
+      const cell=ws[XLSX.utils.encode_cell({r,c})];
+      if(!cell)continue;
+      cell.s={
+        font:{name:'Aptos',sz:10,color:{rgb:'344054'}},
+        fill:{fgColor:{rgb:rowFill}},
+        alignment:(c===3||c===4||c===8)?wrap:center,
+        border
+      };
+    }
+
+    // Standardized content: stronger
+    const standard=ws[XLSX.utils.encode_cell({r,c:3})];
+    if(standard)standard.s.font={name:'Aptos',sz:10,bold:true,color:{rgb:'173756'}};
+
+    // Original content: quiet gray
+    const raw=ws[XLSX.utils.encode_cell({r,c:4})];
+    if(raw)raw.s.font={name:'Aptos',sz:9,color:{rgb:'667085'}};
+
+    // Amount
+    const amount=ws[XLSX.utils.encode_cell({r,c:5})];
+    if(amount){
+      amount.z='#,##0';
+      amount.s.alignment={horizontal:'right',vertical:'center'};
+      amount.s.font={name:'Aptos',sz:10,bold:true,color:{rgb:'172033'}};
+    }
+
+    // Source
+    const source=ws[XLSX.utils.encode_cell({r,c:8})];
+    if(source)source.s.font={
+      name:'Aptos',sz:9,
+      color:{rgb:row.sourceKind==='legacy'?'B45309':row.sourceKind==='manual'?'067647':'2957A4'}
+    };
+
+    // Status
+    const status=ws[XLSX.utils.encode_cell({r,c:9})];
+    if(status){
+      status.s={
+        font:{name:'Aptos',sz:9,bold:true,color:{rgb:isPending?'175CD3':'067647'}},
+        fill:{fgColor:{rgb:isPending?'EEF4FF':'ECFDF3'}},
+        alignment:center,
+        border
+      };
+    }
+
+    // Both-group tax highlight
+    if(salaryHistoryGroup(row)==='both'){
+      const group=ws[XLSX.utils.encode_cell({r,c:1})];
+      if(group){
+        group.s.font={name:'Aptos',sz:9,bold:true,color:{rgb:'B45309'}};
+        group.s.fill={fgColor:{rgb:'FFF7ED'}};
+      }
+    }
+  }
+
+  // Optional filter/freeze metadata supported by Excel readers.
+  ws['!freeze']={xSplit:0,ySplit:4,topLeftCell:'A5',activePane:'bottomLeft',state:'frozen'};
+
+  const wb=XLSX.utils.book_new();
+  wb.Props={
+    Title:title,
+    Subject:'Payroll history',
+    Author:'MEP Cash Control'
+  };
+  XLSX.utils.book_append_sheet(wb,ws,cashLang==='zh'?'工资历史':cashLang==='en'?'Payroll history':'Lịch sử lương');
+  XLSX.writeFile(wb,`Lich_su_luong_${String(project).replace(/\s+/g,'_')}.xlsx`);
 }
 
 function salaryViewRows(){
@@ -6619,6 +7459,7 @@ function updateSalarySelectionControls(rows=salaryFilteredRows()){
 }
 
 function renderPayroll(){
+    syncSalaryHistoryLabels();
     const rows=salaryFilteredRows(),
           total=rows.reduce((s,x)=>s+num(x.amountVnd),0),
           pending=rows.filter(x=>!x.actualDate),
@@ -6873,7 +7714,125 @@ function renderPayroll(){
 
 }
 
+
+function legacySalaryTypeToSubCode(type,staffGroup='unknown'){
+    if(type==='salary')return staffGroup==='cn'?'LTQ':'LVN';
+    if(type==='bonus')return 'THUONG';
+    if(type==='tax')return 'TH';
+    if(type==='insurance_vn')return 'BHVN';
+    if(type==='insurance_cn')return 'BHTQ';
+    if(type==='insurance')return 'BH';
+    if(type==='union')return 'KPCD';
+    if(type==='meal')return 'TA';
+    return 'NS';
+}
+
+function openLegacySalaryRecord(id){
+    const x=legacySalary().find(r=>String(r.id||'')===String(id||''));
+    if(!x)return;
+
+    editingSalaryId=null;
+    editingLegacySalaryId=id;
+
+    const type=legacyPayrollHistoryType(x),
+          group=salaryHistoryGroup({
+            type,
+            staffGroup:x.staffGroup,
+            raw:x,
+            rawDescription:x.description||x.category||''
+          }),
+          month=legacyPayrollHistoryMonth(x);
+
+    $('salaryRecordModalTitle').textContent=cashLang==='zh'
+      ?'修改历史工资 / 税费'
+      :cashLang==='en'
+        ?'Edit historical payroll / tax'
+        :'Sửa khoản lương / thuế lịch sử';
+
+    $('pyProject').value=x.project||'';
+    $('pyStaffGroup').value=(group==='vn'||group==='cn')?group:'unknown';
+    $('pyType').value=type||'other';
+    $('pyPeriod').value=month||String(x.period||'').slice(0,7)||CURRENT;
+    $('pyAmount').value=num(x.amount)>0?money(x.amount):'';
+    $('pyActualDate').value=x.actualDate||'';
+    $('pyNote').value=x.description||x.category||x.originalSubClass||'';
+
+    if($('legacyEditNote')){
+      $('legacyEditNote').textContent=cashLang==='zh'
+        ?'这是 DATALUONG 原始历史记录。可以修改字段，系统会将修改保存为 Cash Control 覆盖值；原始内置数据不会被删除。'
+        :cashLang==='en'
+          ?'This is a DATALUONG source-history record. You can edit its fields; Cash Control saves the changes as an override while the embedded source row remains preserved.'
+          :'Đây là dữ liệu gốc DATALUONG. Có thể sửa đầy đủ các trường; Cash Control sẽ lưu phần chỉnh sửa dạng ghi đè, còn dòng dữ liệu gốc vẫn được giữ.';
+    }
+
+    openModal('salaryRecordModal');
+}
+
+async function saveLegacySalaryOverride(){
+    if(!editingLegacySalaryId)return false;
+    if(!ensureMepWrite())return true;
+
+    const project=normProject($('pyProject').value),
+          staffGroup=$('pyStaffGroup').value||'unknown',
+          type=$('pyType').value||'other',
+          payrollMonth=$('pyPeriod').value,
+          amount=parseTxnMoney($('pyAmount').value),
+          actualDate=$('pyActualDate').value,
+          note=$('pyNote').value.trim();
+
+    if(!project||!payrollMonth||amount<=0){
+        alert('Cần nhập Dự án, Kỳ bảng lương và Số tiền VND.');
+        return true;
+    }
+
+    const legacyId=editingLegacySalaryId;
+    const original=LEGACY_SALARY.find(r=>String(r.id||'')===String(legacyId));
+    if(!original){
+        alert(cashLang==='zh'?'找不到原始历史记录。':cashLang==='en'?'Source history row not found.':'Không tìm thấy dòng lịch sử gốc.');
+        return true;
+    }
+
+    const subCode=legacySalaryTypeToSubCode(type,staffGroup);
+    const recognizedMonth=type==='tax'?taxDueMonth(payrollMonth):payrollMonth;
+
+    cashCloudState.legacyOverrides={
+        ...(cashCloudState.legacyOverrides||{}),
+        [legacyId]:{
+            ...((cashCloudState.legacyOverrides||{})[legacyId]||{}),
+            project,
+            staffGroup,
+            payrollTypeOverride:type,
+            payrollMonthOverride:payrollMonth,
+            period:payrollMonth,
+            recognizedMonth,
+            expectedDate:recognizedMonth,
+            amount,
+            actualDate,
+            status:actualDate?'paid':'unpaid',
+            subCode,
+            description:note||original.description||original.category||original.originalSubClass||''
+        }
+    };
+
+    pushAudit(
+      'payroll',
+      'Sửa dữ liệu lương / thuế lịch sử',
+      legacyId,
+      `${project} · ${payrollMonth} · ${PAYROLL_TYPE_LABELS[type]||type}`
+    );
+
+    if(await persistCashCloud('Sửa dữ liệu lương / thuế lịch sử')){
+        $('salaryRecordModal').classList.remove('show');
+        editingLegacySalaryId=null;
+        renderAll();
+        if($('salaryHistoryModal')?.classList.contains('show'))renderSalaryHistory();
+    }
+    return true;
+}
+
+
 function openSalaryRecord(id=null){
+    editingLegacySalaryId=null;
     editingSalaryId=id;const x=id?(cashCloudState.salaryRecords||[]).find(r=>r.id===id):null;
     $('salaryRecordModalTitle').textContent=x?'Sửa khoản lương / thuế':'Thêm khoản lương / thuế';$('pyProject').value=x?.project||pfSelectedProject||'';$('pyStaffGroup').value=x?inferPayrollStaffGroup(x):'vn';$('pyType').value=x?.type||'salary';$('pyPeriod').value=x?.payrollMonth||CURRENT;$('pyAmount').value=x?.amountVnd?money(x.amountVnd):'';$('pyActualDate').value=x?.actualDate||'';$('pyNote').value=x?.note||'';openModal('salaryRecordModal');
 }
@@ -8039,6 +8998,13 @@ if($('overviewProject'))$('overviewProject').onchange=async()=>{
 ['inflowProject','inflowType','inflowStatus'].forEach(id=>{if($(id))$(id).onchange=renderInflows});
 ['requestProject','requestStatus','requestPriority'].forEach(id=>{if($(id))$(id).onchange=renderPaymentRequests});
 if($('salarySearch'))$('salarySearch').oninput=()=>{salarySelectedIds.clear();renderPayroll()};
+if($('openSalaryHistory'))$('openSalaryHistory').onclick=openSalaryHistory;
+if($('salaryHistorySearch'))$('salaryHistorySearch').oninput=renderSalaryHistory;
+['salaryHistoryProject','salaryHistoryPeriod','salaryHistorySource','salaryHistoryStatus'].forEach(id=>{
+    if($(id))$(id).onchange=renderSalaryHistory;
+});
+if($('exportSalaryHistory'))$('exportSalaryHistory').onclick=exportSalaryHistoryExcel;
+
 
 ['salaryProject','salaryStaffGroup','salaryPeriod','salaryQuarter','salaryType','salaryStatus'].forEach(id=>{if($(id))$(id).onchange=()=>{salarySelectedIds.clear();renderPayroll()}});
 if($('debtProject'))$('debtProject').onchange=renderReceivables;
@@ -8107,7 +9073,7 @@ if($('savePaymentRequest'))$('savePaymentRequest').onclick=async()=>{
     if(await persistCashCloud(old?'Cập nhật đề nghị thanh toán':'Tạo đề nghị thanh toán')){$('paymentRequestModal').classList.remove('show');editingPaymentRequestId=null;renderAll()}
 };
 
-if($('addSalaryRecord'))$('addSalaryRecord').onclick=()=>openSalaryRecord();
+if($('addSalaryRecord'))$('addSalaryRecord').onclick=()=>{editingLegacySalaryId=null;openSalaryRecord()};
 if($('openSalaryImport'))$('openSalaryImport').onclick=()=>{
     salaryImportPreview=[];salaryImportErrors=[];$('salaryPasteData').value='';$('salaryExcelFile').value='';$('salaryFileStatus').textContent='Chưa chọn file.';$('salaryImportSummary').innerHTML='<span class="salary-preview-pill">Chưa có dữ liệu xem trước</span>';$('salaryImportPreviewBody').innerHTML='<tr><td colspan="7" class="mep-empty">Dán bảng hoặc chọn file Excel để xem trước.</td></tr>';$('commitSalaryImport').disabled=true;$('salaryImportNote').textContent='Khi nhập lại cùng Dự án + Khoản mục + Kỳ phát sinh: dòng giống hệt sẽ được bỏ qua; dòng chưa thanh toán sẽ được cập nhật; dòng đã thanh toán được khóa để tránh sai dòng tiền.';openModal('salaryImportModal');
 };
@@ -8122,6 +9088,7 @@ if($('salaryClearPaid'))$('salaryClearPaid').onclick=()=>applySalaryPaymentDate(
 if($('salaryDeleteSelected'))$('salaryDeleteSelected').onclick=deleteSelectedSalaryRecords;
 
 if($('saveSalaryRecord'))$('saveSalaryRecord').onclick=async()=>{
+    if(editingLegacySalaryId){await saveLegacySalaryOverride();return;}
     if(!ensureMepWrite())return;const project=normProject($('pyProject').value),payrollMonth=$('pyPeriod').value,amountVnd=parseTxnMoney($('pyAmount').value);if(!project||!payrollMonth||amountVnd<=0){alert('Cần nhập Dự án, Kỳ bảng lương và Số tiền VND.');return}
     const arr=[...(cashCloudState.salaryRecords||[])],old=editingSalaryId?arr.find(x=>x.id===editingSalaryId):null,record={id:old?.id||mepId('payroll'),type:$('pyType').value,project,staffGroup:$('pyStaffGroup').value||'unknown',payrollMonth,amountVnd,actualDate:$('pyActualDate').value,account:DEFAULT_PAYROLL_ACCOUNT.trim()||DEFAULT_PAYROLL_ACCOUNT,note:$('pyNote').value.trim(),sourceType:old?.sourceType||'manual',sourceFile:old?.sourceFile||'',sourceSheet:old?.sourceSheet||'',batchId:old?.batchId||'',cashTxnId:old?.cashTxnId||'',createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};
     const duplicate=arr.find(x=>payrollKey(x)===payrollKey(record)&&x.id!==record.id);if(duplicate){alert('Đã có khoản cùng Dự án + Nhóm nhân sự + Khoản mục + Kỳ phát sinh. Hãy sửa dòng hiện có để tránh trùng.');return}syncSalaryCash(record);const i=arr.findIndex(x=>x.id===record.id);if(i>=0)arr[i]=record;else arr.push(record);cashCloudState.salaryRecords=arr;pushAudit('payroll',old?'Cập nhật khoản lương / thuế':'Thêm khoản lương / thuế',record.id,`${project} · ${payrollMonth} · ${PAYROLL_TYPE_LABELS[record.type]}`);if(await persistCashCloud(old?'Cập nhật khoản lương / thuế':'Thêm khoản lương / thuế')){$('salaryRecordModal').classList.remove('show');editingSalaryId=null;renderAll()}
