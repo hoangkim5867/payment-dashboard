@@ -37967,15 +37967,78 @@ function getCurrentExcelExportScopeKey(){
 }
 
 
+function orderPaymentsForExcelExport(rows){
+
+    const currentSearch =
+        normalize(
+            searchInput?.value || ""
+        );
+
+    /*
+       Match the table's visible ordering:
+       - with search text: search priority first, then active column sorts
+       - without search: active column sorts only
+    */
+    if(currentSearch){
+
+        const activeSorts =
+            getActivePaymentSorts();
+
+        return [...rows].sort(
+            (a,b) => {
+
+                const priorityDiff =
+                    getSearchPriority(
+                        b,
+                        currentSearch
+                    ) -
+                    getSearchPriority(
+                        a,
+                        currentSearch
+                    );
+
+                if(priorityDiff !== 0){
+                    return priorityDiff;
+                }
+
+                for(const sort of activeSorts){
+
+                    const result =
+                        comparePaymentField(
+                            a,
+                            b,
+                            sort.key,
+                            sort.direction
+                        );
+
+                    if(result !== 0){
+                        return result;
+                    }
+                }
+
+                return 0;
+            }
+        );
+    }
+
+    return sortPayments(rows);
+}
+
+
 function getPaymentsForExcelScope(scope){
 
-    return getFilteredPayments(
-        null,
-        {
-            project:scope.project,
-            specialPaymentView:
-                scope.specialPaymentView
-        }
+    const rows =
+        getFilteredPayments(
+            null,
+            {
+                project:scope.project,
+                specialPaymentView:
+                    scope.specialPaymentView
+            }
+        );
+
+    return orderPaymentsForExcelExport(
+        rows
     );
 }
 
@@ -38196,35 +38259,160 @@ function getExcelExportColumns(scope){
             paymentMonthFilter.value || ""
         ).trim();
 
-    return allColumns.filter(column => {
+    const filteredColumns =
+        allColumns.filter(column => {
 
-        if(hiddenColumns.has(column.index)){
-            return false;
-        }
+            /*
+               Project is export-only mandatory:
+               project tabs may hide it on the web, but Excel must still contain it.
+            */
+            if(
+                column.index !== 4 &&
+                hiddenColumns.has(column.index)
+            ){
+                return false;
+            }
 
-        if(
-            paidMode &&
-            paidHidden.has(column.index)
-        ){
-            return false;
-        }
+            if(
+                paidMode &&
+                paidHidden.has(column.index)
+            ){
+                return false;
+            }
 
-        if(
-            monthSelected &&
-            column.index === 2
-        ){
-            return false;
-        }
+            if(
+                monthSelected &&
+                column.index === 2
+            ){
+                return false;
+            }
 
-        if(
-            scope.kind === "project" &&
-            column.index === 4
-        ){
-            return false;
-        }
+            return true;
+        });
 
-        return true;
-    });
+    const projectColumn =
+        filteredColumns.find(
+            column => column.index === 4
+        );
+
+    if(!projectColumn){
+        return filteredColumns;
+    }
+
+    /*
+       Remove Project from its normal web-table position and insert it only
+       in the Excel order requested by the user.
+
+       Normal / in-progress export:
+       ... Loại chi phí | Số tiền | Dự án | Loại hợp đồng | Ghi chú ...
+
+       Paid export hides plan Amount + Contract Type, so Project is placed
+       immediately after Actual Paid Amount when available.
+    */
+    const withoutProject =
+        filteredColumns.filter(
+            column => column.index !== 4
+        );
+
+    const amountPos =
+        withoutProject.findIndex(
+            column => column.index === 12
+        );
+
+    const contractTypePos =
+        withoutProject.findIndex(
+            column => column.index === 11
+        );
+
+    if(
+        amountPos >= 0 &&
+        contractTypePos >= 0
+    ){
+
+        const amountColumn =
+            withoutProject[amountPos];
+
+        const contractTypeColumn =
+            withoutProject[contractTypePos];
+
+        const reordered =
+            withoutProject.filter(
+                column =>
+                    ![11,12].includes(
+                        column.index
+                    )
+            );
+
+        const costTypePos =
+            reordered.findIndex(
+                column => column.index === 10
+            );
+
+        const insertAt =
+            costTypePos >= 0
+                ? costTypePos + 1
+                : Math.min(
+                    amountPos,
+                    contractTypePos
+                );
+
+        /*
+           Excel-only order:
+           Loại chi phí -> Loại hợp đồng -> Dự án -> Số tiền -> Ghi chú
+        */
+        reordered.splice(
+            insertAt,
+            0,
+            contractTypeColumn,
+            projectColumn,
+            amountColumn
+        );
+
+        return reordered;
+    }
+
+    const actualAmountPos =
+        withoutProject.findIndex(
+            column => column.index === 21
+        );
+
+    if(actualAmountPos >= 0){
+
+        const reordered =
+            [...withoutProject];
+
+        reordered.splice(
+            actualAmountPos + 1,
+            0,
+            projectColumn
+        );
+
+        return reordered;
+    }
+
+    const contractOnlyPos =
+        withoutProject.findIndex(
+            column => column.index === 11
+        );
+
+    if(contractOnlyPos >= 0){
+
+        const reordered =
+            [...withoutProject];
+
+        reordered.splice(
+            contractOnlyPos + 1,
+            0,
+            projectColumn
+        );
+
+        return reordered;
+    }
+
+    return [
+        ...withoutProject,
+        projectColumn
+    ];
 }
 
 
