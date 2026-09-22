@@ -13762,6 +13762,7 @@ html[data-theme="ivorybunny"] .process-inline-input{
                 <button type="button" data-tools-action="cancel-payment" id="toolsCancelPaymentBtn" style="display:none;">× Hủy khoản thanh toán đã chọn</button>
                 <button type="button" data-tools-action="cleanupHistoryPic" style="display:none;">🧹 Dọn PIC dữ liệu lịch sử</button>
                 <button type="button" data-tools-action="normalizeMepFormat" id="toolsNormalizeMepFormatBtn" style="display:none;">🧩 Chuẩn hóa định dạng MEP</button>
+                <button type="button" data-tools-action="normalizeVntSecurityIpc" id="toolsNormalizeVntSecurityIpcBtn" style="display:none;">🛡 Sửa IPC Bảo vệ VNT → MEPxxx</button>
                 <button type="button" data-tools-action="history2026" id="toolsHistory2026Btn" style="display:none;">🧹 Chuẩn hóa lịch sử</button>
                 <button type="button" data-tools-action="staff" id="toolsStaffSetupBtn">👥 Staff Setup</button>
                 <button type="button" data-tools-action="purge-payments" id="toolsPurgePaymentsBtn" style="display:none;">🗑 Xóa vĩnh viễn mục đã chọn</button>
@@ -17540,6 +17541,14 @@ function applyLanguage(){
                     ? "📎 Bulk upload vouchers"
                     : "📎 Up UNC hàng loạt";
         }
+        if(typeof toolsNormalizeVntSecurityIpcBtn !== "undefined" && toolsNormalizeVntSecurityIpcBtn){
+            toolsNormalizeVntSecurityIpcBtn.textContent =
+                currentLanguage === "zh"
+                    ? "🛡 VNT 保安 IPC 改为 MEPxxx"
+                    : currentLanguage === "en"
+                        ? "🛡 Fix VNT security IPC → MEPxxx"
+                        : "🛡 Sửa IPC Bảo vệ VNT → MEPxxx";
+        }
         if(typeof adminPaymentToolsLabel !== "undefined" && adminPaymentToolsLabel){
             adminPaymentToolsLabel.textContent=t("adminPaymentTools");
         }
@@ -18008,6 +18017,7 @@ const toolsArchiveMonthBtn=document.getElementById("toolsArchiveMonthBtn");
 const toolsHistoryNormalizerBtn=document.getElementById("toolsHistory2026Btn");
 const toolsHistoryCleanupPicBtn=document.querySelector('[data-tools-action="cleanupHistoryPic"]');
 const toolsNormalizeMepFormatBtn=document.getElementById("toolsNormalizeMepFormatBtn");
+const toolsNormalizeVntSecurityIpcBtn=document.getElementById("toolsNormalizeVntSecurityIpcBtn");
 
 
 const changePasswordBtn =
@@ -18655,22 +18665,84 @@ function formatIPC(value){
 }
 
 
+const VNT_SECURITY_IPC_CONTRACT =
+    "CSCECVN-S.E.A-FSCPCB-MEP-ADM-007";
+
+function isVntSecurityIpcContract(contractNo){
+
+    return (
+        normalizeSmartContractNo(
+            contractNo || ""
+        ) ===
+        normalizeSmartContractNo(
+            VNT_SECURITY_IPC_CONTRACT
+        )
+    );
+}
+
+
+function formatVntSecurityIPC(value){
+
+    const digits =
+        String(value ?? "")
+            .replace(/\D/g,"");
+
+    if(!digits){
+        return "";
+    }
+
+    return (
+        "MEP" +
+        digits.padStart(
+            3,
+            "0"
+        )
+    );
+}
+
+
+function formatContractIPC(
+    contractNo,
+    value
+){
+
+    return isVntSecurityIpcContract(
+        contractNo
+    )
+        ? formatVntSecurityIPC(value)
+        : formatIPC(value);
+}
+
+
+function refreshContractIPCPreview(){
+
+    const digits =
+        formIPC.value.replace(
+            /\D/g,
+            ""
+        );
+
+    if(!digits){
+        ipcPreview.textContent =
+            isVntSecurityIpcContract(
+                formContractNo?.value || ""
+            )
+                ? "MEP—"
+                : "IPC—";
+        return;
+    }
+
+    ipcPreview.textContent =
+        formatContractIPC(
+            formContractNo?.value || "",
+            digits
+        );
+}
+
+
 formIPC.addEventListener(
     "input",
-    () => {
-
-        const digits =
-            formIPC.value.replace(
-                /\D/g,
-                ""
-            );
-
-        ipcPreview.textContent =
-            digits
-                ? formatIPC(digits)
-                : "IPC—";
-
-    }
+    refreshContractIPCPreview
 );
 
 
@@ -21061,6 +21133,13 @@ function applyRoleUI(){
     if(typeof toolsNormalizeMepFormatBtn !== "undefined" && toolsNormalizeMepFormatBtn){
         toolsNormalizeMepFormatBtn.style.display =
             historyOwnerAccess
+                ? ""
+                : "none";
+    }
+
+    if(typeof toolsNormalizeVntSecurityIpcBtn !== "undefined" && toolsNormalizeVntSecurityIpcBtn){
+        toolsNormalizeVntSecurityIpcBtn.style.display =
+            adminAccess
                 ? ""
                 : "none";
     }
@@ -23903,6 +23982,15 @@ toolsMenu.addEventListener("click",async event=>{
     if(action==="normalizeMepFormat"){
         if(!requireHistoryNormalizerOwner()) return;
         normalizeExistingMEPFormat();
+        return;
+    }
+
+    if(action==="normalizeVntSecurityIpc"){
+        if(!isAdmin()){
+            alert("🔒 "+t("adminOnly"));
+            return;
+        }
+        await normalizeVntSecurityExistingIPC();
         return;
     }
 
@@ -30130,8 +30218,17 @@ async function openEditModal(
             );
 
         ipcPreview.textContent =
-            payment.ipcNo ||
-            "IPC—";
+            formatContractIPC(
+                payment.contractNo || "",
+                payment.ipcNo || ""
+            ) ||
+            (
+                isVntSecurityIpcContract(
+                    payment.contractNo || ""
+                )
+                    ? "MEP—"
+                    : "IPC—"
+            );
     }
 
 
@@ -30326,6 +30423,7 @@ formContractNo.addEventListener(
     () => {
 
         updateContractInfo();
+        refreshContractIPCPreview();
 
     }
 );
@@ -30440,7 +30538,8 @@ savePaymentBtn.addEventListener(
         const ipcNo =
             isMEPPayment
                 ? mepCode
-                : formatIPC(
+                : formatContractIPC(
+                    contractNo,
                     ipcDigits
                 );
 
@@ -33693,7 +33792,10 @@ function buildExcelImportRows(){
                 const ipcNo =
                     isMEPImport
                         ? normalizeMEP(rawIPC)
-                        : formatIPC(rawIPC);
+                        : formatContractIPC(
+                            contractNo,
+                            rawIPC
+                        );
 
                 const amount =
                     useSmartAutoDetect
@@ -42562,6 +42664,165 @@ function history26Norm(value){
         .toLowerCase()
         .replace(/\s+/g," ")
         .trim();
+}
+
+
+
+async function normalizeVntSecurityExistingIPC(){
+
+    if(!isAdmin()){
+        alert("🔒 " + t("adminOnly"));
+        return;
+    }
+
+    const changes =
+        allPayments
+            .filter(payment =>
+                payment &&
+                payment.deleted !== true &&
+                isVntSecurityIpcContract(
+                    payment.contractNo || ""
+                )
+            )
+            .map(payment => {
+
+                const desired =
+                    formatVntSecurityIPC(
+                        payment.ipcNo || ""
+                    );
+
+                if(
+                    !desired ||
+                    String(payment.ipcNo || "") === desired
+                ){
+                    return null;
+                }
+
+                return {
+                    payment,
+                    before:String(payment.ipcNo || ""),
+                    desired
+                };
+            })
+            .filter(Boolean);
+
+    if(!changes.length){
+        alert(
+            "✅ IPC của hợp đồng Bảo vệ VNT đã đúng định dạng MEPxxx."
+        );
+        return;
+    }
+
+    const preview =
+        changes
+            .slice(0,8)
+            .map(item =>
+                `• ${item.before || "—"} → ${item.desired}`
+            )
+            .join("\n");
+
+    if(!confirm(
+        "SỬA IPC BẢO VỆ VNT?\n\n" +
+        `Hợp đồng: ${VNT_SECURITY_IPC_CONTRACT}\n` +
+        `Tìm thấy ${changes.length.toLocaleString("en-US")} dòng cần sửa.\n\n` +
+        preview +
+        (
+            changes.length > 8
+                ? `\n• ... và ${(changes.length - 8).toLocaleString("en-US")} dòng khác`
+                : ""
+        ) +
+        "\n\nChỉ cập nhật cột Số IPC:\n" +
+        "IPC101 → MEP101\n" +
+        "IPC099 → MEP099\n" +
+        "IPC100 → MEP100\n\n" +
+        "Không đổi dự án, hợp đồng, số tiền hay tiến trình thanh toán."
+    )){
+        return;
+    }
+
+    try{
+
+        for(
+            let start = 0;
+            start < changes.length;
+            start += 400
+        ){
+
+            const group =
+                changes.slice(
+                    start,
+                    start + 400
+                );
+
+            const batch =
+                writeBatch(db);
+
+            group.forEach(item => {
+                batch.update(
+                    doc(
+                        db,
+                        "payments",
+                        item.payment.id
+                    ),
+                    {
+                        ipcNo:item.desired,
+                        updatedAt:serverTimestamp(),
+                        updatedBy:currentOperatorName,
+                        updatedByUid:currentAuthUser?.uid || "",
+                        updatedByEmail:currentAuthUser?.email || ""
+                    }
+                );
+            });
+
+            await batch.commit();
+
+            group.forEach(item => {
+                item.payment.ipcNo =
+                    item.desired;
+            });
+        }
+
+        try{
+            await addDoc(
+                activityLogsRef,
+                {
+                    action:"NORMALIZE_VNT_SECURITY_IPC",
+                    contractNo:VNT_SECURITY_IPC_CONTRACT,
+                    count:changes.length,
+                    operator:currentOperatorName,
+                    operatorUid:currentAuthUser?.uid || "",
+                    operatorEmail:currentAuthUser?.email || "",
+                    operatorRole:currentUserRole,
+                    createdAt:serverTimestamp()
+                }
+            );
+        }catch(error){
+            console.warn(
+                "VNT IPC AUDIT ERROR",
+                error
+            );
+        }
+
+        renderPayments();
+
+        alert(
+            "✅ Đã sửa " +
+            changes.length.toLocaleString("en-US") +
+            " dòng IPC Bảo vệ VNT sang MEPxxx."
+        );
+
+    }catch(error){
+
+        console.error(
+            "NORMALIZE VNT SECURITY IPC ERROR",
+            error
+        );
+
+        alert(
+            "❌ Không thể sửa IPC Bảo vệ VNT:\n" +
+            (error?.message || error)
+        );
+    }
 }
 
 
