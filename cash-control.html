@@ -1921,7 +1921,7 @@ html[lang="zh-CN"] #reportsView,html[lang="zh-CN"] #loansView{font-family:"Micro
   </div>
 
   <div class="mep-card">
-    <div class="mep-card-head"><div><div class="mep-card-title">02 · Kế hoạch vốn tháng</div><div class="mep-card-sub">Số dư + thu dự kiến − nhu cầu chi. 间接费 tách riêng khỏi KH Payment.</div></div></div>
+    <div class="mep-card-head"><div><div class="mep-card-title">02 · Kế hoạch vốn tháng</div><div class="mep-card-sub">Số dư + thu dự kiến − nhu cầu chi. Chỉ khoản nằm trong tab Chi phí gián tiếp của Payment mới tách sang CP gián tiếp.</div></div></div>
     <div class="mep-table-wrap"><table class="mep-table"><thead><tr>
       <th>Dự án</th><th>Số dư hiện có</th><th>Dự kiến thu còn lại</th><th>KH Payment còn lại</th><th>间接费 còn lại</th><th>Lương còn chi</th><th>Thuế đến hạn</th><th>Khác còn chi</th><th>Tổng nhu cầu còn lại</th><th>Nguồn sau kế hoạch</th><th>Trạng thái</th>
     </tr></thead><tbody id="reportPlanBody"></tbody><tfoot id="reportPlanFoot"></tfoot></table></div>
@@ -2900,8 +2900,23 @@ const today=new Date(),CURRENT=`${today.getFullYear()}-${pad(today.getMonth()+1)
 let payments=[],editingId=null,editingSource='manual',ledgerProject='';
 
 let currentAuthUser=null;
-const paymentMonths=new Map(); /* session-only: PROJECT -> Payment rows */
+const paymentMonths=new Map(); /* FULL project loads only */
 const paymentLoads=new Map();
+
+/*
+   Lightweight auto-sync:
+   - reads only Payment rows relevant to the selected/current month
+   - no need to click every project
+   - kept separate from paymentMonths so a partial month load is never mistaken
+     for a complete project history
+*/
+const paymentAutoPlanRowsByMonth=new Map();   /* month -> Map(paymentId,row) */
+const paymentAutoActualRowsByMonth=new Map(); /* month -> Map(paymentId,row) */
+const paymentAutoProjects=new Set();
+const paymentAutoPlanLoads=new Map();
+const paymentAutoActualLoads=new Map();
+const paymentAutoPlanMonthsLoaded=new Set();
+const paymentAutoActualMonthsLoaded=new Set();
 const projectBalanceSnapshots=new Map(); /* month -> compact saved balance summary */
 const projectBalanceSnapshotLoads=new Map();
 const projectBalanceSnapshotFetched=new Set();
@@ -3443,8 +3458,29 @@ async function mergeLegacyLocalIntoCloud(){
 function rebuildPaymentsFromLoadedMonths(){
     const map=new Map();
 
+    /* selected-month plan rows */
+    paymentAutoPlanRowsByMonth.forEach(monthMap=>{
+        monthMap.forEach(item=>{
+            if(item?.id)map.set(item.id,item);
+        });
+    });
+
+    /* actual paid rows since Cash Control go-live */
+    paymentAutoActualRowsByMonth.forEach(monthMap=>{
+        monthMap.forEach(item=>{
+            if(item?.id)map.set(item.id,item);
+        });
+    });
+
+    /* full project loads override partial auto rows */
     paymentMonths.forEach(rows=>{
         rows.forEach(item=>map.set(item.id,item));
+    });
+
+    paymentAutoProjects.clear();
+    map.forEach(item=>{
+        const p=normProject(item?.project);
+        if(p)paymentAutoProjects.add(p);
     });
 
     payments=[...map.values()];
@@ -3454,6 +3490,190 @@ function rebuildPaymentsFromLoadedMonths(){
 function stopPaymentsRealtime(){
     paymentLoadGeneration++;
     paymentLoads.clear();
+}
+
+
+function nextMonthStart(month){
+    const [y,m]=String(month||CURRENT).split('-').map(Number);
+    if(!y||!m)return '';
+    const d=new Date(y,m,1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+}
+
+function monthStartDate(month){
+    return /^\d{4}-\d{2}$/.test(String(month||''))
+        ? `${month}-01`
+        : `${CURRENT}-01`;
+}
+
+async function autoLoadPaymentPlanMonth(month,{force=false}={}){
+    month=/^\d{4}-\d{2}$/.test(String(month||''))?month:CURRENT;
+
+    if(!currentAuthUser)return false;
+
+    if(!force && paymentAutoPlanMonthsLoaded.has(month)){
+        return true;
+    }
+
+    if(paymentAutoPlanLoads.has(month)){
+        return paymentAutoPlanLoads.get(month);
+    }
+
+    const task=(async()=>{
+        try{
+            const snap=await getDocs(query(
+                paymentsRef,
+                where('paymentMonth','==',month)
+            ));
+
+            const rows=new Map();
+            snap.forEach(d=>{
+                const item={id:d.id,...d.data()};
+                if(item.deleted===true)return;
+                rows.set(item.id,item);
+            });
+
+            paymentAutoPlanRowsByMonth.set(month,rows);
+            paymentAutoPlanMonthsLoaded.add(month);
+            return true;
+        }catch(error){
+            console.warn('AUTO PAYMENT PLAN MONTH LOAD ERROR',month,error);
+            return false;
+        }finally{
+            paymentAutoPlanLoads.delete(month);
+        }
+    })();
+
+    paymentAutoPlanLoads.set(month,task);
+    return task;
+}
+
+
+async function autoLoadPaymentActualMonth(month,{force=false}={}){
+    month=/^\d{4}-\d{2}$/.test(String(month||''))?month:CURRENT;
+
+    if(!currentAuthUser)return false;
+
+    if(!force && paymentAutoActualMonthsLoaded.has(month)){
+        return true;
+    }
+
+    if(paymentAutoActualLoads.has(month)){
+        return paymentAutoActualLoads.get(month);
+    }
+
+    const task=(async()=>{
+        const from=monthStartDate(month);
+        const to=nextMonthStart(month);
+
+        try{
+            const snap=await getDocs(query(
+                paymentsRef,
+                where('processPaymentDate','>=',from),
+                where('processPaymentDate','<',to)
+            ));
+
+            const rows=new Map();
+            snap.forEach(d=>{
+                const item={id:d.id,...d.data()};
+                if(item.deleted===true)return;
+                rows.set(item.id,item);
+            });
+
+            paymentAutoActualRowsByMonth.set(month,rows);
+            paymentAutoActualMonthsLoaded.add(month);
+            return true;
+        }catch(error){
+            console.warn('AUTO PAYMENT ACTUAL MONTH LOAD ERROR',month,error);
+            return false;
+        }finally{
+            paymentAutoActualLoads.delete(month);
+        }
+    })();
+
+    paymentAutoActualLoads.set(month,task);
+    return task;
+}
+
+
+function actualMonthsNeededForOpening(targetMonth){
+    const startIdx=monthIndex(START);
+    const targetIdx=monthIndex(targetMonth);
+
+    if(!Number.isFinite(startIdx)||!Number.isFinite(targetIdx)||targetIdx<startIdx){
+        return [];
+    }
+
+    const months=[];
+    for(let idx=startIdx;idx<=targetIdx;idx++){
+        months.push(monthFromIndex(idx));
+    }
+    return months;
+}
+
+
+async function autoLoadActivePaymentMonth(month,{force=false,quiet=false}={}){
+    month=/^\d{4}-\d{2}$/.test(String(month||''))?month:CURRENT;
+
+    if(!currentAuthUser){
+        return false;
+    }
+
+    if(!quiet){
+        setPayConnection(
+            'loading',
+            cashLang==='zh'
+                ? `正在同步 ${month} 及期初余额所需实际付款…`
+                : `Đang cập nhật ${month} và dữ liệu cần cho số dư đầu kỳ…`
+        );
+    }
+
+    /*
+       IMPORTANT:
+       Current-month PLAN alone is not enough.
+
+       Example:
+       opening Sep = opening 01/Aug + ACTUAL movements in Aug.
+
+       Therefore:
+       - Plan query: ONLY selected month.
+       - Actual-paid queries: START month -> selected month.
+       - Each actual month is cached for this browser session, so switching
+         months does not re-read already loaded months unless force=true.
+    */
+    const actualMonths=actualMonthsNeededForOpening(month);
+
+    const results=await Promise.all([
+        autoLoadPaymentPlanMonth(month,{force}),
+        ...actualMonths.map(m=>
+            autoLoadPaymentActualMonth(
+                m,
+                {force:force && m===month}
+            )
+        )
+    ]);
+
+    rebuildPaymentsFromLoadedMonths();
+    projectCatalogRevision++;
+    renderAll();
+
+    const ok=results.every(Boolean);
+
+    if(!quiet){
+        const currentPlanCount=
+            paymentAutoPlanRowsByMonth.get(month)?.size||0;
+        const currentActualCount=
+            paymentAutoActualRowsByMonth.get(month)?.size||0;
+
+        setPayConnection(
+            ok?'ok':'error',
+            cashLang==='zh'
+                ? `${month} 已同步 · 本月计划 ${currentPlanCount} · 本月实付 ${currentActualCount}`
+                : `${month} đã cập nhật · KH tháng ${currentPlanCount} · thực trả tháng ${currentActualCount}`
+        );
+    }
+
+    return ok;
 }
 
 async function loadProjectPayments(project,{force=false,quiet=false,refresh=true}={}){
@@ -3773,6 +3993,33 @@ function paymentAutoClassification(p,currentCategory=''){
     return result;
 }
 
+
+function isPaymentIndirectWorkspaceItem(payment){
+    const costType=String(payment?.costType||'')
+        .trim()
+        .toLocaleLowerCase('vi');
+
+    const project=normProject(payment?.project);
+
+    const indirectTypes=new Set([
+        '间接费',
+        'chi phí gián tiếp',
+        'indirect cost',
+        'indirect costs'
+    ]);
+
+    /*
+       IMPORTANT:
+       Cash Control must follow the SAME membership rule as Payment's
+       "Chi phí gián tiếp / 间接费" tab.
+
+       If a Payment row would appear in that special tab -> indirect bucket.
+       If it stays inside a project tab (FOXCONN included) -> normal Payment.
+    */
+    return indirectTypes.has(costType) && project!=='FOXCONN';
+}
+
+
 function normalizePayment(p){
     const actualDate=String(p.processPaymentDate||'');
     const plannedMonth=String(p.paymentMonth||'');
@@ -3792,11 +4039,22 @@ function normalizePayment(p){
             : plannedAmount;
 
     let cat=String(p.costType||'Payment').trim();
+    const paymentIndirectWorkspace=
+        isPaymentIndirectWorkspaceItem(p);
 
     if(/材料/.test(cat))cat='Vật tư';
     else if(/分包/.test(cat))cat='Thầu phụ';
     else if(/劳务/.test(cat))cat='Nhân công';
-    else if(/间接/.test(cat))cat='Chi phí gián tiếp';
+    else if(/间接/.test(cat)){
+        /*
+           The label "间接费" alone is NOT enough.
+           Only rows that belong to Payment's indirect-cost workspace
+           are classified as Chi phí gián tiếp here.
+        */
+        cat=paymentIndirectWorkspace
+            ? 'Chi phí gián tiếp'
+            : 'Payment';
+    }
     else if(/机械/.test(cat))cat='Máy móc';
     else if(/其他直接/.test(cat))cat='Chi trực tiếp khác';
     else if(/财务/.test(cat))cat='Chi phí tài chính';
@@ -3810,6 +4068,7 @@ function normalizePayment(p){
         rawId:p.id,
         source:'payment',
         kind:'normal',
+        paymentIndirectWorkspace,
         direction:'out',
         project:normProject(p.project),
         category:cat||'Payment',
@@ -4169,8 +4428,13 @@ let pfSelectedProject='';
 
 function pfProjectData(month,project){
     if(project){
+        const key=normProject(project);
         const snapshot=projectSnapshotRow(month,project);
-        if(!paymentMonths.has(normProject(project))&&snapshot){
+        const hasLivePayment=
+            paymentMonths.has(key) ||
+            paymentAutoProjects.has(key);
+
+        if(!hasLivePayment&&snapshot){
             return {p:project,op:snapshot.opening,inc:snapshot.cashIn,out:snapshot.cashOut,bal:snapshot.balance,internalIn:snapshot.internalIn,internalOut:snapshot.internalOut};
         }
         return projectStats(month).find(x=>x.p===project) || {p:project,op:opening(project,month),inc:0,out:0,bal:opening(project,month),internalIn:0,internalOut:0};
@@ -4182,14 +4446,24 @@ function pfBalanceRows(month){
     const snapshot=projectBalanceSnapshots.get(month);
     return allProjects().map(project=>{
         const key=normProject(project);
-        const loaded=paymentMonths.has(key);
+        const live=
+            paymentMonths.has(key) ||
+            paymentAutoProjects.has(key);
         const saved=snapshot?.balances?.[key]||null;
+        const liveStats=live
+            ? projectStats(month).find(x=>normProject(x.p)===key)
+            : null;
+
         return {
             project,
-            loaded,
+            loaded:live,
             saved:!!saved,
-            hasBalance:!!saved,
-            balance:saved?Number(saved.balance||0):0
+            hasBalance:!!liveStats||!!saved,
+            balance:liveStats
+                ? Number(liveStats.bal||0)
+                : saved
+                    ? Number(saved.balance||0)
+                    : 0
         };
     });
 }
@@ -8336,7 +8610,14 @@ function ccPlanRows(month,cutoffDate=''){
         if(x.source==='payment'){
             const remainsAtCutoff=x.status!=='paid'||afterCutoff(x.actualDate);
             if(remainsAtCutoff&&x.period===month){
-                const isIndirect=/间接|gián tiếp|gian tiep/i.test(String(x.category||''));
+                /*
+                   Strict rule:
+                   only a row that belongs to Payment's "Chi phí gián tiếp"
+                   workspace goes to the indirect column.
+                */
+                const isIndirect=
+                    x.paymentIndirectWorkspace===true;
+
                 rows.push({
                     project,
                     type:isIndirect?'indirect':'payment',
@@ -8344,7 +8625,7 @@ function ccPlanRows(month,cutoffDate=''){
                     period:month,
                     amount:num(x.plannedAmount||x.amount),
                     status:afterCutoff(x.actualDate)?'Chưa chi tại ngày chốt':'Chờ thanh toán',
-                    source:isIndirect?'Payment · 间接费':'Payment'
+                    source:isIndirect?'Payment · tab Chi phí gián tiếp':'Payment'
                 });
             }
             return;
@@ -8893,7 +9174,14 @@ function showView(v){
 }
 document.querySelectorAll('.nav').forEach(b=>b.onclick=()=>showView(b.dataset.view));
 if($('exportRangeMode'))$('exportRangeMode').onchange=updateExportRangeModeUI;
-if($('fundsMonth'))$('fundsMonth').onchange=()=>{syncFundsCutoffDate($('fundsMonth').value||CURRENT,true);renderFunds()};
+if($('fundsMonth'))$('fundsMonth').onchange=async()=>{
+    const m=$('fundsMonth').value||CURRENT;
+    syncFundsCutoffDate(m,true);
+    if(currentAuthUser){
+        await autoLoadActivePaymentMonth(m,{quiet:true});
+    }
+    renderFunds();
+};
 if($('fundsSearch'))$('fundsSearch').oninput=renderFunds;if($('fundsCutoffDate'))$('fundsCutoffDate').onchange=renderFunds;
 if($('fundsAddTxn'))$('fundsAddTxn').onclick=()=>addTxn();
 if($('fundsExport'))$('fundsExport').onclick=()=>{if($('rMonth'))$('rMonth').value=$('fundsMonth').value||CURRENT;if($('rProject'))$('rProject').value='';exportCashManagementExcel()};
@@ -9394,6 +9682,9 @@ $('saveOpening').onclick=async()=>{
         const m=$(id).value||CURRENT;
         activePaymentMonth=m;
         await loadProjectBalanceSnapshot(m);
+        if(currentAuthUser){
+            await autoLoadActivePaymentMonth(m,{quiet:true});
+        }
         if(currentAuthUser && pfSelectedProject){
             await ensureCashFlowPaymentMonths(m,{project:pfSelectedProject});
         }
@@ -9415,6 +9706,9 @@ $('pMonth').onchange=async()=>{
 };if($('rMonth'))$('rMonth').onchange=async()=>{
         const month=$('rMonth').value||CURRENT;
         const projects=getReportSelectedProjects();
+        if(currentAuthUser){
+            await autoLoadActivePaymentMonth(month,{quiet:true});
+        }
         if(currentAuthUser && projects.length){
             await ensureSelectedProjectMonths([month],projects);
         }
@@ -9658,13 +9952,16 @@ onAuthStateChanged(auth,user=>{
 
         updateCloudMigrationButton();
         subscribeCashCloud();
-        loadProjectBalanceSnapshot($('commandMonth')?.value||CURRENT,{force:true});
-        setPayConnection(
-            'idle',
-            cashLang==='zh'
-                ? '请选择项目后关联 Payment'
-                : 'Chọn dự án để link Payment'
-        );
+        const startupMonth=$('commandMonth')?.value||CURRENT;
+        loadProjectBalanceSnapshot(startupMonth,{force:true});
+
+        /*
+           Auto refresh without clicking every project:
+           - current-month Payment plan
+           - actual paid Payment from START through current month,
+             required to calculate opening balances correctly.
+        */
+        autoLoadActivePaymentMonth(startupMonth,{quiet:false});
     }else{
         stopPaymentsRealtime();
 
@@ -9676,6 +9973,13 @@ onAuthStateChanged(auth,user=>{
         cashCloudReady=false;
         cashCloudState=normalizeCashCloudState({});
         paymentMonths.clear();
+        paymentAutoPlanRowsByMonth.clear();
+        paymentAutoActualRowsByMonth.clear();
+        paymentAutoProjects.clear();
+        paymentAutoPlanLoads.clear();
+        paymentAutoActualLoads.clear();
+        paymentAutoPlanMonthsLoaded.clear();
+        paymentAutoActualMonthsLoaded.clear();
         publishedBalanceHashes.clear();
         payments=[];
         invalidateCashCalculations();
@@ -9697,7 +10001,7 @@ const V40_LANG={
     nav:{funds:'Tổng quan vốn',planHub:'Còn phải thu / chi',expenses:'Dòng tiền thực tế',loans:'Vay nội bộ',inflows:'Thu CĐT & IPC',payroll:'Lương & thuế',receivables:'Công nợ phải thu / trả',finance:'Bảo lãnh & tín dụng',masterProjects:'Dự án & hợp đồng',reports:'Báo cáo quản trị'},
     funds:{kicker:'TỔNG QUAN VỐN',title:'Tổng quan vốn theo dự án',sub:'Mỗi dự án một dòng: số dư thực tế, kế hoạch thu/chi và phần thiếu hoặc dư dự kiến.',cutoff:'Chốt đến ngày',export:'⇩ Xuất báo cáo tháng',add:'＋ Thu / Chi thực tế',metrics:['Số dư đầu kỳ','Dự kiến thu','Kế hoạch chi','Số dư dự kiến sau kế hoạch','Số dư tại ngày chốt','Thuế chưa nộp'],sheet:'Tình hình vốn dự án',search:'Tìm dự án...',groups:['THỰC TẾ ĐẾN NGÀY CHỐT','KẾ HOẠCH CÒN LẠI','DỰ KIẾN SAU KẾ HOẠCH'],heads:['Dự án','Đầu kỳ','Thực thu đến ngày','Thực chi đến ngày','Số dư tại ngày chốt','Dự kiến thu còn lại','KH thanh toán còn lại','CP gián tiếp còn lại','Lương / BH còn chi','Thuế chưa nộp','Khác còn chi','Tổng nhu cầu còn lại','Số dư dự kiến sau kế hoạch','Trạng thái']},
     plan:{kicker:'CÒN PHẢI THU / CHI TRONG THÁNG',title:'Còn phải thu / chi trong tháng',sub:'Chỉ hiện các khoản chưa thu, chưa chi hoặc chưa nộp trong tháng đang xem.',export:'⇩ Xuất danh sách còn lại',tabs:['Tất cả','Chưa thu','Thanh toán','Chi phí gián tiếp','Lương / BH','Thuế TNCN','Khác'],summary:['Còn phải thu','Lương / BH / TNCN','Còn phải chi khác'],summarySmall:['Quản lý IPC / khoản thu →','Mở Lương & thuế →','Mở chi tiết →'],sheet:'Chi tiết khoản còn lại theo dự án',note:'Khoản đã thực thu / thực chi / nộp xong sẽ tự rời khỏi danh sách.',search:'Tìm dự án hoặc nội dung...',heads:['Dự án','Loại','Nội dung','Kỳ / dự kiến','Số tiền','Trạng thái','Nguồn']},
-    report:{title:'Báo cáo quản trị',sub:'Chỉ giữ 3 góc nhìn cần dùng: dòng tiền thực tế, kế hoạch vốn và nghĩa vụ đang treo.',all:'Tất cả dự án',hide:'Ẩn dự án không phát sinh trong tháng',buttons:['⇩ Excel quản trị','Excel dòng tiền mới','Excel dòng tiền cũ','In / PDF'],titles:['01 · Dòng tiền thực tế tháng','02 · Kế hoạch vốn tháng','03 · Nghĩa vụ / tồn đọng'],subs:['Tiền thật đã vào / ra. Không trộn kế hoạch chưa xảy ra.','Số dư + thu dự kiến − nhu cầu chi. Chi phí gián tiếp tách riêng khỏi kế hoạch thanh toán.','Các khoản dự án còn đang treo: thanh toán, lương/BH, thuế, vay nội bộ và phải thu CĐT.'],heads:[['Dự án','Đầu kỳ','Thu CĐT / khác','Nhận nội bộ','Thanh toán thực trả','Chi khác','Cho vay / chuyển nội bộ','Cuối kỳ'],['Dự án','Số dư hiện có','Dự kiến thu còn lại','Kế hoạch thanh toán còn lại','Chi phí gián tiếp còn lại','Lương còn chi','Thuế đến hạn','Khác còn chi','Tổng nhu cầu còn lại','Nguồn sau kế hoạch','Trạng thái'],['Dự án','Thanh toán chờ trả','Thuế chưa nộp','Lương / BH còn chi','Vay nội bộ còn nợ','Phải thu CĐT','Tổng nghĩa vụ chi']],empty:['Không có phát sinh thực tế trong kỳ.','Không có kế hoạch trong kỳ.','Không có nghĩa vụ tồn đọng.'],total:'TỔNG',status:['ĐỦ','SÁT NGƯỠNG','THIẾU']},
+    report:{title:'Báo cáo quản trị',sub:'Chỉ giữ 3 góc nhìn cần dùng: dòng tiền thực tế, kế hoạch vốn và nghĩa vụ đang treo.',all:'Tất cả dự án',hide:'Ẩn dự án không phát sinh trong tháng',buttons:['⇩ Excel quản trị','Excel dòng tiền mới','Excel dòng tiền cũ','In / PDF'],titles:['01 · Dòng tiền thực tế tháng','02 · Kế hoạch vốn tháng','03 · Nghĩa vụ / tồn đọng'],subs:['Tiền thật đã vào / ra. Không trộn kế hoạch chưa xảy ra.','Số dư + thu dự kiến − nhu cầu chi. Chỉ khoản thuộc tab Chi phí gián tiếp của Payment mới tách riêng.','Các khoản dự án còn đang treo: thanh toán, lương/BH, thuế, vay nội bộ và phải thu CĐT.'],heads:[['Dự án','Đầu kỳ','Thu CĐT / khác','Nhận nội bộ','Thanh toán thực trả','Chi khác','Cho vay / chuyển nội bộ','Cuối kỳ'],['Dự án','Số dư hiện có','Dự kiến thu còn lại','Kế hoạch thanh toán còn lại','Chi phí gián tiếp còn lại','Lương còn chi','Thuế đến hạn','Khác còn chi','Tổng nhu cầu còn lại','Nguồn sau kế hoạch','Trạng thái'],['Dự án','Thanh toán chờ trả','Thuế chưa nộp','Lương / BH còn chi','Vay nội bộ còn nợ','Phải thu CĐT','Tổng nghĩa vụ chi']],empty:['Không có phát sinh thực tế trong kỳ.','Không có kế hoạch trong kỳ.','Không có nghĩa vụ tồn đọng.'],total:'TỔNG',status:['ĐỦ','SÁT NGƯỠNG','THIẾU']},
     loan:{title:'Vay nội bộ',sub:'Theo dõi tiền giữa các dự án: ai cho vay, ai đang vay và còn bao nhiêu chưa hoàn.',gross:'Đã cho vay',repaid:'Đã hoàn',outstanding:'Còn đang vay',pairs:'cặp dự án',debtTitle:'Dư nợ hiện tại',debtSub:'Danh sách dư nợ hiện tại. Lịch sử bên dưới luôn hiện đầy đủ; click một cặp để lọc nhanh đúng cặp đó.',history:'Lịch sử giao dịch',historySub:'Cho vay · hoàn vay · điều chuyển. Click giao dịch cụ thể để xem PDF.',heads:['Bên cho vay','Bên vay','Còn nợ','Ngày','Loại','Từ dự án','Đến dự án','Số tiền','Nội dung','Hồ sơ / sửa'],detail:'Hồ sơ giao dịch',searchDebt:'Tìm bên cho vay / bên vay...',search:'Tìm dự án, nội dung...',drive:'⚙ Drive',export:'⇩ Xuất Excel',add:'＋ Thêm giao dịch',types:{loan:'Cho vay',repayment:'Hoàn vay',transfer:'Điều chuyển'},clear:'Bỏ lọc'}
   },
   zh:{
