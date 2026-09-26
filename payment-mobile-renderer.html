@@ -26418,6 +26418,21 @@ function updatePaymentLiveTotalBar(rows){
 }
 
 
+function mobileCompactCompanyName(name){
+    const raw = String(name || "—").trim();
+    if(!raw || raw === "—") return "—";
+    return raw
+        .replace(/^CÔNG TY\s+CỔ\s+PHẦN/i, "CTCP")
+        .replace(/^CÔNG TY\s+CP/i, "CTCP")
+        .replace(/^CÔNG TY\s+TNHH\s+MỘT\s+THÀNH\s+VIÊN/i, "CT TNHH MTV")
+        .replace(/^CÔNG TY\s+TNHH/i, "CT TNHH")
+        .replace(/^CÔNG TY/i, "CT")
+        .replace(/^CONG TY\s+CO\s+PHAN/i, "CTCP")
+        .replace(/^CONG TY\s+CP/i, "CTCP")
+        .replace(/^CONG TY\s+TNHH/i, "CT TNHH")
+        .replace(/^CONG TY/i, "CT");
+}
+
 function renderMobilePaymentCards(items){
     let host = document.getElementById("mobilePaymentCards");
     if(!host){
@@ -26493,21 +26508,17 @@ function renderMobilePaymentCards(items){
         return `
         <article class="m-pay-card" data-payment-id="${item.id}">
             <div class="m-pay-head">
-                <div class="m-pay-company">${escapeHTML(item.company || "—")}</div>
+                <div class="m-pay-company">${escapeHTML(mobileCompactCompanyName(item.company || "—"))}</div>
+                <div class="m-pay-head-amount">${formatMoney(item.amount)}</div>
                 <div class="m-pay-meta">
                     <span>${escapeHTML(item.project || "—")}</span>
-                    <span class="m-meta-pic">PIC: ${escapeHTML(item.personInCharge || "—")}</span>
+                    <span class="m-meta-pic">Người phụ trách: ${escapeHTML(item.personInCharge || "—")}</span>
                     <span class="m-meta-month">${escapeHTML(item.paymentMonth || "—")}</span>
                 </div>
             </div>
 
             <div class="m-pay-main">
                 <div class="m-pay-contract-name">${escapeHTML(contractName)}</div>
-
-                <div class="m-pay-amount">
-                    <small>SỐ TIỀN</small>
-                    <strong>${formatMoney(item.amount)} VND</strong>
-                </div>
 
                 <div class="m-pay-mini">
                     <span>HĐ: ${escapeHTML(contractNo)}</span>
@@ -26521,7 +26532,7 @@ function renderMobilePaymentCards(items){
 
             <div class="m-pay-details">
                 <div class="m-pay-grid">
-                    <div class="k">PIC</div>
+                    <div class="k">Người phụ trách</div>
                     <div class="v">${escapeHTML(item.personInCharge || "—")}</div>
                     <div class="k">Tháng</div>
                     <div class="v">${escapeHTML(item.paymentMonth || "—")}</div>
@@ -55875,6 +55886,86 @@ html[data-theme="bluebutter"] .theme-picker-panel .theme-option[data-theme-choic
   }
 }
 
+
+
+/* =========================================================
+   MOBILE RENDERER v3 — ULTRA COMPACT
+   Company + amount share the same line.
+========================================================= */
+@media (max-width:760px){
+
+  .m-pay-head{
+    padding:9px 11px !important;
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) auto !important;
+    gap:8px !important;
+    align-items:center !important;
+  }
+
+  .m-pay-company{
+    font-size:10.5px !important;
+    line-height:1.2 !important;
+    font-weight:850 !important;
+    margin:0 !important;
+    color:#fff !important;
+    overflow:hidden !important;
+    display:-webkit-box !important;
+    -webkit-line-clamp:2 !important;
+    -webkit-box-orient:vertical !important;
+    text-overflow:ellipsis !important;
+    white-space:normal !important;
+    max-height:2.4em !important;
+  }
+
+  .m-pay-head-amount{
+    font-size:12px !important;
+    line-height:1 !important;
+    font-weight:900 !important;
+    white-space:nowrap !important;
+    color:#fff !important;
+  }
+
+  .m-pay-meta{
+    display:none !important;
+  }
+
+  .m-pay-main{
+    padding:8px 11px 7px !important;
+  }
+
+  .m-pay-contract-name{
+    margin:0 0 6px !important;
+    font-size:10.5px !important;
+    line-height:1.35 !important;
+    font-weight:700 !important;
+    color:var(--theme-text,#172033) !important;
+    display:-webkit-box !important;
+    -webkit-line-clamp:2 !important;
+    -webkit-box-orient:vertical !important;
+    overflow:hidden !important;
+  }
+
+  .m-pay-amount{
+    display:none !important;
+  }
+
+  .m-pay-mini{
+    gap:4px !important;
+    padding-top:0 !important;
+  }
+
+  .m-pay-mini span{
+    min-height:22px !important;
+    padding:2px 6px !important;
+    font-size:8.5px !important;
+  }
+
+  .m-detail-toggle{
+    min-height:34px !important;
+    font-size:9.5px !important;
+  }
+}
+
 </style>
 
 
@@ -55919,7 +56010,7 @@ html[data-theme="bluebutter"] .theme-picker-panel .theme-option[data-theme-choic
         nav = document.createElement("div");
         nav.id = "mobileQuickNav";
         nav.innerHTML = `
-            <div class="mobile-quick-title">Xem nhanh trên điện thoại · Compact v2</div>
+            <div class="mobile-quick-title">Xem nhanh trên điện thoại · Compact v4</div>
             <div class="mobile-quick-grid">
                 <div class="mobile-quick-field">
                     <label>Dự án</label>
