@@ -26483,9 +26483,62 @@ function filterMobileMissingProcess(items){
     });
 }
 
-function renderMobilePaymentCards(items){
-    items = filterMobileMissingProcess(items);
 
+function applyMobileMissingProcessDomFilter(){
+    const select = document.getElementById("mobileMissingProcessFilter");
+    const mode = String(select?.value || mobileMissingProcessMode || "").trim();
+    mobileMissingProcessMode = mode;
+
+    const cards = Array.from(
+        document.querySelectorAll("#mobilePaymentCards .m-pay-card")
+    );
+
+    let visibleCount = 0;
+
+    cards.forEach(card=>{
+        let show = true;
+
+        if(mode === "any"){
+            show = card.dataset.anyMissing === "1";
+        }else if(mode === "complete"){
+            show = card.dataset.complete === "1";
+        }else if(mode === "platformPlan"){
+            show = card.dataset.platformPlan !== "1";
+        }else if(mode === "paper"){
+            show = card.dataset.paper !== "1";
+        }else if(mode === "settlement"){
+            show = card.dataset.settlement !== "1";
+        }else if(mode === "paymentNo"){
+            show = card.dataset.paymentNo !== "1";
+        }else if(mode === "platformPayment"){
+            show = card.dataset.platformPayment !== "1";
+        }else if(mode === "approval"){
+            show = card.dataset.approval !== "1";
+        }else if(mode === "banking"){
+            show = card.dataset.banking !== "1";
+        }
+
+        card.classList.toggle("mobile-process-filter-hidden", !show);
+        if(show) visibleCount++;
+    });
+
+    const host = document.getElementById("mobilePaymentCards");
+    if(!host) return;
+
+    let empty = host.querySelector(".mobile-process-filter-empty");
+    if(mode && visibleCount === 0 && cards.length){
+        if(!empty){
+            empty = document.createElement("div");
+            empty.className = "m-empty mobile-process-filter-empty";
+            host.appendChild(empty);
+        }
+        empty.textContent = "Không có khoản nào phù hợp bộ lọc tiến trình này.";
+    }else if(empty){
+        empty.remove();
+    }
+}
+
+function renderMobilePaymentCards(items){
     let host = document.getElementById("mobilePaymentCards");
     if(!host){
         host = document.createElement("div");
@@ -26557,8 +26610,22 @@ function renderMobilePaymentCards(items){
         const ipcNo = item.noMEPException ? "—" : (item.ipcNo || "—");
         const contractName = item.contractName || item.contractContent || item.contractDescription || "—";
 
+        const mobileP = mobileProcessState(item);
+
         return `
-        <article class="m-pay-card" data-payment-id="${item.id}">
+        <article
+            class="m-pay-card"
+            data-payment-id="${item.id}"
+            data-platform-plan="${mobileP.platformPlan ? "1" : "0"}"
+            data-paper="${mobileP.paper ? "1" : "0"}"
+            data-settlement="${mobileP.settlement ? "1" : "0"}"
+            data-payment-no="${mobileP.paymentNo ? "1" : "0"}"
+            data-platform-payment="${mobileP.platformPayment ? "1" : "0"}"
+            data-approval="${mobileP.approval ? "1" : "0"}"
+            data-banking="${mobileP.banking ? "1" : "0"}"
+            data-complete="${mobileP.complete ? "1" : "0"}"
+            data-any-missing="${mobileP.anyMissing ? "1" : "0"}"
+        >
             <div class="m-pay-summary-toggle" data-id="${item.id}" role="button" tabindex="0" aria-expanded="false">
                 <div class="m-pay-head">
                     <div class="m-pay-company">${escapeHTML(mobileCompactCompanyName(item.company || "—"))}</div>
@@ -26620,6 +26687,8 @@ function renderMobilePaymentCards(items){
             </div>
         </article>`;
     }).join("");
+
+    applyMobileMissingProcessDomFilter();
 
     host.querySelectorAll(".m-pay-summary-toggle").forEach(box=>{
         const toggleCard = ()=>{
@@ -56057,6 +56126,14 @@ html[data-theme="bluebutter"] .theme-picker-panel .theme-option[data-theme-choic
   }
 }
 
+
+
+@media (max-width:760px){
+  #mobilePaymentCards .m-pay-card.mobile-process-filter-hidden{
+    display:none !important;
+  }
+}
+
 </style>
 
 
@@ -56101,7 +56178,7 @@ html[data-theme="bluebutter"] .theme-picker-panel .theme-option[data-theme-choic
         nav = document.createElement("div");
         nav.id = "mobileQuickNav";
         nav.innerHTML = `
-            <div class="mobile-quick-title">Xem nhanh trên điện thoại · Missing Process v7</div>
+            <div class="mobile-quick-title">Xem nhanh trên điện thoại · Process Filter v8</div>
             <div class="mobile-quick-grid">
                 <div class="mobile-quick-field">
                     <label>Dự án</label>
@@ -56194,9 +56271,7 @@ html[data-theme="bluebutter"] .theme-picker-panel .theme-option[data-theme-choic
 
         mMissing.addEventListener("change",()=>{
             mobileMissingProcessMode = mMissing.value || "";
-            if(typeof renderPayments === "function"){
-                renderPayments();
-            }
+            applyMobileMissingProcessDomFilter();
         });
 
         let timer = null;
