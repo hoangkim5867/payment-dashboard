@@ -20988,6 +20988,23 @@ function applyPaymentResultRoleUI(){
     processPaymentDate.disabled =
         !editable;
 
+    /*
+       ADMIN-ONLY PROCESS FIELDS:
+       - Southeast Asia Approval / 东南亚审批
+       - Online Banking / 挂网银
+       Staff may view their current values, but cannot change them
+       from the Add/Edit Payment modal.
+    */
+    if(typeof processApproval !== "undefined" && processApproval){
+        processApproval.disabled = !editable;
+        processApproval.title = editable ? "" : t("adminOnly");
+    }
+
+    if(typeof processBanking !== "undefined" && processBanking){
+        processBanking.disabled = !editable;
+        processBanking.title = editable ? "" : t("adminOnly");
+    }
+
     if(paymentResultBox){
         paymentResultBox.classList.toggle(
             "readonly-mode",
@@ -26810,7 +26827,7 @@ function renderPayments(){
 
                 <td class="process-cell">
                     ${
-                        workflowLocked
+                        (workflowLocked || !isAdmin())
                         ?
                         processText(item.processApproval)
                         :
@@ -26829,7 +26846,7 @@ function renderPayments(){
 
                 <td class="process-cell">
                     ${
-                        workflowLocked
+                        (workflowLocked || !isAdmin())
                         ?
                         processText(item.processBanking)
                         :
@@ -27172,6 +27189,23 @@ function renderPayments(){
 
                         const field =
                             button.dataset.field;
+
+                        /*
+                           SECURITY GUARD:
+                           Approval + Online Banking are Admin-owned fields.
+                           Do not rely only on hiding/disabling the buttons.
+                        */
+                        if(
+                            !isAdmin() &&
+                            (
+                                field === "processApproval" ||
+                                field === "processBanking"
+                            )
+                        ){
+                            alert("🔒 " + t("adminOnly"));
+                            renderPayments();
+                            return;
+                        }
 
                         const beforeValue =
                             payment[field] ?? "";
@@ -30927,6 +30961,27 @@ savePaymentBtn.addEventListener(
         };
 
 
+        /*
+           HARD PERMISSION GUARD — Admin-only process fields.
+           Even if a Staff user manually re-enables the disabled controls
+           in DevTools, these two values cannot be changed through Save.
+           Existing values are preserved on edit; new Staff-created rows
+           start blank for these fields.
+        */
+        if(!isAdmin()){
+            const originalPaymentForAdminProcess =
+                editingId
+                    ? allPayments.find(item => item.id === editingId)
+                    : null;
+
+            data.processApproval =
+                originalPaymentForAdminProcess?.processApproval ?? "";
+
+            data.processBanking =
+                originalPaymentForAdminProcess?.processBanking ?? "";
+        }
+
+
         savePaymentBtn.disabled =
             true;
 
@@ -34283,6 +34338,17 @@ function buildExcelImportRows(){
                 }
 
 
+                /*
+                   Paste Excel permission guard:
+                   Staff may import the payment, but cannot set the
+                   Admin-owned Approval / Online Banking process values.
+                */
+                if(data && !isAdmin()){
+                    data.processApproval = "";
+                    data.processBanking = "";
+                }
+
+
                 const notices = [];
                 let crossMonthDuplicate = null;
 
@@ -36594,7 +36660,8 @@ function resetBulkProcessForm(){
     /*
        Admin-only bulk process fields:
        Actual Payment Amount, Payment Date, Online Banking,
-       and Southeast Asia Approval.
+       and Southeast Asia Approval.  The last two are also read-only
+       for Staff in the main table and Add/Edit Payment modal.
        Staff may still use Bulk Process Update for the other
        workflow fields, but these four must remain unavailable.
     */
@@ -54702,6 +54769,9 @@ html[data-theme="bluebutter"] .theme-picker-panel .theme-option[data-theme-choic
     box-shadow:0 0 0 1px color-mix(in srgb, var(--theme-primary) 35%, transparent) inset;
 }
 </style>
+
+
+<!-- ADMIN-ONLY PROCESS PATCH: processApproval + processBanking restricted to Admin in inline table, modal save, bulk process, and Excel paste. -->
 
 </body>
 </html>
