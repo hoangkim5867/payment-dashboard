@@ -26507,28 +26507,26 @@ function renderMobilePaymentCards(items){
 
         return `
         <article class="m-pay-card" data-payment-id="${item.id}">
-            <div class="m-pay-head">
-                <div class="m-pay-company">${escapeHTML(mobileCompactCompanyName(item.company || "—"))}</div>
-                <div class="m-pay-head-amount">${formatMoney(item.amount)}</div>
-                <div class="m-pay-meta">
-                    <span>${escapeHTML(item.project || "—")}</span>
-                    <span class="m-meta-pic">Người phụ trách: ${escapeHTML(item.personInCharge || "—")}</span>
-                    <span class="m-meta-month">${escapeHTML(item.paymentMonth || "—")}</span>
+            <div class="m-pay-summary-toggle" data-id="${item.id}" role="button" tabindex="0" aria-expanded="false">
+                <div class="m-pay-head">
+                    <div class="m-pay-company">${escapeHTML(mobileCompactCompanyName(item.company || "—"))}</div>
+                    <div class="m-pay-head-amount">${formatMoney(item.amount)}</div>
+                    <div class="m-pay-meta">
+                        <span>${escapeHTML(item.project || "—")}</span>
+                        <span class="m-meta-pic">Người phụ trách: ${escapeHTML(item.personInCharge || "—")}</span>
+                        <span class="m-meta-month">${escapeHTML(item.paymentMonth || "—")}</span>
+                    </div>
+                </div>
+
+                <div class="m-pay-main">
+                    <div class="m-pay-contract-name">${escapeHTML(contractName)}</div>
+
+                    <div class="m-pay-mini">
+                        <span>HĐ: ${escapeHTML(contractNo)}</span>
+                        <span>IPC: ${escapeHTML(ipcNo)}</span>
+                    </div>
                 </div>
             </div>
-
-            <div class="m-pay-main">
-                <div class="m-pay-contract-name">${escapeHTML(contractName)}</div>
-
-                <div class="m-pay-mini">
-                    <span>HĐ: ${escapeHTML(contractNo)}</span>
-                    <span>IPC: ${escapeHTML(ipcNo)}</span>
-                </div>
-            </div>
-
-            <button type="button" class="m-detail-toggle" data-id="${item.id}">
-                Xem chi tiết ▾
-            </button>
 
             <div class="m-pay-details">
                 <div class="m-pay-grid">
@@ -26571,12 +26569,19 @@ function renderMobilePaymentCards(items){
         </article>`;
     }).join("");
 
-    host.querySelectorAll(".m-detail-toggle").forEach(btn=>{
-        btn.addEventListener("click",()=>{
-            const card = btn.closest(".m-pay-card");
+    host.querySelectorAll(".m-pay-summary-toggle").forEach(box=>{
+        const toggleCard = ()=>{
+            const card = box.closest(".m-pay-card");
             if(!card) return;
             const open = card.classList.toggle("mobile-detail-open");
-            btn.textContent = open ? "Thu gọn ▴" : "Xem chi tiết ▾";
+            box.setAttribute("aria-expanded", open ? "true" : "false");
+        };
+        box.addEventListener("click", toggleCard);
+        box.addEventListener("keydown", (e)=>{
+            if(e.key === "Enter" || e.key === " "){
+                e.preventDefault();
+                toggleCard();
+            }
         });
     });
 }
@@ -55894,36 +55899,47 @@ html[data-theme="bluebutter"] .theme-picker-panel .theme-option[data-theme-choic
 ========================================================= */
 @media (max-width:760px){
 
+  .m-pay-summary-toggle{
+    display:block !important;
+    width:100% !important;
+    border:0 !important;
+    background:none !important;
+    padding:0 !important;
+    margin:0 !important;
+    text-align:left !important;
+    cursor:pointer !important;
+  }
+
+  .m-pay-summary-toggle:active{
+    background:color-mix(in srgb,var(--theme-soft,#f5f7fa) 70%,transparent) !important;
+  }
+
   .m-pay-head{
-    padding:8px 11px 7px !important;
+    padding:9px 11px 6px !important;
     display:grid !important;
     grid-template-columns:minmax(0,1fr) auto !important;
     gap:8px !important;
-    align-items:start !important;
+    align-items:center !important;
     background:var(--theme-surface,#fff) !important;
     color:var(--theme-text,#172033) !important;
-    border-bottom:1px dashed var(--theme-border,#e2e7ee) !important;
   }
 
   .m-pay-company{
-    font-size:10.5px !important;
-    line-height:1.22 !important;
-    font-weight:700 !important;
+    font-size:11px !important;
+    line-height:1.25 !important;
+    font-weight:760 !important;
     margin:0 !important;
     color:var(--theme-text,#172033) !important;
     overflow:hidden !important;
-    display:-webkit-box !important;
-    -webkit-line-clamp:2 !important;
-    -webkit-box-orient:vertical !important;
     text-overflow:ellipsis !important;
-    white-space:normal !important;
-    max-height:2.44em !important;
+    white-space:nowrap !important;
+    min-width:0 !important;
   }
 
   .m-pay-head-amount{
     font-size:11.5px !important;
     line-height:1.1 !important;
-    font-weight:700 !important;
+    font-weight:760 !important;
     white-space:nowrap !important;
     color:var(--theme-text,#172033) !important;
   }
@@ -55933,12 +55949,13 @@ html[data-theme="bluebutter"] .theme-picker-panel .theme-option[data-theme-choic
   }
 
   .m-pay-main{
-    padding:7px 11px 7px !important;
+    padding:0 11px 8px !important;
+    border-bottom:1px solid var(--theme-border,#e7ecf2) !important;
   }
 
   .m-pay-contract-name{
     margin:0 0 6px !important;
-    font-size:10.5px !important;
+    font-size:10px !important;
     line-height:1.35 !important;
     font-weight:700 !important;
     color:var(--theme-text,#172033) !important;
@@ -55953,6 +55970,8 @@ html[data-theme="bluebutter"] .theme-picker-panel .theme-option[data-theme-choic
   }
 
   .m-pay-mini{
+    display:flex !important;
+    flex-wrap:wrap !important;
     gap:4px !important;
     padding-top:0 !important;
   }
@@ -55961,11 +55980,20 @@ html[data-theme="bluebutter"] .theme-picker-panel .theme-option[data-theme-choic
     min-height:22px !important;
     padding:2px 6px !important;
     font-size:8.5px !important;
+    border-radius:999px !important;
+    border:1px solid var(--theme-border,#dde4ed) !important;
+    background:var(--theme-surface-alt,#f8fafc) !important;
+    color:var(--theme-muted,#667085) !important;
+    font-weight:750 !important;
   }
 
-  .m-detail-toggle{
-    min-height:34px !important;
-    font-size:9.5px !important;
+  .m-pay-details{
+    display:none !important;
+    border-top:0 !important;
+  }
+
+  .m-pay-card.mobile-detail-open .m-pay-details{
+    display:block !important;
   }
 }
 
