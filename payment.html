@@ -13539,6 +13539,13 @@ html[data-theme="ivorybunny"] .process-inline-input{
 .theme-preview.electricslate::after{content:"";position:absolute;left:8px;right:8px;top:15px;height:15px;background:linear-gradient(#2a2029 0 0) 0 0/70% 5px no-repeat,linear-gradient(#f5f2f4 0 0) 0 10px/88% 5px no-repeat!important;}
 </style>
 
+
+<style id="staff-old-month-access-style">
+.staff-month-access-box{border:1px solid #dfe4eb;border-radius:10px;padding:12px;background:#f8fafc}
+.staff-month-access-status{margin-top:10px;padding:9px 10px;border:1px solid #dfe4eb;border-radius:8px;background:#fff;color:#475467;font-size:11px;line-height:1.5}
+.staff-month-access-status.open{border-color:#abefc6;background:#ecfdf3;color:#067647}
+.staff-history-readonly-badge{display:inline-flex;align-items:center;min-height:24px;padding:3px 8px;border:1px solid #d0d5dd;border-radius:999px;background:#f8fafc;color:#667085;font-size:11px;font-weight:800;white-space:nowrap}
+</style>
 </head>
 
 
@@ -13765,6 +13772,7 @@ html[data-theme="ivorybunny"] .process-inline-input{
                 <button type="button" data-tools-action="normalizeVntSecurityIpc" id="toolsNormalizeVntSecurityIpcBtn" style="display:none;">🛡 Sửa IPC Bảo vệ VNT → MEPxxx</button>
                 <button type="button" data-tools-action="history2026" id="toolsHistory2026Btn" style="display:none;">🧹 Chuẩn hóa lịch sử</button>
                 <button type="button" data-tools-action="staff" id="toolsStaffSetupBtn">👥 Staff Setup</button>
+                <button type="button" data-tools-action="staff-month-access" id="toolsStaffMonthAccessBtn" style="display:none;">👁 Mở tháng cũ cho Staff</button>
                 <button type="button" data-tools-action="purge-payments" id="toolsPurgePaymentsBtn" style="display:none;">🗑 Xóa vĩnh viễn mục đã chọn</button>
             </div>
         </div>
@@ -15530,6 +15538,44 @@ html[data-theme="ivorybunny"] .process-inline-input{
         </div>
 
         <div class="staff-setup-list" id="staffSetupList"></div>
+    </div>
+</div>
+
+<!-- =====================================================
+     TEMPORARY STAFF OLD-MONTH ACCESS
+===================================================== -->
+<div class="modal" id="staffMonthAccessModal">
+    <div class="modal-box" style="max-width:520px;">
+        <div class="modal-header">
+            <div>
+                <h2>Mở tháng cũ cho Staff</h2>
+                <div style="font-size:11px;color:#667085;margin-top:4px;line-height:1.45;">
+                    Chỉ mở thêm 1 tháng cũ để xem. Staff vẫn không có quyền “Tất cả tháng”.
+                </div>
+            </div>
+            <button class="close" id="closeStaffMonthAccessModal" type="button">×</button>
+        </div>
+
+        <div class="staff-month-access-box">
+            <div class="form-group">
+                <label>Tháng muốn mở tạm</label>
+                <input id="staffMonthAccessInput" type="month">
+            </div>
+
+            <div id="staffMonthAccessStatus" class="staff-month-access-status">
+                Đang kiểm tra quyền hiện tại…
+            </div>
+
+            <div style="font-size:10px;color:#667085;margin-top:9px;line-height:1.5;">
+                Khi mở: Staff sẽ thấy thêm tháng này trong bộ lọc tháng, nhưng tháng cũ ở chế độ chỉ xem.
+                Sau khi Admin khóa lại, Staff bấm Làm mới hoặc tải lại trang để nhận quyền mới.
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn-red" id="lockStaffMonthAccessBtn" type="button">🔒 Khóa tháng cũ</button>
+            <button class="btn-primary" id="saveStaffMonthAccessBtn" type="button">👁 Mở tháng này cho Staff</button>
+        </div>
     </div>
 </div>
 
@@ -17556,6 +17602,15 @@ function applyLanguage(){
         if(toolsStaffSetupBtn){
             toolsStaffSetupBtn.textContent="👥 "+t("staffSetup");
         }
+
+        if(typeof toolsStaffMonthAccessBtn !== "undefined" && toolsStaffMonthAccessBtn){
+            toolsStaffMonthAccessBtn.textContent =
+                currentLanguage === "zh"
+                    ? "👁 临时开放旧月份给员工"
+                    : currentLanguage === "en"
+                        ? "👁 Temporarily open old month for Staff"
+                        : "👁 Mở tháng cũ cho Staff";
+        }
     }
 
     if(
@@ -18007,6 +18062,7 @@ const toolsMenuWrap=document.getElementById("toolsMenuWrap");
 const toolsMenuBtn=document.getElementById("toolsMenuBtn");
 const toolsMenu=document.getElementById("toolsMenu");
 const toolsStaffSetupBtn=document.getElementById("toolsStaffSetupBtn");
+const toolsStaffMonthAccessBtn=document.getElementById("toolsStaffMonthAccessBtn");
 const toolsPurgePaymentsBtn=document.getElementById("toolsPurgePaymentsBtn");
 const adminPaymentToolsLabel=document.getElementById("adminPaymentToolsLabel");
 const toolsCarryPaymentBtn=document.getElementById("toolsCarryPaymentBtn");
@@ -18043,6 +18099,19 @@ const newPasswordInput =
 
 const confirmNewPasswordInput =
     document.getElementById("confirmNewPasswordInput");
+
+const staffMonthAccessModal =
+    document.getElementById("staffMonthAccessModal");
+const closeStaffMonthAccessModal =
+    document.getElementById("closeStaffMonthAccessModal");
+const staffMonthAccessInput =
+    document.getElementById("staffMonthAccessInput");
+const staffMonthAccessStatus =
+    document.getElementById("staffMonthAccessStatus");
+const saveStaffMonthAccessBtn =
+    document.getElementById("saveStaffMonthAccessBtn");
+const lockStaffMonthAccessBtn =
+    document.getElementById("lockStaffMonthAccessBtn");
 
 const changePasswordError =
     document.getElementById("changePasswordError");
@@ -19482,6 +19551,69 @@ function shiftPaymentMonth(month, offset){
 }
 
 
+function normalizeStaffTemporaryPaymentMonth(value){
+    const month = String(value || "").trim();
+
+    if(!/^\d{4}-\d{2}$/.test(month)){
+        return "";
+    }
+
+    return month < CURRENT_MONTH ? month : "";
+}
+
+
+function getStaffTemporaryPaymentMonth(){
+    if(!currentUserProfile || !isStaff()){
+        return "";
+    }
+
+    return normalizeStaffTemporaryPaymentMonth(
+        currentUserProfile.temporaryPaymentMonthAccess
+    );
+}
+
+
+function canStaffViewPaymentMonth(month){
+    const normalizedMonth =
+        normalizePaymentListenerMonth(month);
+
+    if(!normalizedMonth){
+        return false;
+    }
+
+    if(isAdmin()){
+        return true;
+    }
+
+    if(normalizedMonth === CURRENT_MONTH){
+        return true;
+    }
+
+    return !!(
+        isStaff() &&
+        normalizedMonth === getStaffTemporaryPaymentMonth()
+    );
+}
+
+
+function isStaffTemporaryHistoryScope(
+    month = paymentMonthFilter?.value || activePaymentsScopeKey
+){
+    if(!isStaff()){
+        return false;
+    }
+
+    const normalizedMonth =
+        normalizePaymentListenerMonth(month);
+
+    return !!(
+        normalizedMonth &&
+        normalizedMonth !== CURRENT_MONTH &&
+        normalizedMonth === getStaffTemporaryPaymentMonth()
+    );
+}
+
+
 function getSelectablePaymentMonths(){
 
     /*
@@ -19532,7 +19664,14 @@ function updatePaymentMonthFilters(){
     const visibleMonths =
         isAdmin()
             ? months
-            : [CURRENT_MONTH];
+            : [
+                ...new Set(
+                    [
+                        CURRENT_MONTH,
+                        getStaffTemporaryPaymentMonth()
+                    ].filter(Boolean)
+                )
+            ].sort().reverse();
 
 
     const currentPlan =
@@ -20117,12 +20256,14 @@ function authorizedPaymentListenerMonth(month){
        in DevTools; the client always subscribes to the live month instead.
        Admin keeps all-history access.
     */
-    if(!isAdmin()){
-        return CURRENT_MONTH;
-    }
-
     const normalizedMonth =
         normalizePaymentListenerMonth(month);
+
+    if(!isAdmin()){
+        return canStaffViewPaymentMonth(normalizedMonth)
+            ? normalizedMonth
+            : CURRENT_MONTH;
+    }
 
     if(normalizedMonth){
         return normalizedMonth;
@@ -21039,10 +21180,17 @@ function applyRoleUI(){
         loggedIn &&
         isAdmin();
 
+    const staffHistoricalReadOnly =
+        !adminAccess &&
+        isStaffTemporaryHistoryScope(
+            activePaymentsScopeKey || paymentMonthFilter?.value
+        );
+
     const mustLeaveRestrictedScope =
         !adminAccess &&
         activePaymentsScopeKey &&
-        activePaymentsScopeKey !== CURRENT_MONTH;
+        activePaymentsScopeKey !== CURRENT_MONTH &&
+        !canStaffViewPaymentMonth(activePaymentsScopeKey);
 
     /*
        Staff:
@@ -21051,12 +21199,12 @@ function applyRoleUI(){
        - everything, including Batch Payment
     */
     bulkEditBtn.style.display =
-        staffAccess
+        staffAccess && !staffHistoricalReadOnly
             ? ""
             : "none";
 
     bulkProcessBtn.style.display =
-        staffAccess
+        staffAccess && !staffHistoricalReadOnly
             ? ""
             : "none";
 
@@ -21123,6 +21271,13 @@ function applyRoleUI(){
                 : "none";
     }
 
+    if(typeof toolsStaffMonthAccessBtn !== "undefined" && toolsStaffMonthAccessBtn){
+        toolsStaffMonthAccessBtn.style.display =
+            adminAccess
+                ? ""
+                : "none";
+    }
+
     [adminPaymentToolsLabel,toolsBulkUncBtn,toolsArchiveMonthBtn,toolsCarryPaymentBtn,toolsRepairCarryProgressBtn,toolsCancelPaymentBtn]
         .filter(Boolean)
         .forEach(element => {
@@ -21175,10 +21330,31 @@ function applyRoleUI(){
     applyPaymentResultRoleUI();
     applyNoMEPExceptionUI();
 
+    if(typeof addPaymentBtn !== "undefined" && addPaymentBtn){
+        addPaymentBtn.disabled = staffHistoricalReadOnly;
+        addPaymentBtn.title = staffHistoricalReadOnly
+            ? (
+                currentLanguage === "zh"
+                    ? "历史月份仅供查看"
+                    : currentLanguage === "en"
+                        ? "Historical month is view-only"
+                        : "Tháng cũ chỉ được xem"
+            )
+            : "";
+    }
+
+    if(typeof pasteExcelBtn !== "undefined" && pasteExcelBtn){
+        pasteExcelBtn.disabled = staffHistoricalReadOnly;
+        pasteExcelBtn.title = addPaymentBtn?.title || "";
+    }
+
     /* Rebuild the month choices after the authenticated role is known. */
     updatePaymentMonthFilters();
 
     if(mustLeaveRestrictedScope){
+        paymentMonthFilter.value = CURRENT_MONTH;
+        paymentStatusFilter.value = "unpaid";
+        applyPaymentStatusView();
         startPaymentsRealtime(CURRENT_MONTH, {force:true});
     }
 
@@ -22687,6 +22863,219 @@ async function saveStaffDisplayName(username, displayName, profileId=""){
 }
 
 
+function staffMonthAccessDefaultMonth(){
+    return shiftPaymentMonth(CURRENT_MONTH,-1) || "";
+}
+
+
+async function readStaffMonthAccessState(){
+    const staffMap = await getExistingStaffMap();
+    const staff = [...staffMap.values()].filter(
+        item => String(item.role || "").trim().toLowerCase() === "staff"
+    );
+
+    const months = [
+        ...new Set(
+            staff
+                .map(
+                    item =>
+                        normalizeStaffTemporaryPaymentMonth(
+                            item.temporaryPaymentMonthAccess
+                        )
+                )
+                .filter(Boolean)
+        )
+    ];
+
+    return {
+        staff,
+        month:months.length === 1 ? months[0] : "",
+        mixed:months.length > 1
+    };
+}
+
+
+function renderStaffMonthAccessStatus(state){
+    staffMonthAccessStatus.classList.remove("open");
+
+    if(state?.mixed){
+        staffMonthAccessStatus.textContent =
+            "⚠ Quyền tháng cũ của Staff đang không đồng nhất. Bấm Mở hoặc Khóa để đồng bộ lại.";
+        return;
+    }
+
+    if(state?.month){
+        staffMonthAccessStatus.classList.add("open");
+        staffMonthAccessStatus.textContent =
+            `● Đang mở tạm ${state.month} cho ${state.staff.length} Staff · chỉ xem`;
+        return;
+    }
+
+    staffMonthAccessStatus.textContent =
+        `🔒 Hiện đang khóa tháng cũ · ${state?.staff?.length || 0} Staff chỉ thấy ${CURRENT_MONTH}`;
+}
+
+
+async function openStaffMonthAccessModal(){
+    if(!isAdmin()){
+        alert("🔒 " + t("adminOnly"));
+        return;
+    }
+
+    staffMonthAccessModal.classList.add("show");
+    staffMonthAccessStatus.textContent = "⏳ Đang kiểm tra…";
+
+    try{
+        const state = await readStaffMonthAccessState();
+
+        staffMonthAccessInput.value =
+            state.month || staffMonthAccessDefaultMonth();
+
+        staffMonthAccessInput.max =
+            staffMonthAccessDefaultMonth() || CURRENT_MONTH;
+
+        renderStaffMonthAccessStatus(state);
+
+    }catch(error){
+        console.error("LOAD STAFF MONTH ACCESS ERROR:",error);
+        staffMonthAccessStatus.textContent =
+            "⚠ Không đọc được trạng thái quyền Staff.";
+    }
+}
+
+
+function closeStaffMonthAccess(){
+    staffMonthAccessModal.classList.remove("show");
+}
+
+
+async function writeStaffMonthAccess(month){
+    if(!isAdmin()){
+        alert("🔒 " + t("adminOnly"));
+        return;
+    }
+
+    const normalizedMonth =
+        normalizeStaffTemporaryPaymentMonth(month);
+
+    if(month && !normalizedMonth){
+        alert(`⚠ Chỉ được mở một tháng cũ trước ${CURRENT_MONTH}.`);
+        return;
+    }
+
+    const state = await readStaffMonthAccessState();
+
+    if(!state.staff.length){
+        alert("⚠ Không có tài khoản Staff để cập nhật.");
+        return;
+    }
+
+    const CHUNK_SIZE = 400;
+
+    for(
+        let start=0;
+        start<state.staff.length;
+        start+=CHUNK_SIZE
+    ){
+        const batch = writeBatch(db);
+
+        state.staff
+            .slice(start,start+CHUNK_SIZE)
+            .forEach(
+                item => {
+                    batch.update(
+                        doc(db,"authUsers",item.id),
+                        {
+                            temporaryPaymentMonthAccess:
+                                normalizedMonth || "",
+                            temporaryPaymentMonthAccessUpdatedAt:
+                                serverTimestamp(),
+                            temporaryPaymentMonthAccessUpdatedBy:
+                                currentOperatorName || "",
+                            temporaryPaymentMonthAccessUpdatedByUid:
+                                currentAuthUser?.uid || ""
+                        }
+                    );
+                }
+            );
+
+        await batch.commit();
+    }
+
+    const refreshed =
+        await readStaffMonthAccessState();
+
+    renderStaffMonthAccessStatus(refreshed);
+
+    alert(
+        normalizedMonth
+            ? `✅ Đã mở ${normalizedMonth} cho ${state.staff.length} Staff.\n\nStaff bấm “Làm mới” hoặc tải lại trang để thấy tháng này.`
+            : `🔒 Đã khóa lại quyền xem tháng cũ cho ${state.staff.length} Staff.\n\nStaff bấm “Làm mới” hoặc tải lại trang để cập nhật quyền.`
+    );
+}
+
+
+closeStaffMonthAccessModal.addEventListener(
+    "click",
+    closeStaffMonthAccess
+);
+
+staffMonthAccessModal.addEventListener(
+    "click",
+    event => {
+        if(event.target === staffMonthAccessModal){
+            closeStaffMonthAccess();
+        }
+    }
+);
+
+saveStaffMonthAccessBtn.addEventListener(
+    "click",
+    async () => {
+        saveStaffMonthAccessBtn.disabled = true;
+
+        try{
+            await writeStaffMonthAccess(
+                staffMonthAccessInput.value
+            );
+        }catch(error){
+            console.error("SAVE STAFF MONTH ACCESS ERROR:",error);
+            alert(
+                "❌ Không cập nhật được quyền tháng cũ:\n" +
+                (error.message || error)
+            );
+        }finally{
+            saveStaffMonthAccessBtn.disabled = false;
+        }
+    }
+);
+
+lockStaffMonthAccessBtn.addEventListener(
+    "click",
+    async () => {
+        if(!confirm("Khóa lại quyền xem tháng cũ của toàn bộ Staff?")){
+            return;
+        }
+
+        lockStaffMonthAccessBtn.disabled = true;
+
+        try{
+            await writeStaffMonthAccess("");
+            staffMonthAccessInput.value =
+                staffMonthAccessDefaultMonth();
+        }catch(error){
+            console.error("LOCK STAFF MONTH ACCESS ERROR:",error);
+            alert(
+                "❌ Không khóa được quyền tháng cũ:\n" +
+                (error.message || error)
+            );
+        }finally{
+            lockStaffMonthAccessBtn.disabled = false;
+        }
+    }
+);
+
+
 function updateNewStaffUsernamePreview(){
 
     newStaffUsernameInput.value =
@@ -24025,6 +24414,12 @@ toolsMenu.addEventListener("click",async event=>{
 
         staffSetupModal.classList.add("show");
         await renderStaffSetup();
+        return;
+    }
+
+    if(action==="staff-month-access"){
+        await openStaffMonthAccessModal();
+        return;
     }
 
     if(action==="purge-payments"){
@@ -24357,6 +24752,14 @@ function canAdminSelectPaidForArchive(payment){
 }
 
 function canSelectPaymentRow(payment){
+    if(
+        payment &&
+        !isAdmin() &&
+        isStaffTemporaryHistoryScope(payment.paymentMonth)
+    ){
+        return false;
+    }
+
     return !!(
         payment &&
         payment.deleted !== true &&
@@ -26583,6 +26986,10 @@ function renderPayments(){
             const workflowLocked =
                 isPaymentWorkflowLocked(item);
 
+            const staffHistoricalReadOnly =
+                !isAdmin() &&
+                isStaffTemporaryHistoryScope(item.paymentMonth);
+
             const selectionLocked =
                 !canSelectPaymentRow(item);
 
@@ -26926,6 +27333,15 @@ function renderPayments(){
                 <td class="actions-cell">
 
                     ${
+                        staffHistoricalReadOnly
+                        ? `<span class="staff-history-readonly-badge">${
+                            currentLanguage === "zh"
+                                ? "仅查看"
+                                : currentLanguage === "en"
+                                    ? "View only"
+                                    : "Chỉ xem"
+                        }</span>`
+                        :
                         workflowLocked
                         ?
                         (
@@ -37097,21 +37513,28 @@ paymentMonthFilter.addEventListener(
         let selectedMonth =
             String(paymentMonthFilter.value || "").trim();
 
-        /* Staff always returns to the live month, even if a stale browser
-           value or DevTools tries to select a historical month. */
-        if(!isAdmin()){
+        /* Staff may open only the current month plus one old month
+           temporarily granted by Admin. */
+        if(!isAdmin() && !canStaffViewPaymentMonth(selectedMonth)){
             selectedMonth = CURRENT_MONTH;
             paymentMonthFilter.value = CURRENT_MONTH;
         }
 
-        /* Historical months open as paid history; the current/future month
-           opens as the active working list. The user may still switch status
-           manually afterward. */
+        /* Admin historical months keep opening as paid history.
+           The temporarily opened Staff month defaults to unpaid so the
+           outstanding prior-month items are immediately visible. */
         if(selectedMonth){
             paymentStatusFilter.value =
-                selectedMonth < CURRENT_MONTH
-                    ? "paid"
-                    : "unpaid";
+                (
+                    !isAdmin() &&
+                    isStaffTemporaryHistoryScope(selectedMonth)
+                )
+                    ? "unpaid"
+                    : (
+                        selectedMonth < CURRENT_MONTH
+                            ? "paid"
+                            : "unpaid"
+                    );
 
             actualPaymentMonthFilter.value = "";
             applyPaymentStatusView();
@@ -37121,6 +37544,8 @@ paymentMonthFilter.addEventListener(
         await startPaymentsRealtime(
             selectedMonth
         );
+
+        applyRoleUI();
     }
 );
 
@@ -37193,6 +37618,14 @@ refreshBtn.addEventListener(
 
 
         try{
+
+            /* Staff can pick up Admin's temporary month-access change by
+               pressing the existing Refresh button. This reads only the
+               signed-in Staff profile once. */
+            if(currentAuthUser && isStaff()){
+                await loadCurrentUserProfile(currentAuthUser);
+                applyRoleUI();
+            }
 
             const optionalReloads = [];
 
@@ -54773,5 +55206,8 @@ html[data-theme="bluebutter"] .theme-picker-panel .theme-option[data-theme-choic
 
 <!-- ADMIN-ONLY PROCESS PATCH: processApproval + processBanking restricted to Admin in inline table, modal save, bulk process, and Excel paste. -->
 
+<!-- Temporary Staff old-month access:
+Admin writes one temporaryPaymentMonthAccess value into Staff authUsers profiles.
+Staff receives CURRENT_MONTH + that one old month only; old month is view-only. -->
 </body>
 </html>
