@@ -1891,6 +1891,153 @@ html[data-theme] .mep-no-code-exception{
     max-height:520px;
 }
 
+/* ACTIVITY LOG — MONTH SCOPED / PAGED */
+.activity-log-toolbar{
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    min-height:36px;
+    margin:-6px 0 9px;
+}
+.activity-log-month-picker{
+    position:relative;
+    display:none;
+}
+.activity-log-month-trigger{
+    min-width:112px;
+    height:32px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:0 10px;
+    border:1px solid #d6dce5;
+    border-radius:7px;
+    background:#fff;
+    color:#17365d;
+    font-size:11px;
+    font-weight:800;
+    box-shadow:none;
+}
+.activity-log-month-trigger:hover{
+    background:#f8fafc;
+}
+.activity-log-month-caret{
+    color:#667085;
+    font-size:10px;
+}
+.activity-log-month-popover{
+    position:absolute;
+    top:calc(100% + 6px);
+    right:0;
+    width:246px;
+    padding:9px;
+    border:1px solid #dfe4eb;
+    border-radius:10px;
+    background:#fff;
+    box-shadow:0 12px 30px rgba(16,24,40,.16);
+    z-index:6000;
+}
+.activity-log-month-popover[hidden]{display:none!important}
+.activity-log-month-picker-head{
+    display:grid;
+    grid-template-columns:30px 1fr 30px;
+    align-items:center;
+    gap:6px;
+    margin-bottom:7px;
+}
+.activity-log-month-picker-head strong{
+    text-align:center;
+    color:#17365d;
+    font-size:12px;
+}
+.activity-log-year-nav{
+    width:30px;
+    height:28px;
+    padding:0;
+    display:grid;
+    place-items:center;
+    border:1px solid #e2e7ef;
+    border-radius:6px;
+    background:#f8fafc;
+    color:#475467;
+    font-size:17px;
+    line-height:1;
+}
+.activity-log-year-nav:disabled{
+    opacity:.3;
+}
+.activity-log-month-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:5px;
+}
+.activity-log-month-option{
+    height:32px;
+    padding:0 4px;
+    border:1px solid transparent;
+    border-radius:6px;
+    background:#fff;
+    color:#344054;
+    font-size:10.5px;
+    font-weight:700;
+}
+.activity-log-month-option:hover:not(:disabled){
+    background:#eef4ff;
+    color:#17365d;
+}
+.activity-log-month-option.active{
+    background:#17365d;
+    color:#fff;
+}
+.activity-log-month-option:disabled{
+    color:#c5cad2;
+    background:#fafafa;
+    cursor:not-allowed;
+}
+.activity-log-month-static{
+    display:inline-flex;
+    align-items:center;
+    min-height:30px;
+    padding:0 2px;
+    color:#667085;
+    font-size:11px;
+    font-weight:700;
+}
+.activity-log-load-more{
+    display:flex;
+    justify-content:center;
+    padding-top:9px;
+}
+.activity-log-load-more[hidden]{display:none!important}
+#loadMoreActivityLogBtn{
+    min-width:112px;
+    padding:7px 12px;
+    font-size:11px;
+}
+html[data-theme] .activity-log-month-trigger,
+html[data-theme] .activity-log-month-popover,
+html[data-theme] .activity-log-month-option{
+    background:var(--theme-surface,#fff)!important;
+    border-color:var(--theme-border,#d6dce5)!important;
+    color:var(--theme-text,#17365d)!important;
+}
+html[data-theme] .activity-log-month-option.active{
+    background:var(--theme-primary,#17365d)!important;
+    color:#fff!important;
+}
+html[data-theme] .activity-log-year-nav{
+    background:var(--theme-surface-alt,#f8fafc)!important;
+    border-color:var(--theme-border,#d6dce5)!important;
+    color:var(--theme-text,#475467)!important;
+}
+html[data-theme] .activity-log-month-picker-head strong{
+    color:var(--theme-text,#17365d)!important;
+}
+html[data-theme] .activity-log-month-static{
+    color:var(--theme-muted,#667085)!important;
+}
+
 .recycle-row{
     display:grid;
     grid-template-columns:28px 1.4fr 1fr .65fr 130px auto;
@@ -15408,7 +15555,28 @@ html[data-theme="ivorybunny"] .process-inline-input{
             <button class="close" id="closeActivityLogModal">×</button>
         </div>
 
+        <div class="activity-log-toolbar" id="activityLogToolbar">
+            <div class="activity-log-month-picker" id="activityLogMonthPicker">
+                <button type="button" class="activity-log-month-trigger" id="activityLogMonthTrigger" aria-expanded="false" aria-haspopup="dialog">
+                    <span id="activityLogMonthTriggerText">10/2026</span>
+                    <span class="activity-log-month-caret">⌄</span>
+                </button>
+                <div class="activity-log-month-popover" id="activityLogMonthPopover" hidden>
+                    <div class="activity-log-month-picker-head">
+                        <button type="button" class="activity-log-year-nav" id="activityLogPrevYear" aria-label="Previous year">‹</button>
+                        <strong id="activityLogPickerYear">2026</strong>
+                        <button type="button" class="activity-log-year-nav" id="activityLogNextYear" aria-label="Next year">›</button>
+                    </div>
+                    <div class="activity-log-month-grid" id="activityLogMonthGrid"></div>
+                </div>
+            </div>
+            <span class="activity-log-month-static" id="activityLogMonthStatic"></span>
+        </div>
+
         <div class="audit-list" id="auditList"></div>
+        <div class="activity-log-load-more" id="activityLogLoadMoreWrap" hidden>
+            <button type="button" class="btn-gray" id="loadMoreActivityLogBtn">Xem thêm</button>
+        </div>
     </div>
 </div>
 
@@ -16080,6 +16248,7 @@ import {
     where,
     orderBy,
     limit,
+    startAfter,
     serverTimestamp
 }
 from
@@ -16586,6 +16755,28 @@ const I18N = {
         lockedEdit:"Khoản thanh toán này đã được cập nhật thanh toán và bị khóa.\n\nKhông thể sửa khoản đã thanh toán.", reqMonth:"Vui lòng chọn tháng thanh toán.", reqPerson:"Vui lòng nhập người phụ trách.", reqProject:"Vui lòng chọn dự án.", reqContract:"Vui lòng chọn số hợp đồng.", reqIPC:"Vui lòng nhập số IPC.", reqAmount:"Vui lòng nhập số tiền hợp lệ.", contractMissing:"Không tìm thấy Contract Master tương ứng.", updated:"Khoản thanh toán đã được cập nhật.", added:"Khoản thanh toán mới đã được thêm.", saveError:"Không lưu được khoản thanh toán:\n"
     }
 };
+
+
+
+/* Activity Log month / paging */
+Object.assign(I18N.vi,{
+    auditLoadMore:"Xem thêm",
+    auditLoading:"Đang tải lịch sử...",
+    auditLoadError:"Không tải được lịch sử thao tác.",
+    auditMonthAria:"Tháng thao tác"
+});
+Object.assign(I18N.zh,{
+    auditLoadMore:"查看更多",
+    auditLoading:"正在加载操作记录...",
+    auditLoadError:"无法加载操作记录。",
+    auditMonthAria:"操作月份"
+});
+Object.assign(I18N.en,{
+    auditLoadMore:"Load more",
+    auditLoading:"Loading activity history...",
+    auditLoadError:"Unable to load activity history.",
+    auditMonthAria:"Activity month"
+});
 
 
 
@@ -17517,7 +17708,8 @@ function applyLanguage(){
                         : "AUDIT GẦN NHẤT";
         }
         if(activityLogModal.classList.contains("show")){
-            renderActivityLog();
+            syncActivityLogMonthUI();
+            renderActivityLogRows();
         }
         updateOperatorDisplay();
     }
@@ -18176,6 +18368,39 @@ const closeActivityLogModal =
 
 const auditList =
     document.getElementById("auditList");
+
+const activityLogMonthPicker =
+    document.getElementById("activityLogMonthPicker");
+
+const activityLogMonthTrigger =
+    document.getElementById("activityLogMonthTrigger");
+
+const activityLogMonthTriggerText =
+    document.getElementById("activityLogMonthTriggerText");
+
+const activityLogMonthPopover =
+    document.getElementById("activityLogMonthPopover");
+
+const activityLogPickerYearLabel =
+    document.getElementById("activityLogPickerYear");
+
+const activityLogPrevYear =
+    document.getElementById("activityLogPrevYear");
+
+const activityLogNextYear =
+    document.getElementById("activityLogNextYear");
+
+const activityLogMonthGrid =
+    document.getElementById("activityLogMonthGrid");
+
+const activityLogMonthStatic =
+    document.getElementById("activityLogMonthStatic");
+
+const activityLogLoadMoreWrap =
+    document.getElementById("activityLogLoadMoreWrap");
+
+const loadMoreActivityLogBtn =
+    document.getElementById("loadMoreActivityLogBtn");
 
 const batchPaymentBtn =
     document.getElementById("batchPaymentBtn");
@@ -22592,106 +22817,288 @@ function isAdminActivityLog(item){
 }
 
 
-async function renderActivityLog(){
+const ACTIVITY_LOG_PAGE_SIZE = 100;
+const ACTIVITY_LOG_MONTH_OPTION_COUNT = 24;
 
-    const snapshot =
-        await getDocs(
-            query(
-                activityLogsRef,
-                orderBy("createdAt","desc"),
-                limit(500)
-            )
-        );
+const activityLogState = {
+    month: CURRENT_MONTH,
+    logs: [],
+    lastDoc: null,
+    hasMore: false,
+    loading: false,
+    loadError: false
+};
 
-    const logs = [];
+function normalizeActivityLogMonth(value){
+    const month = String(value || "").trim();
+    return /^\d{4}-\d{2}$/.test(month) ? month : CURRENT_MONTH;
+}
 
-    snapshot.forEach(
-        item => {
+function activityLogMonthText(month){
+    const normalized = normalizeActivityLogMonth(month);
+    const [year,monthValue] = normalized.split("-");
+    const numericMonth = Number(monthValue);
+    if(currentLanguage === "zh"){
+        return `${year}年${numericMonth}月`;
+    }
+    return `${String(numericMonth).padStart(2,"0")}/${year}`;
+}
 
-            logs.push({
-                id:item.id,
-                ...item.data()
-            });
+function activityLogMonthRange(month){
+    const normalized = normalizeActivityLogMonth(month);
+    const [year,monthValue] = normalized.split("-").map(Number);
+    return {
+        start:new Date(year,monthValue-1,1,0,0,0,0),
+        end:new Date(year,monthValue,1,0,0,0,0)
+    };
+}
+
+function activityLogMonthOptions(){
+    const base = new Date();
+    base.setDate(1);
+    base.setHours(0,0,0,0);
+    const options = [];
+    for(let index=0;index<ACTIVITY_LOG_MONTH_OPTION_COUNT;index+=1){
+        const date = new Date(base.getFullYear(),base.getMonth()-index,1);
+        const value = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}`;
+        options.push(value);
+    }
+    return options;
+}
+
+let activityLogPickerYear = Number(CURRENT_MONTH.slice(0,4));
+
+function activityLogMonthShortLabel(monthNumber){
+    if(currentLanguage === "zh") return `${monthNumber}月`;
+    if(currentLanguage === "en"){
+        return new Intl.DateTimeFormat("en",{month:"short"})
+            .format(new Date(2020,monthNumber-1,1));
+    }
+    return `T${monthNumber}`;
+}
+
+function closeActivityLogMonthPicker(){
+    if(activityLogMonthPopover) activityLogMonthPopover.hidden = true;
+    if(activityLogMonthTrigger) activityLogMonthTrigger.setAttribute("aria-expanded","false");
+}
+
+function renderActivityLogMonthPicker(year = activityLogPickerYear){
+    if(!activityLogMonthGrid || !activityLogPickerYearLabel) return;
+
+    const allowed = new Set(activityLogMonthOptions());
+    const selected = normalizeActivityLogMonth(activityLogState.month);
+    const years = [...allowed].map(value => Number(value.slice(0,4)));
+    const minYear = Math.min(...years);
+    const maxYear = Math.max(...years);
+
+    activityLogPickerYear = Math.max(minYear,Math.min(maxYear,Number(year) || maxYear));
+    activityLogPickerYearLabel.textContent = String(activityLogPickerYear);
+
+    if(activityLogPrevYear) activityLogPrevYear.disabled = activityLogPickerYear <= minYear;
+    if(activityLogNextYear) activityLogNextYear.disabled = activityLogPickerYear >= maxYear;
+
+    activityLogMonthGrid.innerHTML = Array.from({length:12},(_,index) => {
+        const monthNumber = index + 1;
+        const value = `${activityLogPickerYear}-${String(monthNumber).padStart(2,"0")}`;
+        const enabled = allowed.has(value);
+        const active = value === selected;
+        return `<button type="button" class="activity-log-month-option${active ? " active" : ""}" data-activity-month="${value}" ${enabled ? "" : "disabled"}>${escapeHTML(activityLogMonthShortLabel(monthNumber))}</button>`;
+    }).join("");
+}
+
+function openActivityLogMonthPicker(){
+    if(!isAdmin() || !activityLogMonthPopover) return;
+    const selectedYear = Number(normalizeActivityLogMonth(activityLogState.month).slice(0,4));
+    renderActivityLogMonthPicker(selectedYear);
+    activityLogMonthPopover.hidden = false;
+    activityLogMonthTrigger?.setAttribute("aria-expanded","true");
+}
+
+function syncActivityLogMonthUI(){
+    if(!activityLogMonthPicker || !activityLogMonthStatic) return;
+
+    if(activityLogMonthTrigger){
+        activityLogMonthTrigger.setAttribute("aria-label",t("auditMonthAria"));
+    }
+    loadMoreActivityLogBtn.textContent = t("auditLoadMore");
+
+    if(isAdmin()){
+        activityLogMonthPicker.style.display = "inline-block";
+        activityLogMonthStatic.style.display = "none";
+        const selected = normalizeActivityLogMonth(activityLogState.month);
+        if(activityLogMonthTriggerText){
+            activityLogMonthTriggerText.textContent = activityLogMonthText(selected);
         }
-    );
+        if(activityLogMonthPopover && !activityLogMonthPopover.hidden){
+            renderActivityLogMonthPicker(activityLogPickerYear);
+        }
+    }else{
+        activityLogMonthPicker.style.display = "none";
+        closeActivityLogMonthPicker();
+        activityLogMonthStatic.style.display = "inline-flex";
+        activityLogMonthStatic.textContent = activityLogMonthText(CURRENT_MONTH);
+    }
+}
 
-    /* The query already returns newest first and never downloads old logs. */
+function activityLogRowsHTML(logs){
+    return logs
+        .map(item => {
+            const label = activityActionLabel(item.action);
+            const localizedDetail = activityDetailText(item);
+            const actionCode=String(item.action || "").toUpperCase();
+            const isExcelExport = actionCode === "EXPORT_EXCEL";
+            const isPlanReviewCommit = actionCode === "PLAN_REVIEW_COMMIT";
 
-    /* Admin activity is hidden for every role, including legacy Admin rows. */
-    const visibleLogs = logs.filter(
-        item => !isAdminActivityLog(item)
-    );
+            return `
+                <div class="audit-row">
+                    <div>${escapeHTML(safeTimestampText(item.createdAt))}</div>
+                    <div class="audit-action">${escapeHTML(label || "")}</div>
+                    <div>${escapeHTML(item.operator || "—")}</div>
+                    <div class="audit-detail">
+                        ${
+                            (isExcelExport || isPlanReviewCommit)
+                                ? ""
+                                : `
+                                    <strong>${escapeHTML(item.company || "")}</strong>
+                                    · ${escapeHTML(item.contractNo || "")}
+                                    · ${escapeHTML(item.ipcNo || "")}
+                                    · ${escapeHTML(formatMoney(item.amount))}
+                                `
+                        }
+                        ${
+                            localizedDetail
+                                ? `<div class="recycle-meta">${escapeHTML(localizedDetail)}</div>`
+                                : ""
+                        }
 
-    if(!visibleLogs.length){
+                        ${
+                            item.action === "EDIT" &&
+                            Array.isArray(item.changes) &&
+                            item.changes.length
+                                ?
+                                `
+                                <div class="audit-change-list">
+                                    ${item.changes
+                                        .map(
+                                            change => `
+                                                <div class="audit-change-line">
+                                                    <strong>${escapeHTML(activityFieldLabel(change.field) || change.label || "")}:</strong>
+                                                    <span class="audit-old-value">${escapeHTML(String(change.before ?? "—") || "—")}</span>
+                                                    <span class="audit-arrow">→</span>
+                                                    <span class="audit-new-value">${escapeHTML(String(change.after ?? "—") || "—")}</span>
+                                                </div>
+                                            `
+                                        )
+                                        .join("")}
+                                </div>
+                                `
+                                : ""
+                        }
+                    </div>
+                </div>
+            `;
+        })
+        .join("");
+}
 
+function renderActivityLogRows(){
+    if(!auditList) return;
+
+    if(activityLogState.loadError){
+        auditList.innerHTML =
+            `<div class="empty">${escapeHTML(t("auditLoadError"))}</div>`;
+    }else if(!activityLogState.logs.length){
         auditList.innerHTML =
             `<div class="empty">${escapeHTML(t("noAudit"))}</div>`;
-
-        return;
+    }else{
+        auditList.innerHTML = activityLogRowsHTML(activityLogState.logs);
     }
 
-    auditList.innerHTML =
-        visibleLogs
-            .map(
-                item => {
+    if(activityLogLoadMoreWrap){
+        activityLogLoadMoreWrap.hidden = !activityLogState.hasMore;
+    }
+    if(loadMoreActivityLogBtn){
+        loadMoreActivityLogBtn.disabled = activityLogState.loading;
+        loadMoreActivityLogBtn.textContent = activityLogState.loading
+            ? "⏳"
+            : t("auditLoadMore");
+    }
+}
 
-                    const label = activityActionLabel(item.action);
-                    const localizedDetail = activityDetailText(item);
-                    const actionCode=String(item.action || "").toUpperCase();
-                    const isExcelExport = actionCode === "EXPORT_EXCEL";
-                    const isPlanReviewCommit = actionCode === "PLAN_REVIEW_COMMIT";
+async function renderActivityLog({reset=true}={}){
+    if(activityLogState.loading) return;
 
-                    return `
-                        <div class="audit-row">
-                            <div>${escapeHTML(safeTimestampText(item.createdAt))}</div>
-                            <div class="audit-action">${escapeHTML(label || "")}</div>
-                            <div>${escapeHTML(item.operator || "—")}</div>
-                            <div class="audit-detail">
-                                ${
-                                    (isExcelExport || isPlanReviewCommit)
-                                        ? ""
-                                        : `
-                                            <strong>${escapeHTML(item.company || "")}</strong>
-                                            · ${escapeHTML(item.contractNo || "")}
-                                            · ${escapeHTML(item.ipcNo || "")}
-                                            · ${escapeHTML(formatMoney(item.amount))}
-                                        `
-                                }
-                                ${
-                                    localizedDetail
-                                        ? `<div class="recycle-meta">${escapeHTML(localizedDetail)}</div>`
-                                        : ""
-                                }
+    /* Staff always stays on the current operation month. Admin may choose. */
+    if(!isAdmin()){
+        activityLogState.month = CURRENT_MONTH;
+    }
+    activityLogState.month = normalizeActivityLogMonth(activityLogState.month);
 
-                                ${
-                                    item.action === "EDIT" &&
-                                    Array.isArray(item.changes) &&
-                                    item.changes.length
-                                        ?
-                                        `
-                                        <div class="audit-change-list">
-                                            ${item.changes
-                                                .map(
-                                                    change => `
-                                                        <div class="audit-change-line">
-                                                            <strong>${escapeHTML(activityFieldLabel(change.field) || change.label || "")}:</strong>
-                                                            <span class="audit-old-value">${escapeHTML(String(change.before ?? "—") || "—")}</span>
-                                                            <span class="audit-arrow">→</span>
-                                                            <span class="audit-new-value">${escapeHTML(String(change.after ?? "—") || "—")}</span>
-                                                        </div>
-                                                    `
-                                                )
-                                                .join("")}
-                                        </div>
-                                        `
-                                        : ""
-                                }
-                            </div>
-                        </div>
-                    `;
-                }
-            )
-            .join("");
+    if(reset){
+        activityLogState.logs = [];
+        activityLogState.lastDoc = null;
+        activityLogState.hasMore = false;
+        activityLogState.loadError = false;
+        auditList.innerHTML =
+            `<div class="empty">${escapeHTML(t("auditLoading"))}</div>`;
+        if(activityLogLoadMoreWrap){
+            activityLogLoadMoreWrap.hidden = true;
+        }
+    }
+
+    activityLogState.loading = true;
+    syncActivityLogMonthUI();
+    if(loadMoreActivityLogBtn){
+        loadMoreActivityLogBtn.disabled = true;
+        loadMoreActivityLogBtn.textContent = "⏳";
+    }
+
+    try{
+        const range = activityLogMonthRange(activityLogState.month);
+        const constraints = [
+            where("createdAt",">=",range.start),
+            where("createdAt","<",range.end),
+            orderBy("createdAt","desc")
+        ];
+
+        if(!reset && activityLogState.lastDoc){
+            constraints.push(startAfter(activityLogState.lastDoc));
+        }
+        constraints.push(limit(ACTIVITY_LOG_PAGE_SIZE));
+
+        const snapshot =
+            await getDocs(
+                query(
+                    activityLogsRef,
+                    ...constraints
+                )
+            );
+
+        const docs = snapshot.docs;
+        const pageLogs = docs
+            .map(item => ({id:item.id,...item.data()}))
+            .filter(item => !isAdminActivityLog(item));
+
+        activityLogState.loadError = false;
+        activityLogState.logs = reset
+            ? pageLogs
+            : [...activityLogState.logs,...pageLogs];
+        activityLogState.lastDoc = docs.length
+            ? docs[docs.length-1]
+            : activityLogState.lastDoc;
+        activityLogState.hasMore = docs.length === ACTIVITY_LOG_PAGE_SIZE;
+    }catch(error){
+        console.error("ACTIVITY LOG LOAD ERROR:",error);
+        if(reset){
+            activityLogState.logs = [];
+        }
+        activityLogState.loadError = true;
+        activityLogState.hasMore = false;
+    }finally{
+        activityLogState.loading = false;
+        renderActivityLogRows();
+        syncActivityLogMonthUI();
+    }
 }
 
 
@@ -24515,14 +24922,86 @@ activityLogBtn.addEventListener(
             return;
         }
 
+        activityLogState.month = CURRENT_MONTH;
+        activityLogState.logs = [];
+        activityLogState.lastDoc = null;
+        activityLogState.hasMore = false;
+        activityLogState.loadError = false;
+
         activityLogModal.classList.add(
             "show"
         );
 
-        auditList.innerHTML =
-            `<div class="empty">⏳</div>`;
+        syncActivityLogMonthUI();
+        await renderActivityLog({reset:true});
+    }
+);
 
-        await renderActivityLog();
+
+activityLogMonthTrigger.addEventListener(
+    "click",
+    event => {
+        event.stopPropagation();
+        if(activityLogMonthPopover.hidden){
+            openActivityLogMonthPicker();
+        }else{
+            closeActivityLogMonthPicker();
+        }
+    }
+);
+
+activityLogPrevYear.addEventListener(
+    "click",
+    event => {
+        event.stopPropagation();
+        renderActivityLogMonthPicker(activityLogPickerYear - 1);
+    }
+);
+
+activityLogNextYear.addEventListener(
+    "click",
+    event => {
+        event.stopPropagation();
+        renderActivityLogMonthPicker(activityLogPickerYear + 1);
+    }
+);
+
+activityLogMonthGrid.addEventListener(
+    "click",
+    async event => {
+        const button = event.target.closest("[data-activity-month]");
+        if(!button || button.disabled || !isAdmin()) return;
+        activityLogState.month = normalizeActivityLogMonth(button.dataset.activityMonth);
+        closeActivityLogMonthPicker();
+        syncActivityLogMonthUI();
+        await renderActivityLog({reset:true});
+    }
+);
+
+document.addEventListener(
+    "click",
+    event => {
+        if(
+            activityLogMonthPicker &&
+            !activityLogMonthPicker.contains(event.target)
+        ){
+            closeActivityLogMonthPicker();
+        }
+    }
+);
+
+document.addEventListener(
+    "keydown",
+    event => {
+        if(event.key === "Escape") closeActivityLogMonthPicker();
+    }
+);
+
+loadMoreActivityLogBtn.addEventListener(
+    "click",
+    async () => {
+        if(!activityLogState.hasMore || activityLogState.loading) return;
+        await renderActivityLog({reset:false});
     }
 );
 
@@ -24538,10 +25017,12 @@ closeRecycleBinModal.addEventListener(
 
 closeActivityLogModal.addEventListener(
     "click",
-    () =>
+    () => {
+        closeActivityLogMonthPicker();
         activityLogModal.classList.remove(
             "show"
-        )
+        );
+    }
 );
 
 
