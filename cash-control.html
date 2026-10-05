@@ -1797,6 +1797,22 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
 #salaryRecordModal #pyTaxPeriodField:not([hidden]){display:flex!important}
 #salaryRecordModal #pyTaxPeriodField .tax-period-optional{font-weight:500;color:#98a2b3;margin-left:4px}
 </style>
+
+<style id="cc-funds-projected-status-color-fix">
+/* Keep projected-balance amount color in sync with the status badge. */
+#fundsView #fundsBody td.funds-projected-balance.good,
+#fundsView #fundsBody td.funds-projected-balance.good b{
+  color:#07884f !important;
+}
+#fundsView #fundsBody td.funds-projected-balance.warn,
+#fundsView #fundsBody td.funds-projected-balance.warn b{
+  color:#b45309 !important;
+}
+#fundsView #fundsBody td.funds-projected-balance.bad,
+#fundsView #fundsBody td.funds-projected-balance.bad b{
+  color:#df443c !important;
+}
+</style>
 </head><body class="auth-checking">
 <div class="app"><header class="top" aria-label="Tiện ích hệ thống">
   <div class="brand" aria-hidden="true"><div class="mark">₫</div><div><h1>MEP CASH CONTROL</h1><small>Điều hành dòng tiền · Công nợ · Thanh toán · Tín dụng dự án</small></div></div>
@@ -10307,7 +10323,7 @@ function renderFunds(){
         <td class="money">${money(x.other)}</td>
         <td class="money funds-total-need"><b>${money(remainingNeed)}</b></td>
 
-        <td class="money funds-projected-balance ${x.projected<0?'neg':'pos'}"><b>${money(x.projected)}</b></td>
+        <td class="money funds-projected-balance ${cls}"><b>${money(x.projected)}</b></td>
         <td><span class="cc-status ${cls}">${label}</span></td>
       </tr>`;
     }).join('')||'<tr><td colspan="14" class="mep-empty">Chưa có dự án.</td></tr>';
