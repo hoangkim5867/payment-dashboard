@@ -4260,6 +4260,8 @@ async function autoLoadActivePaymentMonth(month,{force=false,quiet=false}={}){
         );
     }
 
+    /* No extra Payment reads: publish from the data already loaded above. */
+    if(ok)scheduleProjectBalanceSnapshot();
     return ok;
 }
 
@@ -7512,8 +7514,17 @@ async function publishProjectBalanceSnapshot(){
     const catalogHashKey=`catalog|${month}`;
     const catalogChanged=publishedBalanceHashes.get(catalogHashKey)!==projectCatalogHash;
 
+    /*
+       Balance bridge:
+       - If the company-wide monthly Payment cache is complete, projectStats(month)
+         is reliable for every project, so publish ALL project balances.
+       - Before that cache is complete, keep the old safe fallback and only
+         publish projects whose full Payment history was explicitly loaded.
+       This fixes Plan Review showing Lương/Thuế but no Số dư/Thực thu.
+    */
+    const companyWideBalanceReady=isFundsPaymentMonthComplete(month);
     projectStats(month)
-      .filter(x=>loadedProjects.has(normProject(x.p)))
+      .filter(x=>companyWideBalanceReady||loadedProjects.has(normProject(x.p)))
       .forEach(x=>{
         const values={
           month,
@@ -7580,7 +7591,9 @@ function queueProjectBalanceSnapshot(){
 }
 
 function scheduleProjectBalanceSnapshot(){
-  if(!currentAuthUser||!isCashControlOwner()||paymentMonths.size===0)return;
+  /* Planning/debt can be published without opening a project.
+     Company-wide balances are published once the monthly Payment cache is ready. */
+  if(!currentAuthUser||!isCashControlOwner())return;
   clearTimeout(window.__cashSnapshotTimer);
   window.__cashSnapshotTimer=setTimeout(()=>{
     const run=()=>queueProjectBalanceSnapshot();

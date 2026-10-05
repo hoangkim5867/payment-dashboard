@@ -2342,7 +2342,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, getDocs, getDoc, doc, setDoc, updateDoc, writeBatch, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, collection, getDocs, getDoc, doc, setDoc, updateDoc, writeBatch, addDoc, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
 const app=initializeApp(firebaseConfig);const db=getFirestore(app);const auth=getAuth(app);
@@ -2360,6 +2360,8 @@ let draftApprovedAmount=new Map();
 let columnFilters=new Map();
 const monthlyFundingSnapshots=new Map();
 const monthlySnapshotLoads=new Map();
+let monthlyFundingUnsubscribe=null;
+let monthlyFundingWatchMonth="";
 const fundingSaveChains=new Map();
 const FUNDING_KEY="paymentPlanFundingV1";
 let currentReviewView="funding";
@@ -2757,6 +2759,44 @@ async function migrateLegacyPlanning(month,snapshot){
   monthlyFundingSnapshots.set(month,snapshot);
   return snapshot;
 }
+function stopMonthlyFundingWatch(){
+  if(monthlyFundingUnsubscribe){
+    try{monthlyFundingUnsubscribe()}catch{}
+    monthlyFundingUnsubscribe=null;
+  }
+  monthlyFundingWatchMonth="";
+}
+function startMonthlyFundingWatch(month){
+  if(!currentUser||!/^\d{4}-\d{2}$/.test(String(month||""))){
+    stopMonthlyFundingWatch();
+    return;
+  }
+  if(monthlyFundingUnsubscribe&&monthlyFundingWatchMonth===month)return;
+  stopMonthlyFundingWatch();
+  monthlyFundingWatchMonth=month;
+
+  monthlyFundingUnsubscribe=onSnapshot(
+    doc(db,CASH_MONTHLY_SNAPSHOT_COLLECTION,month),
+    async snap=>{
+      if(monthlyFundingWatchMonth!==month)return;
+      let value=normalizeMonthlySnapshot(month,snap.exists()?snap.data():{},snap.exists());
+      monthlyFundingSnapshots.set(month,value);
+
+      /* Keep the old one-time local-planning migration, without polling. */
+      try{value=await migrateLegacyPlanning(month,value)}catch(error){
+        console.warn("Không thể chuyển dữ liệu nguồn tiền cũ lên Firebase",error);
+      }
+      if(monthlyFundingWatchMonth!==month)return;
+      monthlyFundingSnapshots.set(month,value);
+      syncFundingCutoffInput(false);
+      if(currentReviewView==="funding")renderFundingView();
+    },
+    error=>{
+      console.warn("MONTHLY CASH SNAPSHOT WATCH ERROR",error);
+    }
+  );
+}
+
 async function loadMonthlyFundingSnapshot(month,{force=false,quiet=false}={}){
   if(!/^\d{4}-\d{2}$/.test(String(month||"")))return emptyMonthlySnapshot(month);
   if(!force&&monthlyFundingSnapshots.has(month))return monthlyFundingSnapshots.get(month);
@@ -4508,11 +4548,7 @@ async function loadPayments(){
   seedDraft();
 
   if(authStateReady&&currentUser&&monthSelect.value){
-    try{
-      await loadMonthlyFundingSnapshot(monthSelect.value,{quiet:true});
-    }catch(error){
-      console.warn("MONTHLY SNAPSHOT OPTIONAL LOAD FAILED",error);
-    }
+    startMonthlyFundingWatch(monthSelect.value);
   }
 
   syncFundingCutoffInput(true);
@@ -4881,9 +4917,7 @@ monthSelect.onchange=async()=>{
   syncFundingCutoffInput(true);
   render();
   if(authStateReady&&currentUser){
-    try{await loadMonthlyFundingSnapshot(monthSelect.value,{quiet:true})}catch{}
-    syncFundingCutoffInput(true);
-    render();
+    startMonthlyFundingWatch(monthSelect.value);
   }
 };
 searchInput.oninput=render;
@@ -5303,10 +5337,12 @@ onAuthStateChanged(auth,async user=>{
   authStateReady=true;
   await loadProfile(currentUser);
   if(!currentUser){
+    stopMonthlyFundingWatch();
     window.location.replace("./index.html");
     return;
   }
   if(!hasPlanReviewAccess()){
+    stopMonthlyFundingWatch();
     document.body.classList.remove("auth-checking");
     const msg=isChineseUI()
       ?"🔒 当前账号没有计划审核权限。"
