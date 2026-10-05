@@ -1737,6 +1737,66 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
   .payment-rem-box{max-width:calc(100vw - 18px) !important}
 }
 </style>
+
+<style id="cc-tax-due-split-v1">
+/* Tax detail: split current funding need from future-quarter liabilities. */
+#taxOutstandingModal .tax-detail-table th:nth-child(1),
+#taxOutstandingModal .tax-detail-table td:nth-child(1){width:125px!important}
+#taxOutstandingModal .tax-detail-table th:nth-child(2),
+#taxOutstandingModal .tax-detail-table td:nth-child(2){width:235px!important}
+#taxOutstandingModal .tax-detail-table th:nth-child(3),
+#taxOutstandingModal .tax-detail-table td:nth-child(3){width:175px!important}
+#taxOutstandingModal .tax-detail-table th:nth-child(4),
+#taxOutstandingModal .tax-detail-table td:nth-child(4){width:190px!important}
+#taxOutstandingModal .tax-due-group-row td{
+  width:auto!important;
+  padding:8px 11px!important;
+  background:#f3f6f9!important;
+  color:#42566d!important;
+  border-top:1px solid #dbe3ec!important;
+  border-bottom:1px solid #dbe3ec!important;
+  font-size:10px!important;
+  font-weight:650!important;
+}
+#taxOutstandingModal .tax-due-group-row td{
+  display:table-cell!important;
+}
+#taxOutstandingModal .tax-due-group-row td .tax-due-group-label{
+  float:left;
+  letter-spacing:.02em;
+}
+#taxOutstandingModal .tax-due-group-row td b{
+  float:right;
+  font-weight:700!important;
+  color:#17395e;
+  font-variant-numeric:tabular-nums;
+}
+#taxOutstandingModal .tax-due-group-row.future td{
+  background:#fafbfd!important;
+  color:#718096!important;
+}
+#taxOutstandingModal .tax-due-group-row.overdue td{
+  background:#fff8f6!important;
+  color:#a33a32!important;
+}
+#taxOutstandingModal .tax-due-group-row.unknown td{
+  background:#fffaf0!important;
+  color:#8a5a00!important;
+}
+
+/* Funds table stays compact: timing detail lives in the click-through modal. */
+#fundsView .tax-outstanding-btn:not(.zero){
+  display:inline-block!important;
+  white-space:nowrap!important;
+}
+</style>
+
+
+<style id="salary-tax-period-visibility-fix">
+#salaryRecordModal #pyTaxPeriodField[hidden]{display:none!important}
+#salaryRecordModal #pyTaxPeriodField:not([hidden]){display:flex!important}
+#salaryRecordModal #pyTaxPeriodField .tax-period-optional{font-weight:500;color:#98a2b3;margin-left:4px}
+</style>
 </head><body class="auth-checking">
 <div class="app"><header class="top" aria-label="Tiện ích hệ thống">
   <div class="brand" aria-hidden="true"><div class="mark">₫</div><div><h1>MEP CASH CONTROL</h1><small>Điều hành dòng tiền · Công nợ · Thanh toán · Tín dụng dự án</small></div></div>
@@ -2901,12 +2961,12 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
 <div class="modal" id="taxOutstandingModal">
   <div class="mbox" style="max-width:980px">
     <div class="mhead"><div><h3 id="taxOutstandingTitle">Thuế chưa nộp</h3><div class="mep-card-sub" id="taxOutstandingSub">Chi tiết nghĩa vụ thuế đang treo</div></div><button class="btn" data-close="taxOutstandingModal">✕</button></div>
-    <div class="tax-detail-summary">
+    <div class="tax-detail-summary cc-kpi-row">
       <div><span>Tổng chưa nộp</span><b id="taxOutstandingTotal">0</b></div>
-      <div><span>Số kỳ đang treo</span><b id="taxOutstandingPeriods">0</b></div>
-      <div><span>Kỳ gần nhất phải nộp</span><b id="taxOutstandingNextDue">—</b></div>
+      <div><span>Cần nộp trong kỳ đang xem</span><b id="taxOutstandingPeriods">0</b></div>
+      <div><span>Chưa đến hạn</span><b id="taxOutstandingNextDue">0</b></div>
     </div>
-    <div class="tax-detail-wrap"><table class="tax-detail-table"><thead><tr><th>Kỳ thuế</th><th>Tháng lương / kỳ phát sinh</th><th>Dự kiến nộp</th><th class="money-head">Còn chưa nộp</th><th>Nguồn</th></tr></thead><tbody id="taxOutstandingDetailBody"></tbody><tfoot id="taxOutstandingDetailFoot"></tfoot></table></div>
+    <div class="tax-detail-wrap"><table class="tax-detail-table"><thead><tr><th>Kỳ thuế</th><th>Tháng lương / kỳ phát sinh</th><th class="money-head">Còn chưa nộp</th><th>Nguồn</th></tr></thead><tbody id="taxOutstandingDetailBody"></tbody><tfoot id="taxOutstandingDetailFoot"></tfoot></table></div>
   </div>
 </div>
 
@@ -5791,7 +5851,7 @@ function renderReport(){
     const ot=obligations.reduce((a,x)=>{for(const k of ['payment','tax','payroll','internal','ar','total'])a[k]+=num(x[k]);return a},{payment:0,tax:0,payroll:0,internal:0,ar:0,total:0});
     if($('reportObligationBody'))$('reportObligationBody').innerHTML=obligations.map(x=>`<tr><td><b>${esc(x.project)}</b></td><td class="money">${money(x.payment)}</td><td class="money">${x.tax?`<button class="tax-outstanding-btn" data-report-tax="${esc(x.project)}">${money(x.tax)}</button>`:'0'}</td><td class="money">${money(x.payroll)}</td><td class="money">${money(x.internal)}</td><td class="money pos">${money(x.ar)}</td><td class="money"><b>${money(x.total)}</b></td></tr>`).join('')||'<tr><td colspan="7" class="mep-empty">Không có nghĩa vụ tồn đọng.</td></tr>';
     if($('reportObligationFoot'))$('reportObligationFoot').innerHTML=`<tr><th>TỔNG</th><th class="money">${money(ot.payment)}</th><th class="money">${money(ot.tax)}</th><th class="money">${money(ot.payroll)}</th><th class="money">${money(ot.internal)}</th><th class="money">${money(ot.ar)}</th><th class="money">${money(ot.total)}</th></tr>`;
-    document.querySelectorAll('[data-report-tax]').forEach(b=>b.onclick=()=>openTaxOutstanding(b.dataset.reportTax||''));
+    document.querySelectorAll('[data-report-tax]').forEach(b=>b.onclick=()=>openTaxOutstanding(b.dataset.reportTax||'',$('rMonth')?.value||CURRENT));
 }
 
 /* =========================================================
@@ -7398,15 +7458,12 @@ async function publishProjectBalanceSnapshot(){
     // already calculated here (no extra Firebase / Payment reads).
     const bridgeCutoff=defaultFundsCutoffDate(month);
     const bridgePlanRows=ccPlanRows(month,bridgeCutoff);
-    const bridgeTaxMap=outstandingTaxByProjectAsOf(bridgeCutoff);
+    const bridgeTaxBreakdown=outstandingTaxBreakdownByProjectAsOf(month,bridgeCutoff);
+    const bridgeTaxMap=bridgeTaxBreakdown.totalMap;
 
-    // IMPORTANT: Plan Review must use the SAME "Monthly Remaining" payroll/tax logic
-    // shown in Cash Control > Còn phải thu / chi trong tháng.
-    // That screen carries forward unpaid salary/BH/tax from prior periods until actually paid.
+    // Cash planning reserves the FULL known unpaid-tax liability, including
+    // future-due quarters. Due/future split is kept only for explanation.
     const bridgePayrollRemaining=payrollRemainingByProjectAsOf(month,bridgeCutoff);
-    // Tax must follow the cutoff date too. Using planHubRemainingRows(month) alone
-    // can wrongly remove tax that is paid later in the same month but is still outstanding
-    // on the selected cutoff date.
     const bridgeTaxRemaining=bridgeTaxMap;
 
     const cashPlanningByProject={};
@@ -7432,6 +7489,8 @@ async function publishProjectBalanceSnapshot(){
         payroll:payrollRemaining,
         taxPlan:taxRemaining,
         taxOutstanding:taxRemaining,
+        taxOutstandingTotal:bridgeTaxBreakdown.totalMap.get(normalizedProject)||0,
+        taxFuture:bridgeTaxBreakdown.futureMap.get(normalizedProject)||0,
 
         other:Number(st.other)||0,
         remainingPlannedOut:revisedRemainingPlannedOut,
@@ -8027,21 +8086,39 @@ function payrollTaxBasisDate(record){
 
     return candidates[0]?.actualDate||'';
 }
+function linkedSalaryTaxPeriod(record){
+    if(!record||record.type!=='tax')return '';
+    const project=normProject(record.project),
+          month=String(record.payrollMonth||''),
+          group=inferPayrollStaffGroup(record);
+    const salary=(cashCloudState.salaryRecords||[])
+      .filter(x=>
+        x &&
+        x.id!==record.id &&
+        normProject(x.project)===project &&
+        String(x.payrollMonth||'')===month &&
+        inferPayrollStaffGroup(x)===group &&
+        x.type==='salary'
+      )
+      .sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')))
+      .find(x=>normalizeTaxPeriod(x.taxPeriod));
+    return normalizeTaxPeriod(salary?.taxPeriod);
+}
 function payrollTaxPeriodCode(record){
     const explicit=normalizeTaxPeriod(record?.taxPeriod);
     if(explicit)return explicit;
 
     /*
-      Excel / pasted payroll tax does not assume the tax quarter from the
-      payroll source month. It waits for the actual salary payment date.
-      Example: Aug payroll paid in Oct => Q4, due in Jan next year.
+      Excel / pasted payroll tax: first use the tax quarter linked on the
+      matching net-salary row. If absent, infer from salary actual payment date.
     */
     if(record?.type==='tax' && (record?.sourceType==='excel'||record?.sourceType==='vn_paste')){
+        const linkedQuarter=linkedSalaryTaxPeriod(record);
+        if(linkedQuarter)return linkedQuarter;
         const basisDate=payrollTaxBasisDate(record);
         return basisDate?payrollQuarterCode(monthOf(basisDate)):'';
     }
 
-    // Preserve legacy/manual behaviour when an explicit tax period is not stored.
     return payrollQuarterCode(record?.payrollMonth);
 }
 function payrollTaxQuarter(record){
@@ -8073,6 +8150,10 @@ function payrollPlannedMonth(record){
     return record?.payrollMonth||'';
 }
 function payrollTaxScheduleText(record){
+    if(record?.type==='salary'){
+        const code=normalizeTaxPeriod(record?.taxPeriod);
+        return code?`${taxPeriodLabel(code)} · liên quan thuế`:'—';
+    }
     if(record?.type!=='tax')return '—';
     const code=payrollTaxPeriodCode(record);
     if(!code)return 'Chờ ngày trả lương';
@@ -8083,29 +8164,62 @@ function taxQuarterMonths(month){
     const m=String(month||'').match(/^(\d{4})-(\d{2})$/);if(!m)return [];const y=m[1],q=Math.ceil(Number(m[2])/3),start=(q-1)*3+1;
     return [0,1,2].map(i=>`${y}-${pad(start+i)}`);
 }
-function fillPayrollTaxPeriodOptions(selected=''){
+function fillPayrollTaxPeriodOptions(selected='',allowBlank=false){
     const el=$('pyTaxPeriod');if(!el)return;
     const currentYear=Number(String(CURRENT||'').slice(0,4))||new Date().getFullYear();
     const sourceYear=Number(String($('pyPeriod')?.value||'').slice(0,4))||currentYear;
     const years=[...new Set([sourceYear-1,sourceYear,sourceYear+1,currentYear])].sort();
-    el.innerHTML=years.flatMap(y=>[1,2,3,4].map(q=>`<option value="${y}-Q${q}">Q${q}/${y}</option>`)).join('');
-    const wanted=normalizeTaxPeriod(selected)||payrollQuarterCode($('pyPeriod')?.value)||`${currentYear}-Q${Math.ceil((new Date().getMonth()+1)/3)}`;
+    const blank=allowBlank?'<option value="">— Không chọn —</option>':'';
+    el.innerHTML=blank+years.flatMap(y=>[1,2,3,4].map(q=>`<option value="${y}-Q${q}">Q${q}/${y}</option>`)).join('');
+    const normalized=normalizeTaxPeriod(selected);
+    const wanted=normalized||(allowBlank?'':(payrollQuarterCode($('pyPeriod')?.value)||`${currentYear}-Q${Math.ceil((new Date().getMonth()+1)/3)}`));
     el.value=wanted;
 }
 function syncPayrollPeriodUI(autoQuarter=false){
-    const isTax=$('pyType')?.value==='tax';
-    const label=$('pyPeriodLabel');
-    if(label)label.innerHTML=(isTax?'Kỳ lương nguồn':'Kỳ lương')+' <span class="required-star">*</span>';
-    if($('pyTaxPeriodField'))$('pyTaxPeriodField').hidden=!isTax;
+    const type=$('pyType')?.value||'other',
+          isTax=type==='tax',
+          isSalary=type==='salary',
+          showQuarter=isTax||isSalary,
+          field=$('pyTaxPeriodField'),
+          periodLabel=$('pyPeriodLabel');
+
+    if(periodLabel)periodLabel.innerHTML=(isTax?'Kỳ lương nguồn':'Kỳ lương')+' <span class="required-star">*</span>';
+    if(field){
+        field.hidden=!showQuarter;
+        const fieldLabel=field.querySelector('label');
+        if(fieldLabel){
+            fieldLabel.innerHTML=isTax
+              ?'Kỳ thuế <span class="required-star">*</span>'
+              :'Quý thuế liên quan <span class="tax-period-optional">(không bắt buộc)</span>';
+        }
+    }
+
+    if(!showQuarter){
+        if($('pyTaxPeriod'))$('pyTaxPeriod').value='';
+        if($('pyPeriodHelp'))$('pyPeriodHelp').innerHTML='<b>Kỳ lương</b> dùng để biết khoản này thuộc tháng nào. BH, công đoàn, tiền ăn và các khoản khác không chia theo quý thuế. Ngày thực chi quyết định tháng dòng tiền.';
+        return;
+    }
+
+    const current=normalizeTaxPeriod($('pyTaxPeriod')?.value);
     if(isTax){
-        const current=$('pyTaxPeriod')?.value||'';
-        fillPayrollTaxPeriodOptions(autoQuarter?payrollQuarterCode($('pyPeriod')?.value):current);
+        const selected=autoQuarter?payrollQuarterCode($('pyPeriod')?.value):current;
+        fillPayrollTaxPeriodOptions(selected,false);
         const code=normalizeTaxPeriod($('pyTaxPeriod')?.value)||payrollQuarterCode($('pyPeriod')?.value);
         const due=taxDueMonth(code);
         if($('pyPeriodHelp'))$('pyPeriodHelp').innerHTML=`<b>Kỳ lương nguồn</b> = tháng lương tạo ra khoản thuế. <b>Kỳ thuế</b> = ${esc(taxPeriodLabel(code))}. Dự kiến nộp vào <b>${due?esc(fmtMonth(due)):'—'}</b>. Ngày thực nộp mới quyết định tháng dòng tiền.`;
-    }else{
-        if($('pyPeriodHelp'))$('pyPeriodHelp').innerHTML='<b>Kỳ lương</b> dùng để biết khoản này thuộc lương tháng nào. Ngày thực chi quyết định tháng dòng tiền.';
+        return;
     }
+
+    let salaryQuarter=current;
+    if(!salaryQuarter){
+        const actualMonth=monthOf($('pyActualDate')?.value||'');
+        if(actualMonth)salaryQuarter=payrollQuarterCode(actualMonth);
+    }
+    fillPayrollTaxPeriodOptions(salaryQuarter,true);
+    const code=normalizeTaxPeriod($('pyTaxPeriod')?.value);
+    if($('pyPeriodHelp'))$('pyPeriodHelp').innerHTML=code
+      ?`<b>Kỳ lương</b> = tháng lương nguồn. Khoản lương này đang gắn với <b>${esc(taxPeriodLabel(code))}</b> để nối đúng khoản Thuế TNCN; quý này không làm thay đổi tháng dòng tiền của lương.`
+      :'<b>Kỳ lương</b> = tháng lương nguồn. Có thể chọn <b>Quý thuế liên quan</b> cho Lương thực nhận; nếu để trống, hệ thống vẫn có thể suy quý thuế từ ngày thực trả lương. Ngày thực chi quyết định tháng dòng tiền.';
 }
 
 function syncSalaryCash(record){
@@ -8872,7 +8986,9 @@ function renderPayroll(){
             ?(payrollTaxPeriodCode(x)
                 ?`${esc(taxPeriodLabel(payrollTaxPeriodCode(x)))}${planned?`<div class="mep-card-sub">Dự kiến nộp ${esc(fmtMonth(planned))}</div>`:''}`
                 :'<span class="mep-card-sub">Chờ ngày trả lương</span>')
-            :'—'}</td>
+            :x.type==='salary'&&normalizeTaxPeriod(x.taxPeriod)
+              ?`${esc(taxPeriodLabel(x.taxPeriod))}<div class="mep-card-sub">Liên quan thuế</div>`
+              :'—'}</td>
           <td class="money">${money(x.amountVnd)}</td>
           <td>${fmtDate(x.actualDate)}</td>
           <td>${x.actualDate?fmtMonth(monthOf(x.actualDate)):'—'}</td>
@@ -9122,8 +9238,13 @@ function openLegacySalaryRecord(id){
     $('pyStaffGroup').value=(group==='vn'||group==='cn')?group:'unknown';
     $('pyType').value=type||'other';
     $('pyPeriod').value=month||String(x.period||'').slice(0,7)||CURRENT;
-    fillPayrollTaxPeriodOptions(x.taxPeriod||payrollQuarterCode($('pyPeriod').value));
-    $('pyTaxPeriod').value=normalizeTaxPeriod(x.taxPeriod)||payrollQuarterCode($('pyPeriod').value);
+    const legacyQuarter=type==='tax'
+      ?(normalizeTaxPeriod(x.taxPeriod)||payrollQuarterCode($('pyPeriod').value))
+      :type==='salary'
+        ?(normalizeTaxPeriod(x.taxPeriod)||(x.actualDate?payrollQuarterCode(monthOf(x.actualDate)):''))
+        :'';
+    fillPayrollTaxPeriodOptions(legacyQuarter,type==='salary');
+    $('pyTaxPeriod').value=legacyQuarter;
     $('pyAmount').value=num(x.amount)>0?money(x.amount):'';
     $('pyActualDate').value=x.actualDate||'';
     $('pyNote').value=x.description||x.category||x.originalSubClass||'';
@@ -9148,7 +9269,11 @@ async function saveLegacySalaryOverride(){
           staffGroup=$('pyStaffGroup').value||'unknown',
           type=$('pyType').value||'other',
           payrollMonth=$('pyPeriod').value,
-          taxPeriod=type==='tax'?(normalizeTaxPeriod($('pyTaxPeriod').value)||payrollQuarterCode(payrollMonth)):'',
+          taxPeriod=type==='tax'
+            ?(normalizeTaxPeriod($('pyTaxPeriod').value)||payrollQuarterCode(payrollMonth))
+            :type==='salary'
+              ?normalizeTaxPeriod($('pyTaxPeriod').value)
+              :'',
           amount=parseTxnMoney($('pyAmount').value),
           actualDate=$('pyActualDate').value,
           note=$('pyNote').value.trim();
@@ -9214,8 +9339,14 @@ function openSalaryRecord(id=null){
     $('pyStaffGroup').value=x?inferPayrollStaffGroup(x):'vn';
     $('pyType').value=x?.type||'salary';
     $('pyPeriod').value=x?.payrollMonth||CURRENT;
-    fillPayrollTaxPeriodOptions(x?.taxPeriod||payrollQuarterCode($('pyPeriod').value));
-    $('pyTaxPeriod').value=normalizeTaxPeriod(x?.taxPeriod)||payrollQuarterCode($('pyPeriod').value);
+    const recordType=x?.type||'salary';
+    const recordQuarter=recordType==='tax'
+      ?(x?payrollTaxPeriodCode(x):payrollQuarterCode($('pyPeriod').value))
+      :recordType==='salary'
+        ?(normalizeTaxPeriod(x?.taxPeriod)||(x?.actualDate?payrollQuarterCode(monthOf(x.actualDate)):''))
+        :'';
+    fillPayrollTaxPeriodOptions(recordQuarter,recordType==='salary');
+    $('pyTaxPeriod').value=recordQuarter;
     $('pyAmount').value=x?.amountVnd?money(x.amountVnd):'';
     $('pyActualDate').value=x?.actualDate||'';
     $('pyNote').value=x?.note||'';
@@ -9315,7 +9446,7 @@ async function parseSalaryExcelFile(file){
 
 async function commitSalaryImport(){
     if(!ensureMepWrite())return;if(!salaryImportPreview.length)return;const arr=[...(cashCloudState.salaryRecords||[])],batchId=mepId('payroll_batch');let added=0,updated=0,skipped=0,locked=0;
-    salaryImportPreview.forEach(input=>{const key=payrollKey(input),i=arr.findIndex(x=>payrollKey(x)===key);if(i>=0){const old=arr[i];if(old.actualDate){locked++;return}if(Math.abs(num(old.amountVnd)-num(input.amountVnd))<.01){skipped++;return}arr[i]={...old,...input,id:old.id,cashTxnId:old.cashTxnId||'',batchId,updatedAt:new Date().toISOString()};syncSalaryCash(arr[i]);updated++;return}
+    salaryImportPreview.forEach(input=>{const key=payrollKey(input),i=arr.findIndex(x=>payrollKey(x)===key);if(i>=0){const old=arr[i];if(old.actualDate){locked++;return}if(Math.abs(num(old.amountVnd)-num(input.amountVnd))<.01){skipped++;return}arr[i]={...old,...input,taxPeriod:normalizeTaxPeriod(input.taxPeriod)||normalizeTaxPeriod(old.taxPeriod)||'',id:old.id,cashTxnId:old.cashTxnId||'',batchId,updatedAt:new Date().toISOString()};syncSalaryCash(arr[i]);updated++;return}
         const record={...input,id:mepId('payroll'),batchId,cashTxnId:'',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};syncSalaryCash(record);arr.push(record);added++});cashCloudState.salaryRecords=arr;pushAudit('payroll','Nhập dữ liệu lương & thuế',batchId,`Thêm ${added} · cập nhật ${updated} · bỏ qua ${skipped} · khóa ${locked}`);
     if(await persistCashCloud('Nhập dữ liệu lương & thuế')){salaryImportPreview=[];salaryImportErrors=[];$('salaryPasteData').value='';$('salaryExcelFile').value='';$('salaryImportModal').classList.remove('show');showView('payroll');renderAll();alert(`Đã nhập xong.\nThêm mới: ${added}\nCập nhật: ${updated}\nGiống hệt bỏ qua: ${skipped}\nDòng đã thanh toán được khóa: ${locked}`)}
 }
@@ -9387,7 +9518,7 @@ function exportMEPWorkbook(){
     add('De nghi thanh toan',(cashCloudState.paymentRequests||[]).map(x=>({'Số đề nghị':x.number,'Dự án':x.project,'Người nhận / NCC':x.recipient,'Nhóm chi':x.category,'Số tiền đề nghị':num(x.amount),'Đã trả':num(x.paidAmount),'Còn phải trả':requestOutstanding(x),'Hạn thanh toán':x.dueDate,'Ngày thực trả':x.actualDate,'Tài khoản chi':x.account,'Ưu tiên':x.priority,'Trạng thái':REQUEST_STATUS_LABELS[x.status]||x.status,'Người đề nghị':x.requester,'Mã Payment / UNC':x.paymentRef,'Nội dung':x.note})),[18,14,30,28,18,18,18,16,16,22,12,22,20,20,36]);
     add('Bao lanh',(cashCloudState.guarantees||[]).map(x=>({'Dự án':x.project,'Loại bảo lãnh':GUARANTEE_TYPE_LABELS[x.type]||x.type,'Ngân hàng':x.bank,'Số bảo lãnh':x.number,'Giá trị':num(x.amount),'Ký quỹ':num(x.collateral),'Phí':num(x.fee),'Ngày phát hành':x.issueDate,'Ngày hết hạn':x.expiryDate,'Trạng thái':effectiveGuaranteeStatus(x),'Ghi chú':x.note})),[14,22,24,20,18,18,16,16,16,16,34]);
     add('Han muc - Khoan vay',(cashCloudState.facilities||[]).map(x=>({'Loại':x.kind==='loan'?'Khoản vay':'Hạn mức tín dụng','Ngân hàng':x.bank,'Số hợp đồng / hạn mức':x.number,'Dự án':x.project,'Mục đích':x.purpose,'Hạn mức / Gốc':num(x.limitAmount),'Đã sử dụng / Dư nợ':num(x.usedAmount),'Còn lại':Math.max(num(x.limitAmount)-num(x.usedAmount),0),'Lãi suất %/năm':num(x.interestRate),'Ngày trả nợ kế tiếp':x.nextPaymentDate,'Gốc đến hạn':num(x.principalDue),'Lãi đến hạn':num(x.interestDue),'Ngày bắt đầu':x.startDate,'Ngày hết hạn':x.endDate,'Trạng thái':x.status,'Ghi chú':x.note})),[20,24,24,14,30,18,20,18,16,18,18,18,14,14,16,34]);
-    add('Luong - Thue',(cashCloudState.salaryRecords||[]).map(x=>({'Dự án':x.project,'Nhóm nhân sự':payrollStaffGroupLabel(x),'Khoản mục':PAYROLL_TYPE_LABELS[x.type]||x.type,'Kỳ phát sinh':x.payrollMonth,'Kỳ thuế / dự kiến nộp':x.type==='tax'?payrollTaxScheduleText(x):'','Số tiền VND':num(x.amountVnd),'Ngày thực chi / nộp':x.actualDate,'Tháng dòng tiền':monthOf(x.actualDate),'Tài khoản chi':x.account,'Nguồn nhập':PAYROLL_SOURCE_LABELS[x.sourceType]||x.sourceType,'File nguồn':x.sourceFile,'Sheet nguồn':x.sourceSheet,'Trạng thái':x.actualDate?'Đã thực chi':'Chưa thực chi','Ghi chú':x.note})),[18,22,16,18,20,18,16,24,18,28,28,18,36]);
+    add('Luong - Thue',(cashCloudState.salaryRecords||[]).map(x=>({'Dự án':x.project,'Nhóm nhân sự':payrollStaffGroupLabel(x),'Khoản mục':PAYROLL_TYPE_LABELS[x.type]||x.type,'Kỳ phát sinh':x.payrollMonth,'Kỳ thuế / dự kiến nộp':(x.type==='tax'||x.type==='salary')?payrollTaxScheduleText(x):'','Số tiền VND':num(x.amountVnd),'Ngày thực chi / nộp':x.actualDate,'Tháng dòng tiền':monthOf(x.actualDate),'Tài khoản chi':x.account,'Nguồn nhập':PAYROLL_SOURCE_LABELS[x.sourceType]||x.sourceType,'File nguồn':x.sourceFile,'Sheet nguồn':x.sourceSheet,'Trạng thái':x.actualDate?'Đã thực chi':'Chưa thực chi','Ghi chú':x.note})),[18,22,16,18,20,18,16,24,18,28,28,18,36]);
     add('Doi tac',(cashCloudState.partnerMasters||[]).map(x=>({'Mã':x.code,'Tên đối tác':x.name,'Loại':PARTNER_TYPE_LABELS[x.type]||x.type,'Mã số thuế':x.taxCode,'Người liên hệ':x.contact,'Điện thoại':x.phone,'Email':x.email,'Điều khoản thanh toán':x.paymentTerms,'Ghi chú':x.note})),[14,34,24,18,22,18,28,30,36]);
     add('Nhat ky',(cashCloudState.auditLog||[]).map(x=>({'Thời gian':x.at,'Người cập nhật':x.by,'Phân hệ':x.module,'Hành động':x.action,'Chi tiết':x.detail})),[22,18,18,28,48]);
     XLSX.writeFile(wb,`MEP_Cash_Control_${isoToday()}.xlsx`);
@@ -9490,42 +9621,178 @@ function ccPlanRows(month,cutoffDate=''){
 
     return rows.sort((a,b)=>a.project.localeCompare(b.project)||a.type.localeCompare(b.type)||String(a.label).localeCompare(String(b.label)));
 }
-function outstandingTaxRows(project=''){
+function outstandingTaxRowsAsOf(cutoffDate='',project=''){
+    const cutoff=String(cutoffDate||'').trim();
     const target=normProject(project),rows=[];
     (cashCloudState.salaryRecords||[]).forEach(x=>{
-        if(x.type!=='tax'||x.actualDate)return;
+        if(x.type!=='tax')return;
+        /*
+          No cutoff = current outstanding: any row with actual tax payment date is settled.
+          With cutoff = historical position at that date: a tax paid after the cutoff
+          was still outstanding on the cutoff date and must remain visible.
+        */
+        if(x.actualDate&&(!cutoff||String(x.actualDate)<=cutoff))return;
         const pr=normProject(x.project);if(!pr||target&&pr!==target)return;
         const amount=num(x.amountVnd);if(amount<=0)return;
-        rows.push({project:pr,period:x.payrollMonth||'',quarter:payrollTaxQuarter(x),taxPeriod:payrollTaxPeriodCode(x),dueMonth:payrollPlannedMonth(x),amount,source:'Lương & thuế'});
+        rows.push({
+            project:pr,
+            period:x.payrollMonth||'',
+            quarter:payrollTaxQuarter(x),
+            taxPeriod:payrollTaxPeriodCode(x),
+            dueMonth:payrollPlannedMonth(x),
+            amount,
+            source:'Lương & thuế'
+        });
     });
     legacySalary().forEach(x=>{
-        const pr=normProject(x.project);if(!pr||target&&pr!==target||x.status==='paid')return;
+        const pr=normProject(x.project);if(!pr||target&&pr!==target)return;
         const isTax=x.subCode==='TH'||/个税|所得税|thuế\s*tncn|thue\s*tncn/i.test(String(x.description||x.category||''));
         if(!isTax)return;
+        if(x.status==='paid'){
+            if(!x.actualDate)return;
+            if(!cutoff||String(x.actualDate)<=cutoff)return;
+        }
         const amount=num(x.amount);if(amount<=0)return;
         const period=String(x.period||x.payrollMonth||'');
         const dueMonth=String(x.recognizedMonth||x.expectedDate||'').slice(0,7);
-        rows.push({project:pr,period,quarter:/^\d{4}-\d{2}$/.test(period)?payrollQuarter(period):(period||'Kỳ cũ'),dueMonth,amount,source:'Lịch sử bàn giao'});
+        rows.push({
+            project:pr,
+            period,
+            quarter:/^\d{4}-\d{2}$/.test(period)?payrollQuarter(period):(period||'Kỳ cũ'),
+            dueMonth,
+            amount,
+            source:'Lịch sử bàn giao'
+        });
     });
-    return rows.sort((a,b)=>String(a.dueMonth||'9999').localeCompare(String(b.dueMonth||'9999'))||String(a.period).localeCompare(String(b.period)));
+    return rows.sort((a,b)=>
+        String(a.dueMonth||'9999').localeCompare(String(b.dueMonth||'9999'))||
+        String(a.period).localeCompare(String(b.period))
+    );
+}
+function outstandingTaxRows(project=''){
+    return outstandingTaxRowsAsOf('',project);
+}
+function taxOutstandingBreakdownFromRows(rows,month){
+    const selected=String(month||CURRENT);
+    const selectedIdx=monthIndex(selected);
+    const dueMap=new Map(),futureMap=new Map(),totalMap=new Map();
+    const add=(map,project,amount)=>{
+        project=normProject(project);amount=num(amount);
+        if(!project||amount<=0)return;
+        map.set(project,(map.get(project)||0)+amount);
+    };
+    (Array.isArray(rows)?rows:[]).forEach(x=>{
+        const due=String(x?.dueMonth||'');
+        const future=/^\d{4}-\d{2}$/.test(due)&&monthIndex(due)>selectedIdx;
+        add(totalMap,x.project,x.amount);
+        add(future?futureMap:dueMap,x.project,x.amount);
+    });
+    return {dueMap,futureMap,totalMap};
+}
+function outstandingTaxBreakdownByProjectAsOf(month,cutoffDate=''){
+    return taxOutstandingBreakdownFromRows(
+        outstandingTaxRowsAsOf(cutoffDate,''),
+        month
+    );
 }
 function outstandingTaxByProject(){
-    const map=new Map();outstandingTaxRows().forEach(x=>map.set(x.project,(map.get(x.project)||0)+x.amount));return map;
+    return taxOutstandingBreakdownFromRows(outstandingTaxRows(),CURRENT).totalMap;
 }
-function openTaxOutstanding(project){
-    project=normProject(project);const rows=outstandingTaxRows(project),total=rows.reduce((s,x)=>s+x.amount,0);
-    const due=rows.map(x=>x.dueMonth).filter(x=>/^\d{4}-\d{2}$/.test(x)).sort()[0]||'';
+function taxDueGroupMeta(dueMonth,selectedMonth,lang=cashLang){
+    const due=String(dueMonth||'');
+    const selected=String(selectedMonth||CURRENT);
+    const valid=/^\d{4}-\d{2}$/.test(due);
+    const fmt=value=>fmtMonth(value);
+    const dict={
+      vi:{
+        current:m=>`CẦN NỘP TRONG ${fmt(m).toUpperCase()}`,
+        overdue:m=>`QUÁ HẠN · DỰ KIẾN NỘP ${fmt(m).toUpperCase()}`,
+        future:m=>`CHƯA ĐẾN HẠN · NỘP ${fmt(m).toUpperCase()}`,
+        unknown:'CHƯA XÁC ĐỊNH KỲ NỘP'
+      },
+      zh:{
+        current:m=>`${fmt(m)}应缴`,
+        overdue:m=>`已逾期 · 原预计${fmt(m)}缴纳`,
+        future:m=>`未到期 · ${fmt(m)}缴纳`,
+        unknown:'未确定缴纳月份'
+      },
+      en:{
+        current:m=>`DUE IN ${fmt(m).toUpperCase()}`,
+        overdue:m=>`OVERDUE · PLANNED ${fmt(m).toUpperCase()}`,
+        future:m=>`NOT YET DUE · PAY ${fmt(m).toUpperCase()}`,
+        unknown:'PAYMENT MONTH NOT SET'
+      }
+    }[lang]||null;
+    if(!valid)return {status:'unknown',label:dict.unknown};
+    if(due<selected)return {status:'overdue',label:dict.overdue(due)};
+    if(due===selected)return {status:'current',label:dict.current(due)};
+    return {status:'future',label:dict.future(due)};
+}
+function openTaxOutstanding(project,monthOverride='',cutoffOverride=''){
+    project=normProject(project);
+    const month=String(monthOverride||$('fundsMonth')?.value||$('rMonth')?.value||CURRENT);
+    const cutoff=String(cutoffOverride||'').trim();
+    const rows=cutoff?outstandingTaxRowsAsOf(cutoff,project):outstandingTaxRows(project);
+    const total=rows.reduce((s,x)=>s+x.amount,0);
+    const breakdown=taxOutstandingBreakdownFromRows(rows,month);
+    const dueTotal=breakdown.dueMap.get(project)||0;
+    const futureTotal=breakdown.futureMap.get(project)||0;
+
+    const modal=$('taxOutstandingModal');
+    if(modal){
+        modal.dataset.project=project;
+        modal.dataset.month=month;
+        modal.dataset.cutoff=cutoff;
+        const futureDue=rows
+            .map(x=>String(x.dueMonth||''))
+            .filter(x=>/^\d{4}-\d{2}$/.test(x)&&x>month)
+            .sort()[0]||'';
+        modal.dataset.nextFuture=futureDue;
+    }
+
     if($('taxOutstandingTitle'))$('taxOutstandingTitle').textContent=`Thuế chưa nộp · ${project}`;
-    if($('taxOutstandingSub'))$('taxOutstandingSub').textContent='Chỉ hiển thị nghĩa vụ chưa có ngày thực nộp. Lương tháng mới không bị nhập nhầm vào kỳ thuế cũ.';
+    if($('taxOutstandingSub'))$('taxOutstandingSub').textContent=`Tách theo tháng phải nộp. Toàn bộ số chưa nộp vẫn được giữ trong nhu cầu vốn để chừa nguồn; nhóm chỉ giúp phân biệt thời điểm phải nộp.`;
     if($('taxOutstandingTotal'))$('taxOutstandingTotal').textContent=money(total);
-    if($('taxOutstandingPeriods'))$('taxOutstandingPeriods').textContent=String(new Set(rows.map(x=>`${x.quarter}|${x.dueMonth}`)).size);
-    if($('taxOutstandingNextDue'))$('taxOutstandingNextDue').textContent=due?fmtMonth(due):'—';
-    if($('taxOutstandingDetailBody'))$('taxOutstandingDetailBody').innerHTML=rows.map(x=>{
-        const overdue=!!(x.dueMonth&&x.dueMonth<CURRENT);
-        const sourceTone=/Lương|thuế/i.test(String(x.source||''))?'payroll':'legacy';
-        return `<tr><td><span class="tax-period-pill">${esc(x.quarter||'—')}</span></td><td>${/^\d{4}-\d{2}$/.test(x.period)?fmtMonth(x.period):esc(x.period||'—')}</td><td>${x.dueMonth?`<span class="tax-due ${overdue?'overdue':''}">${fmtMonth(x.dueMonth)}</span>`:'—'}</td><td class="money tax-money">${money(x.amount)}</td><td><span class="tax-source-pill ${sourceTone}">${esc(x.source)}</span></td></tr>`;
-    }).join('')||'<tr><td colspan="5" class="mep-empty">Project này hiện không có thuế chưa nộp.</td></tr>';
-    if($('taxOutstandingDetailFoot'))$('taxOutstandingDetailFoot').innerHTML=rows.length?`<tr><th colspan="3">Tổng chưa nộp</th><th class="money">${money(total)}</th><th></th></tr>`:'';
+    if($('taxOutstandingPeriods'))$('taxOutstandingPeriods').textContent=money(dueTotal);
+    if($('taxOutstandingNextDue'))$('taxOutstandingNextDue').textContent=money(futureTotal);
+
+    const grouped=new Map();
+    rows.forEach(x=>{
+        const key=/^\d{4}-\d{2}$/.test(String(x.dueMonth||''))?String(x.dueMonth):'';
+        if(!grouped.has(key))grouped.set(key,[]);
+        grouped.get(key).push(x);
+    });
+    const groupKeys=[...grouped.keys()].sort((a,b)=>{
+        if(!a)return 1;
+        if(!b)return -1;
+        return a.localeCompare(b);
+    });
+
+    if($('taxOutstandingDetailBody')){
+        $('taxOutstandingDetailBody').innerHTML=groupKeys.map(key=>{
+            const groupRows=grouped.get(key)||[];
+            const groupTotal=groupRows.reduce((s,x)=>s+num(x.amount),0);
+            const meta=taxDueGroupMeta(key,month,cashLang);
+            const groupHead=`<tr class="tax-due-group-row ${meta.status}" data-tax-due-group="${esc(key)}" data-tax-due-status="${esc(meta.status)}">
+                <td colspan="4"><span class="tax-due-group-label">${esc(meta.label)}</span><b>${money(groupTotal)}</b></td>
+            </tr>`;
+            const detail=groupRows.map(x=>{
+                const sourceTone=/Lương|thuế/i.test(String(x.source||''))?'payroll':'legacy';
+                return `<tr>
+                    <td><span class="tax-period-pill">${esc(x.quarter||'—')}</span></td>
+                    <td>${/^\d{4}-\d{2}$/.test(x.period)?fmtMonth(x.period):esc(x.period||'—')}</td>
+                    <td class="money tax-money">${money(x.amount)}</td>
+                    <td><span class="tax-source-pill ${sourceTone}">${esc(x.source)}</span></td>
+                </tr>`;
+            }).join('');
+            return groupHead+detail;
+        }).join('')||'<tr><td colspan="4" class="mep-empty">Project này hiện không có thuế chưa nộp.</td></tr>';
+    }
+    if($('taxOutstandingDetailFoot')){
+        $('taxOutstandingDetailFoot').innerHTML=rows.length
+            ? `<tr><th colspan="2">Tổng chưa nộp</th><th class="money">${money(total)}</th><th></th></tr>`
+            : '';
+    }
     openModal('taxOutstandingModal');
 }
 
@@ -9730,20 +9997,9 @@ function syncFundsCutoffDate(month,force=false){
     return input.value;
 }
 function outstandingTaxByProjectAsOf(cutoffDate){
-    const cutoff=String(cutoffDate||'').trim(),map=new Map();
-    const add=(project,amount)=>{project=normProject(project);amount=num(amount);if(!project||amount<=0)return;map.set(project,(map.get(project)||0)+amount)};
-    (cashCloudState.salaryRecords||[]).forEach(x=>{
-        if(x.type!=='tax')return;
-        if(x.actualDate&&cutoff&&String(x.actualDate)<=cutoff)return;
-        add(x.project,x.amountVnd);
-    });
-    legacySalary().forEach(x=>{
-        const isTax=x.subCode==='TH'||/个税|所得税|thuế\s*tncn|thue\s*tncn/i.test(String(x.description||x.category||''));
-        if(!isTax)return;
-        if(x.status==='paid'&&x.actualDate&&cutoff&&String(x.actualDate)<=cutoff)return;
-        if(x.status==='paid'&&!x.actualDate)return;
-        add(x.project,x.amount);
-    });
+    const rows=outstandingTaxRowsAsOf(cutoffDate,'');
+    const map=new Map();
+    rows.forEach(x=>map.set(x.project,(map.get(x.project)||0)+num(x.amount)));
     return map;
 }
 
@@ -9933,19 +10189,52 @@ function renderFunds(){
     if($('fundsMonth')&&!$('fundsMonth').value)$('fundsMonth').value=month;
     const cutoff=syncFundsCutoffDate(month,false);
     const q=String($('fundsSearch')?.value||'').trim().toLowerCase();
-    const planRows=ccPlanRows(month,cutoff),taxOutstandingMap=outstandingTaxByProjectAsOf(cutoff);
+    const planRows=ccPlanRows(month,cutoff);
+    const taxBreakdown=outstandingTaxBreakdownByProjectAsOf(month,cutoff);
+    const taxDueMap=taxBreakdown.dueMap;
+    const taxTotalMap=taxBreakdown.totalMap;
+    const taxFutureMap=taxBreakdown.futureMap;
     const payrollRemainingMap=payrollRemainingByProjectAsOf(month,cutoff);
+
     const allRows=allProjects().map(p=>{
-        const st=ccPlanProjectStats(p,month,planRows,taxOutstandingMap,cutoff);
-        const payroll=payrollRemainingMap.get(normProject(p))||0;
+        /*
+          Funding need reserves the FULL known unpaid-tax liability. This keeps
+          projected/free cash conservative: future-quarter tax is already a known
+          obligation even when its legal payment month is later. The due/future
+          split is presentation-only so users can still see timing clearly.
+        */
+        const st=ccPlanProjectStats(p,month,planRows,taxTotalMap,cutoff);
+        const key=normProject(p);
+        const payroll=payrollRemainingMap.get(key)||0;
+        const taxOutstandingTotal=taxTotalMap.get(key)||0;
+        const taxDue=taxDueMap.get(key)||0;
+        const taxFuture=taxFutureMap.get(key)||0;
         const remainingPlannedOut=st.payment+st.indirect+payroll+st.taxOutstanding+st.other;
         const projected=st.actualBalance+st.expectedIn-remainingPlannedOut;
-        return {...st,payroll,taxPlan:st.taxOutstanding,remainingPlannedOut,projected};
+        return {
+            ...st,
+            payroll,
+            taxPlan:st.taxOutstanding,
+            taxOutstandingTotal,
+            taxDue,
+            taxFuture,
+            remainingPlannedOut,
+            projected
+        };
     });
     const rows=allRows
         .filter(x=>!fundsOnlyActiveProjects || isFundsRowActive(x))
         .filter(x=>!q || String(x.p||'').toLowerCase().includes(q));
-    const totals=allRows.reduce((a,x)=>{Object.keys(a).forEach(k=>a[k]+=num(x[k]));return a},{op:0,expectedIn:0,payment:0,indirect:0,payroll:0,taxPlan:0,taxOutstanding:0,other:0,remainingPlannedOut:0,projected:0,actualIn:0,actualOut:0,actualBalance:0});
+    const totals=allRows.reduce((a,x)=>{
+        Object.keys(a).forEach(k=>a[k]+=num(x[k]));
+        return a;
+    },{
+        op:0,expectedIn:0,payment:0,indirect:0,payroll:0,
+        taxPlan:0,taxOutstanding:0,taxOutstandingTotal:0,taxDue:0,taxFuture:0,
+        other:0,remainingPlannedOut:0,projected:0,
+        actualIn:0,actualOut:0,actualBalance:0
+    });
+
     $('fundsOpening').textContent=money(totals.op);
     $('fundsExpectedIn').textContent=money(totals.expectedIn);
     $('fundsPlannedOut').textContent=money(totals.payment+totals.indirect+totals.payroll+totals.taxOutstanding+totals.other);
@@ -9963,7 +10252,8 @@ function renderFunds(){
         $('fundsPlannedOut').textContent='Chưa tải đủ Payment';
         $('fundsProjected').textContent='—';
     }
-    if($('fundsTaxOutstanding'))$('fundsTaxOutstanding').textContent=money(totals.taxOutstanding);
+    /* KPI keeps the full unpaid-tax liability, including future-due tax. */
+    if($('fundsTaxOutstanding'))$('fundsTaxOutstanding').textContent=money(totals.taxOutstandingTotal);
     const sheetNote=document.querySelector('#fundsView .cc-sheet-head span');
     $('fundsView')?.classList.toggle('payment-incomplete',!!currentAuthUser&&!paymentReady);
     if(sheetNote)sheetNote.textContent=`Chốt số dư đến ${fmtDate(cutoff)} · Click dự án để mở sổ dòng tiền thực tế.`;
@@ -9971,7 +10261,11 @@ function renderFunds(){
     $('fundsBody').innerHTML=rows.map(x=>{
       const remainingNeed=x.remainingPlannedOut||0,
             cls=x.projected<0?'bad':(remainingNeed>0&&x.projected<remainingNeed*.1)?'warn':'good',
-            label=x.projected<0?'THIẾU NGUỒN':cls==='warn'?'SÁT NGƯỠNG':'ĐỦ NGUỒN';
+            label=x.projected<0?'THIẾU NGUỒN':cls==='warn'?'SÁT NGƯỠNG':'ĐỦ NGUỒN',
+            taxTotal=num(x.taxOutstandingTotal),
+            taxCell=taxTotal>0
+              ? `<button class="tax-outstanding-btn" data-tax-project="${esc(x.project)}" title="Xem chi tiết thuế chưa nộp">${money(taxTotal)}</button>`
+              : `<span class="tax-outstanding-btn zero">0</span>`;
       return `<tr>
         <td><button class="project-link" data-cc-project="${esc(x.project)}">${esc(x.project)}</button></td>
 
@@ -9996,7 +10290,7 @@ function renderFunds(){
         }</td>
         <td class="money">${money(x.indirect)}</td>
         <td class="money">${money(x.payroll)}</td>
-        <td class="money">${x.taxOutstanding>0?`<button class="tax-outstanding-btn" data-tax-project="${esc(x.project)}">${money(x.taxOutstanding)}</button>`:`<span class="tax-outstanding-btn zero">0</span>`}</td>
+        <td class="money">${taxCell}</td>
         <td class="money">${money(x.other)}</td>
         <td class="money funds-total-need"><b>${money(remainingNeed)}</b></td>
 
@@ -10004,7 +10298,11 @@ function renderFunds(){
         <td><span class="cc-status ${cls}">${label}</span></td>
       </tr>`;
     }).join('')||'<tr><td colspan="14" class="mep-empty">Chưa có dự án.</td></tr>';
-    document.querySelectorAll('[data-tax-project]').forEach(btn=>btn.onclick=e=>{e.stopPropagation();openTaxOutstanding(btn.dataset.taxProject||'')});
+
+    document.querySelectorAll('[data-tax-project]').forEach(btn=>btn.onclick=e=>{
+        e.stopPropagation();
+        openTaxOutstanding(btn.dataset.taxProject||'',month,cutoff);
+    });
     document.querySelectorAll('[data-payment-rem-project]').forEach(btn=>btn.onclick=e=>{
         e.stopPropagation();
         openPaymentRemaining(btn.dataset.paymentRemProject||'');
@@ -10017,6 +10315,7 @@ function renderFunds(){
         e.stopPropagation();
         openActualOutOverview(btn.dataset.actualOutProject||'');
     });
+
     $('fundsFoot').innerHTML=`<tr>
       <th>TỔNG</th>
 
@@ -10029,7 +10328,7 @@ function renderFunds(){
       <td class="money">${money(totals.payment)}</td>
       <td class="money">${money(totals.indirect)}</td>
       <td class="money">${money(totals.payroll)}</td>
-      <td class="money">${money(totals.taxOutstanding)}</td>
+      <td class="money">${money(totals.taxOutstandingTotal)}</td>
       <td class="money">${money(totals.other)}</td>
       <td class="money funds-total-need">${money(totals.remainingPlannedOut)}</td>
 
@@ -11121,8 +11420,29 @@ if($('savePaymentRequest'))$('savePaymentRequest').onclick=async()=>{
     if(await persistCashCloud(old?'Cập nhật đề nghị thanh toán':'Tạo đề nghị thanh toán')){$('paymentRequestModal').classList.remove('show');editingPaymentRequestId=null;renderAll()}
 };
 
-if($('pyType'))$('pyType').onchange=()=>syncPayrollPeriodUI(true);
-if($('pyPeriod'))$('pyPeriod').onchange=()=>syncPayrollPeriodUI(true);
+if($('pyType'))$('pyType').onchange=()=>{
+    const type=$('pyType').value||'other';
+    if(type==='tax'){
+        if($('pyTaxPeriod'))$('pyTaxPeriod').value=payrollQuarterCode($('pyPeriod')?.value);
+    }else if(type==='salary'){
+        const actualMonth=monthOf($('pyActualDate')?.value||'');
+        if($('pyTaxPeriod'))$('pyTaxPeriod').value=actualMonth?payrollQuarterCode(actualMonth):'';
+    }else if($('pyTaxPeriod')){
+        $('pyTaxPeriod').value='';
+    }
+    syncPayrollPeriodUI(false);
+};
+if($('pyPeriod'))$('pyPeriod').onchange=()=>{
+    if($('pyType')?.value==='tax')syncPayrollPeriodUI(true);
+    else syncPayrollPeriodUI(false);
+};
+if($('pyActualDate'))$('pyActualDate').onchange=()=>{
+    if($('pyType')?.value==='salary'&&!normalizeTaxPeriod($('pyTaxPeriod')?.value)){
+        const actualMonth=monthOf($('pyActualDate').value||'');
+        if(actualMonth)$('pyTaxPeriod').value=payrollQuarterCode(actualMonth);
+    }
+    syncPayrollPeriodUI(false);
+};
 if($('pyTaxPeriod'))$('pyTaxPeriod').onchange=()=>syncPayrollPeriodUI(false);
 if($('addSalaryRecord'))$('addSalaryRecord').onclick=()=>{editingLegacySalaryId=null;openSalaryRecord()};
 if($('openSalaryImport'))$('openSalaryImport').onclick=()=>{
@@ -11144,7 +11464,11 @@ if($('saveSalaryRecord'))$('saveSalaryRecord').onclick=async()=>{
     const project=normProject($('pyProject').value),
           type=$('pyType').value||'other',
           payrollMonth=$('pyPeriod').value,
-          taxPeriod=type==='tax'?(normalizeTaxPeriod($('pyTaxPeriod').value)||payrollQuarterCode(payrollMonth)):'',
+          taxPeriod=type==='tax'
+            ?(normalizeTaxPeriod($('pyTaxPeriod').value)||payrollQuarterCode(payrollMonth))
+            :type==='salary'
+              ?normalizeTaxPeriod($('pyTaxPeriod').value)
+              :'',
           amountVnd=parseTxnMoney($('pyAmount').value);
 
     if(!project||!payrollMonth||amountVnd<=0){
@@ -11522,10 +11846,33 @@ function syncV41Top(){
 
 function syncV41TaxModal(projectOverride=''){
   const modal=$('taxOutstandingModal');if(!modal)return;
+  const month=String(modal.dataset.month||$('fundsMonth')?.value||$('rMonth')?.value||CURRENT);
+  const monthText=fmtMonth(month);
   const d={
-    vi:{title:'Thuế chưa nộp',sub:'Chỉ hiển thị nghĩa vụ chưa có ngày thực nộp. Lương tháng mới không bị nhập nhầm vào kỳ thuế cũ.',stats:['Tổng chưa nộp','Số kỳ đang treo','Kỳ gần nhất phải nộp'],heads:['Kỳ thuế','Tháng lương / kỳ phát sinh','Dự kiến nộp','Còn chưa nộp','Nguồn'],total:'Tổng chưa nộp',empty:'Project này hiện không có thuế chưa nộp.'},
-    zh:{title:'未缴税费',sub:'仅显示尚无实际缴纳日期的税费义务。新月份工资不会误计入旧税期。',stats:['未缴合计','未结期间数','最近应缴月份'],heads:['税期','工资月份 / 发生期','预计缴纳','尚未缴纳','来源'],total:'未缴合计',empty:'该项目目前没有未缴税费。'},
-    en:{title:'Outstanding tax',sub:'Shows only tax obligations without an actual payment date. New payroll months are not mixed into older tax periods.',stats:['Total outstanding','Open periods','Next due month'],heads:['Tax period','Payroll month / accrual period','Planned payment','Outstanding','Source'],total:'Total outstanding',empty:'This project currently has no outstanding tax.'}
+    vi:{
+      title:'Thuế chưa nộp',
+      sub:`Tách theo tháng phải nộp. Chỉ phần đến hạn đến ${monthText} được tính vào nhu cầu vốn tháng.`,
+      stats:['Tổng chưa nộp',`Cần nộp đến ${monthText}`,'Chưa đến hạn'],
+      heads:['Kỳ thuế','Tháng lương / kỳ phát sinh','Còn chưa nộp','Nguồn'],
+      total:'Tổng chưa nộp',
+      empty:'Project này hiện không có thuế chưa nộp.'
+    },
+    zh:{
+      title:'未缴税费',
+      sub:`按应缴月份拆分；仅截至${monthText}已到期部分计入本月资金需求。`,
+      stats:['未缴合计',`截至${monthText}应缴`,'未到期'],
+      heads:['税期','工资月份 / 发生期','尚未缴纳','来源'],
+      total:'未缴合计',
+      empty:'该项目目前没有未缴税费。'
+    },
+    en:{
+      title:'Outstanding tax',
+      sub:`Split by due month. Only tax due through ${monthText} is included in this month's funding need.`,
+      stats:['Total outstanding',`Due through ${monthText}`,'Not yet due'],
+      heads:['Tax period','Payroll month / accrual period','Outstanding','Source'],
+      total:'Total outstanding',
+      empty:'This project currently has no outstanding tax.'
+    }
   }[v41Lang()];
   const current=String(projectOverride||modal.dataset.project||'').trim();if(current)modal.dataset.project=current;
   if($('taxOutstandingTitle'))$('taxOutstandingTitle').textContent=current?`${d.title} · ${current}`:d.title;
@@ -11534,7 +11881,19 @@ function syncV41TaxModal(projectOverride=''){
   [...modal.querySelectorAll('.tax-detail-table thead th')].forEach((el,i)=>{if(d.heads[i])el.textContent=d.heads[i]});
   const foot=modal.querySelector('.tax-detail-table tfoot th:first-child');if(foot)foot.textContent=d.total;
   const empty=modal.querySelector('.mep-empty');if(empty)empty.textContent=d.empty;
-  modal.querySelectorAll('.tax-source-pill').forEach(el=>{const raw=String(el.textContent||'').trim();if(CASH_I18N[raw])el.textContent=cashT(raw)});
+  modal.querySelectorAll('.tax-source-pill').forEach(el=>{
+      const raw=String(el.textContent||'').trim();
+      if(CASH_I18N[raw])el.textContent=cashT(raw);
+  });
+  modal.querySelectorAll('.tax-due-group-row').forEach(row=>{
+      const due=String(row.dataset.taxDueGroup||'');
+      const meta=taxDueGroupMeta(due,month,v41Lang());
+      row.dataset.taxDueStatus=meta.status;
+      row.classList.remove('current','overdue','future','unknown');
+      row.classList.add(meta.status);
+      const label=row.querySelector('.tax-due-group-label');
+      if(label)label.textContent=meta.label;
+  });
 }
 
 function syncV41TxnModal(){
@@ -11600,7 +11959,7 @@ function syncV41All(){v41EnsureStyle();syncV41Top();syncV41Generic();syncV41TaxM
 const _v41SyncV40All=syncV40All;syncV40All=function(){const r=_v41SyncV40All.apply(this,arguments);syncV41All();return r};
 const _v41RenderAll=renderAll;renderAll=function(){const r=_v41RenderAll.apply(this,arguments);syncV41All();return r};
 const _v41OpenModal=openModal;openModal=function(id){const r=_v41OpenModal.apply(this,arguments);syncV41All();return r};
-const _v41OpenTax=openTaxOutstanding;openTaxOutstanding=function(project){const r=_v41OpenTax.apply(this,arguments);if($('taxOutstandingModal'))$('taxOutstandingModal').dataset.project=normProject(project);syncV41TaxModal(normProject(project));return r};
+const _v41OpenTax=openTaxOutstanding;openTaxOutstanding=function(project,monthOverride='',cutoffOverride=''){const r=_v41OpenTax.apply(this,arguments);if($('taxOutstandingModal'))$('taxOutstandingModal').dataset.project=normProject(project);syncV41TaxModal(normProject(project));return r};
 const _v41TxnDir=syncTxnDirectionUI;syncTxnDirectionUI=function(){const r=_v41TxnDir.apply(this,arguments);syncV41TxnModal();return r};
 const _v41Acc=renderAccSelectors;renderAccSelectors=function(){const r=_v41Acc.apply(this,arguments);if($('txnModal')?.classList.contains('show'))syncV41TxnModal();return r};
 const _v41UpdateHint=updateAccHint;updateAccHint=function(){const r=_v41UpdateHint.apply(this,arguments);const hint=$('accountingHint');if(hint&&cashLang==='en'){const g=(ACC_GROUPS[$('fDirection')?.value||'out']||[]).find(x=>x.code===$('fMajorCategory')?.value);const sub=$('fAccountingSub')?.value||'';hint.textContent=`Accounting: ${g?groupLabel(g):'—'} → ${subLabelValue(sub)}`};return r};
@@ -15684,4 +16043,6 @@ Dự án | Nhóm nhân sự | Khoản mục | Kỳ phát sinh | Kỳ dự kiến
      - Tax quarter = quarter of salary payment date; due month = next quarter's first month.
      - Tax actualDate remains the actual tax remittance date and controls cash flow. -->
 
+
+<!-- payroll-quarter-fix 2026-10-05: TNCN required quarter; salary optional linked quarter; BH/union/meal/other no quarter. -->
 </body></html>
