@@ -30821,45 +30821,173 @@ async function editPaidPaymentResult(paymentId){
     const copy =
         currentLanguage === "zh"
             ? {
+                ipc:"修改 IPC 编号：",
+                remark:"修改备注（可留空）：",
                 amount:"修改实际付款金额：",
                 date:"修改付款日期（YYYY-MM-DD）：",
                 costType:"修改费用类型（例如：分包款）：",
+                invalidIPC:"请输入有效的 IPC 编号。",
                 invalidCostType:"请输入费用类型。",
                 invalidAmount:"请输入有效的实际付款金额。",
                 invalidDate:"请输入有效日期，格式为 YYYY-MM-DD。",
-                confirm:"确认修改已付款结果？",
+                duplicateIPC:"修改后的 IPC 与现有付款记录重复：",
+                confirm:"确认修改已付款记录？",
                 before:"原数据",
                 after:"修改后",
-                done:"付款结果已修改。",
-                error:"无法修改付款结果：\n"
+                done:"已付款记录已修改。",
+                error:"无法修改已付款记录：\n"
             }
             : currentLanguage === "en"
                 ? {
+                ipc:"Edit IPC No.:",
+                remark:"Edit remark (can be blank):",
                 amount:"Edit actual paid amount:",
                 date:"Edit payment date (YYYY-MM-DD):",
                 costType:"Edit cost type (for example: 分包款):",
+                invalidIPC:"Enter a valid IPC number.",
                 invalidCostType:"Enter a cost type.",
-                    invalidAmount:"Enter a valid actual paid amount.",
-                    invalidDate:"Enter a valid date in YYYY-MM-DD format.",
-                    confirm:"Update this paid result?",
-                    before:"Before",
-                    after:"After",
-                    done:"Payment result updated.",
-                    error:"Could not update payment result:\n"
+                invalidAmount:"Enter a valid actual paid amount.",
+                invalidDate:"Enter a valid date in YYYY-MM-DD format.",
+                duplicateIPC:"The edited IPC duplicates an existing payment:",
+                confirm:"Update this paid payment record?",
+                before:"Before",
+                after:"After",
+                done:"Paid payment record updated.",
+                error:"Could not update paid payment record:\n"
                 }
                 : {
+                ipc:"Sửa số IPC:",
+                remark:"Sửa ghi chú (có thể để trống):",
                 amount:"Sửa số tiền thực trả:",
                 date:"Sửa ngày thanh toán (YYYY-MM-DD):",
                 costType:"Sửa loại chi phí (ví dụ: 分包款):",
+                invalidIPC:"Hãy nhập số IPC hợp lệ.",
                 invalidCostType:"Hãy nhập loại chi phí.",
-                    invalidAmount:"Hãy nhập số tiền thực trả hợp lệ.",
-                    invalidDate:"Ngày không hợp lệ, phải theo dạng YYYY-MM-DD.",
-                    confirm:"Xác nhận sửa kết quả đã thanh toán?",
-                    before:"Trước",
-                    after:"Sau",
-                    done:"Đã sửa kết quả thanh toán.",
-                    error:"Không sửa được kết quả thanh toán:\n"
+                invalidAmount:"Hãy nhập số tiền thực trả hợp lệ.",
+                invalidDate:"Ngày không hợp lệ, phải theo dạng YYYY-MM-DD.",
+                duplicateIPC:"IPC sau khi sửa đang trùng với khoản thanh toán khác:",
+                confirm:"Xác nhận sửa thông tin khoản đã thanh toán?",
+                before:"Trước",
+                after:"Sau",
+                done:"Đã sửa thông tin khoản đã thanh toán.",
+                error:"Không sửa được khoản đã thanh toán:\n"
                 };
+
+    /*
+       PAID HISTORY CORRECTION
+       -----------------------
+       Paid rows stay locked from the normal Edit modal, but Admin may correct
+       a small set of factual fields here:
+       - IPC
+       - Actual paid amount
+       - Payment date
+       - Cost type
+       - Remark
+
+       We intentionally do NOT unlock Project / Contract / Company because those
+       fields drive Contract Master mapping, duplicate logic and archive identity.
+    */
+
+    const isMEPPayment =
+        payment.paymentType === "other" ||
+        !!normalizeMEP(payment.contractNo || payment.ipcNo || "");
+
+    const isNoMEPException =
+        payment.noMEPException === true;
+
+    let nextIPC = String(payment.ipcNo || "").trim();
+    let nextContractNo = payment.contractNo || "";
+    let nextBudgetNo = payment.budgetNo || "";
+    let nextContractType = payment.contractType || "";
+
+    /*
+       For ordinary contract payments IPC is safe to correct directly.
+       For MEP rows we keep the code fields in sync as one unit.
+       Rows explicitly marked "no MEP" keep their current generated identity.
+    */
+    if(!isNoMEPException){
+
+        const ipcInput = prompt(
+            copy.ipc,
+            payment.ipcNo || ""
+        );
+
+        if(ipcInput === null){
+            return;
+        }
+
+        if(isMEPPayment){
+
+            const nextMEP = normalizeMEP(ipcInput);
+
+            if(!nextMEP){
+                alert("⚠ " + copy.invalidIPC);
+                return;
+            }
+
+            nextIPC = nextMEP;
+            nextBudgetNo = nextMEP;
+            nextContractNo = formatMEPContractNo(nextMEP);
+            nextContractType = nextMEP;
+
+        }else{
+
+            nextIPC = formatContractIPC(
+                payment.contractNo || "",
+                ipcInput
+            );
+
+            if(!nextIPC){
+                alert("⚠ " + copy.invalidIPC);
+                return;
+            }
+        }
+
+        /*
+           Zero-read duplicate warning: only check the payments already loaded
+           in memory. Do not block the correction automatically because split /
+           supplemental payments can legitimately share an IPC; Admin decides.
+        */
+        const duplicateIPC = allPayments.find(item =>
+            item &&
+            String(item.id) !== String(payment.id) &&
+            item.deleted !== true &&
+            paymentContractKey(
+                item.project,
+                item.contractNo
+            ) === paymentContractKey(
+                payment.project,
+                nextContractNo
+            ) &&
+            normalize(item.ipcNo) === normalize(nextIPC)
+        );
+
+        if(duplicateIPC){
+
+            const duplicateText =
+                `${copy.duplicateIPC}\n\n` +
+                `${duplicateIPC.paymentMonth || "—"} · ` +
+                `${duplicateIPC.project || "—"} · ` +
+                `${duplicateIPC.contractNo || "—"} · ` +
+                `${duplicateIPC.ipcNo || "—"} · ` +
+                `${formatMoney(
+                    isPaymentPaid(duplicateIPC)
+                        ? duplicateIPC.processActualAmount
+                        : duplicateIPC.amount
+                )}\n\n` +
+                (
+                    currentLanguage === "zh"
+                        ? "如确认是补充付款 / 分次付款，可继续。是否继续？"
+                        : currentLanguage === "en"
+                            ? "If this is a supplemental / split payment, you may continue. Continue?"
+                            : "Nếu đây là thanh toán bổ sung / chia nhiều đợt thì vẫn có thể tiếp tục. Tiếp tục?"
+                );
+
+            if(!confirm(duplicateText)){
+                return;
+            }
+        }
+    }
 
     const amountInput = prompt(
         copy.amount,
@@ -30923,36 +31051,110 @@ async function editPaidPaymentResult(paymentId){
         return;
     }
 
+    const remarkInput = prompt(
+        copy.remark,
+        localizeCarryForwardRemark(payment.remark || "")
+    );
+
+    if(remarkInput === null){
+        return;
+    }
+
+    const nextRemark =
+        canonicalizeCarryForwardRemark(
+            String(remarkInput || "").trim()
+        );
+
+    const previousIPC = String(payment.ipcNo || "");
     const previousAmount = Number(payment.processActualAmount);
     const previousDate = payment.processPaymentDate || "";
     const previousCostType = String(payment.costType || "");
+    const previousRemark = String(payment.remark || "");
 
     if(
+        nextIPC === previousIPC &&
         nextAmount === previousAmount &&
         nextDate === previousDate &&
-        nextCostType === previousCostType
+        nextCostType === previousCostType &&
+        nextRemark === previousRemark
     ){
         return;
     }
 
+    const beforeText = [
+        previousIPC || "—",
+        formatMoney(previousAmount),
+        previousDate || "—",
+        previousCostType || "—",
+        localizeCarryForwardRemark(previousRemark || "") || "—"
+    ].join(" · ");
+
+    const afterText = [
+        nextIPC || "—",
+        formatMoney(nextAmount),
+        nextDate || "—",
+        nextCostType || "—",
+        localizeCarryForwardRemark(nextRemark || "") || "—"
+    ].join(" · ");
+
     const confirmed = confirm(
         `${copy.confirm}\n\n` +
-        `${copy.before}: ${formatMoney(previousAmount)} · ${previousDate} · ${previousCostType || "—"}\n` +
-        `${copy.after}: ${formatMoney(nextAmount)} · ${nextDate} · ${nextCostType}`
+        `${copy.before}: ${beforeText}\n` +
+        `${copy.after}: ${afterText}`
     );
 
     if(!confirmed){
         return;
     }
 
+    const correctionData = {
+        ipcNo:nextIPC,
+        processActualAmount:nextAmount,
+        processPaymentDate:nextDate,
+        costType:nextCostType,
+        remark:nextRemark
+    };
+
+    if(isMEPPayment && !isNoMEPException){
+        correctionData.budgetNo = nextBudgetNo;
+        correctionData.contractNo = nextContractNo;
+        correctionData.contractType = nextContractType;
+    }
+
     try{
+
+        /*
+           Read the latest row before overwriting a historical paid payment.
+           This avoids silently overwriting another Admin's correction.
+        */
+        const latestSnapshot =
+            await getDoc(
+                doc(db,"payments",payment.id)
+            );
+
+        if(!latestSnapshot.exists()){
+            alert("❌ " + t("paymentNotFound"));
+            return;
+        }
+
+        const latestData = latestSnapshot.data();
+
+        if(
+            payment.updatedAt &&
+            latestData.updatedAt &&
+            !sameTimestamp(
+                latestData.updatedAt,
+                payment.updatedAt
+            )
+        ){
+            alert("⚠ " + t("conflictEdit"));
+            return;
+        }
 
         await updateDoc(
             doc(db,"payments",payment.id),
             {
-                processActualAmount:nextAmount,
-                processPaymentDate:nextDate,
-                costType:nextCostType,
+                ...correctionData,
                 updatedAt:serverTimestamp(),
                 updatedBy:currentOperatorName,
                 updatedByUid:currentAuthUser.uid,
@@ -30960,9 +31162,34 @@ async function editPaidPaymentResult(paymentId){
             }
         );
 
-        payment.processActualAmount = nextAmount;
-        payment.processPaymentDate = nextDate;
-        payment.costType = nextCostType;
+        const editChanges =
+            buildChangeDetails(
+                latestData,
+                {
+                    ...latestData,
+                    ...correctionData
+                }
+            );
+
+        try{
+            await logActivity(
+                "EDIT",
+                {
+                    id:payment.id,
+                    ...latestData,
+                    ...correctionData
+                },
+                "",
+                editChanges
+            );
+        }catch(logError){
+            console.warn("PAID RESULT CORRECTION AUDIT LOG ERROR:",logError);
+        }
+
+        Object.assign(
+            payment,
+            correctionData
+        );
 
         let archiveWarning = "";
         if(isPaymentArchived(payment)){
@@ -30974,6 +31201,7 @@ async function editPaidPaymentResult(paymentId){
             }
         }
 
+        updateIPCFilter();
         renderPayments();
         alert("✅ " + copy.done + archiveWarning);
 
