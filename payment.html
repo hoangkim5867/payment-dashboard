@@ -21807,6 +21807,49 @@ async function loadCurrentUserProfile(user){
 }
 
 
+
+function activityRemarkUserText(value){
+
+    let text =
+        canonicalizeCarryForwardRemark(
+            String(value || "")
+        );
+
+    /*
+       CARRY_FROM / SUPPLEMENTAL_FROM are internal metadata used by the app.
+       They should stay in Firestore, but should NOT appear as a user's
+       "Ghi chú" change in Activity Log.
+    */
+    text = text
+        .replace(/\[\[CARRY_FROM:\d{4}-\d{2}\]\]/gi,"")
+        .replace(/\[\[SUPPLEMENTAL_FROM:\d{4}-\d{2}\]\]/gi,"")
+        .replace(/\[(?:Chuyển từ|Carried from)\s+\d{4}-\d{2}\]/gi,"")
+        .replace(/\[从\s*\d{4}-\d{2}\s*转入\]/gi,"")
+        .replace(/\[(?:Bổ sung từ|Supplemental from)\s+\d{4}-\d{2}\]/gi,"")
+        .replace(/\[从\s*\d{4}-\d{2}\s*补充\]/gi,"")
+        .replace(/\s*·\s*·\s*/g," · ")
+        .replace(/^\s*·\s*|\s*·\s*$/g,"")
+        .replace(/\s{2,}/g," ")
+        .trim();
+
+    return text;
+}
+
+function activityChangeVisibleValue(change, side){
+
+    const raw =
+        side === "before"
+            ? change?.before
+            : change?.after;
+
+    if(String(change?.field || "") === "remark"){
+        return activityRemarkUserText(raw) || "—";
+    }
+
+    const text = String(raw ?? "").trim();
+    return text || "—";
+}
+
 function buildChangeDetails(before, after){
 
     const labels = {
@@ -21845,11 +21888,21 @@ function buildChangeDetails(before, after){
     Object.keys(labels).forEach(
         key => {
 
-            const oldValue =
+            let oldValue =
                 before?.[key] ?? "";
 
-            const newValue =
+            let newValue =
                 after?.[key] ?? "";
+
+            /*
+               Remark carries hidden metadata such as [[CARRY_FROM:2026-09]].
+               Compare/log only the user's actual note so preserving a carried
+               row does not create a fake "Remark changed" entry.
+            */
+            if(key === "remark"){
+                oldValue = activityRemarkUserText(oldValue);
+                newValue = activityRemarkUserText(newValue);
+            }
 
             if(
                 String(oldValue) ===
@@ -22983,9 +23036,9 @@ function activityLogRowsHTML(logs){
                                             change => `
                                                 <div class="audit-change-line">
                                                     <strong>${escapeHTML(activityFieldLabel(change.field) || change.label || "")}:</strong>
-                                                    <span class="audit-old-value">${escapeHTML(String(change.before ?? "—") || "—")}</span>
+                                                    <span class="audit-old-value">${escapeHTML(activityChangeVisibleValue(change,"before"))}</span>
                                                     <span class="audit-arrow">→</span>
-                                                    <span class="audit-new-value">${escapeHTML(String(change.after ?? "—") || "—")}</span>
+                                                    <span class="audit-new-value">${escapeHTML(activityChangeVisibleValue(change,"after"))}</span>
                                                 </div>
                                             `
                                         )
@@ -27065,8 +27118,8 @@ async function loadTimelineAudit(payment){
                         .slice(0,3)
                         .map(change =>
                             `${escapeHTML(paymentTimelineFieldLabel(change.field))}: ` +
-                            `${escapeHTML(String(change.before ?? "—"))} → ` +
-                            `${escapeHTML(String(change.after ?? "—"))}`
+                            `${escapeHTML(activityChangeVisibleValue(change,"before"))} → ` +
+                            `${escapeHTML(activityChangeVisibleValue(change,"after"))}`
                         )
                         .join("<br>")
                     : escapeHTML(localizedDetail);
