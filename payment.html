@@ -30803,16 +30803,16 @@ async function editPaidPaymentResult(paymentId){
         return;
     }
 
-    const payment =
+    const localPayment =
         allPayments.find(
             item => String(item.id) === String(paymentId)
         );
 
     if(
-        !payment ||
-        !isPaymentPaid(payment) ||
-        isPaymentCarriedForward(payment) ||
-        isPaymentCancelled(payment)
+        !localPayment ||
+        !isPaymentPaid(localPayment) ||
+        isPaymentCarriedForward(localPayment) ||
+        isPaymentCancelled(localPayment)
     ){
         alert("❌ " + t("paymentNotFound"));
         return;
@@ -30822,7 +30822,6 @@ async function editPaidPaymentResult(paymentId){
         currentLanguage === "zh"
             ? {
                 ipc:"修改 IPC 编号：",
-                remark:"修改备注（可留空）：",
                 amount:"修改实际付款金额：",
                 date:"修改付款日期（YYYY-MM-DD）：",
                 costType:"修改费用类型（例如：分包款）：",
@@ -30835,12 +30834,12 @@ async function editPaidPaymentResult(paymentId){
                 before:"原数据",
                 after:"修改后",
                 done:"已付款记录已修改。",
+                noChange:"没有修改任何内容。",
                 error:"无法修改已付款记录：\n"
             }
             : currentLanguage === "en"
                 ? {
                 ipc:"Edit IPC No.:",
-                remark:"Edit remark (can be blank):",
                 amount:"Edit actual paid amount:",
                 date:"Edit payment date (YYYY-MM-DD):",
                 costType:"Edit cost type (for example: 分包款):",
@@ -30853,11 +30852,11 @@ async function editPaidPaymentResult(paymentId){
                 before:"Before",
                 after:"After",
                 done:"Paid payment record updated.",
+                noChange:"No changes were made.",
                 error:"Could not update paid payment record:\n"
                 }
                 : {
                 ipc:"Sửa số IPC:",
-                remark:"Sửa ghi chú (có thể để trống):",
                 amount:"Sửa số tiền thực trả:",
                 date:"Sửa ngày thanh toán (YYYY-MM-DD):",
                 costType:"Sửa loại chi phí (ví dụ: 分包款):",
@@ -30870,266 +30869,32 @@ async function editPaidPaymentResult(paymentId){
                 before:"Trước",
                 after:"Sau",
                 done:"Đã sửa thông tin khoản đã thanh toán.",
+                noChange:"Không có nội dung nào thay đổi.",
                 error:"Không sửa được khoản đã thanh toán:\n"
                 };
 
     /*
-       PAID HISTORY CORRECTION
-       -----------------------
-       Paid rows stay locked from the normal Edit modal, but Admin may correct
-       a small set of factual fields here:
+       SAFE PAID-HISTORY CORRECTION
+       ----------------------------
+       Only these factual fields are editable:
        - IPC
        - Actual paid amount
        - Payment date
        - Cost type
-       - Remark
 
-       We intentionally do NOT unlock Project / Contract / Company because those
-       fields drive Contract Master mapping, duplicate logic and archive identity.
+       IMPORTANT:
+       - Remark is deliberately NOT touched here.
+       - Project / Company / Contract remain locked.
+       - We fetch the latest Firestore row BEFORE prompting, so stale local
+         display data cannot overwrite unrelated fields.
+       - updateDoc receives ONLY fields that truly changed.
     */
-
-    const isMEPPayment =
-        payment.paymentType === "other" ||
-        !!normalizeMEP(payment.contractNo || payment.ipcNo || "");
-
-    const isNoMEPException =
-        payment.noMEPException === true;
-
-    let nextIPC = String(payment.ipcNo || "").trim();
-    let nextContractNo = payment.contractNo || "";
-    let nextBudgetNo = payment.budgetNo || "";
-    let nextContractType = payment.contractType || "";
-
-    /*
-       For ordinary contract payments IPC is safe to correct directly.
-       For MEP rows we keep the code fields in sync as one unit.
-       Rows explicitly marked "no MEP" keep their current generated identity.
-    */
-    if(!isNoMEPException){
-
-        const ipcInput = prompt(
-            copy.ipc,
-            payment.ipcNo || ""
-        );
-
-        if(ipcInput === null){
-            return;
-        }
-
-        if(isMEPPayment){
-
-            const nextMEP = normalizeMEP(ipcInput);
-
-            if(!nextMEP){
-                alert("⚠ " + copy.invalidIPC);
-                return;
-            }
-
-            nextIPC = nextMEP;
-            nextBudgetNo = nextMEP;
-            nextContractNo = formatMEPContractNo(nextMEP);
-            nextContractType = nextMEP;
-
-        }else{
-
-            nextIPC = formatContractIPC(
-                payment.contractNo || "",
-                ipcInput
-            );
-
-            if(!nextIPC){
-                alert("⚠ " + copy.invalidIPC);
-                return;
-            }
-        }
-
-        /*
-           Zero-read duplicate warning: only check the payments already loaded
-           in memory. Do not block the correction automatically because split /
-           supplemental payments can legitimately share an IPC; Admin decides.
-        */
-        const duplicateIPC = allPayments.find(item =>
-            item &&
-            String(item.id) !== String(payment.id) &&
-            item.deleted !== true &&
-            paymentContractKey(
-                item.project,
-                item.contractNo
-            ) === paymentContractKey(
-                payment.project,
-                nextContractNo
-            ) &&
-            normalize(item.ipcNo) === normalize(nextIPC)
-        );
-
-        if(duplicateIPC){
-
-            const duplicateText =
-                `${copy.duplicateIPC}\n\n` +
-                `${duplicateIPC.paymentMonth || "—"} · ` +
-                `${duplicateIPC.project || "—"} · ` +
-                `${duplicateIPC.contractNo || "—"} · ` +
-                `${duplicateIPC.ipcNo || "—"} · ` +
-                `${formatMoney(
-                    isPaymentPaid(duplicateIPC)
-                        ? duplicateIPC.processActualAmount
-                        : duplicateIPC.amount
-                )}\n\n` +
-                (
-                    currentLanguage === "zh"
-                        ? "如确认是补充付款 / 分次付款，可继续。是否继续？"
-                        : currentLanguage === "en"
-                            ? "If this is a supplemental / split payment, you may continue. Continue?"
-                            : "Nếu đây là thanh toán bổ sung / chia nhiều đợt thì vẫn có thể tiếp tục. Tiếp tục?"
-                );
-
-            if(!confirm(duplicateText)){
-                return;
-            }
-        }
-    }
-
-    const amountInput = prompt(
-        copy.amount,
-        formatMoney(payment.processActualAmount)
-    );
-
-    if(amountInput === null){
-        return;
-    }
-
-    const nextAmount = parseMoneyInput(amountInput);
-
-    if(!Number.isFinite(nextAmount) || nextAmount <= 0){
-        alert("⚠ " + copy.invalidAmount);
-        return;
-    }
-
-    const dateInput = prompt(
-        copy.date,
-        payment.processPaymentDate || ""
-    );
-
-    if(dateInput === null){
-        return;
-    }
-
-    const nextDate = String(dateInput || "").trim();
-    const dateMatch = nextDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    const parsedDate = dateMatch
-        ? new Date(Date.UTC(
-            Number(dateMatch[1]),
-            Number(dateMatch[2]) - 1,
-            Number(dateMatch[3])
-        ))
-        : null;
-    const validDate = !!(
-        parsedDate &&
-        parsedDate.getUTCFullYear() === Number(dateMatch[1]) &&
-        parsedDate.getUTCMonth() === Number(dateMatch[2]) - 1 &&
-        parsedDate.getUTCDate() === Number(dateMatch[3])
-    );
-
-    if(!validDate){
-        alert("⚠ " + copy.invalidDate);
-        return;
-    }
-
-    const costTypeInput = prompt(
-        copy.costType,
-        payment.costType || ""
-    );
-
-    if(costTypeInput === null){
-        return;
-    }
-
-    const nextCostType = String(costTypeInput || "").trim();
-
-    if(!nextCostType){
-        alert("⚠ " + copy.invalidCostType);
-        return;
-    }
-
-    const remarkInput = prompt(
-        copy.remark,
-        localizeCarryForwardRemark(payment.remark || "")
-    );
-
-    if(remarkInput === null){
-        return;
-    }
-
-    const nextRemark =
-        canonicalizeCarryForwardRemark(
-            String(remarkInput || "").trim()
-        );
-
-    const previousIPC = String(payment.ipcNo || "");
-    const previousAmount = Number(payment.processActualAmount);
-    const previousDate = payment.processPaymentDate || "";
-    const previousCostType = String(payment.costType || "");
-    const previousRemark = String(payment.remark || "");
-
-    if(
-        nextIPC === previousIPC &&
-        nextAmount === previousAmount &&
-        nextDate === previousDate &&
-        nextCostType === previousCostType &&
-        nextRemark === previousRemark
-    ){
-        return;
-    }
-
-    const beforeText = [
-        previousIPC || "—",
-        formatMoney(previousAmount),
-        previousDate || "—",
-        previousCostType || "—",
-        localizeCarryForwardRemark(previousRemark || "") || "—"
-    ].join(" · ");
-
-    const afterText = [
-        nextIPC || "—",
-        formatMoney(nextAmount),
-        nextDate || "—",
-        nextCostType || "—",
-        localizeCarryForwardRemark(nextRemark || "") || "—"
-    ].join(" · ");
-
-    const confirmed = confirm(
-        `${copy.confirm}\n\n` +
-        `${copy.before}: ${beforeText}\n` +
-        `${copy.after}: ${afterText}`
-    );
-
-    if(!confirmed){
-        return;
-    }
-
-    const correctionData = {
-        ipcNo:nextIPC,
-        processActualAmount:nextAmount,
-        processPaymentDate:nextDate,
-        costType:nextCostType,
-        remark:nextRemark
-    };
-
-    if(isMEPPayment && !isNoMEPException){
-        correctionData.budgetNo = nextBudgetNo;
-        correctionData.contractNo = nextContractNo;
-        correctionData.contractType = nextContractType;
-    }
 
     try{
 
-        /*
-           Read the latest row before overwriting a historical paid payment.
-           This avoids silently overwriting another Admin's correction.
-        */
         const latestSnapshot =
             await getDoc(
-                doc(db,"payments",payment.id)
+                doc(db,"payments",localPayment.id)
             );
 
         if(!latestSnapshot.exists()){
@@ -31137,48 +30902,255 @@ async function editPaidPaymentResult(paymentId){
             return;
         }
 
-        const latestData = latestSnapshot.data();
+        const latestData = {
+            id:latestSnapshot.id,
+            ...latestSnapshot.data()
+        };
 
         if(
-            payment.updatedAt &&
-            latestData.updatedAt &&
-            !sameTimestamp(
-                latestData.updatedAt,
-                payment.updatedAt
-            )
+            !isPaymentPaid(latestData) ||
+            isPaymentCarriedForward(latestData) ||
+            isPaymentCancelled(latestData)
         ){
-            alert("⚠ " + t("conflictEdit"));
+            alert("🔒 " + t("lockedEdit"));
             return;
         }
 
-        await updateDoc(
-            doc(db,"payments",payment.id),
-            {
-                ...correctionData,
-                updatedAt:serverTimestamp(),
-                updatedBy:currentOperatorName,
-                updatedByUid:currentAuthUser.uid,
-                updatedByEmail:currentAuthUser.email || ""
+        const isMEPPayment =
+            latestData.paymentType === "other" ||
+            !!normalizeMEP(latestData.ipcNo || "") ||
+            !!normalizeMEP(latestData.budgetNo || "");
+
+        const isNoMEPException =
+            latestData.noMEPException === true;
+
+        let nextIPC = String(latestData.ipcNo || "").trim();
+        let nextContractNo = latestData.contractNo || "";
+        let nextBudgetNo = latestData.budgetNo || "";
+        let nextContractType = latestData.contractType || "";
+
+        if(!isNoMEPException){
+
+            const ipcInput = prompt(
+                copy.ipc,
+                latestData.ipcNo || ""
+            );
+
+            if(ipcInput === null){
+                return;
             }
+
+            if(isMEPPayment){
+
+                const nextMEP = normalizeMEP(ipcInput);
+
+                if(!nextMEP){
+                    alert("⚠ " + copy.invalidIPC);
+                    return;
+                }
+
+                nextIPC = nextMEP;
+                nextBudgetNo = nextMEP;
+                nextContractNo = formatMEPContractNo(nextMEP);
+                nextContractType = nextMEP;
+
+            }else{
+
+                nextIPC = formatContractIPC(
+                    latestData.contractNo || "",
+                    ipcInput
+                );
+
+                if(!nextIPC){
+                    alert("⚠ " + copy.invalidIPC);
+                    return;
+                }
+            }
+
+            const duplicateIPC = allPayments.find(item =>
+                item &&
+                String(item.id) !== String(latestData.id) &&
+                item.deleted !== true &&
+                paymentContractKey(
+                    item.project,
+                    item.contractNo
+                ) === paymentContractKey(
+                    latestData.project,
+                    nextContractNo
+                ) &&
+                normalize(item.ipcNo) === normalize(nextIPC)
+            );
+
+            if(duplicateIPC){
+
+                const duplicateText =
+                    `${copy.duplicateIPC}\n\n` +
+                    `${duplicateIPC.paymentMonth || "—"} · ` +
+                    `${duplicateIPC.project || "—"} · ` +
+                    `${duplicateIPC.contractNo || "—"} · ` +
+                    `${duplicateIPC.ipcNo || "—"} · ` +
+                    `${formatMoney(
+                        isPaymentPaid(duplicateIPC)
+                            ? duplicateIPC.processActualAmount
+                            : duplicateIPC.amount
+                    )}\n\n` +
+                    (
+                        currentLanguage === "zh"
+                            ? "如确认是补充付款 / 分次付款，可继续。是否继续？"
+                            : currentLanguage === "en"
+                                ? "If this is a supplemental / split payment, you may continue. Continue?"
+                                : "Nếu đây là thanh toán bổ sung / chia nhiều đợt thì vẫn có thể tiếp tục. Tiếp tục?"
+                    );
+
+                if(!confirm(duplicateText)){
+                    return;
+                }
+            }
+        }
+
+        const amountInput = prompt(
+            copy.amount,
+            formatMoney(latestData.processActualAmount)
+        );
+
+        if(amountInput === null){
+            return;
+        }
+
+        const nextAmount = parseMoneyInput(amountInput);
+
+        if(!Number.isFinite(nextAmount) || nextAmount <= 0){
+            alert("⚠ " + copy.invalidAmount);
+            return;
+        }
+
+        const dateInput = prompt(
+            copy.date,
+            latestData.processPaymentDate || ""
+        );
+
+        if(dateInput === null){
+            return;
+        }
+
+        const nextDate = String(dateInput || "").trim();
+        const dateMatch = nextDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        const parsedDate = dateMatch
+            ? new Date(Date.UTC(
+                Number(dateMatch[1]),
+                Number(dateMatch[2]) - 1,
+                Number(dateMatch[3])
+            ))
+            : null;
+        const validDate = !!(
+            parsedDate &&
+            parsedDate.getUTCFullYear() === Number(dateMatch[1]) &&
+            parsedDate.getUTCMonth() === Number(dateMatch[2]) - 1 &&
+            parsedDate.getUTCDate() === Number(dateMatch[3])
+        );
+
+        if(!validDate){
+            alert("⚠ " + copy.invalidDate);
+            return;
+        }
+
+        const costTypeInput = prompt(
+            copy.costType,
+            latestData.costType || ""
+        );
+
+        if(costTypeInput === null){
+            return;
+        }
+
+        const nextCostType = String(costTypeInput || "").trim();
+
+        if(!nextCostType){
+            alert("⚠ " + copy.invalidCostType);
+            return;
+        }
+
+        const correctionData = {};
+
+        if(String(nextIPC) !== String(latestData.ipcNo || "")){
+            correctionData.ipcNo = nextIPC;
+
+            if(isMEPPayment && !isNoMEPException){
+                correctionData.budgetNo = nextBudgetNo;
+                correctionData.contractNo = nextContractNo;
+                correctionData.contractType = nextContractType;
+            }
+        }
+
+        if(Number(nextAmount) !== Number(latestData.processActualAmount)){
+            correctionData.processActualAmount = nextAmount;
+        }
+
+        if(String(nextDate) !== String(latestData.processPaymentDate || "")){
+            correctionData.processPaymentDate = nextDate;
+        }
+
+        if(String(nextCostType) !== String(latestData.costType || "")){
+            correctionData.costType = nextCostType;
+        }
+
+        if(!Object.keys(correctionData).length){
+            alert("ℹ️ " + copy.noChange);
+            return;
+        }
+
+        const previewAfter = {
+            ...latestData,
+            ...correctionData
+        };
+
+        const beforeText = [
+            latestData.ipcNo || "—",
+            formatMoney(latestData.processActualAmount),
+            latestData.processPaymentDate || "—",
+            latestData.costType || "—"
+        ].join(" · ");
+
+        const afterText = [
+            previewAfter.ipcNo || "—",
+            formatMoney(previewAfter.processActualAmount),
+            previewAfter.processPaymentDate || "—",
+            previewAfter.costType || "—"
+        ].join(" · ");
+
+        const confirmed = confirm(
+            `${copy.confirm}\n\n` +
+            `${copy.before}: ${beforeText}\n` +
+            `${copy.after}: ${afterText}`
+        );
+
+        if(!confirmed){
+            return;
+        }
+
+        const writeData = {
+            ...correctionData,
+            updatedAt:serverTimestamp(),
+            updatedBy:currentOperatorName,
+            updatedByUid:currentAuthUser.uid,
+            updatedByEmail:currentAuthUser.email || ""
+        };
+
+        await updateDoc(
+            doc(db,"payments",latestData.id),
+            writeData
         );
 
         const editChanges =
             buildChangeDetails(
                 latestData,
-                {
-                    ...latestData,
-                    ...correctionData
-                }
+                previewAfter
             );
 
         try{
             await logActivity(
                 "EDIT",
-                {
-                    id:payment.id,
-                    ...latestData,
-                    ...correctionData
-                },
+                previewAfter,
                 "",
                 editChanges
             );
@@ -31187,14 +31159,19 @@ async function editPaidPaymentResult(paymentId){
         }
 
         Object.assign(
-            payment,
-            correctionData
+            localPayment,
+            correctionData,
+            {
+                updatedBy:currentOperatorName,
+                updatedByUid:currentAuthUser.uid,
+                updatedByEmail:currentAuthUser.email || ""
+            }
         );
 
         let archiveWarning = "";
-        if(isPaymentArchived(payment)){
+        if(isPaymentArchived(localPayment)){
             try{
-                await refreshExistingPaymentArchiveAfterUnc(payment);
+                await refreshExistingPaymentArchiveAfterUnc(localPayment);
             }catch(archiveError){
                 console.error("PAID PAYMENT ARCHIVE RESYNC ERROR:",archiveError);
                 archiveWarning = "\n\n⚠ Payment đã sửa, nhưng Kho chưa đồng bộ được. Hãy chọn lại dòng này rồi bấm ‘Đưa vào Kho chứng từ’ để đồng bộ lại.";
