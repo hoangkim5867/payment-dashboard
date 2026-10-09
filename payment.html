@@ -16270,7 +16270,7 @@ html[data-theme="ivorybunny"] .process-inline-input{
         <span>ℹ</span>
         <div>
           <b>Nguyên tắc:</b> Số hợp đồng là mỏ neo chính. Nếu khớp Contract Master, hệ thống lấy lại
-          Dự án / Công ty / Tên hợp đồng / Loại chi phí / Loại hợp đồng từ master.
+          Dự án / Công ty / Tên hợp đồng / Loại chi phí / Loại hợp đồng từ master. Riêng công ty có lịch sử đổi tên thật sẽ dùng đúng tên theo ngày thanh toán.
           IPC chỉ được chuẩn hóa định dạng, không tự đoán đổi số. FOXCONN 清关税 / 外省增值税 và các khoản 投标保证金 / TENDER DEPOSIT được tách sang Cash Control.
         </div>
       </div>
@@ -45253,6 +45253,49 @@ function history26ExistingPaymentMatch(stage){
     }) || null;
 }
 
+/* =====================================================
+   HISTORICAL COMPANY NAME TIMELINE
+   Keep Contract Master as the default source of the canonical company name,
+   but preserve real legal-name changes by payment date.
+===================================================== */
+const HISTORY_COMPANY_NAME_TIMELINE = [
+    {
+        aliases:[
+            "CÔNG TY TNHH KỸ THUẬT XÂY DỰNG ĐỨC LỘC",
+            "CÔNG TY TNHH KỸ THUẬT ĐỨC LỘC"
+        ],
+        effectiveFrom:"2026-09-15",
+        before:"CÔNG TY TNHH KỸ THUẬT XÂY DỰNG ĐỨC LỘC",
+        after:"CÔNG TY TNHH KỸ THUẬT ĐỨC LỘC"
+    }
+];
+
+function history26CompanyForDate(rawCompany, masterCompany, paymentDate){
+    const raw = history26Text(rawCompany);
+    const master = history26Text(masterCompany);
+    const date = history26Date(paymentDate);
+
+    for(const rule of HISTORY_COMPANY_NAME_TIMELINE){
+        const aliasKeys = rule.aliases.map(history26Norm);
+        const isTarget =
+            aliasKeys.includes(history26Norm(raw)) ||
+            aliasKeys.includes(history26Norm(master));
+
+        if(!isTarget){
+            continue;
+        }
+
+        if(date && date < rule.effectiveFrom){
+            return rule.before;
+        }
+
+        return rule.after;
+    }
+
+    // Normal case: Contract Master remains the canonical source.
+    return master || raw || "";
+}
+
 function history26StageOne(raw){
     const manual = history26Manual.get(raw.excelRow) || {};
 
@@ -45307,7 +45350,11 @@ function history26StageOne(raw){
         stage.matchedContract = c;
         stage.route = "contract";
         stage.normalizedProject = c.project || stage.normalizedProject;
-        stage.normalizedCompany = c.company || stage.normalizedCompany;
+        stage.normalizedCompany = history26CompanyForDate(
+            effectiveRaw.company,
+            c.company || stage.normalizedCompany,
+            stage.paymentDate
+        );
         stage.normalizedContractNo = c.contractNo || stage.normalizedContractNo;
         stage.normalizedContractName = c.contractName || stage.normalizedContractName;
         stage.normalizedCostType = c.costType || stage.normalizedCostType;
@@ -45970,7 +46017,11 @@ function history26BuildPaymentData(stage){
             contractId:contract?.id || "",
             personInCharge:"—",
             project:contract?.project || stage.normalizedProject || "",
-            company:contract?.company || stage.normalizedCompany || "",
+            company:history26CompanyForDate(
+                stage.company || stage.normalizedCompany,
+                contract?.company || stage.normalizedCompany,
+                actualDate
+            ),
             bankAccount:contract?.bankAccount || "",
             contractNo:contract?.contractNo || stage.normalizedContractNo || "",
             contractName:contract?.contractName || stage.normalizedContractName || "",
@@ -46198,7 +46249,11 @@ history26CommitBtn.addEventListener("click",async()=>{
             item.data.contractId = master.id || item.data.contractId || "";
             item.data.contractKey = contractKey(master.project,item.data.contractNo);
             item.data.project = master.project || item.data.project;
-            item.data.company = master.company || item.data.company;
+            item.data.company = history26CompanyForDate(
+                item.stage?.company || item.data.company,
+                master.company || item.data.company,
+                item.data.processPaymentDate || item.stage?.paymentDate
+            );
             item.data.bankAccount = master.bankAccount || item.data.bankAccount;
             item.data.contractName = master.contractName || item.data.contractName;
             item.data.costType = normalizeLegacyCostTypeValue(master.costType || item.data.costType || inferCostTypeFromContractNo(item.data.contractNo) || "");
