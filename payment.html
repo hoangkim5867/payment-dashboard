@@ -1805,6 +1805,143 @@ html, body{
     font-weight:700;
     margin-top:4px;
 }
+
+/* =====================================================
+   MEP PROJECT REFERENCE — collapsed / on demand
+===================================================== */
+.mep-project-sequence{
+    margin-top:4px;
+    padding:0;
+    border:0;
+    background:transparent;
+}
+.mep-project-sequence[hidden]{display:none!important}
+
+.mep-project-ref-toggle{
+    height:23px;
+    padding:0;
+    border:0;
+    background:transparent;
+    color:#5a7692;
+    font-size:9.5px;
+    font-weight:700;
+    line-height:23px;
+}
+.mep-project-ref-toggle:hover{
+    background:transparent;
+    color:#17365d;
+    text-decoration:underline;
+}
+
+.mep-project-ref-panel{
+    margin-top:4px;
+    padding:7px 8px;
+    border:1px solid #e2e7ed;
+    border-radius:7px;
+    background:#fbfcfe;
+}
+.mep-project-ref-panel[hidden]{display:none!important}
+
+.mep-project-sequence-top{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    flex-wrap:wrap;
+    min-height:24px;
+}
+.mep-project-sequence-status{
+    color:#667085;
+    font-size:9.5px;
+    line-height:1.35;
+}
+.mep-project-sequence-status b{
+    color:#17365d;
+    font-weight:800;
+}
+.mep-project-next-btn{
+    height:23px;
+    padding:0 7px;
+    border:1px solid #b9cee2;
+    border-radius:5px;
+    background:#eef5fb;
+    color:#17365d;
+    font-size:9.5px;
+    font-weight:800;
+}
+.mep-project-next-btn:hover{background:#e4eff8}
+
+.mep-project-gap-row{
+    display:flex;
+    align-items:flex-start;
+    gap:6px;
+    margin-top:4px;
+}
+.mep-project-gap-row[hidden]{display:none!important}
+.mep-project-gap-label{
+    flex:0 0 auto;
+    color:#667085;
+    font-size:9.5px;
+    line-height:23px;
+}
+.mep-project-gap-list{
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px;
+    min-width:0;
+}
+.mep-project-gap-btn{
+    height:22px;
+    padding:0 6px;
+    border:1px solid #d9e1e8;
+    border-radius:5px;
+    background:#fff;
+    color:#40566d;
+    font-size:9px;
+    font-weight:750;
+}
+.mep-project-gap-btn:hover{
+    border-color:#9db8d1;
+    background:#f2f7fb;
+    color:#17365d;
+}
+.mep-project-gap-empty{
+    color:#8794a3;
+    font-size:9.5px;
+    line-height:23px;
+}
+.mep-project-range-note{
+    margin-top:4px;
+    color:#98a2b3;
+    font-size:9px;
+    line-height:1.35;
+}
+.mep-project-duplicate-warning{
+    display:none;
+    margin-top:4px;
+    padding:5px 7px;
+    border:1px solid #f0b8b8;
+    border-radius:6px;
+    background:#fff5f5;
+    color:#a32020;
+    font-size:9.5px;
+    line-height:1.35;
+}
+.mep-project-duplicate-warning.show{display:block}
+
+html[data-theme] .mep-project-ref-toggle,
+html[data-theme] .mep-project-sequence-status b{
+    color:var(--theme-primary,#17365d)!important;
+}
+html[data-theme] .mep-project-ref-panel{
+    background:var(--theme-surface-alt,#fbfcfe)!important;
+    border-color:var(--theme-border,#e2e7ed)!important;
+}
+html[data-theme] .mep-project-gap-btn{
+    background:var(--theme-surface,#fff)!important;
+    border-color:var(--theme-border,#d9e1e8)!important;
+    color:var(--theme-text,#40566d)!important;
+}
+
 .mep-no-code-exception{
     display:none;
     align-items:center;
@@ -14564,6 +14701,27 @@ html[data-theme="ivorybunny"] .process-inline-input{
             <label id="mepCodeLabel">MEP No. *</label>
             <input id="formMEPCode" placeholder="">
             <div class="mep-code-preview" id="mepCodePreview">MEP—</div>
+
+            <div class="mep-project-sequence" id="mepProjectSequence" hidden>
+                <button type="button" class="mep-project-ref-toggle" id="mepProjectRefToggle" aria-expanded="false">
+                    Xem MEP tham khảo ▾
+                </button>
+
+                <div class="mep-project-ref-panel" id="mepProjectRefPanel" hidden>
+                    <div class="mep-project-sequence-top">
+                        <span class="mep-project-sequence-status" id="mepProjectSequenceMeta"></span>
+                        <button type="button" class="mep-project-next-btn" id="mepProjectNextBtn"></button>
+                    </div>
+                    <div class="mep-project-gap-row" id="mepProjectGapRow" hidden>
+                        <span class="mep-project-gap-label" id="mepProjectGapLabel">Còn trống:</span>
+                        <div class="mep-project-gap-list" id="mepProjectGapList"></div>
+                    </div>
+                    <div class="mep-project-range-note" id="mepProjectRangeNote"></div>
+                </div>
+
+                <div class="mep-project-duplicate-warning" id="mepProjectDuplicateWarning"></div>
+            </div>
+
             <label class="mep-no-code-exception" id="mepNoCodeExceptionWrap">
                 <input type="checkbox" id="formMEPNoCodeException">
                 <span id="mepNoCodeExceptionText">Exceptional payment without MEP</span>
@@ -18724,6 +18882,40 @@ const formMEPCostType =
 
 const formMEPAutoFields =
     document.getElementById("formMEPAutoFields");
+
+const mepProjectSequence =
+    document.getElementById("mepProjectSequence");
+
+const mepProjectRefToggle =
+    document.getElementById("mepProjectRefToggle");
+
+const mepProjectRefPanel =
+    document.getElementById("mepProjectRefPanel");
+
+const mepProjectSequenceMeta =
+    document.getElementById("mepProjectSequenceMeta");
+
+const mepProjectNextBtn =
+    document.getElementById("mepProjectNextBtn");
+
+const mepProjectGapRow =
+    document.getElementById("mepProjectGapRow");
+
+const mepProjectGapLabel =
+    document.getElementById("mepProjectGapLabel");
+
+const mepProjectGapList =
+    document.getElementById("mepProjectGapList");
+
+const mepProjectRangeNote =
+    document.getElementById("mepProjectRangeNote");
+
+const mepProjectDuplicateWarning =
+    document.getElementById("mepProjectDuplicateWarning");
+
+const mepProjectUsageCache = new Map();
+const mepProjectUsageLoading = new Map();
+
 
 
 /* =====================================================
@@ -30380,6 +30572,12 @@ function setPaymentEntryType(type){
     }
 
     applyNoMEPExceptionUI();
+
+    if(isMEP){
+        refreshMEPProjectSequence({loadRemote:true});
+    }else{
+        renderMEPProjectSequence([]);
+    }
 }
 
 
@@ -30567,7 +30765,10 @@ entryMEPBtn.addEventListener(
 
 formMEPCode.addEventListener(
     "input",
-    updateMEPPreview
+    () => {
+        updateMEPPreview();
+        renderMEPProjectSequence();
+    }
 );
 
 
@@ -30621,6 +30822,7 @@ formMEPCode.addEventListener(
         }
 
         updateMEPPreview();
+        renderMEPProjectSequence();
     }
 );
 
@@ -31315,6 +31517,8 @@ async function openEditModal(
         "";
 
     if(editingMEP){
+        refreshMEPProjectSequence({loadRemote:true});
+
 
         const resolvedVendor =
             resolveVendorIdentity(
@@ -31510,6 +31714,8 @@ function clearForm(){
     formProject.value =
         "";
 
+    renderMEPProjectSequence([]);
+
     formContractNo.innerHTML = `
         <option value="">
             ${t("chooseContract")}
@@ -31598,6 +31804,14 @@ formProject.addEventListener(
     () => {
 
         updateContractOptions();
+
+        if(mepProjectRefToggle){
+            mepProjectRefToggle.setAttribute("aria-expanded","false");
+        }
+
+        if(currentPaymentEntryType === "mep"){
+            refreshMEPProjectSequence({loadRemote:true});
+        }
 
     }
 );
@@ -33462,6 +33676,512 @@ function formatMEPContractNo(value){
     return compact.replace(
         /^MEP/,
         "MEP-"
+    );
+}
+
+
+
+function mepSequenceCopy(){
+    if(currentLanguage === "zh"){
+        return {
+            choose:"选择项目后可查看 MEP 参考。",
+            range:(project,min,max)=>`${project} · 当前系统范围 <b>${min}–${max}</b>`,
+            next:(code)=>`建议 ${code}`,
+            gaps:"范围内空缺：",
+            noGaps:"该范围内未发现空缺编号。",
+            note:(min)=>`仅从当前系统中最低编号 ${min} 开始检查；更低编号不判断，避免把旧系统历史误认为空缺。`,
+            empty:(project)=>`${project} · 当前系统暂未找到 MEP 记录`,
+            noDataNote:"历史 MEP 可能未录入，因此不自动建议编号。请先手动输入当前实际 MEP；之后系统会按已记录数据继续提示。",
+            show:"查看 MEP 参考 ▾",
+            hide:"收起 MEP 参考 ▴",
+            duplicate:"该 MEP 编号已在本项目记录："
+        };
+    }
+    if(currentLanguage === "en"){
+        return {
+            choose:"Select a project to see MEP reference.",
+            range:(project,min,max)=>`${project} · current system range <b>${min}–${max}</b>`,
+            next:(code)=>`Suggested ${code}`,
+            gaps:"Open within range:",
+            noGaps:"No missing number found within this range.",
+            note:(min)=>`Checked only from the lowest MEP currently in the system (${min}); lower numbers are ignored because older history may be outside this system.`,
+            empty:(project)=>`${project} · no MEP record found in the current system`,
+            noDataNote:"Older MEP history may be missing, so no number is suggested. Enter the current real MEP manually once; later suggestions will use recorded data.",
+            show:"View MEP reference ▾",
+            hide:"Hide MEP reference ▴",
+            duplicate:"This MEP number is already recorded in this project:"
+        };
+    }
+    return {
+        choose:"Chọn dự án để xem MEP tham khảo.",
+        range:(project,min,max)=>`${project} · phạm vi đang có <b>${min}–${max}</b>`,
+        next:(code)=>`Gợi ý ${code}`,
+        gaps:"Còn trống:",
+        noGaps:"Không thấy số trống trong phạm vi này.",
+        note:(min)=>`Chỉ dò từ MEP thấp nhất đang có trong hệ thống (${min}); các số thấp hơn không tính vì có thể thuộc lịch sử hệ thống cũ.`,
+        empty:(project)=>`${project} · chưa thấy MEP nào trong dữ liệu hiện tại`,
+        noDataNote:"Có thể MEP cũ chưa được đưa lên hệ thống nên không tự gợi ý số. Nhập tay MEP thực tế lần đầu; từ các lần sau hệ thống sẽ dựa trên số đã ghi nhận.",
+        show:"Xem MEP tham khảo ▾",
+        hide:"Thu gọn MEP tham khảo ▴",
+        duplicate:"Số MEP này đã được ghi nhận trong dự án:"
+    };
+}
+
+function extractPaymentMEPCode(payment){
+
+    if(!payment || payment.noMEPException === true){
+        return "";
+    }
+
+    return normalizeMEP(
+        payment.contractNo ||
+        payment.ipcNo ||
+        payment.budgetNo ||
+        payment.contractType ||
+        ""
+    );
+}
+
+
+function isStandaloneMEPPayment(payment){
+
+    if(!payment || payment.deleted === true){
+        return false;
+    }
+
+    if(payment.paymentType === "other"){
+        return !!extractPaymentMEPCode(payment);
+    }
+
+    return /^MEP[\s._-]*\d+$/i.test(
+        String(
+            payment.contractNo ||
+            payment.ipcNo ||
+            payment.budgetNo ||
+            ""
+        ).trim()
+    );
+}
+
+
+function mepCodeNumericValue(code){
+
+    const normalized = normalizeMEP(code);
+
+    if(!normalized){
+        return -1;
+    }
+
+    return Number(
+        normalized.replace(/^MEP/,"")
+    );
+}
+
+
+function mergeMEPProjectUsageRows(...sources){
+
+    const map = new Map();
+
+    sources.flat().forEach(payment => {
+
+        if(!payment || !isStandaloneMEPPayment(payment)){
+            return;
+        }
+
+        const code = extractPaymentMEPCode(payment);
+
+        if(!code){
+            return;
+        }
+
+        const identity =
+            String(payment.id || "") ||
+            [
+                payment.paymentMonth,
+                payment.project,
+                code,
+                payment.company,
+                payment.contractName,
+                payment.amount
+            ].join("|");
+
+        if(!map.has(identity)){
+            map.set(identity,payment);
+        }
+    });
+
+    return [...map.values()];
+}
+
+
+function localMEPProjectUsage(project){
+
+    const sources = [allPayments];
+
+    if(
+        typeof importDuplicateHistoryLoaded !== "undefined" &&
+        importDuplicateHistoryLoaded &&
+        Array.isArray(importDuplicateHistoryPayments)
+    ){
+        sources.push(importDuplicateHistoryPayments);
+    }
+
+    /*
+       Embedded historical rows are already shipped with this page and cost
+       zero Firestore reads. They help fill older 2026 MEP numbers immediately.
+    */
+    if(Array.isArray(window.HISTORY_2026_EMBEDDED)){
+        sources.push(
+            window.HISTORY_2026_EMBEDDED.map((row,index) => ({
+                id:`embedded-history-${index}`,
+                paymentMonth:String(row.paymentDate || "").slice(0,7),
+                project:row.project || "",
+                paymentType:
+                    /^MEP[\s._-]*\d+$/i.test(
+                        String(row.contractNo || row.ipc || "")
+                    )
+                        ? "other"
+                        : "contract",
+                contractNo:row.contractNo || "",
+                ipcNo:row.ipc || "",
+                budgetNo:"",
+                company:row.company || "",
+                contractName:row.contractName || "",
+                amount:row.amount || 0
+            }))
+        );
+    }
+
+    return mergeMEPProjectUsageRows(...sources)
+        .filter(payment =>
+            isSamePaymentProject(
+                payment.project,
+                project
+            )
+        );
+}
+
+
+async function fetchMEPProjectUsage(project){
+
+    const key = normalizeSmartProject(project);
+
+    if(!key){
+        return [];
+    }
+
+    if(mepProjectUsageCache.has(key)){
+        return mepProjectUsageCache.get(key);
+    }
+
+    if(mepProjectUsageLoading.has(key)){
+        return mepProjectUsageLoading.get(key);
+    }
+
+    const localRows = localMEPProjectUsage(project);
+
+    const task = (async () => {
+        let remoteRows = [];
+
+        try{
+            const remotePromise = getDocs(
+                query(
+                    paymentsRef,
+                    where("project","==",project)
+                )
+            );
+
+            const timeoutPromise = new Promise(resolve =>
+                setTimeout(() => resolve(null),3500)
+            );
+
+            const snapshot = await Promise.race([
+                remotePromise,
+                timeoutPromise
+            ]);
+
+            if(snapshot){
+                snapshot.forEach(item => {
+                    const payment = {
+                        id:item.id,
+                        ...normalizeLoadedPaymentData(item.data())
+                    };
+
+                    if(isStandaloneMEPPayment(payment)){
+                        remoteRows.push(payment);
+                    }
+                });
+            }
+
+        }catch(error){
+            console.warn("MEP PROJECT USAGE LOOKUP:",error);
+        }
+
+        const merged = mergeMEPProjectUsageRows(
+            localRows,
+            remoteRows
+        ).filter(payment =>
+            isSamePaymentProject(payment.project,project)
+        );
+
+        mepProjectUsageCache.set(key,merged);
+        return merged;
+    })();
+
+    mepProjectUsageLoading.set(key,task);
+
+    try{
+        return await task;
+    }finally{
+        mepProjectUsageLoading.delete(key);
+    }
+}
+
+function currentMEPProjectUsageRows(project){
+
+    const key =
+        normalizeSmartProject(project);
+
+    const cached =
+        key && mepProjectUsageCache.has(key)
+            ? mepProjectUsageCache.get(key)
+            : [];
+
+    return mergeMEPProjectUsageRows(
+        localMEPProjectUsage(project),
+        cached || []
+    )
+    .filter(payment =>
+        isSamePaymentProject(
+            payment.project,
+            project
+        )
+    );
+}
+
+
+function renderMEPProjectSequence(rows = null){
+
+    if(!mepProjectSequence){
+        return;
+    }
+
+    const copy = mepSequenceCopy();
+    const project = String(formProject?.value || "").trim();
+    const isMEP = currentPaymentEntryType === "mep";
+    const refExpanded =
+        mepProjectRefToggle &&
+        mepProjectRefToggle.getAttribute("aria-expanded") === "true";
+
+    mepProjectSequence.hidden = !isMEP;
+
+    if(mepProjectRefToggle){
+        mepProjectRefToggle.textContent =
+            refExpanded ? copy.hide : copy.show;
+        mepProjectRefToggle.hidden = !project;
+    }
+
+    if(mepProjectRefPanel){
+        mepProjectRefPanel.hidden = !refExpanded || !project;
+    }
+
+    if(!isMEP){
+        return;
+    }
+
+    if(!project){
+        mepProjectSequenceMeta.innerHTML = copy.choose;
+        mepProjectNextBtn.hidden = true;
+        mepProjectGapRow.hidden = true;
+        mepProjectRangeNote.textContent = "";
+        mepProjectDuplicateWarning.classList.remove("show");
+        mepProjectDuplicateWarning.textContent = "";
+        return;
+    }
+
+    const usageRows = Array.isArray(rows)
+        ? rows
+        : currentMEPProjectUsageRows(project);
+
+    const byCode = new Map();
+
+    usageRows.forEach(payment => {
+        const code = extractPaymentMEPCode(payment);
+        if(!code) return;
+        if(!byCode.has(code)) byCode.set(code,[]);
+        byCode.get(code).push(payment);
+    });
+
+    const codes = [...byCode.keys()]
+        .sort((a,b)=>mepCodeNumericValue(a)-mepCodeNumericValue(b));
+
+    if(!codes.length){
+        mepProjectSequenceMeta.innerHTML = escapeHTML(copy.empty(project));
+        mepProjectNextBtn.hidden = true;
+        mepProjectNextBtn.textContent = "";
+        mepProjectNextBtn.dataset.code = "";
+        mepProjectGapRow.hidden = true;
+        mepProjectRangeNote.textContent = copy.noDataNote;
+    }else{
+        const minCode = codes[0];
+        const maxCode = codes[codes.length-1];
+        const minNum = mepCodeNumericValue(minCode);
+        const maxNum = mepCodeNumericValue(maxCode);
+
+        const missingCodes = [];
+        for(let n=minNum; n<=maxNum; n++){
+            const code = "MEP" + String(n).padStart(3,"0");
+            if(!byCode.has(code)){
+                missingCodes.push(code);
+            }
+        }
+
+        const nextCode = "MEP" + String(maxNum+1).padStart(3,"0");
+
+        mepProjectSequenceMeta.innerHTML = copy.range(
+            escapeHTML(project),
+            escapeHTML(minCode),
+            escapeHTML(maxCode)
+        );
+
+        mepProjectNextBtn.hidden = false;
+        mepProjectNextBtn.textContent = copy.next(nextCode);
+        mepProjectNextBtn.dataset.code = nextCode;
+
+        mepProjectGapRow.hidden = false;
+        mepProjectGapLabel.textContent = copy.gaps;
+
+        mepProjectGapList.innerHTML = missingCodes.length
+            ? missingCodes.map(code => `
+                <button
+                    type="button"
+                    class="mep-project-gap-btn"
+                    data-mep-gap="${escapeHTML(code)}"
+                >${escapeHTML(code)}</button>
+              `).join("")
+            : `<span class="mep-project-gap-empty">${escapeHTML(copy.noGaps)}</span>`;
+
+        mepProjectRangeNote.textContent = copy.note(minCode);
+    }
+
+    const entered = normalizeMEP(formMEPCode.value);
+    const duplicates = entered
+        ? (byCode.get(entered) || []).filter(payment =>
+            String(payment.id || "") !== String(editingId || "")
+        )
+        : [];
+
+    if(duplicates.length){
+        const payment = duplicates[0];
+        const details = [
+            payment.paymentMonth || "",
+            payment.company || "",
+            payment.contractName || ""
+        ].filter(Boolean).join(" · ");
+
+        mepProjectDuplicateWarning.innerHTML =
+            `<b>${escapeHTML(copy.duplicate)}</b> ${escapeHTML(entered)}${details ? ` · ${escapeHTML(details)}` : ""}`;
+
+        mepProjectDuplicateWarning.classList.add("show");
+    }else{
+        mepProjectDuplicateWarning.classList.remove("show");
+        mepProjectDuplicateWarning.textContent = "";
+    }
+}
+
+async function refreshMEPProjectSequence({
+    loadRemote = true
+} = {}){
+
+    if(
+        currentPaymentEntryType !== "mep" ||
+        !formProject ||
+        !mepProjectSequence
+    ){
+        renderMEPProjectSequence([]);
+        return;
+    }
+
+    const project = String(formProject.value || "").trim();
+
+    if(!project){
+        renderMEPProjectSequence([]);
+        return;
+    }
+
+    renderMEPProjectSequence();
+
+    if(!loadRemote){
+        return;
+    }
+
+    const rows = await fetchMEPProjectUsage(project);
+
+    if(
+        currentPaymentEntryType === "mep" &&
+        isSamePaymentProject(formProject.value,project)
+    ){
+        renderMEPProjectSequence(rows);
+    }
+}
+
+if(mepProjectRefToggle){
+    mepProjectRefToggle.addEventListener(
+        "click",
+        () => {
+            const expanded =
+                mepProjectRefToggle.getAttribute("aria-expanded") === "true";
+
+            mepProjectRefToggle.setAttribute(
+                "aria-expanded",
+                expanded ? "false" : "true"
+            );
+
+            renderMEPProjectSequence();
+        }
+    );
+}
+
+
+if(mepProjectGapList){
+    mepProjectGapList.addEventListener(
+        "click",
+        event => {
+            const button = event.target.closest("[data-mep-gap]");
+
+            if(!button){
+                return;
+            }
+
+            formMEPCode.value = button.dataset.mepGap || "";
+            updateMEPPreview();
+            renderMEPProjectSequence();
+            formMEPCode.focus();
+        }
+    );
+}
+
+
+if(mepProjectNextBtn){
+    mepProjectNextBtn.addEventListener(
+        "click",
+        () => {
+
+            if(
+                mepProjectNextBtn.disabled ||
+                currentPaymentEntryType !== "mep"
+            ){
+                return;
+            }
+
+            formMEPCode.value =
+                mepProjectNextBtn.dataset.code ||
+                "";
+
+            updateMEPPreview();
+            renderMEPProjectSequence();
+            formMEPCode.focus();
+        }
     );
 }
 
