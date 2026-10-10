@@ -20036,12 +20036,13 @@ function getSelectablePaymentMonths(){
     /*
        Firestore has no cheap DISTINCT-month query. Build the month choices
        locally so opening the page never has to read historical payments just
-       to populate this select. For now, only show the active operating period:
-       January 2026 through the current month. Older/future data remains
-       available through "All months" without cluttering this selector.
+       to populate this select. Admin needs to review imported legacy history,
+       so expose January 2025 through the current month. This only builds
+       <option> elements; it does NOT read any old Firestore month until the
+       Admin actually selects that month. Staff remains restricted separately.
     */
     const months = [];
-    const firstMonth = "2026-01";
+    const firstMonth = "2025-01";
     let month = firstMonth;
 
     while(month && month <= CURRENT_MONTH){
@@ -20064,7 +20065,7 @@ function updatePaymentMonthFilters(){
                     )
                     .filter(month =>
                         /^\d{4}-\d{2}$/.test(String(month || "")) &&
-                        String(month) >= "2026-01" &&
+                        String(month) >= "2025-01" &&
                         String(month) <= CURRENT_MONTH
                     )
             ])
