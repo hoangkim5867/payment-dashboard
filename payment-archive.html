@@ -42,6 +42,7 @@
     <section class="archive-grid" id="archiveGrid" aria-label="Danh sách báo cáo theo tháng"></section>
     <section class="archive-viewer" id="archiveViewer" aria-live="polite"></section>
   </main>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script type="module">
     import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -57,9 +58,9 @@
     const languageSelect=document.getElementById("languageSelect");
     const LANGUAGE_KEY="paymentHistoryLanguageV1";
     const I18N={
-      vi:{pageTitle:"CSCEC MEP · Kho chứng từ thanh toán",home:"← Trang chủ",archiveHeading:"Kho chứng từ thanh toán",language:"Ngôn ngữ",chooseMonth:"Chọn tháng thanh toán",closedMonths:"Chọn tháng đã chốt",searchCompany:"Công ty / Hợp đồng / IPC / Số tiền",searchResults:"Kết quả tìm kiếm",searchingCompanies:"Đang tìm trong các tháng đã chốt...",noCompanyMatches:"Không tìm thấy dữ liệu phù hợp.",monthColumn:"Tháng",project:"Dự án",openMonth:"Mở tháng",downloadExcel:"Tải Excel",downloadUnc:"Tải UNC",downloadProjectUnc:"Tải UNC",downloadOneUnc:"Tải",month:"Tháng {month} / {year}",report:"Báo cáo",noClosedMonths:"Chưa có tháng nào được chốt.",projectPayments:"Thanh toán dự án",indirectCosts:"Chi phí gián tiếp",unknownProject:"Chưa gắn dự án",payments:"khoản",paid:"Đã thanh toán",close:"Đóng",no:"STT",company:"Công ty",bankAccount:"STK ngân hàng",contractNo:"Số hợp đồng",contractContent:"Nội dung hợp đồng",actualAmount:"Số tiền thực tế",paymentDate:"Ngày thanh toán",viewUnc:"Xem UNC",replaceUnc:"Thay UNC",addUnc:"Bổ sung UNC",noUnc:"Chưa có",noData:"Chưa có dữ liệu",noWebData:"Tháng này chưa có dữ liệu xem trên web. Admin cần chốt lại tháng một lần.",cannotOpen:"Không mở được dữ liệu tháng này. Hãy thử lại sau.",loadingArchive:"Đang tải Kho chứng từ...",loginRequired:"Cần đăng nhập",loginRequiredDetail:"Hãy đăng nhập Payment Management trước, rồi mở lại Kho chứng từ.",accessDenied:"Không có quyền truy cập",accessDeniedDetail:"Tài khoản này chưa được cấp quyền vào hệ thống Payment.",cannotLoad:"Không tải được Kho chứng từ",cannotLoadDetail:"Hãy đăng nhập lại Payment Management rồi thử lại."},
-      zh:{pageTitle:"CSCEC MEP · 付款凭证库",home:"← 首页",archiveHeading:"付款凭证库",language:"语言",chooseMonth:"选择付款月份",closedMonths:"选择已归档月份",searchCompany:"公司 / 合同 / IPC / 金额",searchResults:"搜索结果",searchingCompanies:"正在搜索已归档月份...",noCompanyMatches:"未找到匹配的数据。",monthColumn:"月份",project:"项目",openMonth:"打开月份",downloadExcel:"下载 Excel",downloadUnc:"下载付款凭证",downloadProjectUnc:"下载付款凭证",downloadOneUnc:"下载",month:"{year}年{month}月",report:"报表",noClosedMonths:"暂无已归档月份。",projectPayments:"项目付款",indirectCosts:"间接费",unknownProject:"未关联项目",payments:"笔",paid:"已付款",close:"关闭",no:"序号",company:"公司",bankAccount:"银行账户",contractNo:"合同编号",contractContent:"合同内容",actualAmount:"实际付款金额",paymentDate:"付款日期",viewUnc:"查看付款凭证",replaceUnc:"替换付款凭证",addUnc:"补充付款凭证",noUnc:"暂无",noData:"暂无数据",noWebData:"该月份暂无网页明细，管理员需重新归档该月份一次。",cannotOpen:"无法打开该月份的数据，请稍后重试。",loadingArchive:"正在加载付款凭证库...",loginRequired:"请先登录",loginRequiredDetail:"请先登录付款管理系统，再重新打开付款凭证库。",accessDenied:"无访问权限",accessDeniedDetail:"该账号尚未获得付款系统访问权限。",cannotLoad:"无法加载付款凭证库",cannotLoadDetail:"请重新登录付款管理系统后再试。"},
-      en:{pageTitle:"CSCEC MEP · Payment Archive",home:"← Home",archiveHeading:"Payment Archive",language:"Language",chooseMonth:"Select payment month",closedMonths:"Select a closed month",searchCompany:"Company / Contract / IPC / Amount",searchResults:"Search results",searchingCompanies:"Searching archived months...",noCompanyMatches:"No matching data found.",monthColumn:"Month",project:"Project",openMonth:"Open month",downloadExcel:"Download Excel",downloadUnc:"Download UNC",downloadProjectUnc:"Download UNC",downloadOneUnc:"Download",month:"Month {month} / {year}",report:"Report",noClosedMonths:"No months have been archived yet.",projectPayments:"Project Payments",indirectCosts:"Indirect Costs",unknownProject:"No project assigned",payments:"payments",paid:"Paid",close:"Close",no:"No.",company:"Company",bankAccount:"Bank Account",contractNo:"Contract No.",contractContent:"Contract Content",actualAmount:"Actual Paid Amount",paymentDate:"Payment Date",viewUnc:"View UNC",replaceUnc:"Replace UNC",addUnc:"Add UNC",noUnc:"Not available",noData:"No data available",noWebData:"No web details are available for this month. An admin needs to archive the month again once.",cannotOpen:"Unable to open this month's data. Please try again later.",loadingArchive:"Loading Payment Archive...",loginRequired:"Sign-in required",loginRequiredDetail:"Sign in to Payment Management, then reopen Payment Archive.",accessDenied:"Access denied",accessDeniedDetail:"This account has not been granted access to the Payment system.",cannotLoad:"Unable to load Payment Archive",cannotLoadDetail:"Sign in to Payment Management again and retry."}
+      vi:{pageTitle:"CSCEC MEP · Kho chứng từ thanh toán",home:"← Trang chủ",archiveHeading:"Kho chứng từ thanh toán",language:"Ngôn ngữ",chooseMonth:"Chọn tháng thanh toán",closedMonths:"Chọn tháng đã chốt",searchCompany:"Công ty / Hợp đồng / IPC / Số tiền",searchResults:"Kết quả tìm kiếm",searchingCompanies:"Đang tìm trong các tháng đã chốt...",noCompanyMatches:"Không tìm thấy dữ liệu phù hợp.",monthColumn:"Tháng",project:"Dự án",openMonth:"Mở tháng",downloadExcel:"Tải Excel",downloadUnc:"Tải UNC",downloadProjectUnc:"Tải UNC",downloadOneUnc:"Tải",month:"Tháng {month} / {year}",report:"Báo cáo",noClosedMonths:"Chưa có tháng nào được chốt.",projectPayments:"Thanh toán dự án",indirectCosts:"Chi phí gián tiếp",unknownProject:"Chưa gắn dự án",payments:"khoản",paid:"Đã thanh toán",close:"Đóng",no:"STT",company:"Công ty",bankAccount:"STK ngân hàng",contractNo:"Số hợp đồng",contractContent:"Nội dung hợp đồng",actualAmount:"Số tiền thực tế",paymentDate:"Ngày thanh toán",viewUnc:"Xem UNC",replaceUnc:"Thay UNC",addUnc:"Bổ sung UNC",noUnc:"Chưa có",noData:"Chưa có dữ liệu",noWebData:"Tháng này chưa có dữ liệu xem trên web. Admin cần chốt lại tháng một lần.",cannotOpen:"Không mở được dữ liệu tháng này. Hãy thử lại sau.",loadingArchive:"Đang tải Kho chứng từ...",loginRequired:"Cần đăng nhập",loginRequiredDetail:"Hãy đăng nhập Payment Management trước, rồi mở lại Kho chứng từ.",accessDenied:"Không có quyền truy cập",accessDeniedDetail:"Tài khoản này chưa được cấp quyền vào hệ thống Payment.",cannotLoad:"Không tải được Kho chứng từ",cannotLoadDetail:"Hãy đăng nhập lại Payment Management rồi thử lại.",searchTotal:"Tổng đã trả",exportSearchExcel:"Xuất Excel kết quả"},
+      zh:{pageTitle:"CSCEC MEP · 付款凭证库",home:"← 首页",archiveHeading:"付款凭证库",language:"语言",chooseMonth:"选择付款月份",closedMonths:"选择已归档月份",searchCompany:"公司 / 合同 / IPC / 金额",searchResults:"搜索结果",searchingCompanies:"正在搜索已归档月份...",noCompanyMatches:"未找到匹配的数据。",monthColumn:"月份",project:"项目",openMonth:"打开月份",downloadExcel:"下载 Excel",downloadUnc:"下载付款凭证",downloadProjectUnc:"下载付款凭证",downloadOneUnc:"下载",month:"{year}年{month}月",report:"报表",noClosedMonths:"暂无已归档月份。",projectPayments:"项目付款",indirectCosts:"间接费",unknownProject:"未关联项目",payments:"笔",paid:"已付款",close:"关闭",no:"序号",company:"公司",bankAccount:"银行账户",contractNo:"合同编号",contractContent:"合同内容",actualAmount:"实际付款金额",paymentDate:"付款日期",viewUnc:"查看付款凭证",replaceUnc:"替换付款凭证",addUnc:"补充付款凭证",noUnc:"暂无",noData:"暂无数据",noWebData:"该月份暂无网页明细，管理员需重新归档该月份一次。",cannotOpen:"无法打开该月份的数据，请稍后重试。",loadingArchive:"正在加载付款凭证库...",loginRequired:"请先登录",loginRequiredDetail:"请先登录付款管理系统，再重新打开付款凭证库。",accessDenied:"无访问权限",accessDeniedDetail:"该账号尚未获得付款系统访问权限。",cannotLoad:"无法加载付款凭证库",cannotLoadDetail:"请重新登录付款管理系统后再试。",searchTotal:"累计已付款",exportSearchExcel:"导出搜索结果 Excel"},
+      en:{pageTitle:"CSCEC MEP · Payment Archive",home:"← Home",archiveHeading:"Payment Archive",language:"Language",chooseMonth:"Select payment month",closedMonths:"Select a closed month",searchCompany:"Company / Contract / IPC / Amount",searchResults:"Search results",searchingCompanies:"Searching archived months...",noCompanyMatches:"No matching data found.",monthColumn:"Month",project:"Project",openMonth:"Open month",downloadExcel:"Download Excel",downloadUnc:"Download UNC",downloadProjectUnc:"Download UNC",downloadOneUnc:"Download",month:"Month {month} / {year}",report:"Report",noClosedMonths:"No months have been archived yet.",projectPayments:"Project Payments",indirectCosts:"Indirect Costs",unknownProject:"No project assigned",payments:"payments",paid:"Paid",close:"Close",no:"No.",company:"Company",bankAccount:"Bank Account",contractNo:"Contract No.",contractContent:"Contract Content",actualAmount:"Actual Paid Amount",paymentDate:"Payment Date",viewUnc:"View UNC",replaceUnc:"Replace UNC",addUnc:"Add UNC",noUnc:"Not available",noData:"No data available",noWebData:"No web details are available for this month. An admin needs to archive the month again once.",cannotOpen:"Unable to open this month's data. Please try again later.",loadingArchive:"Loading Payment Archive...",loginRequired:"Sign-in required",loginRequiredDetail:"Sign in to Payment Management, then reopen Payment Archive.",accessDenied:"Access denied",accessDeniedDetail:"This account has not been granted access to the Payment system.",cannotLoad:"Unable to load Payment Archive",cannotLoadDetail:"Sign in to Payment Management again and retry.",searchTotal:"Total paid",exportSearchExcel:"Export search results"}
     };
     let currentLanguage=localStorage.getItem(LANGUAGE_KEY)||"vi";
     if(!["vi","zh","en"].includes(currentLanguage)) currentLanguage="vi";
@@ -78,6 +79,7 @@
     let expandedProjectOrder=[];
     let companySearchGeneration=0;
     let companySearchTimer=null;
+    let currentGlobalSearchRows=[];
     // Session-only cache: kept only while this page stays open.
     // F5 / reopening the Archive always fetches fresh Firebase data.
     const sessionDetailCache=new Map();
@@ -88,6 +90,7 @@
     const formatMoney=value=>new Intl.NumberFormat("en-US",{minimumFractionDigits:0,maximumFractionDigits:2}).format(Number(value||0));
     const normalizeSearch=value=>String(value??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d").replace(/Đ/g,"D").toLocaleLowerCase().replace(/\s+/g," ").trim();
     const uncPreview=fileId=>`https://drive.google.com/file/d/${encodeURIComponent(String(fileId||"").trim())}/preview`;
+    const uncView=fileId=>`https://drive.google.com/file/d/${encodeURIComponent(String(fileId||"").trim())}/view`;
     const uncDownload=fileId=>`https://drive.google.com/uc?export=download&id=${encodeURIComponent(String(fileId||"").trim())}`;
     const normalizeAmountSearch=value=>{const n=Number(value||0);if(!Number.isFinite(n)) return "";return [String(n),formatMoney(n),String(Math.trunc(n))].join(" ");};
     const buildRowSearchText=row=>normalizeSearch([row?.company,row?.contractNo,row?.contractName,row?.ipcNo,normalizeAmountSearch(row?.actualAmount)].filter(Boolean).join(" "));
@@ -319,6 +322,7 @@
             company:String(entry?.company||"").trim(),
             project:String(entry?.project||t("unknownProject")),
             contractNo:String(entry?.contractNo||"").trim(),
+            contractName:String(entry?.contractName||"").trim(),
             ipcNo:String(entry?.ipcNo||"").trim(),
             actualAmount:Number(entry?.actualAmount)||0
           });
@@ -334,10 +338,199 @@
       monthSelect.value="";
 
       const monthCount=new Set(matches.map(item=>item.month)).size;
+      const totalPaid=matches.reduce((sum,item)=>sum+(Number(item.actualAmount)||0),0);
+      currentGlobalSearchRows=[...matches];
       const rows=matches.map(item=>`<tr><td class="center">${escapeHtml(moneyMonth(item.month))}</td><td>${escapeHtml(item.company)}</td><td>${escapeHtml(item.project)}</td><td>${escapeHtml(item.contractNo)}</td><td class="center">${escapeHtml(item.ipcNo)}</td><td class="right">${formatMoney(item.actualAmount)}</td><td class="center"><button type="button" class="search-open-month" data-search-month="${escapeHtml(item.month)}">${escapeHtml(t("openMonth"))}</button></td></tr>`).join("");
+      const adminSearchSummary=currentUserIsAdmin
+        ? `<span><b>${formatMoney(totalPaid)}</b>VND · ${escapeHtml(t("searchTotal"))}</span>`
+        : "";
+      const adminSearchExport=currentUserIsAdmin&&matches.length
+        ? `<button type="button" class="archive-download show" id="exportSearchResultsBtn">${escapeHtml(t("exportSearchExcel"))}</button>`
+        : "";
 
       viewer.classList.add("show");
-      viewer.innerHTML=`<div class="viewer-heading"><div><h2>${escapeHtml(t("searchResults"))}</h2></div><button class="viewer-close" type="button" id="closeArchiveViewer">${escapeHtml(t("close"))}</button></div><div class="viewer-summary"><span><b>${formatMoney(matches.length)}</b>${escapeHtml(t("searchResults"))}</span><span><b>${formatMoney(monthCount)}</b>${escapeHtml(t("monthColumn"))}</span></div><div class="viewer-table-wrap"><table class="viewer-table global-search-table"><thead><tr><th>${escapeHtml(t("monthColumn"))}</th><th>${escapeHtml(t("company"))}</th><th>${escapeHtml(t("project"))}</th><th>${escapeHtml(t("contractNo"))}</th><th>IPC</th><th>${escapeHtml(t("actualAmount"))}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="center">${escapeHtml(t("noCompanyMatches"))}</td></tr>`}</tbody></table></div>`;
+      viewer.innerHTML=`<div class="viewer-heading"><div><h2>${escapeHtml(t("searchResults"))}</h2></div><div style="display:flex;align-items:center;gap:7px">${adminSearchExport}<button class="viewer-close" type="button" id="closeArchiveViewer">${escapeHtml(t("close"))}</button></div></div><div class="viewer-summary"><span><b>${formatMoney(matches.length)}</b>${escapeHtml(t("searchResults"))}</span><span><b>${formatMoney(monthCount)}</b>${escapeHtml(t("monthColumn"))}</span>${adminSearchSummary}</div><div class="viewer-table-wrap"><table class="viewer-table global-search-table"><thead><tr><th>${escapeHtml(t("monthColumn"))}</th><th>${escapeHtml(t("company"))}</th><th>${escapeHtml(t("project"))}</th><th>${escapeHtml(t("contractNo"))}</th><th>IPC</th><th>${escapeHtml(t("actualAmount"))}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="center">${escapeHtml(t("noCompanyMatches"))}</td></tr>`}</tbody></table></div>`;
+    };
+
+    const exportGlobalSearchExcel=async()=>{
+      if(!currentUserIsAdmin||!currentGlobalSearchRows.length) return;
+      if(!window.XLSX){alert("Không thể tải thư viện Excel. Hãy kiểm tra kết nối mạng rồi thử lại.");return;}
+
+      const exportBtn=document.getElementById("exportSearchResultsBtn");
+      const oldText=exportBtn?.textContent||"";
+      if(exportBtn){exportBtn.disabled=true;exportBtn.textContent="Đang tạo Excel...";}
+
+      try{
+        /*
+          Global search itself stays zero-read and uses the compact archive index.
+          Only when Admin explicitly exports do we read the matched month details
+          so the Excel can contain the real UNC link and payment date.
+        */
+        const months=[...new Set(currentGlobalSearchRows.map(item=>String(item.month||"")).filter(Boolean))];
+        const searchTerm=normalizeSearch(companySearch.value);
+        const exportRows=[];
+
+        for(const month of months){
+          let details=sessionDetailCache.get(month);
+          if(!details){
+            const snap=await getDoc(doc(db,"paymentArchiveDetails",month));
+            if(!snap.exists()) continue;
+            details=snap.data();
+            sessionDetailCache.set(month,details);
+          }
+
+          (Array.isArray(details?.rows)?details.rows:[]).forEach(row=>{
+            if(!buildRowSearchText(row).includes(searchTerm)) return;
+            exportRows.push({
+              month,
+              project:String(row?.project||"").trim(),
+              company:String(row?.company||"").trim(),
+              contractNo:String(row?.contractNo||"").trim(),
+              contractName:String(row?.contractName||"").trim(),
+              ipcNo:String(row?.ipcNo||"").trim(),
+              actualAmount:Number(row?.actualAmount)||0,
+              paymentDate:String(row?.paymentDate||"").trim(),
+              uncFileId:String(row?.uncFileId||"").trim()
+            });
+          });
+        }
+
+        exportRows.sort((a,b)=>
+          String(b.month).localeCompare(String(a.month)) ||
+          String(a.paymentDate).localeCompare(String(b.paymentDate)) ||
+          String(a.company).localeCompare(String(b.company),"vi",{sensitivity:"base"})
+        );
+
+        const data=exportRows.map((item,index)=>({
+          "STT":index+1,
+          "Tháng":String(item.month||""),
+          "Ngày thanh toán":String(item.paymentDate||""),
+          "Dự án":String(item.project||""),
+          "Công ty":String(item.company||""),
+          "Số hợp đồng":String(item.contractNo||""),
+          "Tên hợp đồng / Nội dung":String(item.contractName||""),
+          "IPC":String(item.ipcNo||""),
+          "Số tiền thực tế":Number(item.actualAmount)||0,
+          "UNC":item.uncFileId?"UNC":""
+        }));
+
+        const total=exportRows.reduce((sum,item)=>sum+(Number(item.actualAmount)||0),0);
+        data.push({
+          "STT":"",
+          "Tháng":"",
+          "Ngày thanh toán":"",
+          "Dự án":"",
+          "Công ty":"TỔNG",
+          "Số hợp đồng":"",
+          "Tên hợp đồng / Nội dung":"",
+          "IPC":"",
+          "Số tiền thực tế":total,
+          "UNC":""
+        });
+
+        const ws=window.XLSX.utils.json_to_sheet(data);
+        ws["!cols"]=[
+          {wch:7},{wch:12},{wch:16},{wch:16},{wch:42},
+          {wch:42},{wch:42},{wch:14},{wch:20},{wch:12}
+        ];
+        ws["!autofilter"]={ref:`A1:J${Math.max(1,data.length)}`};
+        ws["!freeze"]={xSplit:0,ySplit:1,topLeftCell:"A2",activePane:"bottomLeft",state:"frozen"};
+        ws["!rows"]=[{hpt:23}];
+
+        /* Search export intentionally mirrors the clean monthly Excel style:
+           light blue-grey header, thin borders, readable totals, no dashboard title. */
+        const thinBorder={
+          top:{style:"thin",color:{rgb:"D9E2EC"}},
+          bottom:{style:"thin",color:{rgb:"D9E2EC"}},
+          left:{style:"thin",color:{rgb:"D9E2EC"}},
+          right:{style:"thin",color:{rgb:"D9E2EC"}}
+        };
+        const headerStyle={
+          font:{name:"Arial",sz:10,bold:true,color:{rgb:"17365D"}},
+          fill:{patternType:"solid",fgColor:{rgb:"DCE6F1"}},
+          border:thinBorder,
+          alignment:{vertical:"center",horizontal:"center",wrapText:true}
+        };
+        const bodyStyle={
+          font:{name:"Arial",sz:10,color:{rgb:"1F2937"}},
+          border:thinBorder,
+          alignment:{vertical:"center",wrapText:false}
+        };
+        const totalStyle={
+          font:{name:"Arial",sz:10,bold:true,color:{rgb:"17365D"}},
+          fill:{patternType:"solid",fgColor:{rgb:"EEF3F8"}},
+          border:thinBorder,
+          alignment:{vertical:"center"}
+        };
+
+        for(let c=0;c<10;c++){
+          const addr=window.XLSX.utils.encode_cell({r:0,c});
+          if(ws[addr]) ws[addr].s=headerStyle;
+        }
+
+        for(let r=1;r<=data.length;r++){
+          for(let c=0;c<10;c++){
+            const addr=window.XLSX.utils.encode_cell({r,c});
+            if(ws[addr]) ws[addr].s={...bodyStyle};
+          }
+        }
+
+        /* Dates and money. */
+        for(let r=2;r<=data.length+1;r++){
+          const moneyCell=ws[`I${r}`];
+          if(moneyCell){
+            moneyCell.z='#,##0';
+            moneyCell.s={...bodyStyle,alignment:{vertical:"center",horizontal:"right"}};
+          }
+          const dateCell=ws[`C${r}`];
+          if(dateCell) dateCell.s={...bodyStyle,alignment:{vertical:"center",horizontal:"center"}};
+          const sttCell=ws[`A${r}`];
+          if(sttCell) sttCell.s={...bodyStyle,alignment:{vertical:"center",horizontal:"center"}};
+          const monthCell=ws[`B${r}`];
+          if(monthCell) monthCell.s={...bodyStyle,alignment:{vertical:"center",horizontal:"center"}};
+          const ipcCell=ws[`H${r}`];
+          if(ipcCell) ipcCell.s={...bodyStyle,alignment:{vertical:"center",horizontal:"center"}};
+        }
+
+        /* Clickable UNC links. Use /view rather than /preview for Excel hyperlinks. */
+        exportRows.forEach((item,index)=>{
+          if(!item.uncFileId) return;
+          const cell=ws[`J${index+2}`];
+          if(!cell) return;
+          cell.v="UNC";
+          cell.t="s";
+          cell.l={Target:uncView(item.uncFileId),Tooltip:"Mở UNC trên Google Drive"};
+          cell.s={
+            ...bodyStyle,
+            font:{name:"Arial",sz:10,color:{rgb:"0563C1"},underline:true},
+            alignment:{vertical:"center",horizontal:"center"}
+          };
+        });
+
+        /* Total row. */
+        const totalRow=data.length; // zero-based worksheet row index
+        for(let c=0;c<10;c++){
+          const addr=window.XLSX.utils.encode_cell({r:totalRow,c});
+          if(ws[addr]) ws[addr].s={...totalStyle};
+        }
+        const totalMoney=ws[`I${totalRow+1}`];
+        if(totalMoney){
+          totalMoney.z='#,##0';
+          totalMoney.s={...totalStyle,alignment:{vertical:"center",horizontal:"right"}};
+        }
+        const totalLabel=ws[`E${totalRow+1}`];
+        if(totalLabel) totalLabel.s={...totalStyle,alignment:{vertical:"center",horizontal:"left"}};
+
+        const wb=window.XLSX.utils.book_new();
+        window.XLSX.utils.book_append_sheet(wb,ws,"Đối chiếu công nợ");
+        const q=String(companySearch.value||"search").trim().replace(/[\/:*?"<>|]+/g,"_").slice(0,45)||"search";
+        window.XLSX.writeFile(wb,`Payment_Search_${q}.xlsx`);
+      }catch(error){
+        console.error("EXPORT SEARCH EXCEL ERROR:",error);
+        alert("Không xuất được Excel. Hãy thử lại.");
+      }finally{
+        if(exportBtn){exportBtn.disabled=false;exportBtn.textContent=oldText||t("exportSearchExcel");}
+      }
     };
 
     const runCompanySearch=()=>{
@@ -347,6 +540,7 @@
         viewerMessageKey="";
         if(currentDetails){applyCompanySearch();return;}
         viewerMode="";
+        currentGlobalSearchRows=[];
         viewer.classList.remove("show");
         viewer.innerHTML="";
         return;
@@ -418,6 +612,13 @@
     });
     companySearch.addEventListener("input",handleCompanySearchInput);
     viewer.addEventListener("click",event=>{
+      const exportSearchButton=event.target.closest("#exportSearchResultsBtn");
+      if(exportSearchButton){
+        event.preventDefault();
+        exportGlobalSearchExcel();
+        return;
+      }
+
       const searchMonthButton=event.target.closest(".search-open-month");
       if(searchMonthButton){
         const month=String(searchMonthButton.dataset.searchMonth||"").trim();
