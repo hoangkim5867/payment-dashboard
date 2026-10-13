@@ -2342,7 +2342,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, getDocs, getDoc, doc, setDoc, updateDoc, writeBatch, addDoc, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, collection, getDocs, getDoc, doc, setDoc, updateDoc, writeBatch, addDoc, serverTimestamp, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
 const app=initializeApp(firebaseConfig);const db=getFirestore(app);const auth=getAuth(app);
@@ -2350,6 +2350,13 @@ const paymentsRef=collection(db,"payments");
 const activityLogsRef=collection(db,"activityLogs");
 const CASH_MONTHLY_SNAPSHOT_COLLECTION="cash_flow_monthly_snapshots";
 let allPayments=[];
+// Read budget: month-scoped queries only, cached briefly in this tab.
+const planMonthCache=new Map();
+const PLAN_MONTH_CACHE_MS=90000;
+let planLoadSequence=0;
+let planLoadInFlight=new Map();
+// Fail closed: do not allow commits until the cloud lock snapshot is confirmed.
+let fundingLockReadyMonth="";
 let currentUser=null;
 let currentProfile=null;
 let currentOperator="";
@@ -2402,10 +2409,10 @@ function canReview(){
   return hasPlanReviewAccess();
 }
 function canConfirmPlan(){
-  return hasPlanReviewAccess();
+  return hasPlanReviewAccess() && fundingLockReadyMonth===monthSelect.value;
 }
 function canUnlock(){
-  return hasPlanReviewAccess();
+  return hasPlanReviewAccess() && fundingLockReadyMonth===monthSelect.value;
 }
 function canResetReview(){
   return isReviewOwner();
@@ -2676,13 +2683,30 @@ async function clearAllProjectLockMarkers(){
 }
 
 function fillFilters(){
-  const months=[...new Set(allPayments.filter(p=>p.deleted!==true).map(p=>p.paymentMonth).filter(Boolean))].sort().reverse();
-  const prev=monthSelect.value;
+  // Month choices are generated locally; never enumerate every Payment just to build a dropdown.
+  const chosen=monthSelect.value;
+  const now=new Date();
+  const maxYear=now.getFullYear(), maxMonth=now.getMonth()+1;
+  const months=[];
+  for(let year=maxYear;year>=2021;year--){
+    for(let m=(year===maxYear?maxMonth:12);m>=1;m--){
+      months.push(`${year}-${String(m).padStart(2,"0")}`);
+    }
+  }
+  // Preserve any explicitly selected historical or future month.
+  if(chosen && !months.includes(chosen))months.push(chosen);
+  months.sort().reverse();
   monthSelect.innerHTML=months.map(m=>`<option value="${m}">${displayMonth(m)}</option>`).join("");
-  if(prev&&months.includes(prev))monthSelect.value=prev;
-  else if(months.length)monthSelect.value=months[0];
+  if(chosen&&months.includes(chosen))monthSelect.value=chosen;
+  else monthSelect.value=`${maxYear}-${String(maxMonth).padStart(2,"0")}`;
 }
 function escapeHtml(v){return String(v??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]))}
+// Carry-forward metadata belongs to Payment's stored remark, not the human-readable note.
+// Hide it in Plan Review only; never modify or write back the underlying remark.
+function visiblePlanRemark(v){
+  return String(v??"").replace(/\s*\[\[CARRY_FROM:\s*\d{4}-\d{1,2}\s*\]\]/gi,"").trim();
+}
+
 function timeValue(v){
   if(!v)return 0;
   try{
@@ -2760,6 +2784,7 @@ async function migrateLegacyPlanning(month,snapshot){
   return snapshot;
 }
 function stopMonthlyFundingWatch(){
+  fundingLockReadyMonth="";
   if(monthlyFundingUnsubscribe){
     try{monthlyFundingUnsubscribe()}catch{}
     monthlyFundingUnsubscribe=null;
@@ -2782,14 +2807,13 @@ function startMonthlyFundingWatch(month){
       let value=normalizeMonthlySnapshot(month,snap.exists()?snap.data():{},snap.exists());
       monthlyFundingSnapshots.set(month,value);
 
-      /* Keep the old one-time local-planning migration, without polling. */
-      try{value=await migrateLegacyPlanning(month,value)}catch(error){
-        console.warn("Không thể chuyển dữ liệu nguồn tiền cũ lên Firebase",error);
-      }
+      // Read-only on open: NEVER auto-upload obsolete localStorage planning to Firestore.
+      // Historical local values remain available through fundingRecord() fallback.
       if(monthlyFundingWatchMonth!==month)return;
-      monthlyFundingSnapshots.set(month,value);
+      // A cache-only event is not proof that the project has not since been locked.
+      fundingLockReadyMonth=snap.metadata.fromCache?"":month;
       syncFundingCutoffInput(false);
-      if(currentReviewView==="funding")renderFundingView();
+      render();
     },
     error=>{
       console.warn("MONTHLY CASH SNAPSHOT WATCH ERROR",error);
@@ -2806,7 +2830,7 @@ async function loadMonthlyFundingSnapshot(month,{force=false,quiet=false}={}){
       const snap=await getDoc(doc(db,CASH_MONTHLY_SNAPSHOT_COLLECTION,month));
       let value=normalizeMonthlySnapshot(month,snap.exists()?snap.data():{},snap.exists());
       monthlyFundingSnapshots.set(month,value);
-      try{value=await migrateLegacyPlanning(month,value)}catch(error){console.warn("Không thể chuyển dữ liệu nguồn tiền cũ lên Firebase",error)}
+      // Loading an existing month must not write migrated local data automatically.
       return value;
     }catch(error){
       console.error("MONTHLY CASH SNAPSHOT LOAD ERROR",error);
@@ -3183,7 +3207,7 @@ function renderFundingView(){
       <td>${c.taxFromCash?fundingMoneyDisplay(c.taxPending):fundingInlineEditor(s.project,"taxPending",c.taxPending,inputDisabled)}</td>
       <td class="group-start">${fundingInlineEditor(s.project,"internalRepayment",c.internalRepayment,inputDisabled)}</td>
       <td>${fundingInlineEditor(s.project,"mandatoryOut",c.reserve,inputDisabled)}</td>
-      <td class="group-start result-cell">${c.cashFound?fundingMoneyDisplay(c.remaining,{emphasis:true,negative:c.remaining<0}):'<span class="money-main zero">—</span>'}</td>
+      <td class="group-start result-cell">${c.cashFound?fundingMoneyDisplay(c.remaining,{negative:c.remaining<0}):'<span class="money-main zero">—</span>'}</td>
       <td><div class="status-stack"><span class="exec-status ${rs.kind}">${rs.label}</span>${c.remaining<0?`<span class="funding-sub">${isChineseUI()?"缺口":"Thiếu"} ${compactMoney(Math.abs(c.remaining))}</span>`:""}</div></td>
       <td class="action-cell group-start"><button class="row-action-btn" data-open-project="${escapeHtml(s.project)}">${s.count?(isChineseUI()?"审核 →":"Duyệt →"):(isChineseUI()?"详情":"Chi tiết")}</button><button class="row-more-btn" data-open-drawer="${escapeHtml(s.project)}" title="Chi tiết">•••</button></td>
     </tr>`;
@@ -3275,7 +3299,7 @@ function buildOverviewSheet(){
   const ws=XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols']=[{wch:22},{wch:42},{wch:16},{wch:16},{wch:18},{wch:16},{wch:18},{wch:16},{wch:16},{wch:16},{wch:18},{wch:16},{wch:18},{wch:16},{wch:12},{wch:12}];
   const lastRow=aoa.length,lastCol=headers.length;
-  excelStyleSheet(ws,{headerRow:4,moneyCols:[3,4,5,6,7,8,9,10,11,12],statusCol:13,lastRow,lastCol,freezeCol:1});
+  excelStyleSheet(ws,{headerRow:4,moneyCols:[3,4,5,6,7,8,9,10,11,12,13],statusCol:14,lastRow,lastCol,freezeCol:1});
   // total row emphasis
   for(let c=1;c<=lastCol;c++){const cell=ws[XLSX.utils.encode_cell({r:lastRow-1,c:c-1})];if(cell)cell.s={...(cell.s||{}),fill:{fgColor:{rgb:"E8EEF4"}},font:{name:"Arial",sz:9,bold:true,color:{rgb:"173756"}},border:{top:{style:"medium",color:{rgb:"9FB0C0"}}}};}
   return ws;
@@ -3287,7 +3311,7 @@ function buildDetailSheet(){
   const data=rows.map(p=>{
     const proposal=planProposalAmount(p),st=draftStatus.get(p.id)||"included",approved=st==="excluded"?0:Math.max(0,Number(draftApprovedAmount.get(p.id)??proposal)||0);
     const status=st==="excluded"?L.excluded:(approved<proposal?L.reduced:L.included);
-    return [p.project||"",p.personInCharge||"",p.company||"",p.contractNo||"",p.ipcNo||"",p.costType||"",p.contractName||"",proposal,approved,p.remark||"",status];
+    return [p.project||"",p.personInCharge||"",p.company||"",p.contractNo||"",p.ipcNo||"",p.costType||"",p.contractName||"",proposal,approved,visiblePlanRemark(p.remark),status];
   });
   const totalProposal=data.reduce((s,r)=>s+(Number(r[7])||0),0),totalApproved=data.reduce((s,r)=>s+(Number(r[8])||0),0);
   const aoa=[
@@ -3354,7 +3378,7 @@ function buildProjectDetailSheet(project){
       p.contractName||"",
       proposal,
       approved,
-      p.remark||"",
+      visiblePlanRemark(p.remark),
       status
     ];
   });
@@ -3531,7 +3555,7 @@ function buildIndirectDetailSheet(){
       p.contractName||"",
       proposal,
       approved,
-      p.remark||"",
+      visiblePlanRemark(p.remark),
       status
     ];
   });
@@ -3978,7 +4002,7 @@ function getVisible(){
   const q=norm(searchInput.value);
   let rows=planningMonthPayments()
     .filter(p=>!activeProject||p.project===activeProject)
-    .filter(p=>!q||norm([p.personInCharge,p.project,p.company,p.contractNo,p.contractName,p.ipcNo,p.costType,p.remark].join(" ")).includes(q))
+    .filter(p=>!q||norm([p.personInCharge,p.project,p.company,p.contractNo,p.contractName,p.ipcNo,p.costType,visiblePlanRemark(p.remark)].join(" ")).includes(q))
     .filter(p=>passesColumnFilters(p));
 
   if(reviewHeaderSort.key&&reviewHeaderSort.dir){
@@ -4337,7 +4361,7 @@ function render(){
   }
 
   $("confirmBtn").disabled=scopeLocked||!canConfirmPlan()||!scopePlanningPayments().length;
-  $("confirmBtn").title=!canConfirmPlan()&&!scopeLocked?"Đăng nhập bằng tài khoản Người duyệt hoặc Quản trị viên":"";
+  $("confirmBtn").title=!hasPlanReviewAccess()?"Chỉ tài khoản quản trị được duyệt kế hoạch":fundingLockReadyMonth!==monthSelect.value?"Đang xác minh trạng thái khóa từ Firebase":"";
   $("keepAllBtn").disabled=!unlockedVisible.length;
   $("excludeAllBtn").disabled=!unlockedVisible.length;
 
@@ -4405,7 +4429,7 @@ function render(){
           <input class="approved-input ${approved<proposal&&st!=="excluded"?"reduced-amount":""}" data-approved-id="${p.id}"
                  inputmode="numeric" value="${new Intl.NumberFormat("vi-VN",{maximumFractionDigits:0}).format(st==="excluded"?0:approved)}" ${approvedDisabled}>
         </td>
-        <td class="subtle" title="${escapeHtml(p.remark||"")}">${escapeHtml(p.remark||"")}</td>
+        <td class="subtle" title="${escapeHtml(visiblePlanRemark(p.remark))}">${escapeHtml(visiblePlanRemark(p.remark))}</td>
         <td><span class="status-badge ${st==="excluded"?"exclude":approved<proposal?"reduced":"keep"}">${st==="excluded"?window.planReviewT("excludedStatus"):approved<proposal?window.planReviewT("reducedStatus"):window.planReviewT("approvedStatus")}</span></td>
       </tr>`;
   }).join(""):`<tr><td colspan="12" class="empty">Không có khoản thanh toán phù hợp.</td></tr>`;
@@ -4478,84 +4502,45 @@ function render(){
   if(currentReviewView==="funding")renderFundingView();
 }
 
-async function fetchPaymentDocsOnce(){
-  const snap=await getDocs(paymentsRef);
-  return snap.docs.map(d=>({id:d.id,...d.data()}));
+async function fetchPaymentDocsOnce(month,{force=false}={}){
+  if(!/^\d{4}-\d{2}$/.test(String(month||"")))throw Error("Tháng không hợp lệ");
+  const cached=planMonthCache.get(month);
+  if(!force && cached && Date.now()-cached.at<PLAN_MONTH_CACHE_MS)return cached.rows;
+  if(planLoadInFlight.has(month))return planLoadInFlight.get(month);
+  const task=(async()=>{
+    // IMPORTANT: Never getDocs(paymentsRef): reads the company's entire history.
+    const snap=await getDocs(query(paymentsRef,where("paymentMonth","==",month)));
+    const rows=snap.docs.map(d=>({id:d.id,...d.data()}));
+    planMonthCache.set(month,{rows,at:Date.now()});
+    return rows;
+  })();
+  planLoadInFlight.set(month,task);
+  try{return await task}finally{planLoadInFlight.delete(month)}
 }
-
-async function loadPayments(){
-  reviewBody.innerHTML='<tr><td colspan="12" class="empty">⏳ Đang tải dữ liệu Payment...</td></tr>';
-
-  let rows=[];
-  let firstError=null;
-
+async function loadPayments({force=false,preserveView=false}={}){
+  const month=monthSelect.value;
+  if(!month)return;
+  const token=++planLoadSequence;
+  reviewBody.innerHTML='<tr><td colspan="12" class="empty">⏳ Đang tải Payment của tháng...</td></tr>';
+  let rows;
   try{
-    rows=await fetchPaymentDocsOnce();
+    rows=await fetchPaymentDocsOnce(month,{force});
   }catch(error){
-    firstError=error;
-    console.warn("PLAN REVIEW FIRST PAYMENT LOAD FAILED",error);
-  }
-
-  /* One retry handles the occasional auth/persistence timing gap.
-     Never keep a silent all-zero screen. */
-  if(!rows.length && currentUser){
-    await new Promise(resolve=>setTimeout(resolve,350));
-    try{
-      rows=await fetchPaymentDocsOnce();
-    }catch(error){
-      if(!firstError)firstError=error;
-      console.error("PLAN REVIEW PAYMENT RETRY FAILED",error);
-    }
-  }
-
-  if(!rows.length){
-    allPayments=[];
-    fillFilters();
-    seedDraft();
-    render();
-
-    const message=firstError
-      ? `❌ Không tải được dữ liệu Payment: ${escapeHtml(firstError.message||String(firstError))}`
-      : `⚠️ Firebase trả về 0 Payment. Hãy bấm Làm mới; nếu Payment vẫn có dữ liệu thì kiểm tra quyền đọc collection payments.`;
-
-    reviewBody.innerHTML=`<tr><td colspan="12" class="empty">${message}</td></tr>`;
-
+    if(token!==planLoadSequence||month!==monthSelect.value)return;
+    console.error("PLAN REVIEW MONTH PAYMENT LOAD FAILED",error);
+    reviewBody.innerHTML=`<tr><td colspan="12" class="empty">❌ Không tải được Payment tháng ${escapeHtml(month)}: ${escapeHtml(error.message||String(error))}</td></tr>`;
     const notice=$("lockNotice");
-    if(notice){
-      notice.className="notice show";
-      notice.textContent=firstError
-        ?`Không đọc được Payment: ${firstError.message||firstError}`
-        :"Plan Review hiện không nhận được dữ liệu từ collection payments.";
-    }
+    if(notice){notice.className="notice show";notice.textContent="Không đọc được Payment: "+(error.message||error)}
     return;
   }
-
+  // Prevent a slow previous-month response overwriting the newly chosen month.
+  if(token!==planLoadSequence||month!==monthSelect.value)return;
   allPayments=rows;
-  fillFilters();
-
-  /* Prefer the current calendar month if it exists in Payment. */
-  const currentMonth=new Date().toISOString().slice(0,7);
-  const availableMonths=[...new Set(
-    allPayments
-      .filter(p=>p.deleted!==true)
-      .map(p=>p.paymentMonth)
-      .filter(Boolean)
-  )];
-  if(availableMonths.includes(currentMonth)){
-    monthSelect.value=currentMonth;
-  }
-
+  if(activeProject && !rows.some(p=>p.deleted!==true&&norm(p.project)===norm(activeProject)))activeProject="";
   seedDraft();
-
-  if(authStateReady&&currentUser&&monthSelect.value){
-    startMonthlyFundingWatch(monthSelect.value);
-  }
-
+  if(authStateReady&&currentUser)startMonthlyFundingWatch(month);
   syncFundingCutoffInput(true);
-
-  /* Open the payment list after a successful load so data visibility is obvious. */
-  currentReviewView="payment";
-  setReviewView("payment");
+  if(!preserveView){currentReviewView="payment";setReviewView("payment")}
   render();
 }
 async function loadProfile(user){if(!user){currentProfile=null;currentOperator="";currentRole="";return}const snap=await getDoc(doc(db,"authUsers",user.uid));if(!snap.exists()){currentProfile=null;currentOperator=user.email||"";currentRole="";return}currentProfile=snap.data();currentOperator=String(currentProfile.displayName||user.email||"").trim();currentRole=String(currentProfile.role||"").toLowerCase()}
@@ -4913,12 +4898,11 @@ $("goPaymentAllBtn").onclick=()=>{activeProject="";setReviewView("payment");rend
 $("importCashOpeningBtn").onclick=importOpeningFromCashControl;
 monthSelect.onchange=async()=>{
   activeProject="";
-  seedDraft();
-  syncFundingCutoffInput(true);
+  stopMonthlyFundingWatch();
+  // Clear previous month's visible rows immediately, then fetch only the chosen month.
+  allPayments=[];
   render();
-  if(authStateReady&&currentUser){
-    startMonthlyFundingWatch(monthSelect.value);
-  }
+  await loadPayments({preserveView:true});
 };
 searchInput.oninput=render;
 if($("fundingSearchInput"))$("fundingSearchInput").oninput=renderFundingView;
@@ -4939,7 +4923,7 @@ if($("fundingCutoffDate"))$("fundingCutoffDate").onchange=async()=>{
 };
 sortSelect.onchange=()=>{reviewHeaderSort={key:"",dir:""};render()};
 $("clearProjectBtn").onclick=()=>{activeProject="";render()};
-$("refreshBtn").onclick=async()=>{await loadPayments()};
+$("refreshBtn").onclick=async()=>{await loadPayments({force:true,preserveView:true})};
 $("keepAllBtn").onclick=()=>{
   if(!canReview()){
     $("loginModal").classList.add("show");
@@ -5113,6 +5097,9 @@ $("doConfirmBtn").onclick=async()=>{
       });
 
       $("confirmModal").classList.remove("show");
+      // Advance to an unlocked project: next confirmation must not require F5.
+      const nextProject=planningProjects().find(name=>!isProjectLocked(name));
+      activeProject=nextProject||"";
       render();
 
       alert(`✅ Đã chốt ${scopeProject}. ${approvedRows.length} khoản được duyệt đã cập nhật sang Payment; ${excludedRows.length} khoản bị loại giữ nguyên bên Payment.`);
@@ -5352,6 +5339,7 @@ onAuthStateChanged(auth,async user=>{
     return;
   }
   document.body.classList.remove("auth-checking");
+  fillFilters();
   updateUser();
   try{
     await loadPayments();
