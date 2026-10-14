@@ -14000,11 +14000,43 @@ html[data-theme="ivorybunny"] .process-inline-input{
 #exportWatchCopyStatus{font-size:9px;color:var(--ew-text,#172033)}
 @media(max-width:800px){#exportWatchPanel .export-watch-title{flex-basis:100%}}
 
-#exportWatchPanel .export-watch-bar{background:color-mix(in srgb,var(--ew-head-bg,#17365d) 7%,var(--ew-bg,#fff))!important;cursor:pointer;transition:background-color .12s ease}
-#exportWatchPanel .export-watch-bar:hover{background:color-mix(in srgb,var(--ew-head-bg,#17365d) 12%,var(--ew-bg,#fff))!important}
+#exportWatchPanel .export-watch-bar{background:color-mix(in srgb,var(--ew-head-bg,#17365d) 14%,var(--ew-bg,#fff))!important;cursor:pointer;transition:background-color .12s ease}
+#exportWatchPanel .export-watch-bar:hover{background:color-mix(in srgb,var(--ew-head-bg,#17365d) 20%,var(--ew-bg,#fff))!important}
 #exportWatchPanel .export-watch-bar:focus-visible{outline:2px solid var(--ew-accent,#17365d);outline-offset:-2px}
 #exportWatchPanel .export-watch-badge{font-weight:600;border:0;background:color-mix(in srgb,var(--ew-head-bg,#17365d) 12%,var(--ew-bg,#fff))!important}
-#exportWatchPanel .export-watch-toggle{font-weight:600!important;color:var(--ew-accent,#17365d)!important;border-left:1px solid var(--ew-border,#dce3eb)!important;padding:3px 8px!important}
+#exportWatchPanel .export-watch-toggle{font-weight:600!important;color:var(--ew-accent,#17365d)!important;border:0!important;padding:3px 5px!important}
+
+/* Change-status colors requested by the user; table surfaces still follow theme. */
+#exportWatchPanel .export-watch-badge.add{color:#175cd3!important;border:1px solid #b2ddff!important;background:color-mix(in srgb,#175cd3 5%,var(--ew-bg,#fff))!important}
+#exportWatchPanel .export-watch-badge.edit{color:#b54708!important;border:1px solid #fedf89!important;background:color-mix(in srgb,#f59e0b 6%,var(--ew-bg,#fff))!important}
+#exportWatchPanel .export-watch-badge.remove{color:#b42318!important;border:1px solid #fecdca!important;background:color-mix(in srgb,#dc2626 4%,var(--ew-bg,#fff))!important}
+#exportWatchPanel .export-watch-kind.add{color:#175cd3!important;font-weight:600}
+#exportWatchPanel .export-watch-kind.edit{color:#b54708!important;font-weight:600}
+#exportWatchPanel .export-watch-kind.remove{color:#b42318!important;font-weight:600}
+#exportWatchPanel .export-watch-delta.negative{color:#b42318!important}
+#exportWatchPanel .export-watch-delta.positive{color:#067647!important}
+#exportWatchPanel .export-watch-delta.zero{color:var(--ew-text,#667085)!important}
+
+/* Highlight the collapsed invitation independently of the table theme. */
+#exportWatchPanel .export-watch-bar[aria-expanded="false"]{background:#fff0bd!important;color:#78460c!important;border-left:3px solid #e9a11b!important}
+#exportWatchPanel .export-watch-bar[aria-expanded="false"]:hover{background:#ffe49a!important}
+#exportWatchPanel .export-watch-bar[aria-expanded="false"] .export-watch-title{color:#78460c!important;font-weight:700}
+#exportWatchPanel .export-watch-bar[aria-expanded="false"] .export-watch-marker{color:#96672d!important;opacity:1}
+#exportWatchPanel .export-watch-bar[aria-expanded="false"] .export-watch-toggle{color:#9a5c0b!important}
+
+/* Keep the open strip warm and clean, instead of mixing navy into gray. */
+#exportWatchPanel .export-watch-bar[aria-expanded="true"]{background:#fff8e9!important;color:#65451f!important}
+#exportWatchPanel .export-watch-bar[aria-expanded="true"]:hover{background:#fff2d5!important}
+#exportWatchPanel .export-watch-bar[aria-expanded="true"] .export-watch-title{color:#65451f!important}
+#exportWatchPanel .export-watch-bar[aria-expanded="true"] .export-watch-marker{color:#8c7355!important;opacity:1}
+#exportWatchPanel .export-watch-title{font-size:11px;font-weight:600}
+#exportWatchPanel .export-watch-badge{font-size:10px;padding:3px 6px}
+#exportWatchPanel .export-watch-delta{display:inline-flex;align-items:baseline;gap:5px;font-size:10px!important;white-space:nowrap}
+#exportWatchPanel .export-watch-delta-label{color:#735c42;font-weight:400}
+#exportWatchPanel .export-watch-delta-amount{font-size:12px;font-weight:700;letter-spacing:.1px;font-variant-numeric:tabular-nums}
+#exportWatchPanel .export-watch-delta.negative{color:#b42318!important}
+#exportWatchPanel .export-watch-delta.positive{color:#087443!important}
+#exportWatchPanel .export-watch-old{opacity:1;color:var(--ew-text,#172033)!important}
 </style>
 </head>
 
@@ -42195,10 +42227,9 @@ function renderExportWatchPanel(
             summary.removeCount
         );
 
-    els.delta.textContent =
-        `${copy.delta}: ` +
-        `${summary.delta > 0 ? "+" : ""}` +
-        `${formatMoney(summary.delta)} VND`;
+    els.delta.innerHTML =
+        `<span class="export-watch-delta-label">${escapeHTML(copy.delta)}:</span>` +
+        `<strong class="export-watch-delta-amount">${escapeHTML(`${summary.delta > 0 ? "+" : ""}${formatMoney(summary.delta)} VND`)}</strong>`;
 
     els.delta.classList.remove(
         "positive",
@@ -42214,8 +42245,7 @@ function renderExportWatchPanel(
                 : "zero"
     );
 
-    const viewText = currentLanguage === "zh" ? "查看详情" : currentLanguage === "en" ? "View details" : "Xem chi tiết";
-    els.toggle.textContent = expanded ? `${copy.close} ▴` : `${viewText} ▾`;
+    els.toggle.textContent = expanded ? "▴" : "▾";
     els.panel.querySelector(".export-watch-bar").setAttribute("aria-expanded",String(expanded));
     els.toggle.setAttribute("aria-expanded",String(expanded));
     els.toggle.title = expanded ? copy.close : copy.open;
