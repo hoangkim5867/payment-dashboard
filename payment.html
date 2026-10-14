@@ -13830,6 +13830,182 @@ html[data-theme="ivorybunny"] .process-inline-input{
 .staff-month-access-status.open{border-color:#abefc6;background:#ecfdf3;color:#067647}
 .staff-history-readonly-badge{display:inline-flex;align-items:center;min-height:24px;padding:3px 8px;border:1px solid #d0d5dd;border-radius:999px;background:#f8fafc;color:#667085;font-size:11px;font-weight:800;white-space:nowrap}
 </style>
+
+<style id="export-watch-real-style">
+.export-watch-panel{
+    margin:0 0 8px;
+    border:1px solid #d5e0ec;
+    border-radius:7px;
+    background:#fff;
+    overflow:hidden;
+    box-shadow:0 1px 2px rgba(16,24,40,.03);
+}
+.export-watch-panel[hidden]{display:none!important}
+.export-watch-bar{
+    min-height:30px;
+    display:flex;
+    align-items:center;
+    gap:7px;
+    padding:3px 7px;
+    background:#f7f9fc;
+    border-bottom:1px solid #e1e7ef;
+    color:#17365d;
+    font-family:Arial,sans-serif;
+    font-size:10px;
+}
+.export-watch-title{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    min-width:260px;
+    font-weight:700;
+    white-space:nowrap;
+}
+.export-watch-icon{
+    font-size:12px;
+    color:#2457a7;
+}
+.export-watch-spacer{flex:1}
+.export-watch-badge{
+    white-space:nowrap;
+    padding:2px 6px;
+    border-radius:5px;
+    border:1px solid #d8e2ee;
+    background:#fff;
+    font-size:9px;
+    font-weight:700;
+}
+.export-watch-badge.add{
+    color:#175cd3;
+    background:#f5faff;
+    border-color:#b2ddff;
+}
+.export-watch-badge.edit{
+    color:#b54708;
+    background:#fffaf0;
+    border-color:#fedf89;
+}
+.export-watch-badge.remove{
+    color:#b42318;
+    background:#fff7f6;
+    border-color:#fecdca;
+}
+.export-watch-delta{
+    white-space:nowrap;
+    font-size:9px;
+    font-weight:700;
+}
+.export-watch-delta.positive{color:#067647}
+.export-watch-delta.negative{color:#b42318}
+.export-watch-delta.zero{color:#667085}
+.export-watch-toggle{
+    padding:3px 5px!important;
+    border:0!important;
+    background:transparent!important;
+    color:#17365d!important;
+    font-family:Arial,sans-serif!important;
+    font-size:9px!important;
+    font-weight:700!important;
+    box-shadow:none!important;
+}
+.export-watch-toggle:hover{
+    text-decoration:underline;
+    background:transparent!important;
+}
+.export-watch-details{
+    background:#fff;
+}
+.export-watch-table-wrap{
+    width:100%;
+    overflow:auto;
+}
+.export-watch-table{
+    width:max-content;
+    min-width:100%;
+    border-collapse:separate;
+    border-spacing:0;
+    table-layout:auto;
+    user-select:text;
+    font-family:Arial,sans-serif;
+}
+.export-watch-table th,
+.export-watch-table td{
+    padding:5px 7px;
+    border-right:1px solid #e3e8ef;
+    border-bottom:1px solid #e3e8ef;
+    white-space:nowrap;
+    font-size:9.5px;
+    line-height:1.25;
+    color:#172033;
+    background:#fff;
+}
+.export-watch-table th{
+    position:sticky;
+    top:0;
+    z-index:2;
+    background:#48698f;
+    color:#fff;
+    font-weight:600;
+    text-align:left;
+}
+.export-watch-table td.money{
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+}
+.export-watch-kind{
+    font-weight:700;
+}
+.export-watch-kind.add{color:#175cd3}
+.export-watch-kind.edit{color:#b54708}
+.export-watch-kind.remove{color:#b42318}
+.export-watch-old{
+    color:#b42318;
+    text-decoration:line-through;
+}
+.export-watch-new{
+    font-weight:700;
+}
+.export-watch-cell-selected{
+    background:#eaf2ff!important;
+    box-shadow:inset 0 0 0 1px #7aa7e8;
+}
+@media(max-width:1050px){
+    .export-watch-bar{flex-wrap:wrap}
+    .export-watch-spacer{display:none}
+}
+</style>
+
+
+<style id="export-watch-compact-design">
+#exportWatchPanel[hidden],#exportWatchDetails[hidden]{display:none!important}
+#exportWatchPanel{position:static;transform:none;width:100%;max-width:none;max-height:none;margin:5px 0 7px;border:1px solid var(--ew-border,#dce3eb);border-radius:0!important;background:var(--ew-bg,#fff);color:var(--ew-text,#172033);box-shadow:none;overflow:hidden}
+#exportWatchPanel .export-watch-bar{display:flex;align-items:center;flex-wrap:wrap;min-height:27px;padding:4px 8px;gap:7px;background:var(--ew-bg,#fff)!important;color:var(--ew-text,#172033)!important;border-bottom:0}
+#exportWatchPanel .export-watch-title{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:600;min-width:0;white-space:normal}
+#exportWatchPanel .export-watch-marker{font-size:9px;font-weight:400;color:var(--ew-text,#172033);opacity:.6}
+#exportWatchPanel .export-watch-badge{font-size:9px;font-weight:400;padding:2px 5px;border:1px solid var(--ew-border,#dce3eb);border-radius:4px;background:var(--ew-row-alt,#f7f9fc)!important;color:var(--ew-text,#172033)!important}
+#exportWatchPanel .export-watch-badge[hidden]{display:none!important}
+#exportWatchPanel .export-watch-delta{font-size:9px;font-weight:400;color:var(--ew-text,#172033)!important}
+#exportWatchPanel .export-watch-toggle{font-size:10px!important;font-weight:400!important;padding:3px 5px!important;color:var(--ew-text,#172033)!important;background:transparent!important;cursor:pointer;text-decoration:none!important;white-space:nowrap}
+#exportWatchDetails{background:var(--ew-bg,#fff)}
+#exportWatchPanel .export-watch-table-wrap{padding:0;width:100%;max-height:290px;overflow:auto}
+#exportWatchPanel .export-watch-table{width:max-content;min-width:100%;table-layout:auto;font-family:Arial,sans-serif}
+#exportWatchPanel .export-watch-table th{background:var(--ew-head-bg,#17365d)!important;color:var(--ew-head-text,#fff)!important;font-weight:var(--ew-head-weight,500)!important}
+#exportWatchPanel .export-watch-table th,#exportWatchPanel .export-watch-table td{font-size:10px!important;padding:5px 7px!important;line-height:1.3!important;white-space:nowrap!important;border-right:1px solid var(--ew-border,#dce3eb)!important;border-bottom:1px solid var(--ew-border,#dce3eb)!important}
+#exportWatchPanel .export-watch-table td{background:var(--ew-row,#fff)!important;color:var(--ew-text,#172033)!important}
+#exportWatchPanel .export-watch-table tr:nth-child(even) td{background:var(--ew-row-alt,#f7f9fc)!important}
+#exportWatchPanel .export-watch-table td.export-watch-cell-selected{background:var(--ew-selected,#eaf1fc)!important;outline:1px solid var(--ew-accent,#17365d)}
+#exportWatchPanel .export-watch-kind{color:var(--ew-accent,#17365d)!important;font-weight:500}
+#exportWatchPanel .export-watch-old{text-decoration:none;opacity:.7}
+#exportWatchPanel .export-watch-new{font-weight:600}
+#exportWatchCopyStatus{font-size:9px;color:var(--ew-text,#172033)}
+@media(max-width:800px){#exportWatchPanel .export-watch-title{flex-basis:100%}}
+
+#exportWatchPanel .export-watch-bar{background:color-mix(in srgb,var(--ew-head-bg,#17365d) 7%,var(--ew-bg,#fff))!important;cursor:pointer;transition:background-color .12s ease}
+#exportWatchPanel .export-watch-bar:hover{background:color-mix(in srgb,var(--ew-head-bg,#17365d) 12%,var(--ew-bg,#fff))!important}
+#exportWatchPanel .export-watch-bar:focus-visible{outline:2px solid var(--ew-accent,#17365d);outline-offset:-2px}
+#exportWatchPanel .export-watch-badge{font-weight:600;border:0;background:color-mix(in srgb,var(--ew-head-bg,#17365d) 12%,var(--ew-bg,#fff))!important}
+#exportWatchPanel .export-watch-toggle{font-weight:600!important;color:var(--ew-accent,#17365d)!important;border-left:1px solid var(--ew-border,#dce3eb)!important;padding:3px 8px!important}
+</style>
 </head>
 
 
@@ -14080,6 +14256,7 @@ html[data-theme="ivorybunny"] .process-inline-input{
             ↓ Export Excel
         </button>
 
+
         <button
             class="btn-primary"
             id="pasteExcelBtn"
@@ -14204,6 +14381,34 @@ html[data-theme="ivorybunny"] .process-inline-input{
     </div>
 
 </div>
+
+<!-- =====================================================
+     EXPORT WATCH — REAL DATA, COLLAPSED BY DEFAULT
+===================================================== -->
+<section id="exportWatchPanel" class="export-watch-panel" hidden aria-labelledby="exportWatchTitle">
+    <div class="export-watch-bar" role="button" tabindex="0" aria-controls="exportWatchDetails" aria-expanded="false">
+        <div class="export-watch-title">
+            <span id="exportWatchTitle">Thay đổi từ lần xuất Excel</span>
+            <span id="exportWatchMarkerLabel" class="export-watch-marker"></span>
+        </div>
+        <div class="export-watch-spacer"></div>
+        <span id="exportWatchAddBadge" class="export-watch-badge add"></span>
+        <span id="exportWatchEditBadge" class="export-watch-badge edit"></span>
+        <span id="exportWatchRemoveBadge" class="export-watch-badge remove"></span>
+        <span id="exportWatchDelta" class="export-watch-delta"></span>
+        <span id="exportWatchCopyStatus" role="status" aria-live="polite"></span>
+        <span id="exportWatchToggleBtn" class="export-watch-toggle" aria-hidden="true"></span>
+    </div>
+    <div id="exportWatchDetails" class="export-watch-details" hidden>
+        <div class="export-watch-table-wrap">
+            <table class="export-watch-table" tabindex="0" title="Kéo chọn ô rồi nhấn Ctrl+C" aria-label="Export Watch">
+                
+                <thead><tr id="exportWatchHead"></tr></thead>
+                <tbody id="exportWatchBody"></tbody>
+            </table>
+        </div>
+    </div>
+</section>
 
 
 <!-- =====================================================
@@ -16583,6 +16788,7 @@ let unsubscribePaymentsRealtime = null;
    selected month or ALL when the user explicitly chooses "All months".
 */
 let paymentsRealtimeReadyPromise = null;
+let settlePaymentsRealtimeReady = null;
 
 let activePaymentsScopeKey = null;
 
@@ -20647,6 +20853,16 @@ function applyRealtimePaymentSnapshot(
     updateBatchSelectionUI();
     openRequestedArchiveUncIfReady();
 
+    if(exportWatchUserAllowed()){
+        const fingerprint = JSON.stringify([currentAuthUser.uid,paymentMonthFilter.value,
+            allPayments.map(p => [p.id,p.paymentMonth,p.amount,p.deleted === true,p.monthOutcome === "cancelled"])]);
+        if(fingerprint !== exportWatchPaymentFingerprint){
+            exportWatchPaymentFingerprint = fingerprint;
+            invalidateExportWatch();
+            scheduleExportWatchRefresh(1200);
+        }
+    }
+
     if(
         recycleBinModal &&
         recycleBinModal.classList.contains("show")
@@ -20727,6 +20943,8 @@ function stopPaymentsRealtime(){
     }
 
     unsubscribePaymentsRealtime = null;
+    if(settlePaymentsRealtimeReady) settlePaymentsRealtimeReady(false);
+    settlePaymentsRealtimeReady = null;
     paymentsRealtimeReadyPromise = null;
     activePaymentsScopeKey = null;
 }
@@ -20781,6 +20999,7 @@ function startPaymentsRealtime(
 
                 let firstSnapshot = true;
                 let readySettled = false;
+                settlePaymentsRealtimeReady = resolve;
 
                 unsubscribePaymentsRealtime =
                     onSnapshot(
@@ -21933,6 +22152,7 @@ async function loadCurrentUserProfile(user){
                 )
             );
 
+        if(currentAuthUser?.uid !== user.uid) return false;
         if(!profileSnapshot.exists()){
 
             currentUserProfile = null;
@@ -21986,6 +22206,7 @@ async function loadCurrentUserProfile(user){
 
     }catch(error){
 
+        if(currentAuthUser?.uid !== user.uid) return false;
         console.error(
             "AUTH PROFILE LOAD ERROR:",
             error
@@ -22133,11 +22354,10 @@ async function logActivity(
 ){
 
     /*
-       Admin corrections are intentionally excluded from Activity Log.
-       Staff activity remains auditable. This guard runs before addDoc, so an
-       Admin edit creates no audit document and therefore no later read.
+       Persist both Admin and Staff actions. Admin entries are hidden only
+       by isAdminActivityLog in the normal UI; Export Watch consumes them.
     */
-    if(!currentAuthUser || isAdmin()){
+    if(!currentAuthUser){
         return;
     }
 
@@ -22183,6 +22403,24 @@ async function logActivity(
                 amount:
                     payment?.amount ?? "",
 
+                personInCharge:
+                    payment?.personInCharge || "",
+
+                bankAccount:
+                    payment?.bankAccount || "",
+
+                contractName:
+                    payment?.contractName || "",
+
+                costType:
+                    payment?.costType || "",
+
+                contractType:
+                    payment?.contractType || "",
+
+                noMEPException:
+                    payment?.noMEPException === true,
+
                 detail:
                     detail || "",
 
@@ -22195,6 +22433,15 @@ async function logActivity(
                     serverTimestamp()
             }
         );
+
+        if(
+            ["ADD","EDIT","DELETE","CANCEL"].includes(
+                String(action || "").toUpperCase()
+            )
+        ){
+            invalidateExportWatch();
+            scheduleExportWatchRefresh(500);
+        }
 
     }catch(error){
 
@@ -25308,6 +25555,11 @@ onAuthStateChanged(
     auth,
     async user => {
 
+        clearTimeout(exportWatchRefreshTimer);
+        invalidateExportWatch();
+        exportWatchPanelCache = null;
+        exportWatchPanelEls().panel.hidden = true;
+        exportWatchPanelEls().details.hidden = true;
         authInitialized =
             true;
 
@@ -25343,6 +25595,7 @@ onAuthStateChanged(
             applyRoleUI();
             showLoginModal();
             await revealReadyApp();
+            renderExportWatchPanel(null);
 
             return;
         }
@@ -25352,6 +25605,7 @@ onAuthStateChanged(
                 user
             );
 
+        if(currentAuthUser?.uid !== user.uid) return;
         updateOperatorDisplay();
 
         if(!hasProfile){
@@ -25421,7 +25675,10 @@ onAuthStateChanged(
             {force:true}
         );
 
+        if(currentAuthUser?.uid !== user.uid) return;
         await revealReadyApp();
+
+        scheduleExportWatchRefresh(150);
     }
 );
 
@@ -25707,6 +25964,7 @@ async function carryPaymentForward(paymentId){
             return;
         }
 
+        let carriedPaymentForAudit = null;
         await runTransaction(db, async transaction => {
             const latestSourceSnapshot = await transaction.get(sourceRef);
             const existingTargetSnapshot = await transaction.get(targetRef);
@@ -25734,6 +25992,7 @@ async function carryPaymentForward(paymentId){
 
             const nextPayment = buildCarryForwardPayment(latestSource,targetMonth);
             nextPayment.remark = carryForwardRemark(latestSource,reason);
+                    carriedPaymentForAudit = {id:targetId,...nextPayment};
 
             transaction.set(targetRef,{
                 ...nextPayment,
@@ -25768,6 +26027,7 @@ async function carryPaymentForward(paymentId){
 
         selectedPaymentIds.delete(payment.id);
 
+        await logActivity("ADD",carriedPaymentForAudit);
         await logActivity(
             "CARRY_FORWARD",
             payment,
@@ -25873,7 +26133,8 @@ async function carrySelectedPaymentsForward(selectedPayments){
                     continue;
                 }
 
-                await runTransaction(db, async transaction => {
+                let carriedPaymentForAudit = null;
+        await runTransaction(db, async transaction => {
                     const latestSourceSnapshot = await transaction.get(sourceRef);
                     const existingTargetSnapshot = await transaction.get(targetRef);
 
@@ -25895,6 +26156,7 @@ async function carrySelectedPaymentsForward(selectedPayments){
 
                     const nextPayment = buildCarryForwardPayment(latestSource,targetMonth);
                     nextPayment.remark = carryForwardRemark(latestSource,reason);
+                    carriedPaymentForAudit = {id:targetId,...nextPayment};
 
                     transaction.set(targetRef,{
                         ...nextPayment,
@@ -25928,6 +26190,7 @@ async function carrySelectedPaymentsForward(selectedPayments){
                 });
 
                 selectedPaymentIds.delete(payment.id);
+                await logActivity("ADD",carriedPaymentForAudit);
                 await logActivity(
                     "CARRY_FORWARD",
                     payment,
@@ -32382,61 +32645,19 @@ savePaymentBtn.addEventListener(
                    MULTI-USER CONFLICT CHECK:
                    read the latest Firestore document immediately before saving.
                 */
-                const latestSnapshot =
-                    await getDoc(
-                        doc(
-                            db,
-                            "payments",
-                            editingId
-                        )
-                    );
+                let latestData;
 
-                if(!latestSnapshot.exists()){
-                    throw new Error(
-                        t("paymentNotFound")
-                    );
-                }
-
-                const latestData =
-                    latestSnapshot.data();
-
-                if(isPaymentWorkflowLocked(latestData)){
-                    throw new Error(
-                        isPaymentCarriedForward(latestData)
-                            ? t("carryForwardLocked")
-                            : isPaymentCancelled(latestData)
-                                ? t("cancelledPayment")
-                                : t("lockedEdit")
-                    );
-                }
-
-                if(
-                    !sameTimestamp(
-                        latestData.updatedAt,
-                        editingUpdatedAtAtOpen
-                    )
-                ){
-                    alert(
-                        "⚠ " +
-                        t("conflictEdit")
-                    );
-
-                    savePaymentBtn.disabled =
-                        false;
-
-                    savePaymentBtn.textContent =
-                        t("savePayment");
-
-                    return;
-                }
-
-                await updateDoc(
-
-                    doc(
-                        db,
-                        "payments",
-                        editingId
-                    ),
+                await runTransaction(db, async transaction => {
+                    const paymentRef = doc(db,"payments",editingId);
+                    const liveSnapshot = await transaction.get(paymentRef);
+                    if(!liveSnapshot.exists()) throw new Error(t("paymentNotFound"));
+                    const livePayment = liveSnapshot.data();
+                    if(isPaymentWorkflowLocked(livePayment)) throw new Error(t("lockedEdit"));
+                    if(!sameTimestamp(livePayment.updatedAt,editingUpdatedAtAtOpen)){
+                        throw new Error(t("conflictEdit"));
+                    }
+                    latestData = livePayment;
+                    transaction.update(paymentRef,
 
                     {
 
@@ -32456,8 +32677,8 @@ savePaymentBtn.addEventListener(
 
                     }
 
-                );
-
+                    );
+                });
 
                 const editChanges =
                     buildChangeDetails(
@@ -39000,12 +39221,17 @@ paymentMonthFilter.addEventListener(
             applyPaymentStatusView();
         }
 
+        renderExportWatchPanel(null);
+        exportWatchPanelCache = null;
+        exportWatchPanelEls().panel.hidden = true;
+        exportWatchPanelEls().details.hidden = true;
         /* This is the only filter that changes the Firestore listener. */
         await startPaymentsRealtime(
             selectedMonth
         );
 
         applyRoleUI();
+        scheduleExportWatchRefresh(120);
     }
 );
 
@@ -40619,33 +40845,1669 @@ function appendExcelTotalRow(
 }
 
 
+/* =====================================================
+   EXCEL CHANGE MARKING — USER'S PREVIOUS EXPORT
+   Lightweight marker is stored per UID in this browser.
+   Only changes after that marker are read from Activity Log.
+===================================================== */
+
+const EXPORT_WATCH_MARKER_PREFIX =
+    "paymentExportWatchLastExport_v2_clean_20261013_";
+
+function exportWatchContext(){
+    return {uid:currentAuthUser?.uid || "", month:String(paymentMonthFilter?.value || "").trim() || "ALL"};
+}
+
+function exportWatchContextCurrent(context){
+    const current = exportWatchContext();
+    return current.uid === context.uid && current.month === context.month;
+}
+
+function exportWatchMarkerKey(context = exportWatchContext()){
+    const month = context.month;
+
+    return (
+        EXPORT_WATCH_MARKER_PREFIX +
+        String(context.uid || "signed_out") +
+        "_" +
+        month
+    );
+}
+
+function getExportWatchMarkerMs(context = exportWatchContext()){
+    if(!context.uid) return 0;
+    try{
+        const value = Number(localStorage.getItem(exportWatchMarkerKey(context)) || 0);
+        return Number.isFinite(value) && value > 0 ? value : 0;
+    }catch(error){
+        console.warn("EXPORT WATCH STORAGE UNAVAILABLE:",error);
+        return 0;
+    }
+}
+
+function setExportWatchMarkerNow(context = exportWatchContext(), cutoffMs = Date.now()){
+    if(!context.uid) return;
+    // Storage failures must not break a successfully generated workbook.
+    try{ localStorage.setItem(exportWatchMarkerKey(context),String(cutoffMs)); }
+    catch(error){ console.warn("EXPORT WATCH MARKER NOT SAVED:",error); }
+}
+
+function exportWatchAcknowledged(context){
+    try{ return JSON.parse(localStorage.getItem(exportWatchMarkerKey(context) + "_ack") || "{}"); }
+    catch{ return {}; }
+}
+
+function acknowledgeExportWatch(context, cutoffMs, paymentIds){
+    if(!getExportWatchMarkerMs(context)){
+        setExportWatchMarkerNow(context,cutoffMs);
+        return;
+    }
+    const acknowledged = exportWatchAcknowledged(context);
+    paymentIds.forEach(id => { acknowledged[id] = cutoffMs; });
+    try{ localStorage.setItem(exportWatchMarkerKey(context) + "_ack",JSON.stringify(acknowledged)); }
+    catch(error){ console.warn("EXPORT WATCH ACK NOT SAVED:",error); }
+    invalidateExportWatch();
+}
+
+let exportExcelInProgress = false;
+
+let exportWatchReadCache = null;
+let exportWatchInFlight = new Map();
+let exportWatchRevision = 0;
+let exportWatchPaymentFingerprint = "";
+let exportWatchMonthIndexUnavailable = false;
+function invalidateExportWatch(){
+    exportWatchRevision++;
+    exportWatchReadCache = null;
+}
+
+function exportWatchLogDate(log){
+    const value = log?.createdAt;
+
+    if(!value) return null;
+
+    try{
+        if(typeof value.toDate === "function"){
+            return value.toDate();
+        }
+
+        if(typeof value.seconds === "number"){
+            return new Date(value.seconds * 1000 + Number(value.nanoseconds || 0) / 1000000);
+        }
+
+        const date = new Date(value);
+        return Number.isNaN(date.getTime())
+            ? null
+            : date;
+    }catch{
+        return null;
+    }
+}
+
+function exportWatchDateText(log){
+    const date = exportWatchLogDate(log);
+
+    if(!date) return "";
+
+    return [
+        String(date.getDate()).padStart(2,"0"),
+        String(date.getMonth() + 1).padStart(2,"0"),
+        date.getFullYear()
+    ].join("/");
+}
+
+function exportWatchChangeCopy(){
+    if(currentLanguage === "zh"){
+        return {
+            add:"新增",
+            edit:"修改金额",
+            removed:"已删除 / 取消",
+            removedSection:"自上次导出 Excel 后已删除 / 取消的付款"
+        };
+    }
+
+    if(currentLanguage === "en"){
+        return {
+            add:"Added",
+            edit:"Amount changed",
+            removed:"Deleted / cancelled",
+            removedSection:"Payments deleted / cancelled since the previous Excel export"
+        };
+    }
+
+    return {
+        add:"Thêm mới",
+        edit:"Sửa tiền",
+        removed:"Đã xóa / hủy",
+        removedSection:"Các khoản đã xóa / hủy kể từ lần xuất Excel trước"
+    };
+}
+
+function exportWatchAmountChange(log){
+    if(
+        String(log?.action || "").toUpperCase() !== "EDIT" ||
+        !Array.isArray(log?.changes)
+    ){
+        return null;
+    }
+
+    const change =
+        log.changes.find(
+            item =>
+                String(item?.field || "") === "amount"
+        );
+
+    if(!change) return null;
+
+    const parseMoney = value => {
+        const cleaned =
+            String(value ?? "")
+                .replace(/,/g,"")
+                .trim();
+
+        const number = Number(cleaned);
+        return Number.isFinite(number)
+            ? number
+            : null;
+    };
+
+    const before = parseMoney(change.before);
+    const after = parseMoney(change.after);
+
+    if(before == null || after == null){
+        return null;
+    }
+
+    return before === after ? null : {before,after};
+}
+
+function exportWatchPaymentFromLog(log){
+    return {
+        id:String(log?.paymentId || ""),
+        paymentMonth:String(log?.paymentMonth || ""),
+        personInCharge:String(log?.personInCharge || ""),
+        project:String(log?.project || ""),
+        company:String(log?.company || ""),
+        bankAccount:String(log?.bankAccount || ""),
+        contractNo:String(log?.contractNo || ""),
+        contractName:String(log?.contractName || ""),
+        ipcNo:String(log?.ipcNo || ""),
+        costType:String(log?.costType || ""),
+        contractType:String(log?.contractType || ""),
+        amount:Number(log?.amount) || 0,
+        remark:"",
+        noMEPException:log?.noMEPException === true
+    };
+}
+
+function exportWatchLogMatchesCurrentMonth(log, context = exportWatchContext()){
+    const selectedMonth = context.month === "ALL" ? "" : context.month;
+
+    if(!selectedMonth){
+        return true;
+    }
+
+    return String(log?.paymentMonth || "") === selectedMonth;
+}
+
+function exportWatchLogRelevant(log, context = exportWatchContext()){
+    const action =
+        String(log?.action || "")
+            .trim()
+            .toUpperCase();
+
+    if(!["ADD","EDIT","DELETE","CANCEL"].includes(action)){
+        return false;
+    }
+
+    if(!exportWatchLogMatchesCurrentMonth(log, context)){
+        return false;
+    }
+
+    if(action === "EDIT"){
+        return !!exportWatchAmountChange(log);
+    }
+
+    return true;
+}
+
+async function loadExportWatchChanges(context = exportWatchContext(), {force = false, cutoffMs = null} = {}){
+    if(!exportWatchUserAllowed() || !context.uid || !exportWatchContextCurrent(context)){
+        return {markerMs:0,logs:[],byPaymentId:new Map(),removed:[],context};
+    }
+    const markerMs = getExportWatchMarkerMs(context);
+
+    if(!markerMs){
+        return {
+            markerMs:0,
+            logs:[],
+            byPaymentId:new Map(),
+            removed:[]
+        };
+    }
+
+    const cacheKey = JSON.stringify([context.uid,context.month,markerMs,exportWatchRevision,cutoffMs]);
+    if(!force && exportWatchReadCache?.key === cacheKey && Date.now() - exportWatchReadCache.at < 15000){
+        return exportWatchReadCache.data;
+    }
+    if(exportWatchInFlight.has(cacheKey)) return exportWatchInFlight.get(cacheKey);
+    const request = (async () => {
+    try{
+        // Page to completion; the former 500-row cap silently dropped changes.
+        const readPages = async scoped => {
+            const result = [];
+            let cursor = null;
+            for(;;){
+                const constraints = [where("createdAt",">",new Date(markerMs))];
+                if(scoped && context.month !== "ALL") constraints.push(where("paymentMonth","==",context.month));
+                if(cutoffMs != null) constraints.push(where("createdAt","<=",new Date(cutoffMs)));
+                constraints.push(orderBy("createdAt","asc"));
+                if(cursor) constraints.push(startAfter(cursor));
+                constraints.push(limit(500));
+                const snapshot = await getDocs(query(activityLogsRef,...constraints));
+                result.push(...snapshot.docs.map(item => ({...item.data(),id:item.id})));
+                if(snapshot.docs.length < 500) return result;
+                cursor = snapshot.docs[snapshot.docs.length - 1];
+            }
+        };
+        let rawLogs;
+        try{ rawLogs = await readPages(!exportWatchMonthIndexUnavailable); }
+        catch(error){
+            if(error.code !== "failed-precondition") throw error;
+            // Keep working on existing deployments without the compound index.
+            exportWatchMonthIndexUnavailable = true;
+            console.warn("Export Watch: create paymentMonth + createdAt index to reduce reads.");
+            rawLogs = await readPages(false);
+        }
+        const acknowledged = exportWatchAcknowledged(context);
+        const removedIds = new Set();
+        const logs = rawLogs.map(log => String(log.action).toUpperCase() === "RESTORE" ? {...log,action:"ADD"} : log)
+            .filter(log => exportWatchLogRelevant(log,context) &&
+            (exportWatchLogDate(log)?.getTime() || 0) > (Number(acknowledged[log.paymentId]) || 0))
+            .filter(log => {
+                const action = String(log.action).toUpperCase();
+                if(action === "ADD") removedIds.delete(log.paymentId);
+                if(action === "DELETE" || action === "CANCEL"){
+                    if(removedIds.has(log.paymentId)) return false;
+                    removedIds.add(log.paymentId);
+                }
+                return true;
+            });
+
+        const byPaymentId =
+            new Map();
+
+        const removed =
+            [];
+
+        logs.forEach(log => {
+            const paymentId =
+                String(log.paymentId || "");
+
+            if(!paymentId){
+                return;
+            }
+
+            const action =
+                String(log.action || "")
+                    .toUpperCase();
+
+            let state =
+                byPaymentId.get(paymentId) || {
+                    added:false,
+                    addDate:"",
+                    amountChanges:[],
+                    removed:false,
+                    removeDate:"",
+                    removedLog:null
+                };
+
+            const dateText =
+                exportWatchDateText(log);
+
+            if(action === "ADD"){
+                state.removed = false;
+                state.removedLog = null;
+                state.added = true;
+                state.addDate =
+                    state.addDate || dateText;
+            }
+            else if(action === "EDIT"){
+                const amountChange =
+                    exportWatchAmountChange(log);
+
+                if(amountChange){
+                    state.amountChanges.push({
+                        ...amountChange,
+                        dateText
+                    });
+                }
+            }
+            else if(
+                action === "DELETE" ||
+                action === "CANCEL"
+            ){
+                state.removed = true;
+                state.removeDate = dateText;
+                state.removedLog = log;
+            }
+
+            byPaymentId.set(
+                paymentId,
+                state
+            );
+        });
+
+        byPaymentId.forEach(
+            (state,paymentId) => {
+                if(
+                    state.removed &&
+                    state.removedLog
+                ){
+                    removed.push({
+                        paymentId,
+                        state,
+                        log:state.removedLog,
+                        payment:
+                            exportWatchPaymentFromLog(
+                                state.removedLog
+                            )
+                    });
+                }
+            }
+        );
+
+        const data = {markerMs,logs,byPaymentId,removed,context};
+        if(exportWatchContextCurrent(context)) exportWatchReadCache = {key:cacheKey,at:Date.now(),data};
+        return data;
+    }catch(error){
+        console.warn("EXPORT WATCH LOAD ERROR:",error);
+        // Export must fail closed instead of clearing the milestone on an empty result.
+        throw error;
+    }
+    })();
+    exportWatchInFlight.set(cacheKey,request);
+    try{ return await request; }
+    finally{ exportWatchInFlight.delete(cacheKey); }
+}
+
+function exportWatchScopeMatchesPayment(scope,payment){
+    if(!scope || !payment){
+        return false;
+    }
+
+    if(scope.kind === "all"){
+        return true;
+    }
+
+    if(scope.kind === "project"){
+        return isSamePaymentProject(
+            payment.project,
+            scope.project
+        );
+    }
+
+    if(scope.kind === "indirect"){
+        return isIndirectCostPayment(
+            payment
+        );
+    }
+
+    return false;
+}
+
+function exportWatchRemarkText(state){
+    if(!state){
+        return "";
+    }
+
+    const copy =
+        exportWatchChangeCopy();
+
+    const notes = [];
+
+    if(state.added){
+        notes.push(
+            [
+                state.addDate,
+                copy.add
+            ]
+                .filter(Boolean)
+                .join(": ")
+        );
+    }
+
+    state.amountChanges.forEach(
+        change => {
+            notes.push(
+                [
+                    change.dateText,
+                    copy.edit +
+                        " " +
+                        formatMoney(change.before) +
+                        " → " +
+                        formatMoney(change.after)
+                ]
+                    .filter(Boolean)
+                    .join(": ")
+            );
+        }
+    );
+
+    return notes.join(" · ");
+}
+
+function mergeExportWatchRemark(
+    originalRemark,
+    changeRemark
+){
+    const original =
+        String(originalRemark || "").trim();
+
+    const change =
+        String(changeRemark || "").trim();
+
+    if(!original){
+        return change;
+    }
+
+    if(!change){
+        return original;
+    }
+
+    return original + " · " + change;
+}
+
+function styleExcelChangeRow(
+    worksheet,
+    rowIndex,
+    colCount,
+    fillRgb
+){
+    for(let c = 0; c < colCount; c++){
+        const address =
+            XLSX.utils.encode_cell({
+                r:rowIndex,
+                c
+            });
+
+        const cell =
+            worksheet[address];
+
+        if(!cell){
+            continue;
+        }
+
+        cell.s =
+            cell.s || {};
+
+        cell.s.fill = {
+            patternType:"solid",
+            fgColor:{
+                rgb:fillRgb
+            }
+        };
+    }
+}
+
+function styleExcelChangeCell(
+    worksheet,
+    rowIndex,
+    colIndex,
+    fillRgb,
+    fontRgb = ""
+){
+    if(colIndex < 0){
+        return;
+    }
+
+    const address =
+        XLSX.utils.encode_cell({
+            r:rowIndex,
+            c:colIndex
+        });
+
+    const cell =
+        worksheet[address];
+
+    if(!cell){
+        return;
+    }
+
+    cell.s =
+        cell.s || {};
+
+    cell.s.fill = {
+        patternType:"solid",
+        fgColor:{
+            rgb:fillRgb
+        }
+    };
+
+    if(fontRgb){
+        cell.s.font = {
+            ...(cell.s.font || {}),
+            bold:true,
+            color:{
+                rgb:fontRgb
+            }
+        };
+    }
+}
+
+function appendExportWatchRemovedRows(
+    worksheet,
+    scope,
+    exportColumns,
+    exportWatch
+){
+    const removed =
+        (exportWatch?.removed || [])
+            .filter(item =>
+                exportWatchScopeMatchesPayment(
+                    scope,
+                    item.payment
+                )
+            );
+
+    if(!removed.length){
+        return;
+    }
+
+    const copy =
+        exportWatchChangeCopy();
+
+    const range =
+        XLSX.utils.decode_range(
+            worksheet["!ref"]
+        );
+
+    let rowIndex =
+        range.e.r + 2;
+
+    const separatorStart =
+        XLSX.utils.encode_cell({
+            r:rowIndex,
+            c:0
+        });
+
+    worksheet[separatorStart] = {
+        t:"s",
+        v:copy.removedSection,
+        s:{
+            font:{
+                bold:true,
+                color:{
+                    rgb:"667085"
+                }
+            },
+            fill:{
+                patternType:"solid",
+                fgColor:{
+                    rgb:"F2F4F7"
+                }
+            },
+            alignment:{
+                vertical:"center"
+            }
+        }
+    };
+
+    if(exportColumns.length > 1){
+        worksheet["!merges"] =
+            worksheet["!merges"] || [];
+
+        worksheet["!merges"].push({
+            s:{
+                r:rowIndex,
+                c:0
+            },
+            e:{
+                r:rowIndex,
+                c:exportColumns.length - 1
+            }
+        });
+    }
+
+    rowIndex += 1;
+
+    const remarkColumnIndex =
+        exportColumns.findIndex(
+            column => column.index === 13
+        );
+
+    const amountColumnIndex =
+        exportColumns.findIndex(
+            column => column.index === 12
+        );
+
+    removed.forEach(
+        (entry,index) => {
+            const payment =
+                entry.payment;
+
+            const state =
+                entry.state;
+
+            const dateText =
+                state.removeDate || "";
+
+            exportColumns.forEach(
+                (column,colIndex) => {
+                    let value;
+
+                    if(column.index === 1){
+                        value = "";
+                    }
+                    else if(column.index === 13){
+                        const original =
+                            localizeCarryForwardRemark(
+                                payment.remark || ""
+                            );
+
+                        value =
+                            mergeExportWatchRemark(
+                                original,
+                                [
+                                    dateText,
+                                    copy.removed
+                                ]
+                                    .filter(Boolean)
+                                    .join(": ")
+                            );
+                    }
+                    else{
+                        value =
+                            column.value(
+                                payment,
+                                index
+                            );
+                    }
+
+                    const address =
+                        XLSX.utils.encode_cell({
+                            r:rowIndex,
+                            c:colIndex
+                        });
+
+                    worksheet[address] = {
+                        t:
+                            typeof value === "number"
+                                ? "n"
+                                : "s",
+                        v:value,
+                        s:{
+                            font:{
+                                color:{
+                                    rgb:"8A1C1C"
+                                }
+                            },
+                            fill:{
+                                patternType:"solid",
+                                fgColor:{
+                                    rgb:"FDECEC"
+                                }
+                            },
+                            border:{
+                                top:{
+                                    style:"thin",
+                                    color:{rgb:"E9B8B8"}
+                                },
+                                bottom:{
+                                    style:"thin",
+                                    color:{rgb:"E9B8B8"}
+                                },
+                                left:{
+                                    style:"thin",
+                                    color:{rgb:"E9B8B8"}
+                                },
+                                right:{
+                                    style:"thin",
+                                    color:{rgb:"E9B8B8"}
+                                }
+                            },
+                            alignment:{
+                                vertical:"center",
+                                horizontal:
+                                    column.index === 12
+                                        ? "right"
+                                        : "left"
+                            }
+                        }
+                    };
+
+                    if(
+                        colIndex ===
+                        amountColumnIndex
+                    ){
+                        worksheet[address].z =
+                            '#,##0.00';
+                    }
+                }
+            );
+
+            rowIndex += 1;
+        }
+    );
+
+    const finalRange =
+        XLSX.utils.decode_range(
+            worksheet["!ref"]
+        );
+
+    finalRange.e.r =
+        Math.max(
+            finalRange.e.r,
+            rowIndex - 1
+        );
+
+    finalRange.e.c =
+        Math.max(
+            finalRange.e.c,
+            exportColumns.length - 1
+        );
+
+    worksheet["!ref"] =
+        XLSX.utils.encode_range(
+            finalRange
+        );
+}
+
+/* =====================================================
+   EXPORT WATCH — REAL WEB SUMMARY
+   Visible only to lehoangoanh + lujunye.
+===================================================== */
+
+let exportWatchPanelCache = null;
+let exportWatchRefreshTimer = null;
+let exportWatchSelecting = false;
+let exportWatchSelection = null;
+
+function normalizeExportWatchUser(value){
+    return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g,"")
+        .replace(/\s+/g,"")
+        .trim()
+        .toLowerCase();
+}
+
+function exportWatchCurrentUsername(){
+    const profileUsername =
+        normalizeExportWatchUser(
+            currentUserProfile?.username
+        );
+
+    if(profileUsername){
+        return profileUsername;
+    }
+
+    const emailLocal =
+        normalizeExportWatchUser(
+            String(
+                currentAuthUser?.email || ""
+            ).split("@")[0]
+        );
+
+    if(emailLocal){
+        return emailLocal;
+    }
+
+    return normalizeExportWatchUser(
+        currentOperatorName
+    );
+}
+
+function exportWatchUserAllowed(){
+    if(!currentAuthUser?.uid || !currentUserProfile) return false;
+    // Approved profile + exact authenticated account; never trust a display name.
+    const email = String(currentAuthUser.email || "").trim().toLowerCase();
+    return email === "lehoangoanh@cscecmep.internal" || email === "lujunye@cscecmep.internal";
+}
+
+function exportWatchPanelEls(){
+    return {
+        panel:document.getElementById("exportWatchPanel"),
+        title:document.getElementById("exportWatchTitle"),
+        add:document.getElementById("exportWatchAddBadge"),
+        edit:document.getElementById("exportWatchEditBadge"),
+        remove:document.getElementById("exportWatchRemoveBadge"),
+        delta:document.getElementById("exportWatchDelta"),
+        toggle:document.getElementById("exportWatchToggleBtn"),
+        details:document.getElementById("exportWatchDetails"),
+        head:document.getElementById("exportWatchHead"),
+        body:document.getElementById("exportWatchBody")
+    };
+}
+
+function exportWatchUiCopy(){
+    if(currentLanguage === "zh"){
+        return {
+            title:(count,stamp) =>
+                `自您上次 ${stamp} 导出 Excel 后共有 ${count} 项变更`,
+            add:n => `+${n} 笔新增`,
+            edit:n => `${n} 笔金额修改`,
+            remove:n => `−${n} 笔删除 / 取消`,
+            delta:"金额变动",
+            open:"查看变更",
+            close:"收起",
+            headers:[
+                "时间","变更类型","项目","公司","银行账户",
+                "合同编号","合同名称","IPC","费用类别",
+                "合同类型","原金额","新金额"
+            ],
+            kind:{
+                add:"＋ 新增付款",
+                edit:"↻ 修改金额",
+                remove:"− 删除 / 取消"
+            }
+        };
+    }
+
+    if(currentLanguage === "en"){
+        return {
+            title:(count,stamp) =>
+                `${count} changes since your last Excel export ${stamp}`,
+            add:n => `+${n} new`,
+            edit:n => `${n} amount edit${n === 1 ? "" : "s"}`,
+            remove:n => `−${n} deleted / cancelled`,
+            delta:"Net change",
+            open:"View changes",
+            close:"Collapse",
+            headers:[
+                "Time","Change Type","Project","Company","Bank Account",
+                "Contract No.","Contract Name","IPC","Cost Type",
+                "Contract Type","Old Amount","New Amount"
+            ],
+            kind:{
+                add:"＋ Add payment",
+                edit:"↻ Amount changed",
+                remove:"− Delete / cancel"
+            }
+        };
+    }
+
+    return {
+        title:(count,stamp) =>
+            `${count} thay đổi kể từ lần bạn xuất Excel ${stamp}`,
+        add:n => `+${n} khoản mới`,
+        edit:n => `${n} sửa số tiền`,
+        remove:n => `−${n} khoản xóa / hủy`,
+        delta:"Chênh lệch",
+        open:"Xem thay đổi",
+        close:"Thu gọn",
+        headers:[
+            "Thời gian","Loại thay đổi","Dự án","Công ty","Tài khoản ngân hàng",
+            "Số hợp đồng","Tên hợp đồng","Số IPC","Loại chi phí",
+            "Loại hợp đồng","Số tiền cũ","Số tiền mới"
+        ],
+        kind:{
+            add:"＋ Thêm thanh toán",
+            edit:"↻ Sửa số tiền",
+            remove:"− Xóa / hủy"
+        }
+    };
+}
+
+function exportWatchMarkerText(markerMs){
+    const date =
+        new Date(markerMs);
+
+    if(Number.isNaN(date.getTime())){
+        return "";
+    }
+
+    const time =
+        `${String(date.getHours()).padStart(2,"0")}:${String(date.getMinutes()).padStart(2,"0")}`;
+
+    const day =
+        `${String(date.getDate()).padStart(2,"0")}/${String(date.getMonth()+1).padStart(2,"0")}`;
+
+    if(currentLanguage === "zh"){
+        return `${day} ${time}`;
+    }
+
+    return `${time} ${day}`;
+}
+
+function exportWatchLogTimestampText(log){
+    const date =
+        exportWatchLogDate(log);
+
+    if(!date){
+        return "—";
+    }
+
+    return (
+        `${String(date.getDate()).padStart(2,"0")}/` +
+        `${String(date.getMonth()+1).padStart(2,"0")}/` +
+        `${date.getFullYear()} ` +
+        `${String(date.getHours()).padStart(2,"0")}:` +
+        `${String(date.getMinutes()).padStart(2,"0")}:` +
+        `${String(date.getSeconds()).padStart(2,"0")}`
+    );
+}
+
+function exportWatchCurrentPaymentForLog(log){
+    const paymentId =
+        String(log?.paymentId || "");
+
+    const current =
+        allPayments.find(
+            item =>
+                String(item.id || "") ===
+                paymentId
+        );
+
+    return current || exportWatchPaymentFromLog(log);
+}
+
+function exportWatchEventRows(exportWatch){
+    const rows = [];
+
+    (exportWatch?.logs || []).forEach(log => {
+        const action =
+            String(log?.action || "")
+                .toUpperCase();
+
+        const payment =
+            exportWatchCurrentPaymentForLog(log);
+
+        if(action === "ADD"){
+            rows.push({
+                log,
+                kind:"add",
+                payment,
+                oldAmount:"",
+                newAmount:Number(log?.amount) || Number(payment?.amount) || 0
+            });
+            return;
+        }
+
+        if(action === "EDIT"){
+            const change =
+                exportWatchAmountChange(log);
+
+            if(!change){
+                return;
+            }
+
+            rows.push({
+                log,
+                kind:"edit",
+                payment,
+                oldAmount:change.before,
+                newAmount:change.after
+            });
+            return;
+        }
+
+        if(action === "DELETE" || action === "CANCEL"){
+            rows.push({
+                log,
+                kind:"remove",
+                payment:exportWatchPaymentFromLog(log),
+                oldAmount:Number(log?.amount) || 0,
+                newAmount:""
+            });
+        }
+    });
+
+    return rows;
+}
+
+function exportWatchSummaryFromRows(rows){
+    let addCount = 0;
+    let editCount = 0;
+    let removeCount = 0;
+    let delta = 0;
+
+    rows.forEach(row => {
+        if(row.kind === "add"){
+            addCount += 1;
+            delta += Number(row.newAmount) || 0;
+        }
+        else if(row.kind === "edit"){
+            editCount += 1;
+            delta +=
+                (Number(row.newAmount) || 0) -
+                (Number(row.oldAmount) || 0);
+        }
+        else if(row.kind === "remove"){
+            removeCount += 1;
+            delta -= Number(row.oldAmount) || 0;
+        }
+    });
+
+    return {
+        addCount,
+        editCount,
+        removeCount,
+        delta
+    };
+}
+
+function clearExportWatchCellSelection(){
+    const {panel} =
+        exportWatchPanelEls();
+
+    panel
+        ?.querySelectorAll(
+            ".export-watch-cell-selected"
+        )
+        .forEach(
+            cell =>
+                cell.classList.remove(
+                    "export-watch-cell-selected"
+                )
+        );
+}
+
+function paintExportWatchCellSelection(){
+    clearExportWatchCellSelection();
+
+    if(!exportWatchSelection){
+        return;
+    }
+
+    const {panel} =
+        exportWatchPanelEls();
+
+    if(!panel){
+        return;
+    }
+
+    const r1 =
+        Math.min(
+            exportWatchSelection.r1,
+            exportWatchSelection.r2
+        );
+    const r2 =
+        Math.max(
+            exportWatchSelection.r1,
+            exportWatchSelection.r2
+        );
+    const c1 =
+        Math.min(
+            exportWatchSelection.c1,
+            exportWatchSelection.c2
+        );
+    const c2 =
+        Math.max(
+            exportWatchSelection.c1,
+            exportWatchSelection.c2
+        );
+
+    panel
+        .querySelectorAll(
+            "td[data-export-watch-r]"
+        )
+        .forEach(cell => {
+            const r =
+                Number(
+                    cell.dataset.exportWatchR
+                );
+            const c =
+                Number(
+                    cell.dataset.exportWatchC
+                );
+
+            if(
+                r >= r1 &&
+                r <= r2 &&
+                c >= c1 &&
+                c <= c2
+            ){
+                cell.classList.add(
+                    "export-watch-cell-selected"
+                );
+            }
+        });
+}
+
+function bindExportWatchTableSelection(){
+    const {panel} =
+        exportWatchPanelEls();
+
+    const table =
+        panel?.querySelector(
+            ".export-watch-table"
+        );
+
+    if(!table || table.dataset.selectionBound === "1"){
+        return;
+    }
+
+    table.dataset.selectionBound = "1";
+
+    table.addEventListener(
+        "mousedown",
+        event => {
+            const cell =
+                event.target.closest(
+                    "td[data-export-watch-r]"
+                );
+
+            if(!cell){
+                return;
+            }
+
+            if(event.button !== 0) return;
+            table.focus({preventScroll:true});
+            exportWatchSelecting = true;
+
+            exportWatchSelection = {
+                r1:Number(cell.dataset.exportWatchR),
+                c1:Number(cell.dataset.exportWatchC),
+                r2:Number(cell.dataset.exportWatchR),
+                c2:Number(cell.dataset.exportWatchC)
+            };
+
+            paintExportWatchCellSelection();
+            event.preventDefault();
+        }
+    );
+
+    table.addEventListener(
+        "mouseover",
+        event => {
+            if(
+                !exportWatchSelecting ||
+                !exportWatchSelection
+            ){
+                return;
+            }
+
+            const cell =
+                event.target.closest(
+                    "td[data-export-watch-r]"
+                );
+
+            if(!cell){
+                return;
+            }
+
+            exportWatchSelection.r2 =
+                Number(cell.dataset.exportWatchR);
+
+            exportWatchSelection.c2 =
+                Number(cell.dataset.exportWatchC);
+
+            paintExportWatchCellSelection();
+        }
+    );
+}
+
+document.addEventListener(
+    "mouseup",
+    () => {
+        exportWatchSelecting = false;
+    }
+);
+
+function exportWatchCopyText(all = false){
+    const {panel} = exportWatchPanelEls();
+    if(!panel) return "";
+    const clean = value => String(value || "").replace(/[\t\r\n]+/g," ").trim();
+    const cellText = cell => clean(cell?.dataset?.copyValue ?? cell?.textContent);
+    if(all){
+        return [...panel.querySelectorAll(".export-watch-table tr")]
+            .map(row => [...row.querySelectorAll("th,td")].map(cellText).join("\t"))
+            .join("\n");
+    }
+    if(!exportWatchSelection) return "";
+    const {r1,r2,c1,c2} = exportWatchSelection;
+    const lines = [];
+    for(let r = Math.min(r1,r2); r <= Math.max(r1,r2); r++){
+        const values = [];
+        for(let c = Math.min(c1,c2); c <= Math.max(c1,c2); c++){
+            values.push(cellText(panel.querySelector(`td[data-export-watch-r="${r}"][data-export-watch-c="${c}"]`)));
+        }
+        lines.push(values.join("\t"));
+    }
+    return lines.join("\n");
+}
+
+async function copyExportWatchText(text){
+    if(!text) return false;
+    try{
+        await navigator.clipboard.writeText(text);
+        return true;
+    }catch{
+        // Also supports local HTML and browsers without Clipboard API permission.
+        const active = document.activeElement;
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        let copied = false;
+        try{ copied = document.execCommand("copy"); }
+        catch{}
+        finally{ textarea.remove(); active?.focus({preventScroll:true}); }
+        return copied;
+    }
+}
+
+function showExportWatchCopyResult(success){
+    const status = document.getElementById("exportWatchCopyStatus");
+    if(status) status.textContent = success
+        ? (currentLanguage === "zh" ? "已复制" : currentLanguage === "en" ? "Copied" : "Đã copy")
+        : (currentLanguage === "zh" ? "无法复制，请重试" : currentLanguage === "en" ? "Copy failed; please retry" : "Chưa copy được, thử lại nhé");
+}
+
+document.addEventListener("keydown",event => {
+    const {panel,details} = exportWatchPanelEls();
+    if(!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "c" ||
+        !exportWatchSelection || !panel || panel.hidden || details.hidden ||
+        !document.activeElement?.matches(".export-watch-table")) return;
+    // Handle the keystroke synchronously so the main Payment table cannot overwrite it.
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    void copyExportWatchText(exportWatchCopyText()).then(showExportWatchCopyResult);
+});
+
+function renderExportWatchPanel(
+    exportWatch = exportWatchPanelCache
+){
+    const els =
+        exportWatchPanelEls();
+
+    if(!els.panel){
+        return;
+    }
+
+    if(
+        !currentAuthUser ||
+        !currentUserProfile ||
+        !exportWatchUserAllowed() ||
+        (exportWatch?.context && !exportWatchContextCurrent(exportWatch.context))
+    ){
+        els.panel.hidden = true;
+        exportWatchPanelCache = null;
+        return;
+    }
+
+    const markerMs =
+        Number(
+            exportWatch?.markerMs ||
+            getExportWatchMarkerMs() ||
+            0
+        );
+
+    if(!markerMs){
+        els.panel.hidden = true;
+        exportWatchPanelCache = exportWatch;
+        return;
+    }
+
+    const rows =
+        exportWatchEventRows(
+            exportWatch
+        );
+
+    if(!rows.length){
+        els.panel.hidden = true;
+        exportWatchPanelCache = exportWatch;
+        return;
+    }
+
+    exportWatchPanelCache =
+        exportWatch;
+
+    const copy = exportWatchUiCopy();
+    els.panel.querySelector(".export-watch-table").title = currentLanguage === "zh"
+        ? "拖动选择单元格后按 Ctrl+C" : currentLanguage === "en" ? "Drag to select cells, then press Ctrl+C" : "Kéo chọn ô rồi nhấn Ctrl+C";
+    document.getElementById("exportWatchCopyStatus").textContent = "";
+    exportWatchSelection = null;
+    exportWatchSelecting = false;
+
+    const summary =
+        exportWatchSummaryFromRows(
+            rows
+        );
+
+    const expanded =
+        !els.details.hidden;
+
+    els.panel.hidden = false;
+    syncExportWatchTheme();
+    els.title.textContent = currentLanguage === "zh" ? "自上次导出 Excel 后的变更"
+        : currentLanguage === "en" ? "Changes since Excel export" : "Thay đổi từ lần xuất Excel";
+    document.getElementById("exportWatchMarkerLabel").textContent = exportWatchMarkerText(markerMs);
+    els.add.hidden = summary.addCount === 0;
+    els.edit.hidden = summary.editCount === 0;
+    els.remove.hidden = summary.removeCount === 0;
+
+    els.add.textContent =
+        copy.add(
+            summary.addCount
+        );
+
+    els.edit.textContent =
+        copy.edit(
+            summary.editCount
+        );
+
+    els.remove.textContent =
+        copy.remove(
+            summary.removeCount
+        );
+
+    els.delta.textContent =
+        `${copy.delta}: ` +
+        `${summary.delta > 0 ? "+" : ""}` +
+        `${formatMoney(summary.delta)} VND`;
+
+    els.delta.classList.remove(
+        "positive",
+        "negative",
+        "zero"
+    );
+
+    els.delta.classList.add(
+        summary.delta > 0
+            ? "positive"
+            : summary.delta < 0
+                ? "negative"
+                : "zero"
+    );
+
+    const viewText = currentLanguage === "zh" ? "查看详情" : currentLanguage === "en" ? "View details" : "Xem chi tiết";
+    els.toggle.textContent = expanded ? `${copy.close} ▴` : `${viewText} ▾`;
+    els.panel.querySelector(".export-watch-bar").setAttribute("aria-expanded",String(expanded));
+    els.toggle.setAttribute("aria-expanded",String(expanded));
+    els.toggle.title = expanded ? copy.close : copy.open;
+
+    els.head.innerHTML =
+        copy.headers
+            .map(
+                label =>
+                    `<th>${escapeHTML(label)}</th>`
+            )
+            .join("");
+
+    els.body.innerHTML =
+        rows
+            .map((row,rowIndex) => {
+                const p =
+                    row.payment || {};
+
+                const values = [
+                    exportWatchLogTimestampText(
+                        row.log
+                    ),
+                    row.kind,
+                    p.project || "",
+                    p.company || "",
+                    p.bankAccount || "",
+                    p.noMEPException
+                        ? "—"
+                        : (p.contractNo || ""),
+                    p.contractName || "",
+                    p.noMEPException
+                        ? "—"
+                        : (p.ipcNo || ""),
+                    p.costType || "",
+                    p.contractType ||
+                        (
+                            typeof getPaymentContractType === "function"
+                                ? getPaymentContractType(p)
+                                : ""
+                        ),
+                    row.oldAmount,
+                    row.newAmount
+                ];
+
+                return (
+                    "<tr>" +
+                    values
+                        .map(
+                            (value,colIndex) => {
+                                let content = "";
+
+                                if(colIndex === 0){
+                                    content = escapeHTML(value);
+                                }
+                                else if(colIndex === 1){
+                                    content =
+                                        `<span class="export-watch-kind ${row.kind}">` +
+                                        escapeHTML(
+                                            copy.kind[row.kind]
+                                        ) +
+                                        "</span>";
+                                }
+                                else if(
+                                    colIndex === 10 ||
+                                    colIndex === 11
+                                ){
+                                    content =
+                                        value === "" ||
+                                        value == null
+                                            ? "—"
+                                            : escapeHTML(
+                                                formatMoney(
+                                                    value
+                                                )
+                                            );
+                                }
+                                else{
+                                    content =
+                                        escapeHTML(
+                                            value
+                                        );
+                                }
+
+                                const classes = [];
+
+                                if(
+                                    colIndex === 10 ||
+                                    colIndex === 11
+                                ){
+                                    classes.push("money");
+                                }
+
+                                if(
+                                    colIndex === 10 &&
+                                    row.kind === "edit"
+                                ){
+                                    classes.push(
+                                        "export-watch-old"
+                                    );
+                                }
+
+                                if(colIndex === 11){
+                                    classes.push(
+                                        "export-watch-new"
+                                    );
+                                }
+
+                                return (
+                                    `<td class="${classes.join(" ")}" ` +
+                                    `data-export-watch-r="${rowIndex}" ` +
+                                    `data-export-watch-c="${colIndex}" ` +
+                                    (colIndex === 0 ? `data-copy-value="${escapeHTML(String(value))}" ` : "") + ">" +
+                                    content +
+                                    "</td>"
+                                );
+                            }
+                        )
+                        .join("") +
+                    "</tr>"
+                );
+            })
+            .join("");
+
+    bindExportWatchTableSelection();
+}
+
+async function refreshExportWatchPanel(){
+    if(
+        !currentAuthUser ||
+        !currentUserProfile ||
+        !exportWatchUserAllowed()
+    ){
+        renderExportWatchPanel(null);
+        return;
+    }
+
+    const markerMs =
+        getExportWatchMarkerMs();
+
+    if(!markerMs){
+        renderExportWatchPanel({
+            markerMs:0,
+            logs:[],
+            byPaymentId:new Map(),
+            removed:[]
+        });
+        return;
+    }
+
+    const context = exportWatchContext();
+    const revision = exportWatchRevision;
+    let data;
+    try{ data = await loadExportWatchChanges(context); }
+    catch(error){
+        if(exportWatchContextCurrent(context)){
+            exportWatchPanelCache = null;
+            const panel = exportWatchPanelEls().panel;
+            panel.hidden = true;
+        }
+        throw error;
+    }
+    if(revision === exportWatchRevision && exportWatchContextCurrent(context) && data.markerMs === getExportWatchMarkerMs(context)){
+        renderExportWatchPanel(data);
+    }
+}
+
+function scheduleExportWatchRefresh(
+    delay = 900
+){
+    clearTimeout(
+        exportWatchRefreshTimer
+    );
+
+    exportWatchRefreshTimer =
+        setTimeout(
+            () => {
+                refreshExportWatchPanel()
+                    .catch(
+                        error =>
+                            console.warn(
+                                "EXPORT WATCH REFRESH ERROR:",
+                                error
+                            )
+                    );
+            },
+            delay
+        );
+}
+
+function syncExportWatchTheme(){
+    const header = document.querySelector("#paymentTable thead th:not(.process-header)");
+    const row = document.querySelector("#paymentTable tbody td");
+    const alternate = document.querySelector("#paymentTable tbody tr:nth-child(even) td") || row;
+    const bar = document.getElementById("paymentLiveTotalBar");
+    if(!header || !bar) return;
+    const hs = getComputedStyle(header), rs = row ? getComputedStyle(row) : null;
+    const bs = getComputedStyle(bar), as = alternate ? getComputedStyle(alternate) : rs;
+    const solid = (value,fallback) => !value || value === "transparent" || value === "rgba(0, 0, 0, 0)" ? fallback : value;
+    const values = {
+        "--ew-head-bg":solid(hs.backgroundColor,"#17365d"), "--ew-head-text":hs.color,
+        "--ew-head-weight":hs.fontWeight,"--ew-font":rs?.fontSize || hs.fontSize,
+        "--ew-bg":solid(bs.backgroundColor,solid(rs?.backgroundColor,"#fff")),
+        "--ew-row":solid(rs?.backgroundColor,"#fff"),"--ew-row-alt":solid(as?.backgroundColor,solid(rs?.backgroundColor,"#fff")),
+        "--ew-text":rs?.color || bs.color,"--ew-border":rs?.borderRightColor || hs.borderRightColor,
+        "--ew-accent":bs.color || hs.backgroundColor,"--ew-selected":solid(as?.backgroundColor,solid(rs?.backgroundColor,"#fff"))
+    };
+    ["exportWatchPanel"].forEach(id => {
+        const element = document.getElementById(id);
+        if(element) Object.entries(values).forEach(([key,value]) => element.style.setProperty(key,value));
+    });
+}
+
+new MutationObserver(() => requestAnimationFrame(syncExportWatchTheme)).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+
+const exportWatchSummaryBar = document.querySelector("#exportWatchPanel .export-watch-bar");
+function toggleExportWatchDetails(){
+    if(!exportWatchUserAllowed() || exportWatchPanelEls().panel.hidden) return;
+    const {details} = exportWatchPanelEls();
+    details.hidden = !details.hidden;
+    renderExportWatchPanel();
+}
+exportWatchSummaryBar?.addEventListener("click",toggleExportWatchDetails);
+exportWatchSummaryBar?.addEventListener("keydown",event => {
+    if(event.target === exportWatchSummaryBar && (event.key === "Enter" || event.key === " ")){
+        event.preventDefault();
+        toggleExportWatchDetails();
+    }
+});
+
 function buildExcelWorksheetForScope(
     scope,
-    payments
+    payments,
+    exportWatch = null
 ){
 
-    const exportColumns =
-        getExcelExportColumns(scope);
+    const exportColumns = getExcelExportColumns(scope);
+    if(exportWatch?.logs?.length && !exportColumns.some(column => column.index === 13)){
+        exportColumns.push({index:13,label:COLUMN_LABELS[13],width:38,
+            value:item => localizeCarryForwardRemark(item.remark || "")});
+    }
 
     if(!exportColumns.length){
         throw new Error(t("hiddenAll"));
     }
+
+    const remarkColumn =
+        exportColumns.find(
+            column =>
+                column.index === 13
+        );
 
     const rows =
         payments.map((item,index) => {
 
             const row = {};
 
+            const state =
+                exportWatch?.byPaymentId
+                    ?.get(String(item.id || ""));
+
+            const changeRemark =
+                exportWatchRemarkText(
+                    state
+                );
+
             exportColumns.forEach(column => {
+                let value =
+                    column.value(
+                        item,
+                        index
+                    );
+
+                if(
+                    column.index === 13 &&
+                    changeRemark
+                ){
+                    value =
+                        mergeExportWatchRemark(
+                            value,
+                            changeRemark
+                        );
+                }
+
                 row[column.label] =
-                    column.value(item,index);
+                    value;
             });
 
             return row;
         });
 
     const worksheet =
-        XLSX.utils.json_to_sheet(rows);
+        XLSX.utils.json_to_sheet(rows,{header:exportColumns.map(column => column.label)});
 
     worksheet["!cols"] =
         exportColumns.map(
@@ -40674,8 +42536,8 @@ function buildExcelWorksheetForScope(
         exportColumns
             .map((column,index) =>
                 [
-                                1,2,9,
-                                14,15,16,18,19,20,24,25
+                    1,2,9,
+                    14,15,16,18,19,20,24,25
                 ].includes(column.index)
                     ? index
                     : -1
@@ -40691,10 +42553,72 @@ function buildExcelWorksheetForScope(
         centerColumns
     );
 
+    const amountColumnIndex =
+        exportColumns.findIndex(
+            column => column.index === 12
+        );
+
+    const remarkColumnIndex =
+        exportColumns.findIndex(
+            column => column.index === 13
+        );
+
+    payments.forEach(
+        (item,index) => {
+            const state =
+                exportWatch?.byPaymentId
+                    ?.get(String(item.id || ""));
+
+            if(!state || state.removed){
+                return;
+            }
+
+            const rowIndex =
+                index + 1;
+
+            if(state.added){
+                styleExcelChangeRow(
+                    worksheet,
+                    rowIndex,
+                    exportColumns.length,
+                    "EAF7EE"
+                );
+            }
+
+            if(
+                state.amountChanges &&
+                state.amountChanges.length
+            ){
+                styleExcelChangeCell(
+                    worksheet,
+                    rowIndex,
+                    amountColumnIndex,
+                    "FFF4CC",
+                    "9A6700"
+                );
+
+                styleExcelChangeCell(
+                    worksheet,
+                    rowIndex,
+                    remarkColumnIndex,
+                    "FFF4CC",
+                    "7A5B00"
+                );
+            }
+        }
+    );
+
     appendExcelTotalRow(
         worksheet,
         payments,
         exportColumns
+    );
+
+    appendExportWatchRemovedRows(
+        worksheet,
+        scope,
+        exportColumns,
+        exportWatch
     );
 
     return worksheet;
@@ -40746,8 +42670,15 @@ async function exportSelectedExcelScopes(){
         return;
     }
 
+    if(exportExcelInProgress) return;
+    exportExcelInProgress = true;
+    const exportContext = exportWatchContext();
+    const cutoffMs = Date.now();
     try{
-
+        if(activePaymentsScopeKey !== exportContext.month || !await paymentsRealtimeReadyPromise){
+            throw new Error("Dữ liệu tháng chưa tải xong. Vui lòng thử lại.");
+        }
+        if(!exportWatchContextCurrent(exportContext)) throw new Error("Tháng hoặc tài khoản đã đổi. Vui lòng xuất lại.");
         const scopes =
             getExcelExportScopeOptions()
                 .filter(scope =>
@@ -40759,6 +42690,13 @@ async function exportSelectedExcelScopes(){
         if(!scopes.length){
             alert("⚠️ " + t("exportNoTab"));
             return;
+        }
+
+        const scopeRows = new Map(scopes.map(scope => [scope.key,
+            getPaymentsForExcelScope(scope).map(payment => ({...payment}))]));
+        const exportWatch = await loadExportWatchChanges(exportContext,{force:true,cutoffMs});
+        if(!exportWatchContextCurrent(exportContext) || !requireExcelExportPermission()){
+            throw new Error("Tháng hoặc tài khoản đã đổi. Vui lòng xuất lại.");
         }
 
         const workbook =
@@ -40773,17 +42711,17 @@ async function exportSelectedExcelScopes(){
 
         scopes.forEach(scope => {
 
-            const payments =
-                getPaymentsForExcelScope(scope);
-
-            if(!payments.length){
+            const payments = scopeRows.get(scope.key);
+            const hasRemoved = exportWatch.removed.some(item => exportWatchScopeMatchesPayment(scope,item.payment));
+            if(!payments.length && !hasRemoved){
                 return;
             }
 
             const worksheet =
                 buildExcelWorksheetForScope(
                     scope,
-                    payments
+                    payments,
+                    exportWatch
                 );
 
             XLSX.utils.book_append_sheet(
@@ -40807,9 +42745,7 @@ async function exportSelectedExcelScopes(){
             return;
         }
 
-        const fileMonth =
-            paymentMonthFilter.value ||
-            CURRENT_MONTH;
+        const fileMonth = exportContext.month;
 
         const fileName =
             `Payment_History_${fileMonth}.xlsx`;
@@ -40824,24 +42760,24 @@ async function exportSelectedExcelScopes(){
             }
         );
 
-        /*
-           Staff exports are recorded once at system level so Admin can review
-           them. Admin exports intentionally stay out of Activity Log.
-        */
-        if(isStaff()){
-            await logActivity(
-                "EXPORT_EXCEL",
-                null,
-                JSON.stringify({
-                    month:String(paymentMonthFilter.value || ""),
-                    scopes:exportedScopeKeys,
-                    status:String(paymentStatusFilter.value || "all"),
-                    rows:exportedRows,
-                    sheets:exportedSheets,
-                    fileName:fileName
-                })
-            );
+        // A partial export acknowledges only rows actually included, never the whole month.
+        if(exportWatchUserAllowed()){
+            const acknowledgedIds = new Set();
+            scopes.forEach(scope => {
+                (scopeRows.get(scope.key) || []).forEach(payment => acknowledgedIds.add(String(payment.id)));
+                exportWatch.removed.filter(item => exportWatchScopeMatchesPayment(scope,item.payment))
+                    .forEach(item => acknowledgedIds.add(String(item.paymentId)));
+            });
+            acknowledgeExportWatch(exportContext,cutoffMs,acknowledgedIds);
+            exportWatchPanelCache = null;
+            exportWatchPanelEls().panel.hidden = true;
+            exportWatchPanelEls().details.hidden = true;
+            scheduleExportWatchRefresh(100);
         }
+        // Logging latency must never move the comparison cutoff or capture another month.
+        void logActivity("EXPORT_EXCEL",{paymentMonth:exportContext.month === "ALL" ? "" : exportContext.month},
+            JSON.stringify({month:exportContext.month,scopes:exportedScopeKeys,
+                rows:exportedRows,sheets:exportedSheets,fileName}));
 
         closeExcelExportScopeModal();
 
@@ -40869,6 +42805,7 @@ async function exportSelectedExcelScopes(){
             error.message
         );
     }
+    finally{ exportExcelInProgress = false; }
 }
 
 
@@ -43064,6 +45001,8 @@ function buildDataFirstLayout(){
         topbar
     );
 
+    const watchPanel = document.getElementById("exportWatchPanel");
+    if(watchPanel) shell.appendChild(watchPanel);
     shell.appendChild(
         summary
     );
@@ -43780,6 +45719,7 @@ languageSelect.addEventListener("change", () => {
     currentLanguage = languageSelect.value;
     localStorage.setItem(LANGUAGE_KEY, currentLanguage);
     applyLanguage();
+    renderExportWatchPanel();
 });
 
 
