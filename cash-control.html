@@ -3041,6 +3041,7 @@ import {
     getDoc,
     setDoc,
     onSnapshot,
+    FieldPath,
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
@@ -3544,10 +3545,17 @@ function snapshotIso(value){
 
 function normalizeProjectBalanceSnapshot(month,raw={}){
     const balances={};
+    const originPriority={};
     Object.entries(raw?.balances||{}).forEach(([key,value])=>{
         if(!value||typeof value!=='object')return;
         const project=normProject(value.project||key);
         if(!project)return;
+        // Prefer the native project's saved balance if a stale contract-key
+        // and a genuine project-key both exist. Never SUM duplicate snapshots.
+        const priority=(normProject(key)===project && String(key).trim()===project ? 2 : 0)
+            +(String(value.project||'').trim()===project ? 1 : 0);
+        if(balances[project] && (originPriority[project]||0)>priority)return;
+        originPriority[project]=priority;
         balances[project]={
             month,
             project,
@@ -3584,6 +3592,9 @@ function hydrateProjectBalanceSnapshotCache(){
             projectBalanceSnapshots.set(month,normalizeProjectBalanceSnapshot(month,{...value,fromLocal:true}));
         });
         projectCatalogRevision++;
+        // Rewrite the browser's old project keys after normalizing them.
+        // This only changes the local read cache, never source/accounting data.
+        persistProjectBalanceSnapshotCache();
     }catch(error){console.warn('Cannot read local balance summary cache',error)}
 }
 
@@ -4335,7 +4346,19 @@ async function loadProjectPayments(project,{force=false,quiet=false,refresh=true
         );
 
         try{
-            const snap=await getDocs(q);
+            // Only read obsolete aliases already seen in monthly Payment data.
+            // Extra query is skipped for projects with no corrupted source rows.
+            const legacyAliases=[...new Set([
+                ...paymentAutoPlanRowsByMonth.values(),
+                ...paymentAutoActualRowsByMonth.values()
+            ].flatMap(monthMap=>[...monthMap.values()])
+                .map(row=>String(row?.project||'').trim())
+                .filter(raw=>raw && raw!==project &&
+                    projectFromMisfiledContractCode(raw)===project))];
+            const snaps=await Promise.all([
+                getDocs(q),
+                ...legacyAliases.map(alias=>getDocs(query(paymentsRef,where('project','==',alias))))
+            ]);
 
             if(
                 generation!==paymentLoadGeneration ||
@@ -4344,15 +4367,12 @@ async function loadProjectPayments(project,{force=false,quiet=false,refresh=true
                 return false;
             }
 
-            const rows=[];
-
-            snap.forEach(d=>{
+            const uniqueRows=new Map();
+            snaps.forEach(snap=>snap.forEach(d=>{
                 const item={id:d.id,...d.data()};
-
-                if(item.deleted!==true){
-                    rows.push(item);
-                }
-            });
+                if(item.deleted!==true)uniqueRows.set(item.id,item);
+            }));
+            const rows=[...uniqueRows.values()];
 
             paymentMonths.set(project,rows);
             if(refresh)rebuildPaymentsFromLoadedMonths();
@@ -4491,14 +4511,38 @@ const DEFAULT_PROJECTS=[
     '中健厂房','289','SSIS','C17-2','S13-2','EATON','ELYSIAN','ADVANCE','H14-3',
     '红鹤别墅1.1区','PHU HUNG','OCEAN LINK','CN8-2','CR5-1B','FOXCONN'
 ];
+/* Project IDs are not contract IDs. Some older Payment rows accidentally stored
+   the contract number in the project field. Resolve only unambiguous CSCECVN
+   contract codes against our existing project catalog; never alter the source
+   Payment row or guess a new project's identity. Used by ALL views/exports. */
+function projectFromMisfiledContractCode(raw){
+    const code=String(raw||'').trim();
+    if(!/^CSCECVN(?:[-._\s]|$)/i.test(code))return '';
+    const candidates=[...DEFAULT_PROJECTS,'CR5-B1']
+        .filter(p=>/[A-Za-z0-9]/.test(p))
+        .sort((a,b)=>b.length-a.length);
+    for(const candidate of candidates){
+        const token=candidate.split(/[-._\s]+/)
+            .map(part=>part.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'))
+            .join('[-._\\s]+');
+        if(new RegExp(`(?:^|[-._\\s])${token}(?=$|[-._\\s])`,'i').test(code)){
+            return candidate==='CR5-B1'?'CR5-1B':candidate;
+        }
+    }
+    return '';
+}
 function normProject(x){
     let s=String(x||'').trim().replace(/\s+/g,' ')
         .replace(/\s*项目\s*$/u,'').trim();
+    if(!s)return '';
+    const projectFromContract=projectFromMisfiledContractCode(s);
+    if(projectFromContract)return projectFromContract;
     const k=s.toLocaleLowerCase('vi');
     const aliases={
         'foxconn':'FOXCONN','phu hung':'PHU HUNG','elysian':'ELYSIAN',
         'ocean link':'OCEAN LINK','eaton park':'EATON','eaton':'EATON',
         'm56':'M5M6','m5m6':'M5M6','chaomed':'CHAOMED',
+        'cr5-b1':'CR5-1B','cr5-1b':'CR5-1B',
         'advance':'ADVANCE',
         'club house':'CLUB HOUSE',
         '红鹤售楼处（club house）':'CLUB HOUSE',
@@ -7577,7 +7621,14 @@ async function publishProjectBalanceSnapshot(){
     if(debtChanged){payload.internalDebtByProject=internalDebtByProject;payload.internalDebtSource=debtSource}
     if(catalogChanged)payload.projectCatalog=projectCatalog;
     if(cashPlanningChanged)payload.cashPlanningByProject=cashPlanningByProject;
-    await setDoc(doc(db,CASH_MONTHLY_SNAPSHOT_COLLECTION,month),payload,{merge:true});
+    const snapshotFields=['month','schemaVersion','cashUpdatedAt','cashUpdatedBy'];
+    Object.keys(changedBalances).forEach(p=>snapshotFields.push(new FieldPath('balances',p)));
+    if(debtChanged)snapshotFields.push('internalDebtByProject','internalDebtSource');
+    if(catalogChanged)snapshotFields.push('projectCatalog');
+    if(cashPlanningChanged)snapshotFields.push('cashPlanningByProject');
+    // Top-level plan/debt maps are REPLACED, while unrelated snapshot fields
+    // and all other saved project balance keys remain untouched.
+    await setDoc(doc(db,CASH_MONTHLY_SNAPSHOT_COLLECTION,month),payload,{mergeFields:snapshotFields});
     mergeProjectBalanceSnapshotRows(
       month,
       changedBalances,
