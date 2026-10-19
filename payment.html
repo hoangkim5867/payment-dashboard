@@ -50428,6 +50428,7 @@ async function extractBulkUncPdfText(file){
     const loadingTask = pdfjs.getDocument({data});
     const pdf = await loadingTask.promise;
     const pages = [];
+    const layoutPages = [];
 
     try{
         for(let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1){
@@ -50436,11 +50437,14 @@ async function extractBulkUncPdfText(file){
             let lastY = null;
             let line = "";
             const lines = [];
+            const positionedItems = [];
 
+            // Keep the original extraction for all existing bank formats.
             content.items.forEach(item=>{
                 const value = String(item?.str || "").trim();
                 if(!value) return;
                 const y = Number(item?.transform?.[5]);
+                const x = Number(item?.transform?.[4]);
 
                 if(lastY != null && Number.isFinite(y) && Math.abs(y - lastY) > 2){
                     if(line.trim()) lines.push(line.trim());
@@ -50450,17 +50454,40 @@ async function extractBulkUncPdfText(file){
                 }
 
                 if(Number.isFinite(y)) lastY = y;
+                if(Number.isFinite(x) && Number.isFinite(y)){
+                    positionedItems.push({x,y,value});
+                }
             });
 
             if(line.trim()) lines.push(line.trim());
             pages.push(lines.join("\n"));
+
+            // Standard Chartered debit advices may encode text column-by-column
+            // rather than in visual reading order. Reconstruct an alternative
+            // by PDF coordinates without replacing the legacy extraction.
+            positionedItems.sort((a,b)=>b.y-a.y || a.x-b.x);
+            const visualLines = [];
+            for(const item of positionedItems){
+                const previous = visualLines[visualLines.length-1];
+                if(previous && Math.abs(previous.y-item.y) <= 2){
+                    previous.items.push(item);
+                }else{
+                    visualLines.push({y:item.y,items:[item]});
+                }
+            }
+            layoutPages.push(visualLines.map(row=>
+                row.items.sort((a,b)=>a.x-b.x).map(item=>item.value).join(" ")
+            ).join("\n"));
             page.cleanup();
         }
     }finally{
         await pdf.destroy();
     }
 
-    return pages.join("\n\n").trim();
+    return {
+        text:pages.join("\n\n").trim(),
+        layoutText:layoutPages.join("\n\n").trim()
+    };
 }
 
 const BULK_UNC_MONEY_TOKEN =
@@ -50537,9 +50564,45 @@ function normalizeBulkUncDate(value){
     return "";
 }
 
+// SC debit advice: only fall back to loose date tokens when every visible
+// explicit date agrees (normally Value Date and Generation Date). Do not infer
+// from the bank reference number, an unrelated document date, or a conflict.
+function bulkUncStandardCharteredFallbackDate(text){
+    const source = String(text || "")
+        .replace(/[\u2010-\u2015\u2212\u00ad]/g,"-")
+        .replace(/\u00a0/g," ");
+    if(!/\bDEBIT\s+ADVICE\b/i.test(source) ||
+       !/\bVALUE\s+DATE\b/i.test(source) ||
+       !/(?:STANDARD\s+CHARTERED|\bSCBL[A-Z0-9]*\b)/i.test(source)){
+        return "";
+    }
+
+    const dateTokens = [
+        new RegExp(`(?<![A-Z0-9])${BULK_UNC_DATE_TOKEN}(?![A-Z0-9])`,"gi"),
+        /(?<![A-Z0-9])\d{4}[\/.-]\d{1,2}[\/.-]\d{1,2}(?![A-Z0-9])/gi
+    ];
+    const matches = [];
+    for(const pattern of dateTokens){
+        for(const match of source.matchAll(pattern)){
+            const rawDate = String(match[1] || match[0]).trim();
+            const parsed = normalizeBulkUncDate(rawDate);
+            if(!parsed) continue;
+            const [year,month,day] = parsed.split("-").map(Number);
+            const valid = new Date(Date.UTC(year,month-1,day));
+            if(valid.getUTCFullYear() === year &&
+               valid.getUTCMonth() === month-1 &&
+               valid.getUTCDate() === day){
+                matches.push(parsed);
+            }
+        }
+    }
+    return matches.length >= 2 && new Set(matches).size === 1 ? matches[0] : "";
+}
+
 function extractBulkUncInfo(text){
     const source = String(text || "")
         .replace(/\u00a0/g," ")
+        .replace(/[\u2010-\u2015\u2212\u00ad]/g,"-")
         .replace(/：/g,":");
     const normalizedText = normalize(source);
     const extractAmountByLabel = (labels)=>{
@@ -50623,11 +50686,66 @@ function extractBulkUncInfo(text){
         amount:paymentAmount,
         debitAmount,
         remittanceAmount,
-        date:normalizeBulkUncDate(dateRaw),
+        date:normalizeBulkUncDate(dateRaw) || bulkUncStandardCharteredFallbackDate(source),
         beneficiary,
         bankReference,
         accountNumbers
     };
+}
+
+function extractBulkUncPdfInfo(pdfExtract){
+    const legacyText = String(pdfExtract?.text || "");
+    const layoutText = String(pdfExtract?.layoutText || "");
+    const legacy = extractBulkUncInfo(legacyText);
+    const combined = legacyText + "\n" + layoutText;
+    if(!/\bDEBIT\s+ADVICE\b/i.test(combined) ||
+       !/(?:STANDARD\s+CHARTERED|\bSCBL[A-Z0-9]*\b)/i.test(combined) ||
+       !layoutText){
+        return legacy;
+    }
+
+    const visual = extractBulkUncInfo(layoutText);
+    const dateCandidates = [legacy.date,visual.date].filter(Boolean);
+    if(new Set(dateCandidates).size > 1){
+        // A visual-order disagreement must be reviewed, never auto-posted.
+        legacy.date = "";
+    }else{
+        legacy.date = visual.date || legacy.date ||
+            bulkUncStandardCharteredFallbackDate(combined);
+    }
+
+    // Read named fields from the visually reconstructed rows when possible.
+    // Reject obvious cross-column heading fragments instead of trusting them.
+    if(visual.beneficiary &&
+       !/\b(?:FX\s+Rate|Currency\s*\/\s*Amount|Debit\s+Currency)\b/i.test(visual.beneficiary)){
+        legacy.beneficiary = visual.beneficiary;
+    }else if(/\b(?:FX\s+Rate|Currency\s*\/\s*Amount|Debit\s+Currency)\b/i.test(legacy.beneficiary)){
+        legacy.beneficiary = "";
+    }
+    if(visual.bankReference &&
+       !/^(?:CUSTOMER|VALUE|DATE|AMOUNT|REFERENCE|CURRENCY|ACCOUNT|BANK)$/i.test(visual.bankReference)){
+        legacy.bankReference = visual.bankReference;
+    }else if(/^(?:CUSTOMER|VALUE|DATE|AMOUNT|REFERENCE|CURRENCY|ACCOUNT|BANK)$/i.test(legacy.bankReference)){
+        legacy.bankReference = "";
+    }
+
+    // Preserve the original, already-detected monetary value. Never allow
+    // layout heuristics to silently overwrite a different payment amount.
+    if(!Number.isFinite(legacy.amount)){
+        // SC's two-column row may read "Currency VND Amount 1,615,383,530".
+        // Look only above Beneficiary Name to avoid unrelated amounts below.
+        const headerText = layoutText.split(/\bBeneficiary\s+Name\b/i)[0];
+        const amountMatch = headerText.match(new RegExp(
+            `\\bAmount\\s*:?\\s*(?:VND|USD)?\\s*${BULK_UNC_MONEY_TOKEN}`,"i"
+        ));
+        const headerAmount = parseBulkUncMoney(amountMatch?.[1]);
+        legacy.amount = Number.isFinite(headerAmount) && headerAmount > 0
+            ? headerAmount
+            : visual.amount;
+    }
+    legacy.accountNumbers = [...new Set([...legacy.accountNumbers,...visual.accountNumbers])];
+    legacy.normalizedText = normalize(combined);
+    return legacy;
 }
 
 function bulkUncAmounts(info){
@@ -51032,12 +51150,12 @@ bulkUncFileInput.addEventListener("change",async()=>{
 
                 row.validPdf = true;
 
-                const text = await extractBulkUncPdfText(file);
-                if(!text){
+                const pdfExtract = await extractBulkUncPdfText(file);
+                if(!pdfExtract.text && !pdfExtract.layoutText){
                     throw new Error("PDF không có lớp chữ để tự dò.");
                 }
 
-                row.info = extractBulkUncInfo(text);
+                row.info = extractBulkUncPdfInfo(pdfExtract);
                 const existingMatch = bulkUncPaymentCandidates(row.info,{existingOnly:true});
                 const match = bulkUncPaymentCandidates(row.info);
                 const existingHasIdentity = existingMatch.reasons.some(
@@ -51168,7 +51286,12 @@ confirmBulkUncBtn.addEventListener("click",async()=>{
 
         if(!isPaymentPaid(payment)){
             if(!Number.isFinite(row.info?.amount) || row.info.amount <= 0 || !row.info?.date){
-                alert(`⚠ File ${row.file.name} chưa đọc đủ số tiền hoặc ngày thanh toán. Hãy kiểm tra lại PDF.`);
+                const missingAmount = !Number.isFinite(row.info?.amount) || row.info.amount <= 0;
+                const missingDate = !row.info?.date;
+                const missingFields = missingAmount && missingDate
+                    ? "số tiền và ngày thanh toán"
+                    : (missingDate ? "ngày thanh toán (Value Date)" : "số tiền thanh toán");
+                alert(`⚠ File ${row.file.name} chưa đọc được ${missingFields}. Hãy kiểm tra PDF, hệ thống chưa ghi dữ liệu.`);
                 return;
             }
 
