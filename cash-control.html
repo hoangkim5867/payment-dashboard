@@ -845,8 +845,7 @@ body{
 .if-receipt-row .if-remove-receipt{min-height:38px}
 @media(max-width:900px){.if-receipt-row{grid-template-columns:1fr 1fr!important}.if-receipt-row .if-remove-receipt{align-self:end}}
 
-.auth-checking .app{display:none!important}
-.auth-checking .modal:not(#cashLoginModal){display:none!important}
+.auth-checking .app{visibility:hidden}
 
 /* ===== CASH CONTROL 4-VIEW REDESIGN ===== */
 .cc-simple-side{width:190px!important;padding:14px 10px!important}.cc-simple-side+.main{margin-left:190px!important}.cc-side-note{padding:0 11px 12px;color:#8fa5be;font-size:9px}.cc-simple-side .nav{height:44px!important;margin:4px 0!important}.cc-sidefoot{margin-top:24px!important;line-height:1.75!important}
@@ -10629,7 +10628,6 @@ function renderPlanHub(){
 }
 
 function renderAll(){
-    if(!isCashControlOwner())return;
     setOptions();
 
     const active=document.querySelector('.view.active')?.id||'commandView';
@@ -10711,7 +10709,6 @@ function syncTxnModernUI(){
 if($('ccMoreToggle'))$('ccMoreToggle').onclick=()=>{const box=$('ccMore');box?.classList.toggle('open');$('ccMoreToggle').textContent=box?.classList.contains('open')?'− Thu gọn nghiệp vụ khác':'＋ Nghiệp vụ khác'};
 
 function showView(v){
-    if(!isCashControlOwner())return;
     document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
     const target=$(v+'View');if(!target)return;
     target.classList.add('active');
@@ -11637,55 +11634,23 @@ if($('savePartner'))$('savePartner').onclick=async()=>{
     if(await persistCashCloud(old?'Cập nhật đối tác':'Thêm đối tác')){$('partnerModal').classList.remove('show');editingPartnerId=null;renderAll()}
 };
 
-// Access denial is local to this page. Never sign out the shared Payment session.
-function clearCashAccessState(){
-        stopPaymentsRealtime();
-
-        if(cashCloudUnsubscribe){
-            try{cashCloudUnsubscribe()}catch{}
-            cashCloudUnsubscribe=null;
-        }
-
-        cashCloudReady=false;
-        cashCloudState=normalizeCashCloudState({});
-        paymentMonths.clear();
-        paymentAutoPlanRowsByMonth.clear();
-        paymentAutoActualRowsByMonth.clear();
-        paymentAutoProjects.clear();
-        paymentAutoPlanLoads.clear();
-        paymentAutoActualLoads.clear();
-        paymentAutoPlanMonthsLoaded.clear();
-        paymentAutoActualMonthsLoaded.clear();
-        publishedBalanceHashes.clear();
-        payments=[];
-        invalidateCashCalculations();
-
-        setPayConnection('idle','Cần đăng nhập để đọc Payment');
-        setCashCloudConnection('idle','Cash Control: chưa đăng nhập');
-        updateCloudMigrationButton();
-
-    document.querySelectorAll('.modal.show').forEach(modal=>{
-        if(modal.id!=='cashLoginModal')modal.classList.remove('show');
-    });
-}
-
 onAuthStateChanged(auth,user=>{
     currentAuthUser=user||null;
     updateCashAuthUI();
 
-    if(!user || !isCashControlOwner()){
-        // Fail closed during startup, logout, and a switch to a Staff identity.
-        document.body.classList.add('auth-checking');
-        clearCashAccessState();
-        const err=$('cashAuthError');
-        if(err){
-            err.textContent=user?'Tài khoản này không có quyền truy cập Cash Control.':'';
-            err.style.display=user?'block':'none';
+    if(user){
+        if(!isCashControlOwner()){
+            // Stay inside Cash Control. Do not fall back to the legacy Payment index.
+            document.body.classList.remove('auth-checking');
+            const err=$('cashAuthError');
+            if(err){
+                err.textContent='Tài khoản này không có quyền truy cập Cash Control.';
+                err.style.display='block';
+            }
+            $('cashLoginModal')?.classList.add('show');
+            signOut(auth).catch(()=>{});
+            return;
         }
-        $('cashLoginModal')?.classList.add('show');
-        setTimeout(()=>$('cashAuthUsername')?.focus(),50);
-        return;
-    }
         document.body.classList.remove('auth-checking');
         $('cashLoginModal').classList.remove('show');
         // Render once after auth is known; cloud snapshot will refresh again.
@@ -11718,7 +11683,41 @@ onAuthStateChanged(auth,user=>{
                 renderFunds();
             }
         });
- });
+    }else{
+        stopPaymentsRealtime();
+
+        if(cashCloudUnsubscribe){
+            try{cashCloudUnsubscribe()}catch{}
+            cashCloudUnsubscribe=null;
+        }
+
+        cashCloudReady=false;
+        cashCloudState=normalizeCashCloudState({});
+        paymentMonths.clear();
+        paymentAutoPlanRowsByMonth.clear();
+        paymentAutoActualRowsByMonth.clear();
+        paymentAutoProjects.clear();
+        paymentAutoPlanLoads.clear();
+        paymentAutoActualLoads.clear();
+        paymentAutoPlanMonthsLoaded.clear();
+        paymentAutoActualMonthsLoaded.clear();
+        publishedBalanceHashes.clear();
+        payments=[];
+        invalidateCashCalculations();
+
+        setPayConnection('idle','Cần đăng nhập để đọc Payment');
+        setCashCloudConnection('idle','Cash Control: chưa đăng nhập');
+        updateCloudMigrationButton();
+
+        // Logged out: remain on this Cash Control page and show its own login dialog.
+        document.body.classList.remove('auth-checking');
+        renderAll();
+        const loginModal=$('cashLoginModal');
+        if(loginModal)loginModal.classList.add('show');
+        setTimeout(()=>$('cashAuthUsername')?.focus(),50);
+        return;
+    }
+});
 
 
 /* ===== V40: real module-scope 3-language sync ===== */
