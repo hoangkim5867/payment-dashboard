@@ -152,36 +152,56 @@
       document.querySelectorAll("[data-private-card],[data-admin-card]").forEach(card=>card.hidden=true);
       loginPassword.value="";
     };
-    loginForm.addEventListener("submit",async event=>{
-      event.preventDefault();loginError.style.display="none";loginSubmit.disabled=true;loginSubmit.textContent=t("loggingIn");
+    let homeAccessAttempt=0;
+    const loginFailureMessage=error=>{
+      const code=String(error?.code||'');
+      if(code==='auth/network-request-failed')return 'Không kết nối được dịch vụ đăng nhập. Kiểm tra mạng và thử lại.';
+      if(code==='auth/too-many-requests')return 'Đăng nhập đang tạm bị giới hạn. Vui lòng chờ rồi thử lại.';
+      if(code==='auth/user-disabled')return 'Tài khoản đang bị khóa. Liên hệ quản trị viên.';
+      if(['auth/invalid-credential','auth/wrong-password','auth/user-not-found','auth/invalid-email'].includes(code))return t('loginFailed');
+      return t('permissionCheckFailed')+(code?' ('+code+')':'');
+    };
+    async function verifyHomeAccess(user){
+      const attempt=++homeAccessAttempt;
+      const stillCurrent=()=>attempt===homeAccessAttempt&&auth.currentUser===user;
+      applySignedOut();
+      if(!user)return;
       try{
-        const email=usernameToEmail(loginUsername.value);
-        if(!email)throw new Error(t("loginMissing"));
-        await setPersistence(auth,browserLocalPersistence);
-        await signInWithEmailAndPassword(auth,email,loginPassword.value);
-      }catch(error){showLoginError(t("loginFailed"))}
-      finally{loginSubmit.disabled=false;loginSubmit.textContent=t("login")}
-    });
-    logoutButton.addEventListener("click",()=>signOut(auth));
-    onAuthStateChanged(auth,async user=>{
-      if(!user){applySignedOut();return}
-      try{
-        const profileSnapshot=await getDoc(doc(db,"authUsers",user.uid));
+        const profileSnapshot=await getDoc(doc(db,'authUsers',user.uid));
+        if(!stillCurrent())return;
         const profile=profileSnapshot.exists()?profileSnapshot.data():null;
-        const role=String(profile?.role||"").toLowerCase();
-        if(!profile||!["admin","staff"].includes(role)){
-          await signOut(auth);showLoginError(t("noProfile"));return;
+        const role=String(profile?.role||'').toLowerCase();
+        if(!profile||!['admin','staff'].includes(role)){
+          showLoginError(t('noProfile'));return;
         }
-        accountName.textContent=String(profile.displayName?profile.displayName:user.email||"User");
-        accountRole.textContent=role==="admin"?t("adminRole"):t("staffRole");
-        accountBar.hidden=false;authGate.hidden=true;
+        accountName.textContent=String(profile.displayName?profile.displayName:user.email||'User');
+        accountRole.textContent=role==='admin'?t('adminRole'):t('staffRole');
+        accountBar.hidden=false;authGate.hidden=true;loginError.style.display='none';
         const privateAccess=isPrivateOwner(user,profile);
-        document.querySelectorAll("[data-private-card]").forEach(card=>card.hidden=!privateAccess);
-
-        const adminAccess=role==="admin";
-        document.querySelectorAll("[data-admin-card]").forEach(card=>card.hidden=!adminAccess);
-      }catch(error){await signOut(auth);showLoginError(t("permissionCheckFailed"))}
+        document.querySelectorAll('[data-private-card]').forEach(card=>card.hidden=!privateAccess);
+        document.querySelectorAll('[data-admin-card]').forEach(card=>card.hidden=role!=='admin');
+      }catch(error){
+        if(!stillCurrent())return;
+        applySignedOut();
+        console.error('HOME PROFILE CHECK ERROR:',error);
+        showLoginError(t('permissionCheckFailed')+(error?.code?' ('+error.code+')':''));
+      }
+    }
+    loginForm.addEventListener('submit',async event=>{
+      event.preventDefault();
+      const email=usernameToEmail(loginUsername.value),password=loginPassword.value;
+      ++homeAccessAttempt;
+      loginError.style.display='none';loginSubmit.disabled=true;loginSubmit.textContent=t('loggingIn');
+      try{
+        if(!email||!password){showLoginError(t('loginMissing'));return;}
+        await setPersistence(auth,browserLocalPersistence);
+        const credential=await signInWithEmailAndPassword(auth,email,password);
+        await verifyHomeAccess(credential.user);
+      }catch(error){console.error('HOME LOGIN ERROR:',error);showLoginError(loginFailureMessage(error));}
+      finally{loginSubmit.disabled=false;loginSubmit.textContent=t('login');}
     });
+    logoutButton.addEventListener('click',()=>signOut(auth));
+    onAuthStateChanged(auth,user=>{void verifyHomeAccess(user);});
     const launcher=document.getElementById("chatLauncher");
     const panel=document.getElementById("chatPanel");
     const closeButton=document.getElementById("chatClose");
