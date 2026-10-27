@@ -21,6 +21,16 @@ jobs:
           python-version: '3.12'
       - name: Emergency desktop listener regression (isolated, no Firebase)
         run: node --test tests/regression/background-listener-quota.test.cjs
+      - name: Check JavaScript syntax before immutable RC gate
+        run: python tests/verify_js_syntax.py
+      - name: Run existing regression and business checks on draft patch
+        run: |
+          node --test tests/index-v1/*.test.cjs tests/secure/*.test.cjs tests/regression/*.test.cjs
+          node tests/verify_preflight.cjs
+          node tests/test_import_two_pass.cjs
+          node tests/test_import_duplicate_equivalence.cjs
+          node tests/test_mep_targeted_refresh.cjs
+          node tests/test_export_watch_fallback.cjs
       - name: Verify frozen reviewed RC files
         run: node tests/verify-release-files.cjs
       - name: Check JavaScript syntax
