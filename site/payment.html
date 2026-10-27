@@ -8289,6 +8289,13 @@ function startPaymentsRealtime(
     {force = false} = {}
 ){
 
+    // Do not create the live Firestore listener in a hidden tab.
+    if(document.visibilityState === "hidden"){
+        paymentRealtimePausedWhenHidden = true;
+        return Promise.resolve(false);
+    }
+    paymentRealtimePausedWhenHidden = false;
+
     const normalizedMonth =
         authorizedPaymentListenerMonth(month);
 
@@ -8408,6 +8415,27 @@ function startPaymentsRealtime(
 /* =====================================================
    LOAD PAYMENTS
 ===================================================== */
+
+/* Emergency guard: pause payment Firestore listener in background tabs.
+   Resume with the existing selected month, including Admin ALL view.
+   No data, financial calculations, rights or Firebase rules are changed. */
+let paymentRealtimePausedWhenHidden = false;
+document.addEventListener("visibilitychange", () => {
+    if(document.visibilityState === "hidden"){
+        if(unsubscribePaymentsRealtime){
+            paymentRealtimePausedWhenHidden = true;
+            stopPaymentsRealtime();
+        }
+        return;
+    }
+    if(paymentRealtimePausedWhenHidden){
+        paymentRealtimePausedWhenHidden = false;
+        if(currentAuthUser && currentUserProfile){
+            Promise.resolve(startPaymentsRealtime(paymentMonthFilter.value,{force:true}))
+                .catch(error => console.warn("Payment visibility resume failed",error));
+        }
+    }
+});
 
 async function loadPayments(){
 
