@@ -13,13 +13,15 @@ for(const filename of ['payment.html']){
     assert(from>=0 && to>from,'Expected original listener functions');
     const part=html.slice(from,to);
     assert.match(part,/document\.addEventListener\("visibilitychange"/);
-    const subscriptions=[],callbacks=[],events={};let unsubscribeCount=0,applied=0;
+    const subscriptions=[],callbacks=[],events={};let unsubscribeCount=0,applied=0;const timers=new Map();let timerId=0;
     const document={
       visibilityState:'visible',
       addEventListener(name,fn){assert.equal(name,'visibilitychange');events[name]=fn;}
     };
     const context={
       document,
+      setTimeout:fn=>{timers.set(++timerId,fn);return timerId;},
+      clearTimeout:id=>timers.delete(id),
       paymentMonthFilter:{value:'2026-10'},
       CURRENT_MONTH:'2026-10',
       isAdmin:()=>true,
@@ -56,6 +58,9 @@ for(const filename of ['payment.html']){
     callbacks[0].next({});
     assert.equal(await first,true);
     document.visibilityState='hidden'; events.visibilitychange();
+    assert.equal(unsubscribeCount,0,'Short tab switch must keep listener');
+    assert.equal(timers.size,1);
+    const backgroundPause=[...timers.values()][0];timers.clear();backgroundPause();
     assert.equal(unsubscribeCount,1);
     assert.equal(await vm.runInContext("startPaymentsRealtime('2026-10')",context),false);
     assert.equal(subscriptions.length,1,'Hidden tab must not re-register listener');
@@ -76,9 +81,9 @@ for(const filename of ['payment.html']){
     const html=fs.readFileSync(path.join(__dirname,'../../site',filename),'utf8');
     const from=html.indexOf('function stopPaymentsRealtime(){');
     const to=html.indexOf('async function loadPayments(){',from);
-    const events={};
+    const events={};let deferred;
     const document={visibilityState:'visible',addEventListener(n,fn){events[n]=fn;}};
-    const context={document,paymentMonthFilter:{value:'2026-10'},CURRENT_MONTH:'2026-10',
+    const context={document,setTimeout:fn=>{deferred=fn;return 1;},clearTimeout:()=>{},paymentMonthFilter:{value:'2026-10'},CURRENT_MONTH:'2026-10',
       isAdmin:()=>true,authorizedPaymentListenerMonth:m=>m,paymentScopeKey:m=>m||'ALL',
       paymentSourceForMonth:m=>m,unsubscribePaymentsRealtime:null,settlePaymentsRealtimeReady:null,
       paymentsRealtimeReadyPromise:null,activePaymentsScopeKey:null,paymentsListenerGeneration:0,
@@ -88,7 +93,7 @@ for(const filename of ['payment.html']){
     vm.createContext(context);
     vm.runInContext(html.slice(from,to),context,{timeout:500});
     const p=vm.runInContext("startPaymentsRealtime('2026-10')",context);
-    document.visibilityState='hidden';events.visibilitychange();
+    document.visibilityState='hidden';events.visibilitychange();deferred();
     const outcome=await Promise.race([p,Promise.resolve('PENDING')]);
     assert.equal(outcome,false,'Unsubscribing must settle pending initialization promise');
   });
