@@ -28677,23 +28677,35 @@ function exportWatchLogRelevant(log, context = exportWatchContext()){
    Filter and sort in memory to match the original scoped query exactly.
    No partial caps: read every page before building Export Watch changes.
 */
+// Count queries are only needed to choose the cheaper complete candidate set.
+// Reuse the choice during a burst of payment updates. An approximate/stale
+// choice may cost a few more reads but NEVER alters the returned log history.
+let exportWatchFallbackModeCache = null;
+const EXPORT_WATCH_MODE_CACHE_MS = 60000;
 async function readExportWatchFallback(context, markerMs, cutoffMs){
     let mode="time";
     if(context.month !== "ALL"){
-        try{
-            const [monthCount,timeCount]=await Promise.all([
-                getCountFromServer(query(activityLogsRef,
-                    where("paymentMonth","==",context.month)
-                )),
-                getCountFromServer(query(activityLogsRef,
-                    where("createdAt",">",new Date(markerMs)),
-                    ...(cutoffMs == null ? [] : [where("createdAt","<=",new Date(cutoffMs))])
-                ))
-            ]);
-            if(monthCount.data().count < timeCount.data().count) mode="month";
-        }catch(error){
-            // Conservative fallback: use exactly the old indexed date scan.
-            console.warn("Export Watch read estimates unavailable",error);
+        const estimateKey=JSON.stringify([context.month,markerMs,cutoffMs]);
+        if(exportWatchFallbackModeCache?.key === estimateKey &&
+           Date.now()-exportWatchFallbackModeCache.at < EXPORT_WATCH_MODE_CACHE_MS){
+            mode=exportWatchFallbackModeCache.mode;
+        }else{
+            try{
+                const [monthCount,timeCount]=await Promise.all([
+                    getCountFromServer(query(activityLogsRef,
+                        where("paymentMonth","==",context.month)
+                    )),
+                    getCountFromServer(query(activityLogsRef,
+                        where("createdAt",">",new Date(markerMs)),
+                        ...(cutoffMs == null ? [] : [where("createdAt","<=",new Date(cutoffMs))])
+                    ))
+                ]);
+                if(monthCount.data().count < timeCount.data().count) mode="month";
+                exportWatchFallbackModeCache={key:estimateKey,mode,at:Date.now()};
+            }catch(error){
+                // Keep the original indexed date scan if estimates are unavailable.
+                console.warn("Export Watch read estimates unavailable",error);
+            }
         }
     }
     const rows=[];
