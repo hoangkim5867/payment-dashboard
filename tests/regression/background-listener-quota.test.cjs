@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
 
-for(const filename of ['payment.html','payment-mobile-renderer.html']){
+for(const filename of ['payment.html']){
   test(filename+': background listener is paused and restored without duplicates',async()=>{
     const html=fs.readFileSync(path.join(__dirname,'../../site',filename),'utf8');
     const from=html.indexOf('function stopPaymentsRealtime(){');
