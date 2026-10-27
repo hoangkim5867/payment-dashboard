@@ -1,0 +1,8 @@
+BLOCK: payment.html: HISTORY_2026_EMBEDDED still embeds financial history in publicly served HTML
+BLOCK: payment.html: HISTORY_2026_CLEAN_SOURCE still embeds financial history in publicly served HTML
+BLOCK: payment-mobile-renderer.html: HISTORY_2026_EMBEDDED still embeds financial history in publicly served HTML
+BLOCK: payment-mobile-renderer.html: HISTORY_2026_CLEAN_SOURCE still embeds financial history in publicly served HTML
+BLOCK: payment.html: still contains a full payments collection scan; Firestore quota optimisation not certified
+BLOCK: Firebase production Rules are not bundled/tested; verify them separately with Emulator
+BLOCK: No evidence of passing end-to-end UI/Admin/Staff/UNC/Excel tests on a Firebase staging environment
+RELEASE BLOCKED — staging ZIP must NOT replace the current Payment production site.

@@ -1,0 +1,57 @@
+[
+  {
+    "role": "admin",
+    "page": "index.html",
+    "authenticated": true,
+    "privateCardsVisible": 2,
+    "adminCardsVisible": 1
+  },
+  {
+    "role": "admin",
+    "workflow": "Plan Review diagnostic readback",
+    "checked": [
+      {
+        "amount": 900,
+        "status": "included",
+        "indexCorrect": true
+      },
+      {
+        "amount": 1001,
+        "status": "excluded",
+        "indexCorrect": true
+      },
+      {
+        "amount": 1002,
+        "status": "included",
+        "indexCorrect": true
+      }
+    ],
+    "consoleErrors": []
+  },
+  {
+    "role": "admin",
+    "workflow": "Plan Review approve/reduce/exclude/lock with Payment readback",
+    "pass": true,
+    "excludedPaymentUnchanged": true,
+    "allIndexesCorrect": true
+  },
+  {
+    "role": "admin",
+    "workflow": "Plan Review unlock",
+    "pass": true
+  },
+  {
+    "role": "admin",
+    "page": "plan-review.html",
+    "title": "Duyệt kế hoạch thanh toán",
+    "pageErrors": [],
+    "bodyLength": 2280,
+    "visibleDialogs": 0,
+    "visibleButtonsCount": 32,
+    "bodyExcerpt": "[Financial UI content deliberately omitted]"
+  },
+  {
+    "role": "admin",
+    "blockedProductionRequests": []
+  }
+]

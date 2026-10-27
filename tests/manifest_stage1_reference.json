@@ -1,0 +1,94 @@
+{
+  "source": "payment-dashboard-main.zip (uploaded Oct 21, 2026)",
+  "category": "STAGING_ONLY",
+  "files": {
+    "cash-control.html": {
+      "baseline_sha256": "4473f705e717d00cee4c139727c7b1058f186563c24ff3bd4be5e1114dc104fe",
+      "updated_sha256": "aed663f226cf6bc08d4cd667e4c516b52e62d919f9670863f49afb2326ff2182",
+      "primary_css_path": "assets/css/cash-control.css",
+      "primary_css_sha256": "ab635a65168f6fb4a272625746812f11a4c4269c8a95ce4d1f950cb95df1a4b9",
+      "css_bytes": 65653,
+      "original_style_open": "<style>",
+      "original_style_close": "</style>",
+      "link_marker": "<link rel=\"stylesheet\" href=\"assets/css/cash-control.css\" data-stage1-extracted=\"primary\">",
+      "inline_script_sha256": "3affd73d25f5f652617477e9ef28bf3fb683f275667388b63277c09972bc4634",
+      "inline_script_blocks": 16
+    },
+    "contract-master.html": {
+      "baseline_sha256": "eb3a7e5f4f0c68b137910d90a26789df1ef0d4c8028a03a9f5c838fc670e23b7",
+      "updated_sha256": "64231d609da1a3bd3f8d94791bcbbe2179fa905bd6f7d7ac9b121ef66339f0bb",
+      "primary_css_path": "assets/css/contract-master.css",
+      "primary_css_sha256": "8544f55464198ba028265ceee4f2e7388989fbdcf0ef4de03aa24d9f0a5eb8cb",
+      "css_bytes": 23982,
+      "original_style_open": "<style>",
+      "original_style_close": "</style>",
+      "link_marker": "<link rel=\"stylesheet\" href=\"assets/css/contract-master.css\" data-stage1-extracted=\"primary\">",
+      "inline_script_sha256": "ccdd988dcb38b02bb17c7d14542f4ee92918619ac7d25a8b423c5819a1c8ca47",
+      "inline_script_blocks": 2
+    },
+    "index.html": {
+      "baseline_sha256": "110e7808197be4df4a5f2a178fd4d9f7fb2f4c7c88ccf4e6626649494f5a6357",
+      "updated_sha256": "0304e8a22f1adb39ce63736d6cbf1806e1aa4f5b73646c5e41e8e17bbd999dc4",
+      "primary_css_path": "assets/css/index.css",
+      "primary_css_sha256": "e905e91bf1e9b4476a0d9d21396e604bcb2cade7b3654c97ed8411272e634f19",
+      "css_bytes": 11288,
+      "original_style_open": "<style>",
+      "original_style_close": "</style>",
+      "link_marker": "<link rel=\"stylesheet\" href=\"assets/css/index.css\" data-stage1-extracted=\"primary\">",
+      "inline_script_sha256": "0128a9a3ae0b0278d6ae2a01cda6385dcdd021f289626d8b919cf54d889b6b89",
+      "inline_script_blocks": 3
+    },
+    "payment-archive.html": {
+      "baseline_sha256": "f684f47d7360f464eabfa2146caa856cbddabf7573de94e6801b8df917a44aad",
+      "updated_sha256": "490ca958cf0b272477f5455d522ef3b71279b4167345ac01555cc1b2bd398264",
+      "primary_css_path": "assets/css/payment-archive.css",
+      "primary_css_sha256": "ff742e4da813704f37e5dac30f69e9ba3ff1405d0055e9bb9a9d9e05d2ef3936",
+      "css_bytes": 7809,
+      "original_style_open": "<style>",
+      "original_style_close": "</style>",
+      "link_marker": "<link rel=\"stylesheet\" href=\"assets/css/payment-archive.css\" data-stage1-extracted=\"primary\">",
+      "inline_script_sha256": "e14a579cf9c5cd413ebc53b76b7b8d90535db12158390b2ff9624e0db36315f4",
+      "inline_script_blocks": 2
+    },
+    "payment-mobile-renderer.html": {
+      "baseline_sha256": "2dd5b05a73465eb8f5b6da25ed60cadf802e494df66b7c9ecf727a1c1878fb64",
+      "updated_sha256": "8e8e047cbac1b6ae9dfe4b091f4687e71124e33d57d6f3d55da7bc26d2302a51",
+      "primary_css_path": "assets/css/payment-mobile-renderer.css",
+      "primary_css_sha256": "cf42430ae465f5409c2baadd7c614fd7b50996966c210c35b88d6adfa549eff9",
+      "css_bytes": 666342,
+      "original_style_open": "<style>",
+      "original_style_close": "</style>",
+      "link_marker": "<link rel=\"stylesheet\" href=\"assets/css/payment-mobile-renderer.css\" data-stage1-extracted=\"primary\">",
+      "inline_script_sha256": "26655f159df5866b3d97aafa889e2b674537900bfb17b440303687082cc9b990",
+      "inline_script_blocks": 6
+    },
+    "payment.html": {
+      "baseline_sha256": "6673ef50433039b8a93b13271653a16a44df18ec1bc50418e7dafb82f4c434dc",
+      "updated_sha256": "ad18e061d2bb360691ae7341b732a1744f0019e5ecef9eef68e0f09aafe8c4b2",
+      "primary_css_path": "assets/css/payment.css",
+      "primary_css_sha256": "c24412f5467939aff39e212ba63308d16034d2740e3acfe2d91d1452053b91e6",
+      "css_bytes": 672779,
+      "original_style_open": "<style>",
+      "original_style_close": "</style>",
+      "link_marker": "<link rel=\"stylesheet\" href=\"assets/css/payment.css\" data-stage1-extracted=\"primary\">",
+      "inline_script_sha256": "f0b401ec14719d53d4d99f41aa90f81bdc707de10bc0c153c1e0e09b56e4de66",
+      "inline_script_blocks": 5
+    },
+    "plan-review.html": {
+      "baseline_sha256": "30c1f2dd72a4f622fde7ea90f48efdba8fdf62c2f3fbbd671835597f31403cfd",
+      "updated_sha256": "eaebcf011f6d5dcd4c60fd643d5e163ef89dba00054972040805455521c31c17",
+      "primary_css_path": "assets/css/plan-review.css",
+      "primary_css_sha256": "37af419d2a684da7b31ea7abb1273cdfe0532edc20ca9cd5ae29e5711049cd1f",
+      "css_bytes": 36083,
+      "original_style_open": "<style>",
+      "original_style_close": "</style>",
+      "link_marker": "<link rel=\"stylesheet\" href=\"assets/css/plan-review.css\" data-stage1-extracted=\"primary\">",
+      "inline_script_sha256": "c6b73a63554f7c43010c38e6a31e4580300713e1d757f339493dfeaeae6d7d2f",
+      "inline_script_blocks": 3
+    }
+  },
+  "source_files": {
+    "README.md": "070d2e1c7b5db88d7e71193c2af1e575da16cdce47e1bf3c812d0405fafb7392",
+    "logo.png": "b0c88155cdd317b75b5b6521674915a018e3db4ab0549ba337d8eab669199e87"
+  }
+}

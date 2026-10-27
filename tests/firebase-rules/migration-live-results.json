@@ -1,0 +1,22 @@
+{
+  "projectId": "demo-payment-migration-verification",
+  "localEmulatorOnly": true,
+  "documents": {
+    "raw": {
+      "sourceRows": 812,
+      "readbackRows": 812,
+      "sha256": "97c383e2d75c7e0636c139d10c68bc1f92ea9374a7d4b9f21b467d0b99f8d0b8",
+      "contentEqual": true,
+      "pass": true
+    },
+    "clean": {
+      "sourceRows": 812,
+      "readbackRows": 812,
+      "sha256": "daffaf136014ea3454e55dd5c9cb5b29303007d3f6fd4a5796315b8a175daae0",
+      "contentEqual": true,
+      "pass": true
+    }
+  },
+  "idempotent": true,
+  "noOverwriteOnConflict": true
+}

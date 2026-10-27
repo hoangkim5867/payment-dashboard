@@ -1,0 +1,46 @@
+{
+  "environment": "local Firestore Emulator",
+  "syntheticFixture": true,
+  "scenarios": [
+    {
+      "page": "payment.html",
+      "collectionDocuments": 101,
+      "legacy": {
+        "queries": 1,
+        "returnedDocuments": 101
+      },
+      "indexed": {
+        "queries": 1,
+        "returnedDocuments": 2
+      },
+      "markerReadExcluded": true,
+      "billingMeasurement": false
+    },
+    {
+      "page": "payment-mobile-renderer.html",
+      "collectionDocuments": 101,
+      "legacy": {
+        "queries": 1,
+        "returnedDocuments": 101
+      },
+      "indexed": {
+        "queries": 1,
+        "returnedDocuments": 2
+      },
+      "markerReadExcluded": true,
+      "billingMeasurement": false
+    },
+    {
+      "scenario": "synthetic synchronous writer lifecycle",
+      "pass": true,
+      "applicationWritersCertified": false
+    },
+    {
+      "scenario": "existing writer without synchronous maintenance",
+      "indexedMatches": 0,
+      "legacyMatches": 1,
+      "releaseBlocker": true,
+      "gateMustRemainFalse": true
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+node_modules/
+build/
+work/
+.env
+.env.*
+!.env.example
+*-debug.log
+firebase-debug.log
+firestore-debug.log
+ui-evidence/*.png

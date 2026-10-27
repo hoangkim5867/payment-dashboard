@@ -1,0 +1,6 @@
+{
+  "indexes":[],
+  "fieldOverrides":[
+    {"collectionGroup":"paymentHistorySources2026","fieldPath":"rows","indexes":[]}
+  ]
+}

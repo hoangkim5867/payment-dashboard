@@ -1,0 +1,124 @@
+TAP version 13
+# Subtest: backend duplicate key parity matches the production-normalization functions
+ok 1 - backend duplicate key parity matches the production-normalization functions
+  ---
+  duration_ms: 8.801407
+  type: 'test'
+  ...
+# Subtest: backend MEP membership matches UI for legacy payment variants
+ok 2 - backend MEP membership matches UI for legacy payment variants
+  ---
+  duration_ms: 11.512572
+  type: 'test'
+  ...
+# Subtest: normalization aliases and same-vs-cross-month preservation
+ok 3 - normalization aliases and same-vs-cross-month preservation
+  ---
+  duration_ms: 0.752594
+  type: 'test'
+  ...
+# Subtest: lookup remains gated until backfill and continuous maintenance are verified
+ok 4 - lookup remains gated until backfill and continuous maintenance are verified
+  ---
+  duration_ms: 27.213813
+  type: 'test'
+  ...
+# Subtest: index idempotence and source business fields unchanged
+ok 5 - index idempotence and source business fields unchanged
+  ---
+  duration_ms: 0.293653
+  type: 'test'
+  ...
+# Subtest: payment.html: permission marker refreshed every lookup; revoke takes effect without F5
+ok 6 - payment.html: permission marker refreshed every lookup; revoke takes effect without F5
+  ---
+  duration_ms: 10.669923
+  type: 'test'
+  ...
+# Subtest: payment.html: missing/unreadable index fails closed
+ok 7 - payment.html: missing/unreadable index fails closed
+  ---
+  duration_ms: 10.799578
+  type: 'test'
+  ...
+# Subtest: payment-mobile-renderer.html: permission marker refreshed every lookup; revoke takes effect without F5
+ok 8 - payment-mobile-renderer.html: permission marker refreshed every lookup; revoke takes effect without F5
+  ---
+  duration_ms: 10.222098
+  type: 'test'
+  ...
+# Subtest: payment-mobile-renderer.html: missing/unreadable index fails closed
+ok 9 - payment-mobile-renderer.html: missing/unreadable index fails closed
+  ---
+  duration_ms: 9.665791
+  type: 'test'
+  ...
+# Subtest: contract-master.html: permission marker refreshed every lookup; revoke takes effect without F5
+ok 10 - contract-master.html: permission marker refreshed every lookup; revoke takes effect without F5
+  ---
+  duration_ms: 2.113614
+  type: 'test'
+  ...
+# Subtest: contract-master.html: missing/unreadable index fails closed
+ok 11 - contract-master.html: missing/unreadable index fails closed
+  ---
+  duration_ms: 1.67288
+  type: 'test'
+  ...
+# Subtest: payment.html: zero IPC keys never creates an invalid indexed query
+ok 12 - payment.html: zero IPC keys never creates an invalid indexed query
+  ---
+  duration_ms: 8.341595
+  type: 'test'
+  ...
+# Subtest: payment-mobile-renderer.html: zero IPC keys never creates an invalid indexed query
+ok 13 - payment-mobile-renderer.html: zero IPC keys never creates an invalid indexed query
+  ---
+  duration_ms: 5.937865
+  type: 'test'
+  ...
+# [Payment Read Audit] Indexed IPC check {
+#   requestedKeys: 2,
+#   matchingDocuments: 1,
+#   queries: 1,
+#   fullCollectionRead: false
+# }
+# [Payment Read Audit] Indexed IPC check {
+#   requestedKeys: 2,
+#   matchingDocuments: 1,
+#   queries: 1,
+#   fullCollectionRead: false
+# }
+# Subtest: targeted indexed lookup selects only keys in import preview: payment.html
+ok 14 - targeted indexed lookup selects only keys in import preview: payment.html
+  ---
+  duration_ms: 11.703089
+  type: 'test'
+  ...
+# Subtest: index not ready preserves full-history duplicate checking: payment.html
+ok 15 - index not ready preserves full-history duplicate checking: payment.html
+  ---
+  duration_ms: 10.11043
+  type: 'test'
+  ...
+# Subtest: targeted indexed lookup selects only keys in import preview: payment-mobile-renderer.html
+ok 16 - targeted indexed lookup selects only keys in import preview: payment-mobile-renderer.html
+  ---
+  duration_ms: 10.531695
+  type: 'test'
+  ...
+# Subtest: index not ready preserves full-history duplicate checking: payment-mobile-renderer.html
+ok 17 - index not ready preserves full-history duplicate checking: payment-mobile-renderer.html
+  ---
+  duration_ms: 9.340531
+  type: 'test'
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 125.505912

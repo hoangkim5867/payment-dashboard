@@ -1,0 +1,29 @@
+{
+  "pass": true,
+  "testedAt": "2026-10-24T03:33:17.518Z",
+  "environment": "127.0.0.1 Firestore Emulator",
+  "sourceProject": "demo-payment-security",
+  "restoreProject": "demo-payment-rollback-rehearsal",
+  "documents": 43,
+  "collections": [
+    "activityLogs",
+    "authUsers",
+    "cash_control_private",
+    "cash_flow_monthly_snapshots",
+    "contracts",
+    "paymentArchiveDetails",
+    "paymentArchives",
+    "paymentHistorySources2026",
+    "payments",
+    "systemConfig"
+  ],
+  "beforeSHA256": "8fba4915cdce783d477928a52bf97ea3c0e3119e988115fcd818e21c6f610d63",
+  "afterSHA256": "8fba4915cdce783d477928a52bf97ea3c0e3119e988115fcd818e21c6f610d63",
+  "rawRows": 812,
+  "cleanRows": 812,
+  "privateCashPayloadExact": true,
+  "timestampsPreserved": true,
+  "removedTestOnlyExtra": true,
+  "productionTouched": false,
+  "backupPayloadPackaged": false
+}

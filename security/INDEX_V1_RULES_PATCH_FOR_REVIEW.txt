@@ -1,0 +1,29 @@
+PROPOSED TARGETED RULE ADDITION ONLY — NEVER AUTOMATICALLY PUBLISH
+
+The production Rules from the user currently have a broad catch-all rule that
+allows approved Staff to update `systemConfig/paymentLookupV1`. The marker MUST
+be admin-only before any UI code feature gate is enabled.
+
+Inside match /databases/{database}/documents:
+
+  match /systemConfig/paymentLookupV1 {
+    allow get: if approvedUser();
+    allow list: if false;
+    allow create, update, delete: if trustedProfileAdmin();
+  }
+
+Modify catch-all:
+
+  match /{collection}/{document=**} {
+    allow read, write: if approvedUser()
+      && collection != "cash_control_private"
+      && collection != "authUsers"
+      && !(collection == "systemConfig" && document == "paymentLookupV1");
+  }
+
+Important: Rules OR together across overlapping matches. Simply adding the first
+match without changing catch-all DOES NOT PROTECT the marker. Apply only after
+Firestore Emulator tests on exact production Rules and regression tests.
+
+THIS IS NOT A COMPLETE REMEDIATION OF ALL PAYMENT OR ACTIVITYLOGS RULES.
+Do not replace whole production Rules with this text.

@@ -1,0 +1,58 @@
+{
+  "stage6_changes": "Import Excel 2-pass local parse and duplicate candidate reuse; desktop and mobile",
+  "test_categories": {
+    "integrity_cumulative": {
+      "passed": true,
+      "output": "SOURCE DIFFERENTIAL CHECK PASS — only CSS extraction + unused preview removal\nPASS: 90 static integrity checks, history preserved. NO production access.\nBLOCKED for production: UI interactions, Firestore Rules, cross-month import, UNC, Excel not live-tested."
+    },
+    "read_instrumentation": {
+      "passed": true,
+      "output": "PASS: exact Stage2 inheritance, 2 diagnostics only, 0 added getDocs, no row-level logging"
+    },
+    "javascript_syntax": {
+      "passed": true,
+      "output": "PASS: 29 JavaScript syntax blocks"
+    },
+    "excel_structure_preflight": {
+      "passed": true,
+      "output": "PASS 14 preflight scenarios; full scan preserved for valid inputs (2 pages)"
+    },
+    "excel_two_pass_fetch": {
+      "passed": true,
+      "output": "PASS: 36 two-pass import route assertions (desktop + mobile; offline)"
+    },
+    "ipc_duplicate_equivalence": {
+      "passed": true,
+      "output": "PASS 406 duplicate matching equivalence checks (offline)"
+    },
+    "mep_targeted_refresh": {
+      "passed": true,
+      "output": "PASS 16 MEP targeted-refresh assertions; reads exactly edited IDs, no whole-collection scan"
+    },
+    "export_watch_fallback": {
+      "passed": true,
+      "output": "PASS 10 adaptive Export Watch fallback assertions, including >500 documents"
+    },
+    "production_preflight": {
+      "passed": false,
+      "status": "BLOCKED_EXPECTED",
+      "output": "BLOCK: payment.html: HISTORY_2026_EMBEDDED still embeds financial history in publicly served HTML\nBLOCK: payment.html: HISTORY_2026_CLEAN_SOURCE still embeds financial history in publicly served HTML\nBLOCK: payment-mobile-renderer.html: HISTORY_2026_EMBEDDED still embeds financial history in publicly served HTML\nBLOCK: payment-mobile-renderer.html: HISTORY_2026_CLEAN_SOURCE still embeds financial history in publicly served HTML\nBLOCK: payment.html: still contains a full payments collection scan; Firestore quota optimisation not certified\nBLOCK: contract-master.html: still contains a full payments collection scan; Firestore quota optimisation not certified\nBLOCK: Firebase production Rules are not bundled/tested; verify them separately with Emulator\nBLOCK: No evidence of passing end-to-end UI/Admin/Staff/UNC/Excel tests on a Firebase staging environment\nRELEASE BLOCKED — staging ZIP must NOT replace the current Payment production site."
+    }
+  },
+  "production_access": false,
+  "github_or_vercel_deployment": false,
+  "real_firebase_reads_measured": false,
+  "firestore_rules_verified_live": false,
+  "release_approved": false,
+  "unchanged_financial_history_arrays_per_page": {
+    "HISTORY_2026_EMBEDDED": 812,
+    "HISTORY_2026_CLEAN_SOURCE": 812
+  },
+  "legacy_changes_inherited": [
+    "Stage1 CSS modularization",
+    "Stage2 obsolete preview removal",
+    "Stage3 read instrumentation",
+    "Stage4 paste structure preflight",
+    "Stage5 MEP targeted refresh and Export Watch fallback"
+  ]
+}

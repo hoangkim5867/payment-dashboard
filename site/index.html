@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#15395f">
+  <meta name="description" content="CSCEC MEP Payment">
+  <title>CSCEC MEP · Payment</title>
+  <link rel="stylesheet" href="assets/css/index.css" data-stage1-extracted="primary">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-6QQBQ1C6FE"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-6QQBQ1C6FE');</script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./"><img class="brand-mark" src="./logo.png" alt="CSCEC"><span>中建二局安装工程有限公司</span></a>
+    <div class="lang-switch" id="langSwitch">
+      <button type="button" data-lang="vi">VI</button>
+      <button type="button" data-lang="zh">中文</button>
+      <button type="button" data-lang="en">EN</button>
+    </div>
+    <div class="account-bar" id="accountBar" hidden><div class="account-copy"><strong id="accountName">—</strong><small id="accountRole">—</small></div><button class="logout-btn" id="logoutButton" type="button" data-i18n="logout">Đăng xuất</button></div>
+  </header>
+  <main>
+    <section class="workspace">
+      <div class="heading"><h1 data-i18n="selectFunction">Chọn chức năng</h1></div>
+      <div class="grid">
+        <a class="card card-primary" href="./payment.html"><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 9h16M8 13h3M8 16h6"/></svg></span><span class="card-copy"><h2 data-i18n="paymentManagement">Quản lý thanh toán</h2><p data-i18n="paymentManagementDesc">Theo dõi tiến độ và lịch sử thanh toán</p></span><span class="arrow">→</span></a>
+        <a class="card" href="https://drive.google.com/drive/folders/1rfkI9U__twlV4KeHNCPvI_gxG8RrYmP6" target="_blank" rel="noopener"><span class="icon"><svg viewBox="0 0 24 24"><path d="M3 7h7l2 2h9v10H3z"/></svg></span><span class="card-copy"><h2 data-i18n="projectDocuments">Hồ sơ dự án</h2><p data-i18n="projectDocumentsDesc">Hợp đồng, IPC và hồ sơ hỗ trợ</p></span><span class="arrow">↗</span></a>
+        <a class="card" href="./payment-archive.html"><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 6h16v14H4zM8 3h8v6H8zM8 13h8M8 16h6"/></svg></span><span class="card-copy"><h2 data-i18n="paymentArchive">Kho chứng từ thanh toán</h2><p data-i18n="paymentArchiveDesc">Tháng đã chốt và chứng từ thanh toán</p></span><span class="arrow">→</span></a>
+        <a class="card" href="./plan-review.html" data-private-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 9l2 2 5-5M8 15h8"/></svg></span><span class="card-copy"><h2 data-i18n="planReview">Duyệt kế hoạch</h2><p data-i18n="planReviewDesc">Xem xét, phê duyệt và khóa kế hoạch thanh toán</p><span class="private-badge" data-i18n="privateOnly">Nội bộ</span></span><span class="arrow">→</span></a>
+        <a class="card" href="./cash-control.html" data-private-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M3 18h18"/></svg></span><span class="card-copy"><h2 data-i18n="cashControl">Dòng tiền dự án</h2><p data-i18n="cashControlDesc">Theo dõi dòng tiền và số dư dự án</p><span class="private-badge" data-i18n="privateOnly">Nội bộ</span></span><span class="arrow">→</span></a>
+        <a class="card" href="./contract-master.html" data-admin-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg></span><span class="card-copy"><h2 data-i18n="contractMaster">Danh mục hợp đồng</h2><p data-i18n="contractMasterDesc">Hợp đồng và dữ liệu MEP</p><span class="private-badge" data-i18n="adminOnly">Chỉ Admin</span></span><span class="arrow">→</span></a>
+      </div>
+    </section>
+  </main>
+  <section class="auth-gate" id="authGate">
+    <form class="login-card" id="loginForm">
+      <div class="login-brand"><img src="./logo.png" alt="CSCEC"><div><strong>中建二局安装工程有限公司</strong><span></span></div></div>
+      <label for="loginUsername" data-i18n="username">Tên đăng nhập</label><input id="loginUsername" autocomplete="username" placeholder="Tên đăng nhập" data-i18n-placeholder="usernamePlaceholder" required>
+      <label for="loginPassword" data-i18n="password">Mật khẩu</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Mật khẩu" data-i18n-placeholder="passwordPlaceholder" required>
+      <button class="login-submit" id="loginSubmit" type="submit" data-i18n="login">Đăng nhập</button>
+      <div class="login-error" id="loginError"></div>
+      <p class="login-note"></p>
+    </form>
+  </section>
+  <button class="chat-launcher" id="chatLauncher" type="button" aria-label="Open team chat" aria-controls="chatPanel" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18.5 3.5 21v-5A8.5 8.5 0 1 1 7 19.5Z"/><path d="M8 10h8M8 14h5"/></svg>
+  </button>
+  <section class="chat-panel" id="chatPanel" aria-label="Team chat" hidden>
+    <div class="chat-head">
+      <span class="chat-head-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18.5 3.5 21v-5A8.5 8.5 0 1 1 7 19.5Z"/></svg></span>
+      <span class="chat-head-copy"><strong data-i18n="teamChat">Chat nhóm</strong><small data-i18n="anonymousNicknames">Biệt danh ẩn danh</small></span>
+      <button class="chat-close" id="chatClose" type="button" aria-label="Close chat">×</button>
+    </div>
+    <div class="chat-identity"><span data-i18n="chattingAs">Bạn đang chat với tên</span><button class="chat-name" id="chatNameButton" type="button" data-i18n="setNickname">Đặt biệt danh</button></div>
+    <div class="chat-log" id="chatLog" aria-live="polite"><div class="chat-empty">Loading messages…</div></div>
+    <form class="chat-form" id="chatForm">
+      <button class="chat-tool" id="chatImageButton" type="button" aria-label="Choose an image" title="Choose an image" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m4 17 5-5 4 4 2-2 5 4"/></svg></button>
+      <button class="chat-tool" id="chatEmojiButton" type="button" aria-label="Choose an emoji" title="Emoji" aria-expanded="false" disabled>☺</button>
+      <input id="chatMessage" type="text" maxlength="500" autocomplete="off" placeholder="Nhắn tin hoặc dán ảnh…" data-i18n-placeholder="messagePlaceholder" aria-label="Message" disabled>
+      <button class="chat-send" id="chatSend" type="submit" disabled data-i18n="send">Gửi</button>
+      <input id="chatImageInput" type="file" accept="image/*" hidden>
+      <div class="chat-emoji-panel" id="chatEmojiPanel" aria-label="Emoji" hidden></div>
+    </form>
+    <div class="chat-name-layer" id="chatNameLayer" hidden>
+      <form class="chat-name-card" id="chatNameForm">
+        <h3 data-i18n="chooseNickname">Chọn biệt danh</h3>
+        <p data-i18n="nicknameHint">Dùng bất kỳ biệt danh nào — không cần tên thật.</p>
+        <input id="chatNameInput" type="text" maxlength="30" autocomplete="nickname" placeholder="Biệt danh" data-i18n-placeholder="nicknamePlaceholder" required>
+        <div class="chat-name-actions">
+          <button class="chat-name-cancel" id="chatNameCancel" type="button" data-i18n="cancel">Hủy</button>
+          <button class="chat-name-save" type="submit" data-i18n="continue">Tiếp tục</button>
+        </div>
+      </form>
+    </div>
+  </section>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+    import { getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged,setPersistence,browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+    import { getFirestore,collection,addDoc,query,orderBy,limit,onSnapshot,serverTimestamp,getDoc,doc } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+
+    const I18N={
+      vi:{logout:"Đăng xuất",selectFunction:"Chọn chức năng",paymentManagement:"Quản lý thanh toán",paymentManagementDesc:"Theo dõi tiến độ và lịch sử thanh toán",projectDocuments:"Hồ sơ dự án",projectDocumentsDesc:"Hợp đồng, IPC và hồ sơ hỗ trợ",paymentArchive:"Kho chứng từ thanh toán",paymentArchiveDesc:"Tháng đã chốt và chứng từ thanh toán",planReview:"Duyệt kế hoạch",planReviewDesc:"Xem xét, phê duyệt và khóa kế hoạch thanh toán",cashControl:"Dòng tiền dự án",cashControlDesc:"Theo dõi dòng tiền và số dư dự án",contractMaster:"Danh mục hợp đồng",contractMasterDesc:"Hợp đồng và dữ liệu MEP",privateOnly:"Nội bộ",adminOnly:"Chỉ Admin",username:"Tên đăng nhập",usernamePlaceholder:"Tên đăng nhập",password:"Mật khẩu",passwordPlaceholder:"Mật khẩu",login:"Đăng nhập",loggingIn:"Đang đăng nhập...",loginMissing:"Hãy nhập tên đăng nhập.",loginFailed:"Đăng nhập thất bại. Kiểm tra lại tên đăng nhập và mật khẩu.",noProfile:"Tài khoản chưa có hồ sơ hoặc chưa được cấp quyền.",permissionCheckFailed:"Không kiểm tra được quyền đăng nhập. Hãy thử lại.",adminRole:"Quản trị viên",staffRole:"Nhân viên",teamChat:"Chat nhóm",anonymousNicknames:"Biệt danh ẩn danh",chattingAs:"Bạn đang chat với tên",setNickname:"Đặt biệt danh",noMessages:"Chưa có tin nhắn. Hãy bắt đầu cuộc trò chuyện.",loadingMessages:"Đang tải tin nhắn…",chatUnavailable:"Chat tạm thời không khả dụng.",messagePlaceholder:"Nhắn tin hoặc dán ảnh…",send:"Gửi",chooseNickname:"Chọn biệt danh",nicknameHint:"Dùng bất kỳ biệt danh nào — không cần tên thật.",nicknamePlaceholder:"Biệt danh",cancel:"Hủy",continue:"Tiếp tục"},
+      zh:{logout:"退出登录",selectFunction:"选择功能",paymentManagement:"付款管理",paymentManagementDesc:"跟踪付款进度及历史记录",projectDocuments:"项目资料",projectDocumentsDesc:"合同、IPC及相关支持资料",paymentArchive:"付款档案",paymentArchiveDesc:"已关闭月份及付款凭证",planReview:"付款计划审核",planReviewDesc:"审核、批准并锁定付款计划",cashControl:"项目资金流",cashControlDesc:"查看项目资金流及当前余额",contractMaster:"合同台账",contractMasterDesc:"合同及MEP基础数据",privateOnly:"内部使用",adminOnly:"仅管理员",username:"用户名",usernamePlaceholder:"请输入用户名",password:"密码",passwordPlaceholder:"请输入密码",login:"登录",loggingIn:"正在登录...",loginMissing:"请输入用户名。",loginFailed:"登录失败，请检查用户名和密码。",noProfile:"该账号未建立资料或尚未授权。",permissionCheckFailed:"无法验证登录权限，请重试。",adminRole:"管理员",staffRole:"员工",teamChat:"团队聊天",anonymousNicknames:"匿名昵称",chattingAs:"当前昵称",setNickname:"设置昵称",noMessages:"暂无消息，开始聊天吧。",loadingMessages:"正在加载消息…",chatUnavailable:"聊天暂时不可用。",messagePlaceholder:"输入消息或粘贴图片…",send:"发送",chooseNickname:"选择昵称",nicknameHint:"可使用任意昵称，无需真实姓名。",nicknamePlaceholder:"昵称",cancel:"取消",continue:"继续"},
+      en:{logout:"Sign out",selectFunction:"Select a function",paymentManagement:"Payment Management",paymentManagementDesc:"Track payment progress and history",projectDocuments:"Project Documents",projectDocumentsDesc:"Contracts, IPCs and supporting documents",paymentArchive:"Payment Archive",paymentArchiveDesc:"Closed months and payment documents",planReview:"Plan Review",planReviewDesc:"Review, approve and lock payment plans",cashControl:"Cash Control",cashControlDesc:"Project cash flow and current balances",contractMaster:"Contract Master",contractMasterDesc:"Contracts and MEP master data",privateOnly:"Internal only",adminOnly:"Admin only",username:"Username",usernamePlaceholder:"Username",password:"Password",passwordPlaceholder:"Password",login:"Sign in",loggingIn:"Signing in...",loginMissing:"Enter your username.",loginFailed:"Sign-in failed. Check your username and password.",noProfile:"This account has no profile or access permission.",permissionCheckFailed:"Could not verify access. Please try again.",adminRole:"Administrator",staffRole:"Staff",teamChat:"Team chat",anonymousNicknames:"Anonymous nicknames",chattingAs:"You are chatting as",setNickname:"Set nickname",noMessages:"No messages yet. Start the conversation.",loadingMessages:"Loading messages…",chatUnavailable:"Chat is temporarily unavailable.",messagePlaceholder:"Message or paste an image…",send:"Send",chooseNickname:"Choose a nickname",nicknameHint:"Use any nickname — no real name required.",nicknamePlaceholder:"Nickname",cancel:"Cancel",continue:"Continue"}
+    };
+    const LANG_KEY="cscec_home_language_v1";
+    let currentLang=localStorage.getItem(LANG_KEY)||"vi";
+    if(!["vi","zh","en"].includes(currentLang))currentLang="vi";
+    const t=key=>I18N[currentLang]?.[key]??I18N.vi[key]??key;
+    const applyLanguage=()=>{
+      document.documentElement.lang=currentLang==="zh"?"zh-CN":currentLang;
+      document.querySelectorAll("[data-i18n]").forEach(el=>el.textContent=t(el.dataset.i18n));
+      document.querySelectorAll("[data-i18n-placeholder]").forEach(el=>el.placeholder=t(el.dataset.i18nPlaceholder));
+      document.querySelectorAll("#langSwitch [data-lang]").forEach(btn=>btn.classList.toggle("active",btn.dataset.lang===currentLang));
+      document.title=currentLang==="zh"?"中建二局安装 · 付款系统":currentLang==="vi"?"CSCEC MEP · Hệ thống thanh toán":"CSCEC MEP · Payment";
+    };
+    document.querySelectorAll("#langSwitch [data-lang]").forEach(btn=>btn.addEventListener("click",()=>{currentLang=btn.dataset.lang;localStorage.setItem(LANG_KEY,currentLang);applyLanguage();}));
+
+    const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
+    const app=initializeApp(firebaseConfig);
+    const db=getFirestore(app);
+    const auth=getAuth(app);
+    const authGate=document.getElementById("authGate");
+    const loginForm=document.getElementById("loginForm");
+    const loginUsername=document.getElementById("loginUsername");
+    const loginPassword=document.getElementById("loginPassword");
+    const loginSubmit=document.getElementById("loginSubmit");
+    const loginError=document.getElementById("loginError");
+    const accountBar=document.getElementById("accountBar");
+    const accountName=document.getElementById("accountName");
+    const accountRole=document.getElementById("accountRole");
+    const logoutButton=document.getElementById("logoutButton");
+    const normalizeUsername=value=>String(value||"").trim().toLowerCase().replace(/\s+/g,"").replace(/[^a-z0-9]/g,"");
+    const usernameToEmail=value=>{const username=normalizeUsername(value);return username?`${username}@cscecmep.internal`:""};
+    const isPrivateOwner=(user,profile)=>{
+      const email=String(user?.email||"").trim().toLowerCase();
+      return String(profile?.role||"").toLowerCase()==="admin"&&email==="lehoangoanh@cscecmep.internal";
+    };
+    const showLoginError=message=>{loginError.textContent=message;loginError.style.display="block"};
+    const applySignedOut=()=>{
+      authGate.hidden=false;accountBar.hidden=true;
+      document.querySelectorAll("[data-private-card],[data-admin-card]").forEach(card=>card.hidden=true);
+      loginPassword.value="";
+    };
+    let homeAccessAttempt=0;
+    const loginFailureMessage=error=>{
+      const code=String(error?.code||'');
+      if(code==='auth/network-request-failed')return 'Không kết nối được dịch vụ đăng nhập. Kiểm tra mạng và thử lại.';
+      if(code==='auth/too-many-requests')return 'Đăng nhập đang tạm bị giới hạn. Vui lòng chờ rồi thử lại.';
+      if(code==='auth/user-disabled')return 'Tài khoản đang bị khóa. Liên hệ quản trị viên.';
+      if(['auth/invalid-credential','auth/wrong-password','auth/user-not-found','auth/invalid-email'].includes(code))return t('loginFailed');
+      return t('permissionCheckFailed')+(code?' ('+code+')':'');
+    };
+    async function verifyHomeAccess(user){
+      const attempt=++homeAccessAttempt;
+      const stillCurrent=()=>attempt===homeAccessAttempt&&auth.currentUser===user;
+      applySignedOut();
+      if(!user)return;
+      try{
+        const profileSnapshot=await getDoc(doc(db,'authUsers',user.uid));
+        if(!stillCurrent())return;
+        const profile=profileSnapshot.exists()?profileSnapshot.data():null;
+        const role=String(profile?.role||'').toLowerCase();
+        if(!profile||!['admin','staff'].includes(role)){
+          showLoginError(t('noProfile'));return;
+        }
+        accountName.textContent=String(profile.displayName?profile.displayName:user.email||'User');
+        accountRole.textContent=role==='admin'?t('adminRole'):t('staffRole');
+        accountBar.hidden=false;authGate.hidden=true;loginError.style.display='none';
+        const privateAccess=isPrivateOwner(user,profile);
+        document.querySelectorAll('[data-private-card]').forEach(card=>card.hidden=!privateAccess);
+        document.querySelectorAll('[data-admin-card]').forEach(card=>card.hidden=role!=='admin');
+      }catch(error){
+        if(!stillCurrent())return;
+        applySignedOut();
+        console.error('HOME PROFILE CHECK ERROR:',error);
+        showLoginError(t('permissionCheckFailed')+(error?.code?' ('+error.code+')':''));
+      }
+    }
+    loginForm.addEventListener('submit',async event=>{
+      event.preventDefault();
+      const email=usernameToEmail(loginUsername.value),password=loginPassword.value;
+      ++homeAccessAttempt;
+      loginError.style.display='none';loginSubmit.disabled=true;loginSubmit.textContent=t('loggingIn');
+      try{
+        if(!email||!password){showLoginError(t('loginMissing'));return;}
+        await setPersistence(auth,browserLocalPersistence);
+        const credential=await signInWithEmailAndPassword(auth,email,password);
+        await verifyHomeAccess(credential.user);
+      }catch(error){console.error('HOME LOGIN ERROR:',error);showLoginError(loginFailureMessage(error));}
+      finally{loginSubmit.disabled=false;loginSubmit.textContent=t('login');}
+    });
+    logoutButton.addEventListener('click',()=>signOut(auth));
+    onAuthStateChanged(auth,user=>{void verifyHomeAccess(user);});
+    const launcher=document.getElementById("chatLauncher");
+    const panel=document.getElementById("chatPanel");
+    const closeButton=document.getElementById("chatClose");
+    const log=document.getElementById("chatLog");
+    const form=document.getElementById("chatForm");
+    const messageInput=document.getElementById("chatMessage");
+    const sendButton=document.getElementById("chatSend");
+    const imageButton=document.getElementById("chatImageButton");
+    const imageInput=document.getElementById("chatImageInput");
+    const emojiButton=document.getElementById("chatEmojiButton");
+    const emojiPanel=document.getElementById("chatEmojiPanel");
+    const nameButton=document.getElementById("chatNameButton");
+    const nameLayer=document.getElementById("chatNameLayer");
+    const nameForm=document.getElementById("chatNameForm");
+    const nameInput=document.getElementById("chatNameInput");
+    const nameCancel=document.getElementById("chatNameCancel");
+    const CHAT_ROOM="homepage-2026-09";
+    const CHAT_NAME_KEY="chat_name_homepage_2026_09";
+    let stopMessages=null;
+    let sending=false;
+
+    /* Start the refreshed chat with new nicknames on every device.
+       The legacy key is deliberately retired. */
+    localStorage.removeItem("chat_name");
+    const currentName=()=>localStorage.getItem(CHAT_NAME_KEY)||"";
+    const cleanName=value=>value.trim().replace(/\s+/g," ").slice(0,30);
+    const cleanText=value=>value.trim().slice(0,500);
+    const setComposerState=()=>{
+      const ready=Boolean(currentName());
+      nameButton.textContent=ready?currentName():t("setNickname");
+      messageInput.disabled=!ready||sending;
+      sendButton.disabled=!ready||sending;
+      imageButton.disabled=!ready||sending;
+      emojiButton.disabled=!ready||sending;
+    };
+    const showNameEditor=()=>{
+      nameInput.value=currentName();
+      nameLayer.hidden=false;
+      setTimeout(()=>nameInput.focus(),0);
+    };
+    const hideNameEditor=()=>{nameLayer.hidden=true;};
+    const showChatMessage=text=>{const empty=document.createElement("div");empty.className="chat-empty";empty.textContent=text;log.replaceChildren(empty);};
+    const renderMessages=snapshot=>{
+      const messages=snapshot.docs
+        .slice()
+        .reverse()
+        .filter(messageDoc=>messageDoc.data().room===CHAT_ROOM);
+      if(!messages.length){showChatMessage(t("noMessages"));return;}
+      const fragment=document.createDocumentFragment();
+      const nickname=currentName();
+      messages.forEach(messageDoc=>{
+        const data=messageDoc.data();
+        const name=cleanName(String(data.name||"Guest"))||"Guest";
+        const row=document.createElement("div");
+        row.className="chat-message"+(name===nickname?" me":"");
+        const meta=document.createElement("div");
+        meta.className="chat-message-meta";
+        const author=document.createElement("span");
+        author.textContent=name;
+        meta.append(author);
+        const bubble=document.createElement("div");
+        bubble.className="chat-bubble";
+        if(data.image){
+          const image=document.createElement("img");
+          image.className="chat-image";
+          image.src=String(data.image);
+          image.alt="Image shared by "+name;
+          bubble.append(image);
+        }
+        if(data.text&&!(data.image&&data.text==="[image]")){
+          const text=document.createElement("div");
+          text.textContent=String(data.text);
+          bubble.append(text);
+        }
+        if(data.reaction){const reaction=document.createElement("div");reaction.className="chat-reaction";reaction.textContent=String(data.reaction);bubble.append(reaction);}
+        row.append(meta,bubble);
+        fragment.append(row);
+      });
+      log.replaceChildren(fragment);
+      requestAnimationFrame(()=>{log.scrollTop=log.scrollHeight;});
+    };
+    const startMessages=()=>{
+      if(stopMessages)return;
+      showChatMessage(t("loadingMessages"));
+      const recent=query(collection(db,"messages"),orderBy("time","desc"),limit(50));
+      stopMessages=onSnapshot(recent,renderMessages,error=>{
+        console.error("Chat read failed",error);
+        showChatMessage(t("chatUnavailable"));
+      });
+    };
+    const openChat=()=>{
+      panel.hidden=false;
+      requestAnimationFrame(()=>panel.classList.add("is-open"));
+      launcher.setAttribute("aria-expanded","true");
+      setComposerState();
+      startMessages();
+      if(currentName())setTimeout(()=>messageInput.focus(),180);else showNameEditor();
+    };
+    const closeChat=()=>{
+      panel.classList.remove("is-open");
+      emojiPanel.hidden=true;
+      emojiButton.setAttribute("aria-expanded","false");
+      launcher.setAttribute("aria-expanded","false");
+      if(stopMessages){stopMessages();stopMessages=null;}
+      setTimeout(()=>{if(!panel.classList.contains("is-open"))panel.hidden=true;},180);
+      launcher.focus();
+    };
+    launcher.addEventListener("click",()=>panel.hidden?openChat():closeChat());
+    closeButton.addEventListener("click",closeChat);
+    nameButton.addEventListener("click",showNameEditor);
+    nameCancel.addEventListener("click",()=>{if(currentName())hideNameEditor();else closeChat();});
+    nameForm.addEventListener("submit",event=>{
+      event.preventDefault();
+      const nickname=cleanName(nameInput.value);
+      if(!nickname)return;
+      localStorage.setItem(CHAT_NAME_KEY,nickname);
+      setComposerState();
+      hideNameEditor();
+      messageInput.focus();
+    });
+    const emojiChoices=["😀","😆","😂","🤣","😊","😎","🥳","😭","😡","🤔","🙄","😴","🫠","😍","🥰","😘","🤭","🤫","🤪","😜","🥲","😇","👍","👏","🙌","💪","❤️","💛","💚","💙","💜","🖤","💯","🔥","🎉","✨","🤡","👀","✅","❌","🙏","😱"];
+    emojiChoices.forEach(emoji=>{
+      const button=document.createElement("button");
+      button.type="button";
+      button.textContent=emoji;
+      button.setAttribute("aria-label",emoji);
+      button.addEventListener("click",()=>{
+        const start=messageInput.selectionStart??messageInput.value.length;
+        const end=messageInput.selectionEnd??start;
+        messageInput.setRangeText(emoji,start,end,"end");
+        messageInput.focus();
+      });
+      emojiPanel.append(button);
+    });
+    emojiButton.addEventListener("click",()=>{
+      emojiPanel.hidden=!emojiPanel.hidden;
+      emojiButton.setAttribute("aria-expanded",String(!emojiPanel.hidden));
+      if(!emojiPanel.hidden)messageInput.focus();
+    });
+    const readAsDataURL=file=>new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(String(reader.result||""));
+      reader.onerror=()=>reject(reader.error||new Error("Image read failed"));
+      reader.readAsDataURL(file);
+    });
+    const loadImage=source=>new Promise((resolve,reject)=>{
+      const image=new Image();
+      image.onload=()=>resolve(image);
+      image.onerror=()=>reject(new Error("Image decode failed"));
+      image.src=source;
+    });
+    const prepareImage=async file=>{
+      if(!file||!String(file.type||"").startsWith("image/"))throw new Error("Not an image");
+      const original=await readAsDataURL(file);
+      if(file.type==="image/gif"){
+        if(original.length>420000)throw new Error("GIF_TOO_LARGE");
+        return original;
+      }
+      const image=await loadImage(original);
+      let maxSide=1100;
+      let quality=.86;
+      for(let attempt=0;attempt<5;attempt+=1){
+        const scale=Math.min(1,maxSide/Math.max(image.naturalWidth,image.naturalHeight));
+        const canvas=document.createElement("canvas");
+        canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));
+        canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+        const context=canvas.getContext("2d");
+        context.fillStyle="#fff";
+        context.fillRect(0,0,canvas.width,canvas.height);
+        context.drawImage(image,0,0,canvas.width,canvas.height);
+        const compressed=canvas.toDataURL("image/jpeg",quality);
+        if(compressed.length<=420000)return compressed;
+        maxSide=Math.round(maxSide*.78);
+        quality=Math.max(.52,quality-.08);
+      }
+      throw new Error("IMAGE_TOO_LARGE");
+    };
+    const sendImage=async file=>{
+      const name=currentName();
+      if(!name){showNameEditor();return;}
+      sending=true;
+      setComposerState();
+      sendButton.textContent="…";
+      try{
+        const image=await prepareImage(file);
+        await addDoc(collection(db,"messages"),{room:CHAT_ROOM,name,text:"[image]",image,reaction:"",time:serverTimestamp()});
+      }catch(error){
+        console.error("Chat image send failed",error);
+        alert(error?.message==="GIF_TOO_LARGE"||error?.message==="IMAGE_TOO_LARGE"?"This image is too large. Please choose a smaller one.":"Image could not be sent. Please try again.");
+      }finally{
+        sending=false;
+        sendButton.textContent=t("send");
+        imageInput.value="";
+        setComposerState();
+        messageInput.focus();
+      }
+    };
+    imageButton.addEventListener("click",()=>imageInput.click());
+    imageInput.addEventListener("change",()=>{if(imageInput.files?.[0])sendImage(imageInput.files[0]);});
+    messageInput.addEventListener("paste",event=>{
+      const imageItem=Array.from(event.clipboardData?.items||[]).find(item=>item.type.startsWith("image/"));
+      if(!imageItem)return;
+      event.preventDefault();
+      const file=imageItem.getAsFile();
+      if(file)sendImage(file);
+    });
+    form.addEventListener("submit",async event=>{
+      event.preventDefault();
+      const text=cleanText(messageInput.value);
+      const name=currentName();
+      if(!text||!name)return;
+      sending=true;
+      setComposerState();
+      try{
+        await addDoc(collection(db,"messages"),{room:CHAT_ROOM,name,text,reaction:"",time:serverTimestamp()});
+        messageInput.value="";
+      }catch(error){
+        console.error("Chat send failed",error);
+        alert("Message could not be sent. Please try again.");
+      }finally{
+        sending=false;
+        setComposerState();
+        messageInput.focus();
+      }
+    });
+    document.addEventListener("click",event=>{
+      if(!emojiPanel.hidden&&!emojiPanel.contains(event.target)&&event.target!==emojiButton){emojiPanel.hidden=true;emojiButton.setAttribute("aria-expanded","false");}
+    });
+    document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!panel.hidden){if(!emojiPanel.hidden){emojiPanel.hidden=true;emojiButton.setAttribute("aria-expanded","false");}else if(!nameLayer.hidden&&currentName())hideNameEditor();else closeChat();}});
+    applyLanguage();
+    setComposerState();
+  </script>
+</body>
+</html>

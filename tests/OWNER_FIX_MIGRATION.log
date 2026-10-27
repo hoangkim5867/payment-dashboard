@@ -1,0 +1,13 @@
+(node:24476) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ write both 812-row sources; independently compare readback rows and SHA-256 (12535.678ms)
+✔ rerunning migration is idempotent (4877.8222ms)
+✔ tampered existing document aborts without changing either source (4496.7614ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 23357.3176

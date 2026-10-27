@@ -1,0 +1,42 @@
+{
+  "stage": "STAGING_ONLY",
+  "source_zip_sha256": "bef4af9382c816aa5afb07cf35ed3ba93726fd0cfdf294912ef329a357993700",
+  "description": "CSS modularization from Stage1 + removed unused EDITED_PREVIEW literal in desktop/mobile only",
+  "files": {
+    "payment.html": {
+      "bytes_original_stage1": 2399957,
+      "bytes_stage2": 1873999,
+      "bytes_removed": 525958,
+      "sha256_stage2": "4511b34dbd4973bf323a59559ed00c7dd42fbdf74025753bed97f731ba0ce87d",
+      "kept_arrays": {
+        "HISTORY_2026_EMBEDDED": {
+          "records": 812,
+          "sha256": "d063bcb500f00dd611d318820b0cb4be324af60e001ddaaaf72457da44a9360d"
+        },
+        "HISTORY_2026_CLEAN_SOURCE": {
+          "records": 812,
+          "sha256": "05f41d587f52ae45dd2047db60a1181c624895b972104df6075c22b947f73c6f"
+        }
+      },
+      "preview_assignment_null_count": 1
+    },
+    "payment-mobile-renderer.html": {
+      "bytes_original_stage1": 2329080,
+      "bytes_stage2": 1803122,
+      "bytes_removed": 525958,
+      "sha256_stage2": "4c4c47ebb60ba35306c9b0c3808afd5e7142738680887eeb9748dfc818bc0812",
+      "kept_arrays": {
+        "HISTORY_2026_EMBEDDED": {
+          "records": 812,
+          "sha256": "d063bcb500f00dd611d318820b0cb4be324af60e001ddaaaf72457da44a9360d"
+        },
+        "HISTORY_2026_CLEAN_SOURCE": {
+          "records": 812,
+          "sha256": "05f41d587f52ae45dd2047db60a1181c624895b972104df6075c22b947f73c6f"
+        }
+      },
+      "preview_assignment_null_count": 1
+    }
+  },
+  "total_bytes_removed": 1051916
+}

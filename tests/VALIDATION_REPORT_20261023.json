@@ -1,0 +1,13 @@
+{
+  "source": "Payment_MASTER_SECURE_HISTORY_INDEX_STAGING_20261023.zip",
+  "modified_site_files": [
+    "site/payment-mobile-renderer.html",
+    "site/payment.html"
+  ],
+  "new_regression_tests": [
+    "tests/regression/history-session-race.test.cjs",
+    "tests/regression/index-key-parity.test.cjs"
+  ],
+  "site_history_arrays": "removed in staging and still absent",
+  "production_changed": false
+}

@@ -1,0 +1,75 @@
+{
+  "source": "Payment_MASTER_STAGE7_INDEX_GATED_20261023.zip",
+  "scope": "Offline source only. Production untouched.",
+  "modified_site_files": [
+    "site/contract-master.html",
+    "site/payment-mobile-renderer.html",
+    "site/payment.html"
+  ],
+  "history_sha256": {
+    "payment.html": {
+      "HISTORY_2026_EMBEDDED": {
+        "sha256": "17adfef1999d83ee8ff0ba6d0b04316a06bdaafbac1f9ab3ee1871732c6e3f55",
+        "unchanged": true
+      },
+      "HISTORY_2026_CLEAN_SOURCE": {
+        "sha256": "9d62b126942f67d8b9019d50e554c054c64304296c7a58d809b1fa050febeebc",
+        "unchanged": true
+      }
+    },
+    "payment-mobile-renderer.html": {
+      "HISTORY_2026_EMBEDDED": {
+        "sha256": "17adfef1999d83ee8ff0ba6d0b04316a06bdaafbac1f9ab3ee1871732c6e3f55",
+        "unchanged": true
+      },
+      "HISTORY_2026_CLEAN_SOURCE": {
+        "sha256": "9d62b126942f67d8b9019d50e554c054c64304296c7a58d809b1fa050febeebc",
+        "unchanged": true
+      }
+    }
+  },
+  "checks": [
+    {
+      "test": "Indexed lookup + server marker freshness",
+      "passed": true,
+      "result": "ubtest: index not ready preserves full-history duplicate checking: payment-mobile-renderer.html\nok 17 - index not ready preserves full-history duplicate checking: payment-mobile-renderer.html\n  ---\n  duration_ms: 9.917769\n  type: 'test'\n  ...\n1..17\n# tests 17\n# suites 0\n# pass 17\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 125.100364\n"
+    },
+    {
+      "test": "JavaScript syntax",
+      "passed": true,
+      "result": "PASS: 29 JavaScript syntax blocks\n"
+    },
+    {
+      "test": "Excel import",
+      "passed": true,
+      "result": "PASS: 36 two-pass import route assertions (desktop + mobile; offline)\n"
+    },
+    {
+      "test": "MEP refresh",
+      "passed": true,
+      "result": "PASS 16 MEP targeted-refresh assertions; reads exactly edited IDs, no whole-collection scan\n"
+    },
+    {
+      "test": "Export Watch",
+      "passed": true,
+      "result": "PASS 10 adaptive Export Watch fallback assertions, including >500 documents\n"
+    },
+    {
+      "test": "IPC matching equivalence",
+      "passed": true,
+      "result": "PASS 406 duplicate matching equivalence checks (offline)\n"
+    }
+  ],
+  "production_release_status": "BLOCKED",
+  "remaining_blockers": [
+    "812 sensitive records remain embedded in public-facing Payment HTML; secure relocation not verified",
+    "Indexed reads are still behind disabled flags until validated backfill and permanent maintenance",
+    "Actual Firebase Rules still grant broad writes to approved users outside authUsers/cash_control_private",
+    "No verified end-to-end test of login, Staff/Admin, UNC, Cash Control, Excel and Firebase reads",
+    "No completed Git history exposure review or release approval"
+  ],
+  "visual_test": {
+    "status": "NOT_TESTED",
+    "reason": "Local Chromium navigation blocked (ERR_BLOCKED_BY_ADMINISTRATOR); screenshots not available. No live Firebase traffic performed."
+  }
+}

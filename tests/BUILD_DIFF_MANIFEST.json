@@ -1,0 +1,26 @@
+{
+  "source": "Payment_MASTER_ONE_PACKAGE_FINAL_REVIEW_20261023.zip",
+  "changes": {
+    "site/README.md": {
+      "bytes_before": 19,
+      "bytes_after": 498,
+      "sha256_after": "58d1b4f3b38d58610821ed31f73634a912e3c73d061b5debd03a63709f47453d"
+    },
+    "site/contract-master.html": {
+      "bytes_before": 182491,
+      "bytes_after": 182631,
+      "sha256_after": "c35f35d7a8b2b287b7a045f7e840c1d6713fe3b04640b2469cb7b5db18b38f0e"
+    },
+    "site/payment-mobile-renderer.html": {
+      "bytes_before": 1809328,
+      "bytes_after": 1344232,
+      "sha256_after": "2ff8831e20959194910185393ec5fabc7c8305e5be0bbdc79ffae9ec5dd1d697"
+    },
+    "site/payment.html": {
+      "bytes_before": 1884186,
+      "bytes_after": 1419658,
+      "sha256_after": "35b1b09b50a4a26bbd0f2d7ffece001bf655d1142d97d4a94b43d42a26739a2e"
+    }
+  },
+  "noOriginalRawHistoryInSite": true
+}

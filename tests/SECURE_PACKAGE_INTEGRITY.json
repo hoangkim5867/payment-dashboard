@@ -1,0 +1,48 @@
+{
+  "source_stage": "Payment_MASTER_ONE_PACKAGE_FINAL_REVIEW_20261023",
+  "type": "staging",
+  "files": {
+    "index.html": {
+      "changed": false,
+      "before_bytes": 29749,
+      "after_bytes": 29749,
+      "sha256_after": "0304e8a22f1adb39ce63736d6cbf1806e1aa4f5b73646c5e41e8e17bbd999dc4"
+    },
+    "payment.html": {
+      "changed": true,
+      "before_bytes": 1884186,
+      "after_bytes": 1419564,
+      "sha256_after": "3d567136a4bacf8ec9bb8944da819f6e302dce89bc60dd80a29611fe3be9dd8b"
+    },
+    "payment-mobile-renderer.html": {
+      "changed": true,
+      "before_bytes": 1809328,
+      "after_bytes": 1344138,
+      "sha256_after": "694f179a8750a1cc5a5793834493015af937a1202f61aedb59600ce33985c0e2"
+    },
+    "cash-control.html": {
+      "changed": false,
+      "before_bytes": 822027,
+      "after_bytes": 822027,
+      "sha256_after": "aed663f226cf6bc08d4cd667e4c516b52e62d919f9670863f49afb2326ff2182"
+    },
+    "payment-archive.html": {
+      "changed": false,
+      "before_bytes": 48894,
+      "after_bytes": 48894,
+      "sha256_after": "490ca958cf0b272477f5455d522ef3b71279b4167345ac01555cc1b2bd398264"
+    },
+    "plan-review.html": {
+      "changed": false,
+      "before_bytes": 198656,
+      "after_bytes": 198656,
+      "sha256_after": "eaebcf011f6d5dcd4c60fd643d5e163ef89dba00054972040805455521c31c17"
+    },
+    "contract-master.html": {
+      "changed": true,
+      "before_bytes": 182491,
+      "after_bytes": 182537,
+      "sha256_after": "77fa50dd9525eb0580fc72a719cea01f055befb41096699a15daf6358a3e542f"
+    }
+  }
+}

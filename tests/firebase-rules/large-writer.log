@@ -1,0 +1,11 @@
+✔ 400 and 450 payment batches create/update complete indexes under actual Staff rules (25688.6831ms)
+✔ four concurrent sessions, ten rounds preserve 40 increments and current index (15992.8871ms)
+✔ second chunk denied: first chunk remains intact and owned Undo removes only its own batch (3905.6694ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 47798.1235

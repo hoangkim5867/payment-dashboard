@@ -1,0 +1,26 @@
+(node:19504) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+(Use `node --trace-warnings ...` to show where the warning was created)
+[Payment Read Audit] Indexed IPC check {
+  requestedKeys: 1,
+  matchingDocuments: 2,
+  queries: 1,
+  fullCollectionRead: false
+}
+✔ payment.html: actual query helper matches full scan across months (3402.7727ms)
+[Payment Read Audit] Indexed IPC check {
+  requestedKeys: 1,
+  matchingDocuments: 2,
+  queries: 1,
+  fullCollectionRead: false
+}
+✔ payment-mobile-renderer.html: actual query helper matches full scan across months (72.4906ms)
+✔ synchronous indexed fixture: add/edit/change month/soft-delete/restore/delete (154.6205ms)
+✔ reproduce missing IPC after existing writer changes IPC without index fields (77.0987ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4329.3013

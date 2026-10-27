@@ -1,0 +1,13 @@
+(node:19320) MetadataLookupWarning: received unexpected error = All promises were rejected code = ETIMEDOUT, ENOTFOUND
+(Use `node --trace-warnings ...` to show where the warning was created)
+[2026-10-24T05:01:47.470Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x41870465 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L84:24 for 'update' @ L84, false for 'update' @ L84
+✔ real unverified Auth Emulator owner signs in and uses Cash and Plan; disabled profile revokes existing token (4343.0574ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5460.64

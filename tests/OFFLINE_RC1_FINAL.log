@@ -1,0 +1,86 @@
+✔ backend duplicate key parity matches the production-normalization functions (34.6429ms)
+✔ backend MEP membership matches UI for legacy payment variants (48.8134ms)
+✔ normalization aliases and same-vs-cross-month preservation (7.0538ms)
+✔ lookup remains gated until backfill and continuous maintenance are verified (65.4339ms)
+✔ index idempotence and source business fields unchanged (0.8073ms)
+✔ payment.html: permission marker refreshed every lookup; revoke takes effect without F5 (15.2527ms)
+✔ payment.html: missing/unreadable index fails closed (14.2586ms)
+✔ payment-mobile-renderer.html: permission marker refreshed every lookup; revoke takes effect without F5 (11.6026ms)
+✔ payment-mobile-renderer.html: missing/unreadable index fails closed (12.4404ms)
+✔ contract-master.html: permission marker refreshed every lookup; revoke takes effect without F5 (11.3949ms)
+✔ contract-master.html: missing/unreadable index fails closed (8.7022ms)
+✔ payment.html: zero IPC keys never creates an invalid indexed query (9.1872ms)
+✔ payment-mobile-renderer.html: zero IPC keys never creates an invalid indexed query (9.5007ms)
+[Payment Read Audit] Indexed IPC check {
+  requestedKeys: 2,
+  matchingDocuments: 1,
+  queries: 1,
+  fullCollectionRead: false
+}
+[Payment Read Audit] Indexed IPC check {
+  requestedKeys: 2,
+  matchingDocuments: 1,
+  queries: 1,
+  fullCollectionRead: false
+}
+✔ targeted indexed lookup selects only keys in import preview: payment.html (16.1871ms)
+✔ index not ready preserves full-history duplicate checking: payment.html (29.7342ms)
+✔ targeted indexed lookup selects only keys in import preview: payment-mobile-renderer.html (12.7524ms)
+✔ index not ready preserves full-history duplicate checking: payment-mobile-renderer.html (9.551ms)
+✔ payment.html: approved user gets 812+812 fake records and no extra reads on cache (49.2387ms)
+✔ payment.html: missing or tampered source fails closed (35.7028ms)
+✔ payment.html: logout during SHA-256 cannot repopulate history after same UID re-login (27.7859ms)
+✔ payment-mobile-renderer.html: approved user gets 812+812 fake records and no extra reads on cache (30.392ms)
+✔ payment-mobile-renderer.html: missing or tampered source fails closed (33.5913ms)
+✔ payment-mobile-renderer.html: logout during SHA-256 cannot repopulate history after same UID re-login (24.5073ms)
+✔ payment.html actual import handler recovery, failed chunk 1 (37.916ms)
+✔ payment.html actual import handler recovery, failed chunk 2 (18.2285ms)
+✔ payment.html actual import handler recovery, failed chunk 0 (37.9831ms)
+✔ payment-mobile-renderer.html actual import handler recovery, failed chunk 1 (13.7155ms)
+✔ payment-mobile-renderer.html actual import handler recovery, failed chunk 2 (22.0707ms)
+✔ payment-mobile-renderer.html actual import handler recovery, failed chunk 0 (33.8223ms)
+✔ payment.html: browser IPC key and indexed backend key match on real historical identifiers and edge cases (76.8223ms)
+✔ payment-mobile-renderer.html: browser IPC key and indexed backend key match on real historical identifiers and edge cases (71.7178ms)
+✔ release gate denies blocked candidate (6.7713ms)
+✔ release gate denies failed evidence (4.4531ms)
+✔ release gate denies unsafe read mode (5.3873ms)
+✔ release gate denies activated marker (12.5819ms)
+✔ review-ready local verification checks frozen files (5.3673ms)
+✔ production gate denies absent or stale approval (3.9458ms)
+✔ gate accepts exact synthetic manifest approval only in isolated unit test (2.3117ms)
+✔ preview rejects missing, production or mixed staging config (5.3466ms)
+✔ all seven apps receive one isolated staging configuration; site assets retained (2399.3728ms)
+✔ production build preserves inherited source app configuration (1360.3305ms)
+✔ payment.html: Standard Chartered labelled fields and consistent date fallback (15.7924ms)
+✔ payment.html: conflicting visual date is not auto-posted (1.1307ms)
+✔ payment.html: legacy bank debit and remittance values remain distinct (0.4006ms)
+✔ payment.html: bilingual SC payee, value date and bank reference (11.3668ms)
+✔ payment.html: combined advices cannot silently select the first payment (1.0903ms)
+✔ payment.html: one bank advice plus supporting pages remains accepted (1.3001ms)
+✔ payment-mobile-renderer.html: Standard Chartered labelled fields and consistent date fallback (0.7895ms)
+✔ payment-mobile-renderer.html: conflicting visual date is not auto-posted (0.5491ms)
+✔ payment-mobile-renderer.html: legacy bank debit and remittance values remain distinct (0.3919ms)
+✔ payment-mobile-renderer.html: bilingual SC payee, value date and bank reference (0.9783ms)
+✔ payment-mobile-renderer.html: combined advices cannot silently select the first payment (0.3351ms)
+✔ payment-mobile-renderer.html: one bank advice plus supporting pages remains accepted (0.8953ms)
+✔ payment.html: HTML ships without historical arrays (9.8707ms)
+✔ payment.html: authorized loading, checksum, cache and clear (37.7868ms)
+✔ payment.html: canonical checksum survives Firestore map key ordering (13.2191ms)
+✔ payment.html: refuses incomplete or corrupted historical documents (27.6538ms)
+✔ payment.html: signed-out access is rejected without reads (6.7616ms)
+✔ payment-mobile-renderer.html: HTML ships without historical arrays (4.0521ms)
+✔ payment-mobile-renderer.html: authorized loading, checksum, cache and clear (24.2606ms)
+✔ payment-mobile-renderer.html: canonical checksum survives Firestore map key ordering (9.9459ms)
+✔ payment-mobile-renderer.html: refuses incomplete or corrupted historical documents (22.8839ms)
+✔ payment-mobile-renderer.html: signed-out access is rejected without reads (7.2388ms)
+✔ migration tool cannot apply to production without authorization (0.6092ms)
+✔ index is ARMED with Firestore marker read on every access (10.203ms)
+✔ Rules are explicit and default-deny unknown paths (0.4202ms)
+ℹ tests 66
+ℹ suites 0
+ℹ pass 66
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4412.0109

@@ -1,0 +1,37 @@
+{
+  "testedAt": "2026-10-24T05:02:36.599Z",
+  "environment": "demo-payment-security Emulator",
+  "checks": [
+    {
+      "name": "Cash fixed-UID owner with unverified internal email and private seed load",
+      "pass": true
+    },
+    {
+      "name": "Cash create actual UI and server readback",
+      "pass": true
+    },
+    {
+      "name": "Cash reload and edit actual UI, server amount 456",
+      "pass": true
+    },
+    {
+      "name": "Cash delete only synthetic row and readback",
+      "pass": true
+    },
+    {
+      "name": "Contract create actual UI and server readback",
+      "pass": true
+    },
+    {
+      "name": "Contract edit actual UI and readback",
+      "pass": true
+    },
+    {
+      "name": "Contract delete only synthetic row; Payment retained",
+      "pass": true
+    }
+  ],
+  "pageErrors": [],
+  "blockedProductionRequests": [],
+  "pass": true
+}

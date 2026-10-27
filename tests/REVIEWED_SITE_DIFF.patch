@@ -1,0 +1,499 @@
+--- original/site/cash-control.html
++++ RC1/site/cash-control.html
+@@ -1840,7 +1840,7 @@
+     onSnapshot,
+     FieldPath,
+     serverTimestamp
+-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
++} from "./assets/js/firestore-payment.mjs";
+ const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
+ const app=initializeApp(firebaseConfig),db=getFirestore(app),auth=getAuth(app),paymentsRef=collection(db,"payments");
+ const CASH_PRIVATE_DOC_ID="lehoangoanh";
+@@ -11467,7 +11467,7 @@
+   }
+   function syncLangMenu(){
+     const label=document.getElementById('langCurrentLabel');
+-    if(label)label.textContent=labelForLang(window.cashLang||cashLang||'vi');
++    if(label)label.textContent=labelForLang(localStorage.getItem('cashCtlLang')||'vi');
+   }
+   const dd=document.getElementById('langDropdown'),toggle=document.getElementById('langToggle');
+   if(toggle&&dd){
+--- original/site/contract-master.html
++++ RC1/site/contract-master.html
+@@ -1242,7 +1242,7 @@
+     serverTimestamp
+ }
+ from
+-"https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
++"./assets/js/firestore-payment.mjs";
+ 
+ import {
+     getAuth,
+--- original/site/payment-archive.html
++++ RC1/site/payment-archive.html
+@@ -37,7 +37,7 @@
+   <script type="module">
+     import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+     import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+-    import {getFirestore,collection,query,orderBy,getDocs,getDoc,doc,setDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
++    import {getFirestore,collection,query,orderBy,getDocs,getDoc,doc,setDoc,serverTimestamp} from "./assets/js/firestore-payment.mjs";
+ 
+     const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
+     const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
+--- original/site/payment-mobile-renderer.html
++++ RC1/site/payment-mobile-renderer.html
+@@ -3622,7 +3622,7 @@
+     serverTimestamp
+ }
+ from
+-"https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
++"./assets/js/firestore-payment.mjs";
+ 
+ 
+ /* =====================================================
+@@ -20046,10 +20046,7 @@
+ }
+ 
+ async function ensureImportDuplicateHistory(){
+-    if(importDuplicateHistoryLoaded){
+-        return importDuplicateHistoryPayments;
+-    }
+-
++    // Refresh every preview: another session may have changed a prior month.
+     if(importDuplicateHistoryPromise){
+         return importDuplicateHistoryPromise;
+     }
+@@ -22391,6 +22388,8 @@
+                 if(data && !isAdmin()){
+                     data.processApproval = "";
+                     data.processBanking = "";
++                    data.processActualAmount = "";
++                    data.processPaymentDate = "";
+                 }
+ 
+ 
+@@ -24102,6 +24101,8 @@
+                 .toString(36)
+                 .slice(2,8);
+ 
++        let committedImportRows = 0;
++
+         try{
+ 
+             // Firestore batch max is safely respected by splitting imports.
+@@ -24157,6 +24158,8 @@
+                                     serverTimestamp(),
+                                 source:
+                                     "excel-paste",
++                                createdByUid:currentAuthUser.uid,
++                                createdByEmail:currentAuthUser.email || "",
+ 
+                                 importBatchId:
+                                     importBatchId
+@@ -24166,6 +24169,10 @@
+                 );
+ 
+                 await batch.commit();
++                committedImportRows += chunk.length;
++                lastImportBatchId = importBatchId;
++                localStorage.setItem("paymentHistoryLastImportBatchId",importBatchId);
++                updateUndoImportButton();
+             }
+ 
+             /*
+@@ -24262,10 +24269,18 @@
+                 error
+             );
+ 
+-            alert(
+-                "❌ " +
+-                error.message
+-            );
++            if(committedImportRows){
++                await logActivity("IMPORT_PARTIAL",{paymentMonth:importDefaultMonth.value || CURRENT_MONTH},
++                    "Batch="+importBatchId+"; committed="+committedImportRows);
++                try{ await loadPayments(); }catch(refreshError){ console.warn("PARTIAL IMPORT REFRESH",refreshError); }
++                updateUndoImportButton();
++            }
++            const recovery = !committedImportRows ? "" : currentLanguage === "zh"
++                ? "\n已保存 "+committedImportRows+" 行。请先撤销最近导入，再重试。"
++                : currentLanguage === "en"
++                    ? "\nSaved "+committedImportRows+" rows. Undo Last Import before retrying."
++                    : "\nĐã lưu "+committedImportRows+" dòng. Dùng Hoàn tác import gần nhất trước khi thử lại.";
++            alert("❌ " + error.message + recovery);
+ 
+         }finally{
+ 
+@@ -24581,13 +24596,10 @@
+ 
+         try{
+ 
+-            // allPayments already contains current Firestore data.
+-            const imported =
+-                allPayments.filter(
+-                    item =>
+-                        item.importBatchId ===
+-                        lastImportBatchId
+-                );
++            // Undo the entire owned batch, including rows imported into other months.
++            const batchSnapshot = await getDocs(query(paymentsRef,where("importBatchId","==",lastImportBatchId)));
++            const imported = batchSnapshot.docs.map(item=>({id:item.id,...item.data()}))
++                .filter(item=>isAdmin() || item.createdByUid===currentAuthUser?.uid);
+ 
+             if(!imported.length){
+ 
+@@ -34618,6 +34630,7 @@
+     const loadingTask = pdfjs.getDocument({data});
+     const pdf = await loadingTask.promise;
+     const pages = [];
++    const layoutPages = [];
+ 
+     try{
+         for(let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1){
+@@ -34626,11 +34639,14 @@
+             let lastY = null;
+             let line = "";
+             const lines = [];
+-
++            const positionedItems = [];
++
++            // Keep the original extraction for all existing bank formats.
+             content.items.forEach(item=>{
+                 const value = String(item?.str || "").trim();
+                 if(!value) return;
+                 const y = Number(item?.transform?.[5]);
++                const x = Number(item?.transform?.[4]);
+ 
+                 if(lastY != null && Number.isFinite(y) && Math.abs(y - lastY) > 2){
+                     if(line.trim()) lines.push(line.trim());
+@@ -34640,17 +34656,40 @@
+                 }
+ 
+                 if(Number.isFinite(y)) lastY = y;
++                if(Number.isFinite(x) && Number.isFinite(y)){
++                    positionedItems.push({x,y,value});
++                }
+             });
+ 
+             if(line.trim()) lines.push(line.trim());
+             pages.push(lines.join("\n"));
++
++            // Standard Chartered debit advices may encode text column-by-column
++            // rather than in visual reading order. Reconstruct an alternative
++            // by PDF coordinates without replacing the legacy extraction.
++            positionedItems.sort((a,b)=>b.y-a.y || a.x-b.x);
++            const visualLines = [];
++            for(const item of positionedItems){
++                const previous = visualLines[visualLines.length-1];
++                if(previous && Math.abs(previous.y-item.y) <= 2){
++                    previous.items.push(item);
++                }else{
++                    visualLines.push({y:item.y,items:[item]});
++                }
++            }
++            layoutPages.push(visualLines.map(row=>
++                row.items.sort((a,b)=>a.x-b.x).map(item=>item.value).join(" ")
++            ).join("\n"));
+             page.cleanup();
+         }
+     }finally{
+         await pdf.destroy();
+     }
+ 
+-    return pages.join("\n\n").trim();
++    return {
++        text:pages.join("\n\n").trim(),
++        layoutText:layoutPages.join("\n\n").trim()
++    };
+ }
+ 
+ const BULK_UNC_MONEY_TOKEN =
+@@ -34727,9 +34766,45 @@
+     return "";
+ }
+ 
++// SC debit advice: only fall back to loose date tokens when every visible
++// explicit date agrees (normally Value Date and Generation Date). Do not infer
++// from the bank reference number, an unrelated document date, or a conflict.
++function bulkUncStandardCharteredFallbackDate(text){
++    const source = String(text || "")
++        .replace(/[\u2010-\u2015\u2212\u00ad]/g,"-")
++        .replace(/\u00a0/g," ");
++    if(!/\bDEBIT\s+ADVICE\b/i.test(source) ||
++       !/\bVALUE\s+DATE\b/i.test(source) ||
++       !/(?:STANDARD\s+CHARTERED|\bSCBL[A-Z0-9]*\b)/i.test(source)){
++        return "";
++    }
++
++    const dateTokens = [
++        new RegExp(`(?<![A-Z0-9])${BULK_UNC_DATE_TOKEN}(?![A-Z0-9])`,"gi"),
++        /(?<![A-Z0-9])\d{4}[\/.-]\d{1,2}[\/.-]\d{1,2}(?![A-Z0-9])/gi
++    ];
++    const matches = [];
++    for(const pattern of dateTokens){
++        for(const match of source.matchAll(pattern)){
++            const rawDate = String(match[1] || match[0]).trim();
++            const parsed = normalizeBulkUncDate(rawDate);
++            if(!parsed) continue;
++            const [year,month,day] = parsed.split("-").map(Number);
++            const valid = new Date(Date.UTC(year,month-1,day));
++            if(valid.getUTCFullYear() === year &&
++               valid.getUTCMonth() === month-1 &&
++               valid.getUTCDate() === day){
++                matches.push(parsed);
++            }
++        }
++    }
++    return matches.length >= 2 && new Set(matches).size === 1 ? matches[0] : "";
++}
++
+ function extractBulkUncInfo(text){
+     const source = String(text || "")
+         .replace(/\u00a0/g," ")
++        .replace(/[\u2010-\u2015\u2212\u00ad]/g,"-")
+         .replace(/：/g,":");
+     const normalizedText = normalize(source);
+     const extractAmountByLabel = (labels)=>{
+@@ -34813,11 +34888,82 @@
+         amount:paymentAmount,
+         debitAmount,
+         remittanceAmount,
+-        date:normalizeBulkUncDate(dateRaw),
++        date:normalizeBulkUncDate(dateRaw) || bulkUncStandardCharteredFallbackDate(source),
+         beneficiary,
+         bankReference,
+         accountNumbers
+     };
++}
++
++function extractBulkUncPdfInfo(pdfExtract){
++    const legacyText = String(pdfExtract?.text || "");
++    const layoutText = String(pdfExtract?.layoutText || "");
++    // A merged file containing several bank advices must not be assigned using
++    // the first amount/date. Single advice with supporting pages still works.
++    const adviceCount = (legacyText.match(/\b(?:DEBIT\s+ADVICE|Payment\s+Advice)\b/gi) || []).length;
++    if(adviceCount > 1){
++        throw new Error("PDF chứa nhiều giấy báo thanh toán. Hãy tách mỗi giấy báo thành một file trước khi tự ghép UNC.");
++    }
++    const legacy = extractBulkUncInfo(legacyText);
++    const combined = legacyText + "\n" + layoutText;
++    if(!/\bDEBIT\s+ADVICE\b/i.test(combined) ||
++       !/(?:STANDARD\s+CHARTERED|\bSCBL[A-Z0-9]*\b)/i.test(combined) ||
++       !layoutText){
++        return legacy;
++    }
++
++    const visual = extractBulkUncInfo(layoutText);
++    const dateCandidates = [legacy.date,visual.date].filter(Boolean);
++    if(new Set(dateCandidates).size > 1){
++        // A visual-order disagreement must be reviewed, never auto-posted.
++        legacy.date = "";
++    }else{
++        legacy.date = visual.date || legacy.date ||
++            bulkUncStandardCharteredFallbackDate(combined);
++    }
++
++    // Read named fields from the visually reconstructed rows when possible.
++    // Reject obvious cross-column heading fragments instead of trusting them.
++    if(visual.beneficiary &&
++       !/\b(?:FX\s+Rate|Currency\s*\/\s*Amount|Debit\s+Currency)\b/i.test(visual.beneficiary)){
++        legacy.beneficiary = visual.beneficiary;
++    }else if(/\b(?:FX\s+Rate|Currency\s*\/\s*Amount|Debit\s+Currency)\b/i.test(legacy.beneficiary)){
++        legacy.beneficiary = "";
++    }
++    if(visual.bankReference &&
++       !/^(?:CUSTOMER|VALUE|DATE|AMOUNT|REFERENCE|CURRENCY|ACCOUNT|BANK)$/i.test(visual.bankReference)){
++        legacy.bankReference = visual.bankReference;
++    }else if(/^(?:CUSTOMER|VALUE|DATE|AMOUNT|REFERENCE|CURRENCY|ACCOUNT|BANK)$/i.test(legacy.bankReference)){
++        legacy.bankReference = "";
++    }
++
++    // Preserve the original, already-detected monetary value. Never allow
++    // layout heuristics to silently overwrite a different payment amount.
++    if(!Number.isFinite(legacy.amount)){
++        // SC's two-column row may read "Currency VND Amount 1,615,383,530".
++        // Look only above Beneficiary Name to avoid unrelated amounts below.
++        const headerText = layoutText.split(/\bBeneficiary\s+Name\b/i)[0];
++        const amountMatch = headerText.match(new RegExp(
++            `\\bAmount\\s*:?\\s*(?:VND|USD)?\\s*${BULK_UNC_MONEY_TOKEN}`,"i"
++        ));
++        const headerAmount = parseBulkUncMoney(amountMatch?.[1]);
++        legacy.amount = Number.isFinite(headerAmount) && headerAmount > 0
++            ? headerAmount
++            : visual.amount;
++    }
++    // The Vietnamese SC layout labels the payee as Party Info, not Name.
++    const bilingualPayee = firstBulkUncMatch(layoutText,[
++        /Beneficiary\s+Party\s+Info\s*\/\s*Th[oô]ng\s+tin\s+đơn\s+vị\s+hưởng[ \t]+([\s\S]{3,300}?)(?=\n\s*Value\s+Date\b)/i
++    ]).replace(/\s+/g," ").trim();
++    if(bilingualPayee) legacy.beneficiary = bilingualPayee;
++    const bilingualDatePattern = new RegExp(`(?:^|\\n)Value\\s+Date\\s*/[^\\n0-9]{0,60}\\s*${BULK_UNC_DATE_TOKEN}`,"i");
++    const labelledDates = [legacyText,layoutText].map(value=>normalizeBulkUncDate(firstBulkUncMatch(value,[bilingualDatePattern]))).filter(Boolean);
++    if(labelledDates.length){legacy.date = new Set(labelledDates).size === 1 ? labelledDates[0] : "";}
++    const bilingualReference = firstBulkUncMatch(layoutText,[/Bank\s+Ref\s*\/\s*Số\s+GD\s*:\s*([A-Z0-9]+(?:[ \t]*\/[ \t]*[A-Z0-9]+)?)/i]);
++    if(bilingualReference) legacy.bankReference = bilingualReference;
++    legacy.accountNumbers = [...new Set([...legacy.accountNumbers,...visual.accountNumbers])];
++    legacy.normalizedText = normalize(combined);
++    return legacy;
+ }
+ 
+ function bulkUncAmounts(info){
+@@ -35222,12 +35368,12 @@
+ 
+                 row.validPdf = true;
+ 
+-                const text = await extractBulkUncPdfText(file);
+-                if(!text){
++                const pdfExtract = await extractBulkUncPdfText(file);
++                if(!pdfExtract.text && !pdfExtract.layoutText){
+                     throw new Error("PDF không có lớp chữ để tự dò.");
+                 }
+ 
+-                row.info = extractBulkUncInfo(text);
++                row.info = extractBulkUncPdfInfo(pdfExtract);
+                 const existingMatch = bulkUncPaymentCandidates(row.info,{existingOnly:true});
+                 const match = bulkUncPaymentCandidates(row.info);
+                 const existingHasIdentity = existingMatch.reasons.some(
+--- original/site/payment.html
++++ RC1/site/payment.html
+@@ -3949,7 +3949,7 @@
+     serverTimestamp
+ }
+ from
+-"https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
++"./assets/js/firestore-payment.mjs";
+ 
+ 
+ /* =====================================================
+@@ -21093,10 +21093,7 @@
+ }
+ 
+ async function ensureImportDuplicateHistory(){
+-    if(importDuplicateHistoryLoaded){
+-        return importDuplicateHistoryPayments;
+-    }
+-
++    // Refresh every preview: another session may have changed a prior month.
+     if(importDuplicateHistoryPromise){
+         return importDuplicateHistoryPromise;
+     }
+@@ -23962,6 +23959,8 @@
+                 if(data && !isAdmin()){
+                     data.processApproval = "";
+                     data.processBanking = "";
++                    data.processActualAmount = "";
++                    data.processPaymentDate = "";
+                 }
+ 
+ 
+@@ -25673,6 +25672,8 @@
+                 .toString(36)
+                 .slice(2,8);
+ 
++        let committedImportRows = 0;
++
+         try{
+ 
+             // Firestore batch max is safely respected by splitting imports.
+@@ -25728,6 +25729,8 @@
+                                     serverTimestamp(),
+                                 source:
+                                     "excel-paste",
++                                createdByUid:currentAuthUser.uid,
++                                createdByEmail:currentAuthUser.email || "",
+ 
+                                 importBatchId:
+                                     importBatchId
+@@ -25737,6 +25740,10 @@
+                 );
+ 
+                 await batch.commit();
++                committedImportRows += chunk.length;
++                lastImportBatchId = importBatchId;
++                localStorage.setItem("paymentHistoryLastImportBatchId",importBatchId);
++                updateUndoImportButton();
+             }
+ 
+             /*
+@@ -25833,10 +25840,18 @@
+                 error
+             );
+ 
+-            alert(
+-                "❌ " +
+-                error.message
+-            );
++            if(committedImportRows){
++                await logActivity("IMPORT_PARTIAL",{paymentMonth:importDefaultMonth.value || CURRENT_MONTH},
++                    "Batch="+importBatchId+"; committed="+committedImportRows);
++                try{ await loadPayments(); }catch(refreshError){ console.warn("PARTIAL IMPORT REFRESH",refreshError); }
++                updateUndoImportButton();
++            }
++            const recovery = !committedImportRows ? "" : currentLanguage === "zh"
++                ? "\n已保存 "+committedImportRows+" 行。请先撤销最近导入，再重试。"
++                : currentLanguage === "en"
++                    ? "\nSaved "+committedImportRows+" rows. Undo Last Import before retrying."
++                    : "\nĐã lưu "+committedImportRows+" dòng. Dùng Hoàn tác import gần nhất trước khi thử lại.";
++            alert("❌ " + error.message + recovery);
+ 
+         }finally{
+ 
+@@ -26152,13 +26167,10 @@
+ 
+         try{
+ 
+-            // allPayments already contains current Firestore data.
+-            const imported =
+-                allPayments.filter(
+-                    item =>
+-                        item.importBatchId ===
+-                        lastImportBatchId
+-                );
++            // Undo the entire owned batch, including rows imported into other months.
++            const batchSnapshot = await getDocs(query(paymentsRef,where("importBatchId","==",lastImportBatchId)));
++            const imported = batchSnapshot.docs.map(item=>({id:item.id,...item.data()}))
++                .filter(item=>isAdmin() || item.createdByUid===currentAuthUser?.uid);
+ 
+             if(!imported.length){
+ 
+@@ -38326,6 +38338,12 @@
+ function extractBulkUncPdfInfo(pdfExtract){
+     const legacyText = String(pdfExtract?.text || "");
+     const layoutText = String(pdfExtract?.layoutText || "");
++    // A merged file containing several bank advices must not be assigned using
++    // the first amount/date. Single advice with supporting pages still works.
++    const adviceCount = (legacyText.match(/\b(?:DEBIT\s+ADVICE|Payment\s+Advice)\b/gi) || []).length;
++    if(adviceCount > 1){
++        throw new Error("PDF chứa nhiều giấy báo thanh toán. Hãy tách mỗi giấy báo thành một file trước khi tự ghép UNC.");
++    }
+     const legacy = extractBulkUncInfo(legacyText);
+     const combined = legacyText + "\n" + layoutText;
+     if(!/\bDEBIT\s+ADVICE\b/i.test(combined) ||
+@@ -38373,6 +38391,16 @@
+             ? headerAmount
+             : visual.amount;
+     }
++    // The Vietnamese SC layout labels the payee as Party Info, not Name.
++    const bilingualPayee = firstBulkUncMatch(layoutText,[
++        /Beneficiary\s+Party\s+Info\s*\/\s*Th[oô]ng\s+tin\s+đơn\s+vị\s+hưởng[ \t]+([\s\S]{3,300}?)(?=\n\s*Value\s+Date\b)/i
++    ]).replace(/\s+/g," ").trim();
++    if(bilingualPayee) legacy.beneficiary = bilingualPayee;
++    const bilingualDatePattern = new RegExp(`(?:^|\\n)Value\\s+Date\\s*/[^\\n0-9]{0,60}\\s*${BULK_UNC_DATE_TOKEN}`,"i");
++    const labelledDates = [legacyText,layoutText].map(value=>normalizeBulkUncDate(firstBulkUncMatch(value,[bilingualDatePattern]))).filter(Boolean);
++    if(labelledDates.length){legacy.date = new Set(labelledDates).size === 1 ? labelledDates[0] : "";}
++    const bilingualReference = firstBulkUncMatch(layoutText,[/Bank\s+Ref\s*\/\s*Số\s+GD\s*:\s*([A-Z0-9]+(?:[ \t]*\/[ \t]*[A-Z0-9]+)?)/i]);
++    if(bilingualReference) legacy.bankReference = bilingualReference;
+     legacy.accountNumbers = [...new Set([...legacy.accountNumbers,...visual.accountNumbers])];
+     legacy.normalizedText = normalize(combined);
+     return legacy;
+--- original/site/plan-review.html
++++ RC1/site/plan-review.html
+@@ -1487,7 +1487,7 @@
+ <script type="module">
+ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+ import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+-import { getFirestore, collection, getDocs, getDoc, doc, setDoc, updateDoc, writeBatch, addDoc, serverTimestamp, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
++import { getFirestore, collection, getDocs, getDoc, doc, setDoc, updateDoc, writeBatch, addDoc, serverTimestamp, onSnapshot, query, where } from "./assets/js/firestore-payment.mjs";
+ 
+ const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
+ const app=initializeApp(firebaseConfig);const db=getFirestore(app);const auth=getAuth(app);

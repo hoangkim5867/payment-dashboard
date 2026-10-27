@@ -1,0 +1,1 @@
+PASS: 29 JavaScript syntax blocks

@@ -1,0 +1,81 @@
+{
+  "description": "Cumulative Stage6: prevent unnecessary full-history reads for zero-candidate pastes; reuse duplicate candidate list once per preview while preserving matching semantics",
+  "files": {
+    "payment.html": {
+      "sha256_before": "f643bb7b98c447f9de46b1722f9386b956589afd91ff18d8df99c66b04bcbd92",
+      "sha256_after": "ac29fbf8147d0e0f1cae48ab947998e8d80bb2cfcbb36f486f34e1ae5bd1c88b",
+      "replacements": [
+        {
+          "before": "function buildExcelImportRows(){",
+          "after": "function buildExcelImportRows({skipHistoryDuplicateCheck = false} = {}){"
+        },
+        {
+          "before": "function findSameMonthDuplicateImport(data){",
+          "after": "function findSameMonthDuplicateImport(data,candidates = getImportDuplicateCandidates()){"
+        },
+        {
+          "before": "return getImportDuplicateCandidates().find(\n        payment =>",
+          "after": "return candidates.find(\n        payment =>"
+        },
+        {
+          "before": "function findCrossMonthDuplicateImport(data){",
+          "after": "function findCrossMonthDuplicateImport(data,candidates = getImportDuplicateCandidates()){"
+        },
+        {
+          "before": "const matches = getImportDuplicateCandidates().filter(\n        payment =>",
+          "after": "const matches = candidates.filter(\n        payment =>"
+        },
+        {
+          "before": "    const seenInPaste =\n        new Set();",
+          "after": "    const seenInPaste =\n        new Set();\n\n    // Build the canonical duplicate candidate collection at most once\n    // per preview, not once for every Excel row. No extra Firestore reads.\n    let importCandidateRowsForPreview = null;"
+        },
+        {
+          "before": "                    crossMonthDuplicate =\n                        findCrossMonthDuplicateImport(data) ||\n                        findSameMonthDuplicateImport(data);",
+          "after": "                    // During a local-only preview, keep the same data validation\n                    // but defer remote-history warnings until after we know that\n                    // at least one importable payment has been constructed.\n                    if(!skipHistoryDuplicateCheck){\n                        if(importCandidateRowsForPreview === null){\n                            importCandidateRowsForPreview =\n                                getImportDuplicateCandidates();\n                        }\n                        crossMonthDuplicate =\n                            findCrossMonthDuplicateImport(data,importCandidateRowsForPreview) ||\n                            findSameMonthDuplicateImport(data,importCandidateRowsForPreview);\n                    }"
+        },
+        {
+          "before": "async function renderExcelImportPreview(){\n\n    let rows;\n\n    try{\n\n        if(excelPasteArea.value.trim() && importPreviewNeedsHistoryScan()){\n            previewExcelPasteBtn.disabled = true;\n            excelImportStatus.innerHTML = `\n                <span class=\"import-badge ok\">⏳ Đang kiểm tra lịch sử thanh toán các tháng trước…</span>\n            `;\n\n            await ensureImportDuplicateHistory();\n        }\n\n        rows =\n            buildExcelImportRows();\n\n    }catch(error){",
+          "after": "/*\n   Stage 6: a complete local parse can tell whether a pasted sheet contains\n   ANY payment candidate without querying Firestore. Every row with data,\n   including one containing validation errors, retains the original full\n   cross-month comparison and notices. Rows with no payment data cannot have\n   an IPC duplicate and therefore must not trigger a full-history read.\n*/\nfunction importPreviewContainsPaymentCandidate(rows){\n    return Array.isArray(rows) && rows.some(item => !!item?.data);\n}\n\nasync function renderExcelImportPreview(){\n\n    let rows;\n\n    try{\n        if(excelPasteArea.value.trim() && importPreviewNeedsHistoryScan()){\n            // Pass 1 (local only): preserves all row-level validation,\n            // smart contract mapping and in-paste duplicate detection.\n            const localRows = buildExcelImportRows({\n                skipHistoryDuplicateCheck:true\n            });\n            if(importPreviewContainsPaymentCandidate(localRows)){\n                previewExcelPasteBtn.disabled = true;\n                excelImportStatus.innerHTML = `\n                    <span class=\"import-badge ok\">⏳ Đang kiểm tra lịch sử thanh toán các tháng trước…</span>\n                `;\n                await ensureImportDuplicateHistory();\n                // Pass 2: original warnings and cross-month IPC comparisons,\n                // now backed by the complete cached payment history.\n                rows = buildExcelImportRows();\n            }else{\n                rows = localRows;\n            }\n        }else{\n            // Preserve original error handling for empty/header-only or\n            // missing-column sheets, without any Firestore request.\n            rows = buildExcelImportRows();\n        }\n\n    }catch(error){"
+        }
+      ]
+    },
+    "payment-mobile-renderer.html": {
+      "sha256_before": "f4494062f263ed7872f8fc5a25f958fbea232c89f2b5739b17009e1b5c93fec2",
+      "sha256_after": "26ebdf8bf367d281d21f10e597aa33a21abc44a2b7dcbda8098e997195a29db8",
+      "replacements": [
+        {
+          "before": "function buildExcelImportRows(){",
+          "after": "function buildExcelImportRows({skipHistoryDuplicateCheck = false} = {}){"
+        },
+        {
+          "before": "function findSameMonthDuplicateImport(data){",
+          "after": "function findSameMonthDuplicateImport(data,candidates = getImportDuplicateCandidates()){"
+        },
+        {
+          "before": "return getImportDuplicateCandidates().find(\n        payment =>",
+          "after": "return candidates.find(\n        payment =>"
+        },
+        {
+          "before": "function findCrossMonthDuplicateImport(data){",
+          "after": "function findCrossMonthDuplicateImport(data,candidates = getImportDuplicateCandidates()){"
+        },
+        {
+          "before": "const matches = getImportDuplicateCandidates().filter(\n        payment =>",
+          "after": "const matches = candidates.filter(\n        payment =>"
+        },
+        {
+          "before": "    const seenInPaste =\n        new Set();",
+          "after": "    const seenInPaste =\n        new Set();\n\n    // Build the canonical duplicate candidate collection at most once\n    // per preview, not once for every Excel row. No extra Firestore reads.\n    let importCandidateRowsForPreview = null;"
+        },
+        {
+          "before": "                    crossMonthDuplicate =\n                        findCrossMonthDuplicateImport(data) ||\n                        findSameMonthDuplicateImport(data);",
+          "after": "                    // During a local-only preview, keep the same data validation\n                    // but defer remote-history warnings until after we know that\n                    // at least one importable payment has been constructed.\n                    if(!skipHistoryDuplicateCheck){\n                        if(importCandidateRowsForPreview === null){\n                            importCandidateRowsForPreview =\n                                getImportDuplicateCandidates();\n                        }\n                        crossMonthDuplicate =\n                            findCrossMonthDuplicateImport(data,importCandidateRowsForPreview) ||\n                            findSameMonthDuplicateImport(data,importCandidateRowsForPreview);\n                    }"
+        },
+        {
+          "before": "async function renderExcelImportPreview(){\n\n    let rows;\n\n    try{\n\n        if(excelPasteArea.value.trim() && importPreviewNeedsHistoryScan()){\n            previewExcelPasteBtn.disabled = true;\n            excelImportStatus.innerHTML = `\n                <span class=\"import-badge ok\">⏳ Đang kiểm tra lịch sử thanh toán các tháng trước…</span>\n            `;\n\n            await ensureImportDuplicateHistory();\n        }\n\n        rows =\n            buildExcelImportRows();\n\n    }catch(error){",
+          "after": "/*\n   Stage 6: a complete local parse can tell whether a pasted sheet contains\n   ANY payment candidate without querying Firestore. Every row with data,\n   including one containing validation errors, retains the original full\n   cross-month comparison and notices. Rows with no payment data cannot have\n   an IPC duplicate and therefore must not trigger a full-history read.\n*/\nfunction importPreviewContainsPaymentCandidate(rows){\n    return Array.isArray(rows) && rows.some(item => !!item?.data);\n}\n\nasync function renderExcelImportPreview(){\n\n    let rows;\n\n    try{\n        if(excelPasteArea.value.trim() && importPreviewNeedsHistoryScan()){\n            // Pass 1 (local only): preserves all row-level validation,\n            // smart contract mapping and in-paste duplicate detection.\n            const localRows = buildExcelImportRows({\n                skipHistoryDuplicateCheck:true\n            });\n            if(importPreviewContainsPaymentCandidate(localRows)){\n                previewExcelPasteBtn.disabled = true;\n                excelImportStatus.innerHTML = `\n                    <span class=\"import-badge ok\">⏳ Đang kiểm tra lịch sử thanh toán các tháng trước…</span>\n                `;\n                await ensureImportDuplicateHistory();\n                // Pass 2: original warnings and cross-month IPC comparisons,\n                // now backed by the complete cached payment history.\n                rows = buildExcelImportRows();\n            }else{\n                rows = localRows;\n            }\n        }else{\n            // Preserve original error handling for empty/header-only or\n            // missing-column sheets, without any Firestore request.\n            rows = buildExcelImportRows();\n        }\n\n    }catch(error){"
+        }
+      ]
+    }
+  }
+}

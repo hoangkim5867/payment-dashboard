@@ -1,0 +1,19 @@
+{
+  "stage": "STAGING_ONLY",
+  "based_on": "Payment_MASTER_STAGE2_CSS_DATA_CLEAN_20261023.zip",
+  "changes": {
+    "payment.html": {
+      "sha256_stage2": "4511b34dbd4973bf323a59559ed00c7dd42fbdf74025753bed97f731ba0ce87d",
+      "sha256_stage3": "2390884b793915da15073570f584be43be4376d3d891b5112911636919265f2e",
+      "old_fragment": "        const snapshot = await getDocs(paymentsRef);",
+      "new_fragment": "        // Stage 3, read-only diagnostics: NO additional Firestore request.\n        const importReadStartedAt = performance.now();\n        const snapshot = await getDocs(paymentsRef);\n        console.info(\"[Payment Read Audit] Excel duplicate history\", {\n            documentsReturned: snapshot.size,\n            elapsedMs: Math.round(performance.now() - importReadStartedAt)\n        });"
+    },
+    "contract-master.html": {
+      "sha256_stage2": "64231d609da1a3bd3f8d94791bcbbe2179fa905bd6f7d7ac9b121ef66339f0bb",
+      "sha256_stage3": "921e5606f9b372d558d6c442997a460aad2be10305e47426c2689f7731d59a43",
+      "old_fragment": "        const snapshot = await getDocs(paymentsRef);",
+      "new_fragment": "        // Stage 3, read-only diagnostics: NO additional Firestore request.\n        const mepReadStartedAt = performance.now();\n        const snapshot = await getDocs(paymentsRef);\n        console.info(\"[Payment Read Audit] Contract Master MEP\", {\n            documentsReturned: snapshot.size,\n            elapsedMs: Math.round(performance.now() - mepReadStartedAt)\n        });"
+    }
+  },
+  "file_provenance": "Stage2 verified baseline; only 2 code blocks instrumented"
+}

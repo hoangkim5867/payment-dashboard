@@ -1,0 +1,54 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment MASTER · Thử Google Drive riêng</title>
+<style>body{font:16px system-ui;background:#f2f6fa;color:#183653;margin:0;padding:32px}main{max-width:850px;margin:auto;background:white;padding:30px;border-radius:18px;border:1px solid #dce5ee}h1{font-size:25px}p{line-height:1.6}button{padding:12px 18px;border:0;border-radius:9px;background:#164b78;color:white;font:inherit;cursor:pointer;margin-right:10px}button:disabled{opacity:.4;cursor:default}pre{white-space:pre-wrap;background:#f2f6fa;padding:18px;min-height:150px;border-radius:10px;font-size:13px}.note{padding:14px;background:#fff5d8;border-radius:9px}a{color:#175c96}input{display:block;width:95%;padding:10px;margin:12px 0 20px;border:1px solid #aebdcb;border-radius:7px}</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script></head><body><main>
+<h1>Kiểm thử UNC với Google Drive</h1>
+<p>Trang thử riêng của Payment MASTER. Chỉ tạo <b>một thư mục mới và file PDF giả</b>, sau đó thay nội dung file giả để kiểm tra giữ nguyên liên kết. Không kết nối Firebase, không mở chứng từ đang dùng, không chia sẻ công khai.</p>
+<p class="note">Bước 1: kết nối tài khoản Google đang dùng cho UNC. Bước 2: chạy thử. Mã truy cập chỉ giữ trong bộ nhớ của trang này.</p>
+<label for="clientId">OAuth Client ID của Payment UNC Web</label><input id="clientId" value="217279768663-lkrs0o14b9kg1fi4rk1pt7cpgf7bq3sq.apps.googleusercontent.com" readonly>
+<button id="connect">1. Kết nối Google</button><button id="run" disabled>2. Chạy thử file giả</button><button id="download" disabled>Tải báo cáo</button>
+<p id="folder"></p><pre id="log" aria-live="polite">Sẵn sàng. Chưa kết nối Google, chưa tạo file.</pre>
+<p>Địa chỉ trang thử cần được OAuth cho phép: <b id="origin"></b></p>
+</main><script>
+let uncDriveAccessToken='',uncDriveTokenExpiresAt=0,tokenClient=null,ownedFolder='',ownedFile='',report=null;
+const allPayments=[],lines=[],folderName='Payment MASTER - UNC TEST - '+new Date().toISOString().replace(/[:.]/g,'-');
+document.querySelector('#origin').textContent=location.origin;
+function log(text){lines.push(text);document.querySelector('#log').textContent=lines.join('\n')}
+async function requestDriveAccessToken(){if(!uncDriveAccessToken||Date.now()>=uncDriveTokenExpiresAt)throw Error('Hãy kết nối Google trước.');return uncDriveAccessToken}
+async function driveApi(path,options={}){
+ const method=options.method||'GET';
+ const folderCreate=path==='/drive/v3/files?fields=id,name'&&method==='POST'&&JSON.parse(options.body).name===folderName;
+ const upload=ownedFolder&&path==='/upload/drive/v3/files?uploadType=multipart&fields=id,name,size'&&method==='POST';
+ const ownUpdate=ownedFile&&method==='PATCH'&&(path===`/upload/drive/v3/files/${encodeURIComponent(ownedFile)}?uploadType=media&fields=id,name,size`||path===`/drive/v3/files/${encodeURIComponent(ownedFile)}?fields=id,name,size`);
+ if(!folderCreate&&!upload&&!ownUpdate)throw Error('Đã chặn thao tác ngoài file/thư mục thử mới tạo.');
+ return rawDriveApi(path,options);
+}
+function testPdf(version){
+ const text=`PAYMENT MASTER TEST ONLY - VERSION ${version} - NOT A PAYMENT`;
+ const stream=`BT /F1 15 Tf 40 750 Td (${text}) Tj ET`;
+ const objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>','<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>','<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`];
+ let pdf='%PDF-1.4\n',offsets=[0];objects.forEach((x,i)=>{offsets.push(pdf.length);pdf+=`${i+1} 0 obj\n${x}\nendobj\n`});const start=pdf.length;pdf+=`xref\n0 6\n0000000000 65535 f \n`;for(const x of offsets.slice(1))pdf+=String(x).padStart(10,'0')+' 00000 n \n';pdf+=`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${start}\n%%EOF\n`;return new Blob([pdf],{type:'application/pdf'});
+}
+async function sha(bytes){return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),x=>x.toString(16).padStart(2,'0')).join('')}
+async function checkBytes(id,expected){if(id!==ownedFile)throw Error('File không thuộc phiên thử');const r=await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media`,{headers:{Authorization:'Bearer '+await requestDriveAccessToken()}});if(!r.ok)throw Error('Đọc lại file thất bại: '+r.status);const downloaded=await r.arrayBuffer(),wanted=await expected.arrayBuffer();const actual=await sha(downloaded),original=await sha(wanted);if(actual!==original)throw Error('SHA-256 đọc lại khác file gửi lên');return actual}
+document.querySelector('#connect').onclick=()=>{
+ if(!window.google?.accounts?.oauth2){log('Google chưa tải xong. Vui lòng thử lại.');return;}
+ tokenClient=google.accounts.oauth2.initTokenClient({client_id:document.querySelector('#clientId').value,scope:'https://www.googleapis.com/auth/drive.file',include_granted_scopes:false,callback:response=>{
+  if(response.error){log('Google báo lỗi: '+(response.error_description||response.error));return;}
+  uncDriveAccessToken=response.access_token;uncDriveTokenExpiresAt=Date.now()+Number(response.expires_in||3600)*1000;
+  log('Đã kết nối Google. Chưa tạo file.');document.querySelector('#run').disabled=false;
+ },error_callback:error=>log('Chưa kết nối: '+(error.message||error.type||'Google không cấp quyền'))});tokenClient.requestAccessToken({prompt:'select_account'});
+};
+document.querySelector('#run').onclick=async()=>{
+ document.querySelector('#run').disabled=true;
+ try{
+  const folder=await driveApi('/drive/v3/files?fields=id,name',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:folderName,mimeType:'application/vnd.google-apps.folder'})});ownedFolder=folder.id;if(!ownedFolder)throw Error('Không tạo được thư mục thử');
+  const link=document.createElement('a');link.href='https://drive.google.com/drive/folders/'+encodeURIComponent(ownedFolder);link.target='_blank';link.rel='noopener';link.textContent='Mở thư mục thử vừa tạo';document.querySelector('#folder').replaceChildren(link);log('Đã tạo thư mục thử riêng.');
+  const payment={id:'STAGING-TEST-ONLY',project:'TEST-ONLY',contractNo:'TEST-LAB-001',ipcNo:'IPC001',processPaymentDate:'2026-10-24',processActualAmount:1};
+  const first=testPdf(1),created=await createUncDriveFile(payment,first,ownedFolder);ownedFile=created.id;if(!ownedFile)throw Error('Không nhận được ID file thử');const firstHash=await checkBytes(ownedFile,first);log('PASS: tải PDF giả lên và đọc lại khớp SHA-256.');
+  const second=testPdf(2),replaced=await replaceUncDriveFile(ownedFile,second,payment);if(replaced.id!==ownedFile)throw Error('ID bị đổi khi thay file');const secondHash=await checkBytes(ownedFile,second);log('PASS: thay nội dung PDF và đọc lại khớp SHA-256.');log('PASS: ID và liên kết Drive giữ nguyên.');
+  report={status:'PASS',testedAt:new Date().toISOString(),scope:'drive.file',origin:location.origin,folderId:ownedFolder,fileId:ownedFile,source:'Payment MASTER createUncDriveFile / replaceUncDriveFile functions',firstHash,secondHash,sameFileId:true,syntheticDataOnly:true,publicSharingTested:false,firebaseUsed:false};
+  document.querySelector('#download').disabled=false;log('Hoàn tất. File giả được giữ riêng để bạn kiểm tra; không có file thật nào bị sửa.');
+ }catch(error){report={status:'FAIL',error:error.message,folderId:ownedFolder,fileId:ownedFile,syntheticDataOnly:true};document.querySelector('#download').disabled=false;log('FAIL: '+error.message)}
+};
+document.querySelector('#download').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'}));a.download='Payment_UNC_Drive_Staging_Result.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+</script><script src="payment-drive-functions.js"></script></body></html>

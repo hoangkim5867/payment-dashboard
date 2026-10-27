@@ -1,0 +1,110 @@
+{
+  "testedAt": "2026-10-24T03:01:53.880Z",
+  "environment": "demo-payment-security Emulator",
+  "payment": {
+    "project": "EATON PARK",
+    "company": "TEST ONLY COMPANY",
+    "contractNo": "UNC-E2E-TEST",
+    "ipcNo": "TEST-ONLY",
+    "paymentMonth": "2026-10",
+    "paymentType": "MEP",
+    "amount": 1,
+    "processActualAmount": 1,
+    "processPaymentDate": "2026-10-24",
+    "contractName": "Synthetic document test only",
+    "personInCharge": "Emulator admin",
+    "status": "pending",
+    "deleted": false,
+    "duplicateKeyV1": "eaton||unce2etest||test-only",
+    "mepLookupV1": true,
+    "paymentLookupSchemaV1": 1,
+    "uncStorageProvider": "google-drive",
+    "uncSize": 627,
+    "updatedBy": "Emulator admin",
+    "uncName": "UNC_20261024_EATON-PARK_UNC-E2E-TEST_IPCTESTONLY_1.pdf",
+    "uncUploadedByUid": "HTx2QuATHxh8zgAawwreg88w65M2",
+    "uncUploadedBy": "Emulator admin",
+    "updatedByEmail": "lehoangoanh@cscecmep.internal",
+    "updatedByUid": "HTx2QuATHxh8zgAawwreg88w65M2",
+    "uncPath": "",
+    "uncDriveFileId": "1sBYgwL4BE_A1sVnOHPPN00joCgk-odqI",
+    "uncUploadedByEmail": "lehoangoanh@cscecmep.internal",
+    "uncUploadedAt": {
+      "_seconds": 1792810829,
+      "_nanoseconds": 525000000
+    },
+    "archived": true,
+    "archiveState": "archived",
+    "archivedBy": "Emulator admin",
+    "archiveMonth": "2026-10",
+    "archivedByUid": "HTx2QuATHxh8zgAawwreg88w65M2",
+    "archivedAt": {
+      "_seconds": 1792810888,
+      "_nanoseconds": 918000000
+    },
+    "updatedAt": {
+      "_seconds": 1792810888,
+      "_nanoseconds": 918000000
+    }
+  },
+  "archive": {
+    "updatedBy": "Emulator admin",
+    "updatedByUid": "HTx2QuATHxh8zgAawwreg88w65M2",
+    "description": "1 khoản đã thanh toán · 1 UNC",
+    "totalActualAmount": 1,
+    "excelDriveFileId": "1cT93vU83nW0bZ4CSnZSKxbuQEea8vHG7",
+    "excelUrl": "https://drive.google.com/file/d/1cT93vU83nW0bZ4CSnZSKxbuQEea8vHG7/view",
+    "title": "Thanh toán tháng 10 / 2026",
+    "uncCount": 1,
+    "companyIndex": [
+      {
+        "company": "TEST ONLY COMPANY",
+        "companySearch": "test only company",
+        "project": "EATON PARK",
+        "paymentCount": 1
+      }
+    ],
+    "month": "2026-10",
+    "createdBy": "Emulator admin",
+    "excelDownloadUrl": "https://drive.usercontent.google.com/download?id=1cT93vU83nW0bZ4CSnZSKxbuQEea8vHG7&export=download&confirm=t",
+    "rowCount": 1,
+    "companyIndexVersion": 1,
+    "createdAt": {
+      "_seconds": 1792810888,
+      "_nanoseconds": 856000000
+    },
+    "updatedAt": {
+      "_seconds": 1792810888,
+      "_nanoseconds": 856000000
+    }
+  },
+  "details": {
+    "updatedBy": "Emulator admin",
+    "month": "2026-10",
+    "updatedByUid": "HTx2QuATHxh8zgAawwreg88w65M2",
+    "totalActualAmount": 1,
+    "rowCount": 1,
+    "rows": [
+      {
+        "paymentId": "unc-e2e-payment",
+        "stt": 1,
+        "project": "EATON PARK",
+        "company": "TEST ONLY COMPANY",
+        "bankAccount": "",
+        "contractNo": "UNC-E2E-TEST",
+        "contractName": "Synthetic document test only",
+        "ipcNo": "TEST-ONLY",
+        "costType": "",
+        "actualAmount": 1,
+        "paymentDate": "2026-10-24",
+        "uncFileId": "1sBYgwL4BE_A1sVnOHPPN00joCgk-odqI",
+        "uncName": "UNC_20261024_EATON-PARK_UNC-E2E-TEST_IPCTESTONLY_1.pdf"
+      }
+    ],
+    "uncCount": 1,
+    "updatedAt": {
+      "_seconds": 1792810888,
+      "_nanoseconds": 871000000
+    }
+  }
+}

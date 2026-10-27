@@ -1,0 +1,14 @@
+[
+  {
+    "old": "    const layoutText = String(pdfExtract?.layoutText || \"\");\n    const legacy = extractBulkUncInfo(legacyText);",
+    "next": "    const layoutText = String(pdfExtract?.layoutText || \"\");\n    // A merged file containing several bank advices must not be assigned using\n    // the first amount/date. Single advice with supporting pages still works.\n    const adviceCount = (legacyText.match(/(?:^|\\n)\\s*(?:DEBIT\\s+ADVICE|Payment\\s+Advice)\\s*(?=\\n|$)/gi) || []).length;\n    if(adviceCount > 1){\n        throw new Error(\"PDF chứa nhiều giấy báo thanh toán. Hãy tách mỗi giấy báo thành một file trước khi tự ghép UNC.\");\n    }\n    const legacy = extractBulkUncInfo(legacyText);"
+  },
+  {
+    "old": "    legacy.accountNumbers = [...new Set([...legacy.accountNumbers,...visual.accountNumbers])];",
+    "next": "    // The Vietnamese SC layout labels the payee as Party Info, not Name.\n    const bilingualPayee = firstBulkUncMatch(layoutText,[\n        /Beneficiary\\s+Party\\s+Info\\s*\\/\\s*Th[oô]ng\\s+tin\\s+đơn\\s+vị\\s+hưởng[ \\t]+([\\s\\S]{3,300}?)(?=\\n\\s*Value\\s+Date\\b)/i\n    ]).replace(/\\s+/g,\" \").trim();\n    if(bilingualPayee) legacy.beneficiary = bilingualPayee;\n    const bilingualDatePattern = new RegExp(`(?:^|\\\\n)Value\\\\s+Date\\\\s*/[^\\\\n0-9]{0,60}\\\\s*${BULK_UNC_DATE_TOKEN}`,\"i\");\n    const labelledDates = [legacyText,layoutText].map(value=>normalizeBulkUncDate(firstBulkUncMatch(value,[bilingualDatePattern]))).filter(Boolean);\n    if(labelledDates.length){legacy.date = new Set(labelledDates).size === 1 ? labelledDates[0] : \"\";}\n    const bilingualReference = firstBulkUncMatch(layoutText,[/Bank\\s+Ref\\s*\\/\\s*Số\\s+GD\\s*:\\s*([A-Z0-9]+(?:[ \\t]*\\/[ \\t]*[A-Z0-9]+)?)/i]);\n    if(bilingualReference) legacy.bankReference = bilingualReference;\n    legacy.accountNumbers = [...new Set([...legacy.accountNumbers,...visual.accountNumbers])];"
+  },
+  {
+    "old": "/(?:^|\\n)\\s*(?:DEBIT\\s+ADVICE|Payment\\s+Advice)\\s*(?=\\n|$)/gi",
+    "next": "/\\b(?:DEBIT\\s+ADVICE|Payment\\s+Advice)\\b/gi"
+  }
+]

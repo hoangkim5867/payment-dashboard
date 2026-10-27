@@ -1,0 +1,33 @@
+{
+  "method": "Chromium offline; no Firebase network",
+  "results": [
+    {
+      "page": "index.html",
+      "visible_screenshot_identical": null
+    },
+    {
+      "page": "payment.html",
+      "visible_screenshot_identical": null
+    },
+    {
+      "page": "payment-mobile-renderer.html",
+      "visible_screenshot_identical": null
+    },
+    {
+      "page": "contract-master.html",
+      "visible_screenshot_identical": null
+    },
+    {
+      "page": "payment-archive.html",
+      "visible_screenshot_identical": null
+    },
+    {
+      "page": "plan-review.html",
+      "visible_screenshot_identical": null
+    },
+    {
+      "page": "cash-control.html",
+      "visible_screenshot_identical": null
+    }
+  ]
+}

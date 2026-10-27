@@ -1,0 +1,15 @@
+{
+  "pass": true,
+  "testedAt": "2026-10-24T03:12:44.454Z",
+  "environment": "demo-payment-security Emulator",
+  "creator": "ui-staff",
+  "rows": 1,
+  "amount": 500,
+  "indexCorrect": true,
+  "importBatchId": "IMP-1792811510071-fb4bbt",
+  "undo": {
+    "pass": true,
+    "remainingRows": 0,
+    "testedAt": "2026-10-24T03:13:38.413Z"
+  }
+}

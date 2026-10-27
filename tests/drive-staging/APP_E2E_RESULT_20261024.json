@@ -1,0 +1,26 @@
+{
+  "testedAt": "2026-10-24T03:13:42.578Z",
+  "pass": true,
+  "environment": "Firebase Auth/Firestore Emulator demo-payment-security + real Google Drive, synthetic documents only",
+  "oauth": "Existing Payment UNC Web client, localhost origin saved after separate user confirmation",
+  "steps": [
+    "Admin sign-in to local Payment",
+    "Upload synthetic PDF v1 from actual Payment UNC modal",
+    "Select synthetic paid row and archive through actual UI",
+    "Replace PDF with v2 through actual Payment UNC modal",
+    "Read back Payment, archive metadata and archive details from Emulator",
+    "Open Archive month, expand project and verify UNC link"
+  ],
+  "uncFileId": "1sBYgwL4BE_A1sVnOHPPN00joCgk-odqI",
+  "uncFileIdUnchanged": true,
+  "archiveWorkbookId": "1cT93vU83nW0bZ4CSnZSKxbuQEea8vHG7",
+  "archiveWorkbookIdUnchanged": true,
+  "archiveUpdatedAfterReplacement": true,
+  "archiveRows": 1,
+  "archiveRowUNCMatchesPayment": true,
+  "sharing": "Inherited app sets anyone-with-link reader on these new dummy files only; no real documents were uploaded or permissions changed",
+  "limitations": [
+    "Live app replacement was checked by IDs, metadata and Archive UI; bytes/checksum readback was separately proven by standalone Drive component",
+    "No acceptance claim for real bank PDFs, production deployment or financial operations"
+  ]
+}

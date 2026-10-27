@@ -1,0 +1,233 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function approvedUser(){
+      return request.auth != null
+        && exists(/databases/$(database)/documents/authUsers/$(request.auth.uid))
+        && validProfile(get(/databases/$(database)/documents/authUsers/$(request.auth.uid)).data)
+        && get(/databases/$(database)/documents/authUsers/$(request.auth.uid)).data.get('disabled', false) == false
+        && get(/databases/$(database)/documents/authUsers/$(request.auth.uid)).data.get('active', true) == true;
+    }
+    // Existing profiles may omit the two status flags; absence preserves access.
+    function validProfile(data){
+      return data.role is string && data.role.lower() in ['admin', 'staff']
+        && data.get('disabled', false) is bool && data.get('active', true) is bool;
+    }
+    function validActivityLog(data){
+      return data.operatorUid == request.auth.uid
+        && data.action is string && data.action.size() > 0 && data.action.size() <= 100
+        && data.createdAt == request.time;
+    }
+    function cashControlOwner(){
+      // Bind the existing owner to an immutable Auth UID as well as its email.
+      // Internal-domain accounts need not have an email_verified claim.
+      return approvedUser() && request.auth.uid == "HTx2QuATHxh8zgAawwreg88w65M2"
+        && request.auth.token.email == "lehoangoanh@cscecmep.internal";
+    }
+    function trustedProfileAdmin(){
+      return approvedUser() && request.auth.uid == "HTx2QuATHxh8zgAawwreg88w65M2";
+    }
+    function adminUser(){
+      return approvedUser() && get(/databases/$(database)/documents/authUsers/$(request.auth.uid)).data.role.lower() == 'admin';
+    }
+    function currentPaymentMonth(){
+      let local = request.time + duration.value(7, 'h');
+      return string(local.year()) + '-' + (local.month() < 10 ? '0' : '') + string(local.month());
+    }
+    function optionalText(data, key, maximum){
+      return !(key in data) || data[key] == null || (data[key] is string && data[key].size() <= maximum);
+    }
+    function validPayment(data){
+      return data.paymentMonth is string && data.paymentMonth.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && ((data.amount is number && data.amount >= -1000000000000000000.0 && data.amount <= 1000000000000000000.0)
+          || (data.amount is string && data.amount.size() <= 100 && data.amount.matches('^-?[0-9]+([.][0-9]+)?$')))
+        && data.keys().size() <= 150
+        && optionalText(data, 'project', 4096) && optionalText(data, 'company', 4096)
+        && optionalText(data, 'contractNo', 4096) && optionalText(data, 'ipcNo', 4096)
+        && optionalText(data, 'bankAccount', 4096) && optionalText(data, 'contractName', 16384)
+        && optionalText(data, 'remark', 131072);
+    }
+    function paidPayment(data){
+      let actual = data.get('processActualAmount', '');
+      return data.get('processPaymentDate', '') != '' && actual != null && actual != ''
+        && (actual is number || (actual is string && actual.matches('^-?[0-9]+([.][0-9]+)?$')));
+    }
+    function pendingPayment(data){
+      return data.get('deleted', false) != true && !paidPayment(data)
+        && !(data.get('monthOutcome', '').lower() in ['cancelled', 'carried_forward']);
+    }
+    function planFields(){return ["planReviewStatus","planProposalAmount","planApprovedAmount","planReviewMonth","planReviewedAt","planReviewedBy","planReviewedByUid","planLocked","planLockedAt","planLockedBy","planLockedByUid","planUnlockedAt","planUnlockedBy","planUnlockedByUid"];}
+    function blankAdminFields(data){
+      return data.get('processApproval', '') == '' && data.get('processBanking', '') == ''
+        && data.get('processActualAmount', '') == '' && data.get('processPaymentDate', '') == ''
+        && data.get('monthOutcome', '') == '' && data.get('archived', false) == false
+        && data.get('archiveState', '') == ''
+        && !data.keys().hasAny(['uncFileId','uncDriveFileId','uncUrl','uncViewUrl','uncDownloadUrl','uncName','uncSize','uncUploadedAt','uncUploadedBy','uncStorageProvider','uncPath','uncUploadedByUid','uncUploadedByEmail'])
+        && !data.keys().hasAny(planFields());
+    }
+    function staffEditableFields(){
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'paymentMonth','paymentType','noMEPException','internalExpenseCode','contractKey','contractId',
+        'personInCharge','project','company','bankAccount','contractNo','contractName','ipcNo','budgetNo',
+        'costType','contractType','amount','remark','processPlatformPlan','processPaper',
+        'processSettlement','processPaymentNo','processPlatformPayment',
+        'updatedAt','updatedBy','updatedByUid','updatedByEmail',
+        'duplicateKeyV1','mepLookupV1','paymentLookupSchemaV1'
+      ]);
+    }
+    match /payments/{paymentId} {
+      allow read: if approvedUser();
+      allow create: if approvedUser() && validPayment(request.resource.data)
+        && (adminUser() || (request.resource.data.get('createdByUid', '') == request.auth.uid
+          && pendingPayment(request.resource.data) && blankAdminFields(request.resource.data)))
+        && (!request.resource.data.keys().hasAny(planFields()) || reviewOwner());
+      allow update: if approvedUser() && validPayment(request.resource.data)
+        && (adminUser() || (resource.data.paymentMonth == currentPaymentMonth()
+          && pendingPayment(resource.data) && staffEditableFields()))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(planFields()) || reviewOwner());
+      allow delete: if approvedUser() && (adminUser() || (
+        resource.data.get('source', '') == 'excel-paste'
+        && resource.data.get('importBatchId', '') != ''
+        && resource.data.get('createdByUid', '') == request.auth.uid
+      ));
+    }
+    match /authUsers/{uid} {
+      allow read: if adminUser() || (approvedUser() && uid == request.auth.uid);
+      allow create, update: if trustedProfileAdmin() && validProfile(request.resource.data);
+      allow delete: if trustedProfileAdmin();
+    }
+    match /activityLogs/{logId} {
+      allow read: if approvedUser();
+      allow create: if approvedUser() && validActivityLog(request.resource.data);
+      allow update, delete: if false;
+    }
+    function optionalList(data,key){return !(key in data) || (data[key] is list && data[key].size() <= 100000);}
+    function optionalMap(data,key){return !(key in data) || data[key] is map;}
+    function validCash(data){
+      return data.keys().size() <= 100
+        && optionalList(data,'manualRecords') && optionalList(data,'deletedLegacy')
+        && optionalList(data,'projectMasters') && optionalList(data,'partnerMasters')
+        && optionalList(data,'inflowRecords') && optionalList(data,'paymentRequests')
+        && optionalList(data,'salaryRecords') && optionalList(data,'guarantees')
+        && optionalList(data,'facilities') && optionalList(data,'auditLog')
+        && optionalMap(data,'legacyOverrides') && optionalMap(data,'openingStart')
+        && optionalMap(data,'loanPdfLinks')
+        && (!('schemaVersion' in data) || data.schemaVersion is int)
+        && (!('revision' in data) || (data.revision is number && data.revision >= 0))
+        && (!('payload' in data) || (data.payload is string && data.sha256 is string && data.sha256.matches('^[a-f0-9]{64}$')));
+    }
+    match /cash_control_private/{id} {
+      allow read: if cashControlOwner();
+      allow create, update: if cashControlOwner() && validCash(request.resource.data);
+      allow delete: if false;
+    }
+    // No public access to 2026 financial history. The existing MEP UI needs
+    // read access for approved profiles; *writes are trusted-admin only*.
+    match /paymentHistorySources2026/{sourceId} {
+      allow get: if approvedUser() && (sourceId == "raw" || sourceId == "clean");
+      allow list: if false;
+      allow create, update, delete: if trustedProfileAdmin();
+    }
+    // Index readiness is a privileged switch, not a Staff-writable flag.
+    match /systemConfig/paymentLookupV1 {
+      allow get: if approvedUser();
+      allow list: if false;
+      allow create, update, delete: if trustedProfileAdmin();
+    }
+    // Explicit collection policies; unknown collections/subcollections deny by default.
+    function validMaster(data){
+      return data.keys().size() <= 100
+        && data.project is string && data.project.size() <= 4096
+        && data.contractNo is string && data.contractNo.size() <= 4096
+        && optionalText(data,'company',4096) && optionalText(data,'bankAccount',4096)
+        && optionalText(data,'contractName',16384) && optionalText(data,'personInCharge',4096);
+    }
+    function staffMasterSync(){
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return request.resource.data.lastSyncedFrom == 'payment_excel_paste'
+        && request.resource.data.lastSyncedByUid == request.auth.uid
+        && changed.hasOnly(['personInCharge','company','bankAccount','contractName','costType','contractType','updatedAt','lastSyncedFrom','lastSyncedBy','lastSyncedByUid'])
+        && (resource.data.get('company','') == '' || request.resource.data.get('company','') == resource.data.company)
+        && (resource.data.get('bankAccount','') == '' || request.resource.data.get('bankAccount','') == resource.data.bankAccount)
+        && (resource.data.get('contractName','') == '' || request.resource.data.get('contractName','') == resource.data.contractName)
+        && (resource.data.get('costType','') == '' || request.resource.data.get('costType','') == resource.data.costType)
+        && (resource.data.get('contractType','') == '' || request.resource.data.get('contractType','') == resource.data.contractType);
+    }
+    match /contracts/{id} {
+      allow read: if approvedUser();
+      allow create: if approvedUser() && validMaster(request.resource.data)
+        && (adminUser() || (request.resource.data.source == 'payment_excel_paste'
+          && request.resource.data.createdByUid == request.auth.uid
+          && request.resource.data.status == 'Active'
+          && request.resource.data.keys().hasOnly(['personInCharge','project','company','bankAccount','contractNo','contractName','costType','contractType','status','createdAt','updatedAt','source','createdBy','createdByUid'])));
+      allow update: if approvedUser() && validMaster(request.resource.data) && (adminUser() || staffMasterSync());
+      allow delete: if adminUser();
+    }
+    function validVendor(data){
+      return data.keys().size() <= 20 && data.company is string && data.company.size() > 0 && data.company.size() <= 4096
+        && optionalText(data,'bankAccount',4096)
+        && (!('bankAccounts' in data) || (data.bankAccounts is list && data.bankAccounts.size() <= 500));
+    }
+    match /vendorMasters/{id} {
+      allow read: if approvedUser();
+      allow create: if approvedUser() && validVendor(request.resource.data)
+        && request.resource.data.keys().hasOnly(['company','bankAccount','bankAccounts','createdAt','updatedAt']);
+      allow update: if approvedUser() && validVendor(request.resource.data)
+        && (adminUser() || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bankAccount','bankAccounts','updatedAt']));
+      allow delete: if adminUser();
+    }
+    function validArchive(data,month){
+      return month.matches('^[0-9]{4}-(0[1-9]|1[0-2])$') && data.month == month
+        && data.keys().size() <= 50
+        && (!('rows' in data) || (data.rows is list && data.rows.size() <= 10000))
+        && (!('companyIndex' in data) || (data.companyIndex is list && data.companyIndex.size() <= 10000))
+        && optionalText(data,'excelDriveFileId',512) && optionalText(data,'excelUrl',4096)
+        && optionalText(data,'excelDownloadUrl',4096);
+    }
+    match /paymentArchives/{month} {
+      allow read: if approvedUser();
+      allow create, update: if adminUser() && validArchive(request.resource.data,month);
+      allow delete: if adminUser();
+    }
+    match /paymentArchiveDetails/{month} {
+      allow read: if approvedUser();
+      allow create, update: if adminUser() && validArchive(request.resource.data,month);
+      allow delete: if adminUser();
+    }
+    function reviewOwner(){return adminUser() && cashControlOwner();}
+    function validFunding(data,month){
+      return data.month == month && month.matches('^[0-9]{4}-(0[1-9]|1[0-2])$') && data.keys().size() <= 100
+        && (!('balances' in data) || data.balances is map)
+        && (!('projectLocks' in data) || data.projectLocks is map)
+        && (!('cashPlanningByProject' in data) || data.cashPlanningByProject is map)
+        && (!('reviewCutoffDate' in data) || (data.reviewCutoffDate is string && data.reviewCutoffDate.size() <= 10));
+    }
+    match /cash_flow_monthly_snapshots/{month} {
+      allow read: if cashControlOwner();
+      allow create, update: if cashControlOwner() && validFunding(request.resource.data,month);
+      allow delete: if cashControlOwner();
+    }
+    function validDirectory(data){
+      return data.names is map && data.names.size() <= 500 && data.keys().hasOnly(['names','updatedAt','updatedBy','updatedByUid']);
+    }
+    match /appSettings/staffDirectory {
+      allow read: if approvedUser();
+      allow create, update: if adminUser() && validDirectory(request.resource.data);
+      allow delete: if adminUser();
+    }
+    function validMessage(data){
+      return data.keys().hasOnly(['room','name','text','image','reaction','time'])
+        && data.room is string && data.room.size() <= 100
+        && data.name is string && data.name.size() <= 500
+        && data.text is string && data.text.size() <= 20000
+        && optionalText(data,'image',1000000) && optionalText(data,'reaction',100)
+        && data.time == request.time;
+    }
+    match /messages/{id} {
+      allow read: if approvedUser();
+      allow create: if approvedUser() && validMessage(request.resource.data);
+      allow update: if false;
+      allow delete: if adminUser();
+    }
+  }
+}

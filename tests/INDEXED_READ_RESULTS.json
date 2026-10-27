@@ -1,0 +1,23 @@
+{
+  "source_stage6_zip": "Payment_MASTER_TICH_LUY_STAGE6_20261023_STAGING.zip",
+  "changed_site_files": [
+    "site/payment.html",
+    "site/contract-master.html",
+    "site/payment-mobile-renderer.html"
+  ],
+  "untouched_site_files": 13,
+  "source_preservation": "payment desktop/mobile exactly reconstructed after removal of gated index feature; all other existing content unchanged",
+  "javascript_blocks_syntax_ok": 29,
+  "index_unit_tests_ok": 9,
+  "prior_import_two_pass_checks_ok": 36,
+  "prior_duplicate_equivalence_checks_ok": 406,
+  "prior_mep_edit_checks_ok": 16,
+  "prior_export_watch_checks_ok": 10,
+  "backend_trigger_syntax": "pass",
+  "backfill_executed": false,
+  "production_writes": 0,
+  "emulator_executed": false,
+  "cloud_functions_deployed": false,
+  "website_index_mode_enabled": false,
+  "production_release": "BLOCKED"
+}

@@ -1,0 +1,4 @@
+{
+  "status": "NOT_TESTED",
+  "reason": "Local Chromium navigation blocked (ERR_BLOCKED_BY_ADMINISTRATOR); screenshots not available. No live Firebase traffic performed."
+}

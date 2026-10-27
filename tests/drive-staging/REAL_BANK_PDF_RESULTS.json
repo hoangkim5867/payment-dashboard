@@ -1,0 +1,37 @@
+{
+  "pass": true,
+  "testedAt": "2026-10-24T04:10:25.319Z",
+  "source": "3 real bank PDFs, read locally only",
+  "samples": [
+    {
+      "sample": 1,
+      "pdfSHA256": "80a776885268fcf40ec69751b5a21de6011ac754a3f6d62db5cd6978974808a7",
+      "pages": 1,
+      "desktopAndMobile": "PASS",
+      "amountDatePayee": "PASS",
+      "mergedAdviceGuard": "not applicable"
+    },
+    {
+      "sample": 2,
+      "pdfSHA256": "c6ddc27061f0e263c38cca7f3e96da06cc0adad4d639f8e886d4e94c6a4ced02",
+      "pages": 44,
+      "desktopAndMobile": "PASS",
+      "amountDatePayee": "PASS",
+      "mergedAdviceGuard": "PASS"
+    },
+    {
+      "sample": 3,
+      "pdfSHA256": "772fc0c9a046ee78652fc15857be655a885d6986b93b5bec68652f2dd645132a",
+      "pages": 58,
+      "desktopAndMobile": "PASS",
+      "amountDatePayee": "PASS",
+      "mergedAdviceGuard": "PASS"
+    }
+  ],
+  "pages": 103,
+  "pageParsers": 206,
+  "assertions": 1034,
+  "independentExpected": "pdfplumber visual-order label extraction; parser input from actual PDF.js item order and coordinates",
+  "privatePayloadPackaged": false,
+  "uploadedToCloud": false
+}

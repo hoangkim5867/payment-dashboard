@@ -1,0 +1,104 @@
+{
+  "baselineArchiveSha256": "c6ddf6a8744a92e8c289f1991084c429ea4f8b64faf30bd280dbeee769f599d8",
+  "inheritedFilesChecked": 16,
+  "allInheritedSiteFilesRetained": true,
+  "onlyReviewedSiteChanges": true,
+  "files": [
+    {
+      "file": "site/README.md",
+      "originalSha256": "58d1b4f3b38d58610821ed31f73634a912e3c73d061b5debd03a63709f47453d",
+      "currentSha256": "58d1b4f3b38d58610821ed31f73634a912e3c73d061b5debd03a63709f47453d",
+      "reviewed": true
+    },
+    {
+      "file": "site/assets/css/cash-control.css",
+      "originalSha256": "ab635a65168f6fb4a272625746812f11a4c4269c8a95ce4d1f950cb95df1a4b9",
+      "currentSha256": "ab635a65168f6fb4a272625746812f11a4c4269c8a95ce4d1f950cb95df1a4b9",
+      "reviewed": true
+    },
+    {
+      "file": "site/assets/css/contract-master.css",
+      "originalSha256": "8544f55464198ba028265ceee4f2e7388989fbdcf0ef4de03aa24d9f0a5eb8cb",
+      "currentSha256": "8544f55464198ba028265ceee4f2e7388989fbdcf0ef4de03aa24d9f0a5eb8cb",
+      "reviewed": true
+    },
+    {
+      "file": "site/assets/css/index.css",
+      "originalSha256": "e905e91bf1e9b4476a0d9d21396e604bcb2cade7b3654c97ed8411272e634f19",
+      "currentSha256": "e905e91bf1e9b4476a0d9d21396e604bcb2cade7b3654c97ed8411272e634f19",
+      "reviewed": true
+    },
+    {
+      "file": "site/assets/css/payment-archive.css",
+      "originalSha256": "ff742e4da813704f37e5dac30f69e9ba3ff1405d0055e9bb9a9d9e05d2ef3936",
+      "currentSha256": "ff742e4da813704f37e5dac30f69e9ba3ff1405d0055e9bb9a9d9e05d2ef3936",
+      "reviewed": true
+    },
+    {
+      "file": "site/assets/css/payment-mobile-renderer.css",
+      "originalSha256": "cf42430ae465f5409c2baadd7c614fd7b50996966c210c35b88d6adfa549eff9",
+      "currentSha256": "cf42430ae465f5409c2baadd7c614fd7b50996966c210c35b88d6adfa549eff9",
+      "reviewed": true
+    },
+    {
+      "file": "site/assets/css/payment.css",
+      "originalSha256": "c24412f5467939aff39e212ba63308d16034d2740e3acfe2d91d1452053b91e6",
+      "currentSha256": "c24412f5467939aff39e212ba63308d16034d2740e3acfe2d91d1452053b91e6",
+      "reviewed": true
+    },
+    {
+      "file": "site/assets/css/plan-review.css",
+      "originalSha256": "37af419d2a684da7b31ea7abb1273cdfe0532edc20ca9cd5ae29e5711049cd1f",
+      "currentSha256": "37af419d2a684da7b31ea7abb1273cdfe0532edc20ca9cd5ae29e5711049cd1f",
+      "reviewed": true
+    },
+    {
+      "file": "site/cash-control.html",
+      "originalSha256": "aed663f226cf6bc08d4cd667e4c516b52e62d919f9670863f49afb2326ff2182",
+      "currentSha256": "75ba7fed306dccef253f18adf5ed6599492056811ef749cc032bee3d935ac4f7",
+      "reviewed": true
+    },
+    {
+      "file": "site/contract-master.html",
+      "originalSha256": "c35f35d7a8b2b287b7a045f7e840c1d6713fe3b04640b2469cb7b5db18b38f0e",
+      "currentSha256": "dfce4296deda7a833320d5fcb55712caf85823d665d45dd36793953528480e53",
+      "reviewed": true
+    },
+    {
+      "file": "site/index.html",
+      "originalSha256": "0304e8a22f1adb39ce63736d6cbf1806e1aa4f5b73646c5e41e8e17bbd999dc4",
+      "currentSha256": "0304e8a22f1adb39ce63736d6cbf1806e1aa4f5b73646c5e41e8e17bbd999dc4",
+      "reviewed": true
+    },
+    {
+      "file": "site/logo.png",
+      "originalSha256": "b0c88155cdd317b75b5b6521674915a018e3db4ab0549ba337d8eab669199e87",
+      "currentSha256": "b0c88155cdd317b75b5b6521674915a018e3db4ab0549ba337d8eab669199e87",
+      "reviewed": true
+    },
+    {
+      "file": "site/payment-archive.html",
+      "originalSha256": "490ca958cf0b272477f5455d522ef3b71279b4167345ac01555cc1b2bd398264",
+      "currentSha256": "ee7520a44d40e84648f6a85871ea45787132b9a6f6d5d2a093dfabea4ba3ca94",
+      "reviewed": true
+    },
+    {
+      "file": "site/payment-mobile-renderer.html",
+      "originalSha256": "0589462ea14dc85aae08fb10970a82dae28238843ec81671228de0b3b9579d9c",
+      "currentSha256": "0bb598cc40eddeea78c0cd43e89fe87f3ed9b4c2aaf2c26dbd8ccf1709b56198",
+      "reviewed": true
+    },
+    {
+      "file": "site/payment.html",
+      "originalSha256": "885ebfe9e240564d2df892f33344a4acd2070d88088a332b672ac7782a78cdbf",
+      "currentSha256": "b905069304ba002fa702cb295f2a875b534b62c793d0afee2248761fe5e2476b",
+      "reviewed": true
+    },
+    {
+      "file": "site/plan-review.html",
+      "originalSha256": "eaebcf011f6d5dcd4c60fd643d5e163ef89dba00054972040805455521c31c17",
+      "currentSha256": "fa2c6c63e0d9347c3fe196462b137e7c034ff053e2b461062c0ab1bece3c182d",
+      "reviewed": true
+    }
+  ]
+}

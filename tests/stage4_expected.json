@@ -1,0 +1,19 @@
+{
+  "changes": {
+    "payment.html": {
+      "preflight_fragment": "\n/*\n   Fast preflight for Excel Preview: reject empty/header-only sheets and\n   missing required column mappings BEFORE reading the entire payments\n   history. For any potentially valid data, keep the original full-history\n   comparison unchanged (including cross-month IPC warnings).\n   This helper makes no Firebase request and never changes imported rows.\n*/\nfunction importPreviewNeedsHistoryScan(){\n    const matrix = parseExcelClipboard(excelPasteArea.value);\n    if(!matrix.length) return false;\n\n    const required = [\"contractNo\", \"ipcNo\", \"amount\"];\n    if(excelImportMode === \"no-header\"){\n        const map = buildManualHeaderMap(matrix[0].length);\n        return required.every(key => map[key] !== undefined);\n    }\n    if(looksLikeHeaderRow(matrix[0])){\n        if(matrix.length === 1) return false;\n        const map = buildImportHeaderMap(matrix[0]);\n        return required.every(key => map[key] !== undefined);\n    }\n    return true;\n}\n\n",
+      "new_condition": "if(excelPasteArea.value.trim() && importPreviewNeedsHistoryScan()){",
+      "old_condition": "if(excelPasteArea.value.trim()){",
+      "sha256_stage3": "2390884b793915da15073570f584be43be4376d3d891b5112911636919265f2e",
+      "sha256_stage4": "ce7bd5fe7c2667008485151d9518edc9f499d4641e6dd918fb669b2ff1788e47"
+    },
+    "payment-mobile-renderer.html": {
+      "preflight_fragment": "\n/*\n   Fast preflight for Excel Preview: reject empty/header-only sheets and\n   missing required column mappings BEFORE reading the entire payments\n   history. For any potentially valid data, keep the original full-history\n   comparison unchanged (including cross-month IPC warnings).\n   This helper makes no Firebase request and never changes imported rows.\n*/\nfunction importPreviewNeedsHistoryScan(){\n    const matrix = parseExcelClipboard(excelPasteArea.value);\n    if(!matrix.length) return false;\n\n    const required = [\"contractNo\", \"ipcNo\", \"amount\"];\n    if(excelImportMode === \"no-header\"){\n        const map = buildManualHeaderMap(matrix[0].length);\n        return required.every(key => map[key] !== undefined);\n    }\n    if(looksLikeHeaderRow(matrix[0])){\n        if(matrix.length === 1) return false;\n        const map = buildImportHeaderMap(matrix[0]);\n        return required.every(key => map[key] !== undefined);\n    }\n    return true;\n}\n\n",
+      "new_condition": "if(excelPasteArea.value.trim() && importPreviewNeedsHistoryScan()){",
+      "old_condition": "if(excelPasteArea.value.trim()){",
+      "sha256_stage3": "4c4c47ebb60ba35306c9b0c3808afd5e7142738680887eeb9748dfc818bc0812",
+      "sha256_stage4": "f4494062f263ed7872f8fc5a25f958fbea232c89f2b5739b17009e1b5c93fec2"
+    }
+  },
+  "description": "Stage3 -> Stage4 preflight only"
+}

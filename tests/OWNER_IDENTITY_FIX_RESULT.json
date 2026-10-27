@@ -1,0 +1,39 @@
+{
+  "revision": "RC1 owner identity repair 2026-10-24",
+  "pass": true,
+  "nodeTestsPassed": 147,
+  "groups": {
+    "offline": 66,
+    "emulatorRulesWritersAuth": 78,
+    "emulatorMigration": 3
+  },
+  "uiPageViews": 14,
+  "cashContractUiChecks": 7,
+  "pageErrors": 0,
+  "productionDataRequests": 0,
+  "ownerIdentity": {
+    "uid": "HTx2QuATHxh8zgAawwreg88w65M2",
+    "email": "lehoangoanh@cscecmep.internal",
+    "emailVerifiedRequired": false,
+    "requiresApprovedActiveProfile": true,
+    "uidAndEmailBothRequired": true
+  },
+  "realAuthEmulatorLoginTest": true,
+  "attackCases": [
+    "same verified email with another UID denied",
+    "same unverified email with another UID denied",
+    "correct UID with wrong or absent email denied",
+    "disabled/inactive/invalid/missing owner profile denied",
+    "schema corruption denied",
+    "private document physical deletion denied",
+    "anonymous access denied"
+  ],
+  "productionMutation": false,
+  "productionReleased": false,
+  "remainingReleaseConditions": [
+    "Verified local production backup and restore rehearsal",
+    "Complete source/config backup and compatible rollback point",
+    "Review legacy users collection consumers before applying default deny",
+    "Protected remote deployment and smoke before domain promotion"
+  ]
+}

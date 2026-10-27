@@ -1,0 +1,16 @@
+✔ all six Firestore 10.12 pages route writes through the adapter (264.9835ms)
+✔ browser and backend index computations remain equal (5.8374ms)
+✔ add, edit IPC, change month, soft-delete, restore, delete immediately query correctly (424.4773ms)
+✔ full set, merge, mergeFields, string field paths and deleted lookup field (280.8341ms)
+✔ mixed batch preserves payment and other document updates, server transforms and return chain (67.9306ms)
+✔ failed mixed batch is atomic and does not mutate a payment (64.155ms)
+✔ existing transaction return value and concurrent edits preserve both index sources (962.8679ms)
+✔ non-payment-only batch and multiple writes to one payment retain semantics (66.4498ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2561.1537

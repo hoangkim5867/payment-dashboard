@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-23",
+  "status": "STAGING_ONLY_RELEASE_BLOCKED",
+  "baseline": "Payment_MASTER_CUMULATIVE_20261023_STAGING_ONLY.zip",
+  "changed_html": [
+    "contract-master.html",
+    "payment.html"
+  ],
+  "unchanged_html": [
+    "README.md",
+    "cash-control.html",
+    "index.html",
+    "logo.png",
+    "payment-archive.html",
+    "payment-mobile-renderer.html",
+    "plan-review.html"
+  ],
+  "automated_offline_checks": {
+    "baseline_static": 90,
+    "javascript_syntax": 29,
+    "excel_preflight": 14,
+    "mep_targeted_refresh": 16,
+    "export_watch_fallback": 10
+  },
+  "live_firebase_tests": "NOT_RUN",
+  "production_deployed": false,
+  "files": {
+    "README.md": {
+      "changed_from_previous_stage": false,
+      "sha256": "070d2e1c7b5db88d7e71193c2af1e575da16cdce47e1bf3c812d0405fafb7392",
+      "bytes": 19
+    },
+    "cash-control.html": {
+      "changed_from_previous_stage": false,
+      "sha256": "aed663f226cf6bc08d4cd667e4c516b52e62d919f9670863f49afb2326ff2182",
+      "bytes": 822027
+    },
+    "contract-master.html": {
+      "changed_from_previous_stage": true,
+      "sha256": "be368ff96cba29926b109127cfa81af52fd1f2aef46ee2f33b6fa874dbd2f261",
+      "bytes": 181319
+    },
+    "index.html": {
+      "changed_from_previous_stage": false,
+      "sha256": "0304e8a22f1adb39ce63736d6cbf1806e1aa4f5b73646c5e41e8e17bbd999dc4",
+      "bytes": 29749
+    },
+    "logo.png": {
+      "changed_from_previous_stage": false,
+      "sha256": "b0c88155cdd317b75b5b6521674915a018e3db4ab0549ba337d8eab669199e87",
+      "bytes": 38033
+    },
+    "payment-archive.html": {
+      "changed_from_previous_stage": false,
+      "sha256": "490ca958cf0b272477f5455d522ef3b71279b4167345ac01555cc1b2bd398264",
+      "bytes": 48894
+    },
+    "payment-mobile-renderer.html": {
+      "changed_from_previous_stage": false,
+      "sha256": "f4494062f263ed7872f8fc5a25f958fbea232c89f2b5739b17009e1b5c93fec2",
+      "bytes": 1804112
+    },
+    "payment.html": {
+      "changed_from_previous_stage": true,
+      "sha256": "f643bb7b98c447f9de46b1722f9386b956589afd91ff18d8df99c66b04bcbd92",
+      "bytes": 1878970
+    },
+    "plan-review.html": {
+      "changed_from_previous_stage": false,
+      "sha256": "eaebcf011f6d5dcd4c60fd643d5e163ef89dba00054972040805455521c31c17",
+      "bytes": 198656
+    }
+  }
+}

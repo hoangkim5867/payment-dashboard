@@ -1,0 +1,43 @@
+{
+  "candidate": "Payment MASTER RC1 2026-10-24",
+  "status": "READY_FOR_REVIEW",
+  "productionTouched": false,
+  "productionReleaseApproved": false,
+  "indexMarkerActivated": false,
+  "releaseReadMode": "COMPLETE_HISTORY",
+  "approvedOAuthChange": "localhost:4173 origin added only after separate user confirmation; original website origin retained",
+  "checks": {
+    "localEmulator": "PASS",
+    "history812x2Roundtrip": "PASS",
+    "rulesAdminStaffDisabled": "PASS",
+    "paymentRoleAndMonthPolicy": "PASS",
+    "otherCollectionsServerAuthorization": "PASS",
+    "synchronousWriterIntegration": "PASS",
+    "crossMonthDuplicateCompleteness": "PASS",
+    "readComparisonControlledEmulator": "PASS",
+    "largeBatchesAndPartialImportRecovery": "PASS",
+    "testedBusinessWorkflows": "PASS",
+    "uncRealDriveApplicationFlow": "PASS",
+    "realBankPdfParsing": "PASS",
+    "emulatorBackupAndRestore": "PASS",
+    "vercelRemoteSettingsAudit": "PASS",
+    "stagingBuildIsolation": "PASS",
+    "sourceInheritance": "PASS",
+    "ownerUidInternalEmailCompatibility": "PASS",
+    "ownerActualAuthEmulatorLogin": "PASS"
+  },
+  "deferredOptimization": {
+    "externalAndOlderWritersCertified": false,
+    "mayEnableIndexedReads": false,
+    "buildEnforcesCompleteHistoryReads": true,
+    "reason": "Unknown older/external writers cannot cause omissions while the released build always uses complete-history reads. Atomic index writes and optimized query code remain in source and are tested; activating optimized reads requires a separate certified release."
+  },
+  "limits": [
+    "This is a release candidate for user review, not a claim of exhaustive testing of all possible inputs or outages.",
+    "No cloud staging or production mutation was performed. Emulator satisfies isolated Firebase testing.",
+    "Vercel project/domain/commit/protection/build settings were inspected read-only; this exact candidate has not been deployed remotely.",
+    "Real bank PDF contents and the private backup are excluded from the candidate.",
+    "Production preflight found emailVerified=false for the existing owner. This revision binds its fixed UID plus matching email instead; no live account flag was changed. Backup download/restore and deployment preflight remain incomplete."
+  ],
+  "revision": "RC1 owner identity repair 2026-10-24"
+}

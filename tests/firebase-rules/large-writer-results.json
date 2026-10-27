@@ -1,0 +1,25 @@
+{
+  "environment": "Firestore Emulator",
+  "cases": [
+    {
+      "name": "400+450 create, 450 update",
+      "documents": 850,
+      "allIndexesVerified": true,
+      "elapsedMs": 23682,
+      "pass": true
+    },
+    {
+      "name": "4 sessions x 10 rounds",
+      "increments": 40,
+      "elapsedMs": 14948,
+      "pass": true
+    },
+    {
+      "name": "second chunk failure and owned undo",
+      "firstChunkRows": 400,
+      "failedChunkRows": 0,
+      "unrelatedRowsPreserved": true,
+      "pass": true
+    }
+  ]
+}

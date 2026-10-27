@@ -1,0 +1,42 @@
+[
+  {
+    "file": "site/payment.html",
+    "before": "        try{\n\n            // Firestore batch max",
+    "after": "        let committedImportRows = 0;\n\n        try{\n\n            // Firestore batch max"
+  },
+  {
+    "file": "site/payment.html",
+    "before": "                await batch.commit();",
+    "after": "                await batch.commit();\n                committedImportRows += chunk.length;\n                lastImportBatchId = importBatchId;\n                localStorage.setItem(\"paymentHistoryLastImportBatchId\",importBatchId);\n                updateUndoImportButton();"
+  },
+  {
+    "file": "site/payment.html",
+    "before": "            alert(\n                \"❌ \" +\n                error.message\n            );",
+    "after": "            if(committedImportRows){\n                await logActivity(\"IMPORT_PARTIAL\",{paymentMonth:importDefaultMonth.value || CURRENT_MONTH},\n                    \"Batch=\"+importBatchId+\"; committed=\"+committedImportRows);\n                try{ await loadPayments(); }catch(refreshError){ console.warn(\"PARTIAL IMPORT REFRESH\",refreshError); }\n                updateUndoImportButton();\n            }\n            const recovery = !committedImportRows ? \"\" : currentLanguage === \"zh\"\n                ? \"\\n已保存 \"+committedImportRows+\" 行。请先撤销最近导入，再重试。\"\n                : currentLanguage === \"en\"\n                    ? \"\\nSaved \"+committedImportRows+\" rows. Undo Last Import before retrying.\"\n                    : \"\\nĐã lưu \"+committedImportRows+\" dòng. Dùng Hoàn tác import gần nhất trước khi thử lại.\";\n            alert(\"❌ \" + error.message + recovery);"
+  },
+  {
+    "file": "site/payment.html",
+    "before": "            // allPayments already contains current Firestore data.\n            const imported =\n                allPayments.filter(\n                    item =>\n                        item.importBatchId ===\n                        lastImportBatchId\n                );",
+    "after": "            // Undo the entire owned batch, including rows imported into other months.\n            const batchSnapshot = await getDocs(query(paymentsRef,where(\"importBatchId\",\"==\",lastImportBatchId)));\n            const imported = batchSnapshot.docs.map(item=>({id:item.id,...item.data()}))\n                .filter(item=>isAdmin() || item.createdByUid===currentAuthUser?.uid);"
+  },
+  {
+    "file": "site/payment-mobile-renderer.html",
+    "before": "        try{\n\n            // Firestore batch max",
+    "after": "        let committedImportRows = 0;\n\n        try{\n\n            // Firestore batch max"
+  },
+  {
+    "file": "site/payment-mobile-renderer.html",
+    "before": "                await batch.commit();",
+    "after": "                await batch.commit();\n                committedImportRows += chunk.length;\n                lastImportBatchId = importBatchId;\n                localStorage.setItem(\"paymentHistoryLastImportBatchId\",importBatchId);\n                updateUndoImportButton();"
+  },
+  {
+    "file": "site/payment-mobile-renderer.html",
+    "before": "            alert(\n                \"❌ \" +\n                error.message\n            );",
+    "after": "            if(committedImportRows){\n                await logActivity(\"IMPORT_PARTIAL\",{paymentMonth:importDefaultMonth.value || CURRENT_MONTH},\n                    \"Batch=\"+importBatchId+\"; committed=\"+committedImportRows);\n                try{ await loadPayments(); }catch(refreshError){ console.warn(\"PARTIAL IMPORT REFRESH\",refreshError); }\n                updateUndoImportButton();\n            }\n            const recovery = !committedImportRows ? \"\" : currentLanguage === \"zh\"\n                ? \"\\n已保存 \"+committedImportRows+\" 行。请先撤销最近导入，再重试。\"\n                : currentLanguage === \"en\"\n                    ? \"\\nSaved \"+committedImportRows+\" rows. Undo Last Import before retrying.\"\n                    : \"\\nĐã lưu \"+committedImportRows+\" dòng. Dùng Hoàn tác import gần nhất trước khi thử lại.\";\n            alert(\"❌ \" + error.message + recovery);"
+  },
+  {
+    "file": "site/payment-mobile-renderer.html",
+    "before": "            // allPayments already contains current Firestore data.\n            const imported =\n                allPayments.filter(\n                    item =>\n                        item.importBatchId ===\n                        lastImportBatchId\n                );",
+    "after": "            // Undo the entire owned batch, including rows imported into other months.\n            const batchSnapshot = await getDocs(query(paymentsRef,where(\"importBatchId\",\"==\",lastImportBatchId)));\n            const imported = batchSnapshot.docs.map(item=>({id:item.id,...item.data()}))\n                .filter(item=>isAdmin() || item.createdByUid===currentAuthUser?.uid);"
+  }
+]

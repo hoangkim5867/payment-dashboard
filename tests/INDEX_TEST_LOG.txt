@@ -1,0 +1,76 @@
+TAP version 13
+# Subtest: backend duplicate key parity matches the production-normalization functions
+ok 1 - backend duplicate key parity matches the production-normalization functions
+  ---
+  duration_ms: 9.488214
+  type: 'test'
+  ...
+# Subtest: backend MEP membership matches UI for legacy payment variants
+ok 2 - backend MEP membership matches UI for legacy payment variants
+  ---
+  duration_ms: 14.219202
+  type: 'test'
+  ...
+# Subtest: normalization aliases and same-vs-cross-month preservation
+ok 3 - normalization aliases and same-vs-cross-month preservation
+  ---
+  duration_ms: 1.119186
+  type: 'test'
+  ...
+# Subtest: lookup remains gated until backfill and continuous maintenance are verified
+ok 4 - lookup remains gated until backfill and continuous maintenance are verified
+  ---
+  duration_ms: 33.133922
+  type: 'test'
+  ...
+# Subtest: index idempotence and source business fields unchanged
+ok 5 - index idempotence and source business fields unchanged
+  ---
+  duration_ms: 0.349867
+  type: 'test'
+  ...
+# [Payment Read Audit] Indexed IPC check {
+#   requestedKeys: 2,
+#   matchingDocuments: 1,
+#   queries: 1,
+#   fullCollectionRead: false
+# }
+# [Payment Read Audit] Indexed IPC check {
+#   requestedKeys: 2,
+#   matchingDocuments: 1,
+#   queries: 1,
+#   fullCollectionRead: false
+# }
+# Subtest: targeted indexed lookup selects only keys in import preview: payment.html
+ok 6 - targeted indexed lookup selects only keys in import preview: payment.html
+  ---
+  duration_ms: 8.498513
+  type: 'test'
+  ...
+# Subtest: index not ready preserves full-history duplicate checking: payment.html
+ok 7 - index not ready preserves full-history duplicate checking: payment.html
+  ---
+  duration_ms: 8.114354
+  type: 'test'
+  ...
+# Subtest: targeted indexed lookup selects only keys in import preview: payment-mobile-renderer.html
+ok 8 - targeted indexed lookup selects only keys in import preview: payment-mobile-renderer.html
+  ---
+  duration_ms: 8.245802
+  type: 'test'
+  ...
+# Subtest: index not ready preserves full-history duplicate checking: payment-mobile-renderer.html
+ok 9 - index not ready preserves full-history duplicate checking: payment-mobile-renderer.html
+  ---
+  duration_ms: 9.706022
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 118.525262

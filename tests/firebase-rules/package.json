@@ -1,0 +1,17 @@
+{
+  "name": "payment-master-firebase-staging-rule-tests",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "emulator": "firebase emulators:exec --config ../../firebase.emulator.json --only firestore,auth --project demo-payment-security \"node --test --test-concurrency=1 cash-owner-identity.rules.test.cjs cash-owner-auth-emulator.test.cjs private-history.rules.test.cjs access-matrix.rules.test.cjs payment-permissions.rules.test.cjs all-collections.rules.test.cjs synchronous-writers.test.cjs index-live.test.cjs disabled-auth.test.cjs large-writer.test.cjs\"",
+    "test:migration": "node --test migration-live.test.cjs"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase": "^13.1.0",
+    "firebase-admin": "^14.5.0",
+    "firebase-tools": "^14.27.0"
+  }
+}

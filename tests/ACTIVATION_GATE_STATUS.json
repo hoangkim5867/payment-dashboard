@@ -1,0 +1,30 @@
+{
+  "productionDeployAllowed": false,
+  "reason": "Two private history docs and trusted index marker not published/verified; no Firebase staging E2E results",
+  "codeChanges": {
+    "financialHistoryEmbeddedInSite": false,
+    "privateHistoryLoaderImplemented": true,
+    "lazyHistorySourceDocs": 2,
+    "approvedAuthRequired": true,
+    "hashValidation": true,
+    "indexedReadsCodeArmed": true,
+    "optimizedQueriesServingProduction": false
+  },
+  "productionOperationsPerformed": false,
+  "verified": {
+    "realSourceHistoryHashes": true,
+    "historyRecordCountEach": 812,
+    "offlineRulesStaticChecks": true,
+    "firebaseEmulator": false,
+    "browserE2E": false,
+    "liveDataBackfill": false,
+    "liveAdminStaffTests": false
+  },
+  "activationRequires": [
+    "Publish tested Rules excluding private history+systemConfig from old catch-all",
+    "Migrate 2 history documents with SHA256 readback",
+    "Fully backfill payment lookup fields",
+    "Verify synchronous index updates from all Payment writer paths (Cloud Functions post-write trigger alone is insufficient)",
+    "Test E2E with real staging, approve and enable marker"
+  ]
+}

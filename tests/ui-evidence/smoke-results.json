@@ -1,0 +1,225 @@
+[
+  {
+    "role": "admin",
+    "page": "index.html",
+    "authenticated": true,
+    "privateCardsVisible": 2,
+    "adminCardsVisible": 1
+  },
+  {
+    "role": "admin",
+    "workflow": "Payment Excel export and workbook readback",
+    "pass": true,
+    "sheetCount": 1,
+    "containsFixture": true
+  },
+  {
+    "role": "admin",
+    "workflow": "Payment clipboard import preview",
+    "previewText": "✓ 1 dòng hợp lệ\n⚠ 0 dòng lỗi",
+    "previewBody": "Dòng\tTháng thanh toán\tNgười phụ trách\tDự án\tCông ty\tTài khoản ngân hàng\tSố hợp đồng\tLoại hợp đồng\tSố IPC\tSố tiền\tGhi chú\tLỗi / cảnh báo\n2\t2026-10\tEmulator staff\tEATON PARK\tEMULATOR COMPANY\t123456789\tMEP999\tOTH\tIPC999\t500\t\t",
+    "confirmEnabled": true
+  },
+  {
+    "role": "admin",
+    "workflow": "Actual browser SDK import and undo with server readback",
+    "pass": true,
+    "indexWasCorrectAtCommit": true,
+    "remainingImportedRows": 0
+  },
+  {
+    "role": "admin",
+    "workflow": "History Center verified private source loaded",
+    "rowCount": 812,
+    "pass": true
+  },
+  {
+    "role": "admin",
+    "page": "payment.html",
+    "title": "Theo dõi thanh toán",
+    "pageErrors": [],
+    "bodyLength": 1454,
+    "visibleDialogs": 0,
+    "visibleButtonsCount": 68,
+    "bodyExcerpt": "[Financial UI content deliberately omitted]"
+  },
+  {
+    "role": "admin",
+    "workflow": "Cash owner protected history loaded and cloud synchronized",
+    "pass": true
+  },
+  {
+    "role": "admin",
+    "page": "cash-control.html",
+    "title": "MEP Cash Control · Quản lý dòng tiền dự án",
+    "pageErrors": [],
+    "bodyLength": 1988,
+    "visibleDialogs": 0,
+    "visibleButtonsCount": 28,
+    "bodyExcerpt": "[Financial UI content deliberately omitted]"
+  },
+  {
+    "role": "admin",
+    "workflow": "Plan Review diagnostic readback",
+    "checked": [
+      {
+        "amount": 900,
+        "status": "included",
+        "indexCorrect": true
+      },
+      {
+        "amount": 1001,
+        "status": "excluded",
+        "indexCorrect": true
+      },
+      {
+        "amount": 1002,
+        "status": "included",
+        "indexCorrect": true
+      }
+    ],
+    "consoleErrors": []
+  },
+  {
+    "role": "admin",
+    "workflow": "Plan Review approve/reduce/exclude/lock with Payment readback",
+    "pass": true,
+    "excludedPaymentUnchanged": true,
+    "allIndexesCorrect": true
+  },
+  {
+    "role": "admin",
+    "workflow": "Plan Review unlock",
+    "pass": true
+  },
+  {
+    "role": "admin",
+    "page": "plan-review.html",
+    "title": "Duyệt kế hoạch thanh toán",
+    "pageErrors": [],
+    "bodyLength": 2280,
+    "visibleDialogs": 0,
+    "visibleButtonsCount": 32,
+    "bodyExcerpt": "[Financial UI content deliberately omitted]"
+  },
+  {
+    "role": "admin",
+    "workflow": "Archive month detail load",
+    "containsFixture": true
+  },
+  {
+    "role": "admin",
+    "page": "payment-archive.html",
+    "title": "CSCEC MEP · Kho chứng từ thanh toán",
+    "pageErrors": [],
+    "bodyLength": 296,
+    "visibleDialogs": 0,
+    "visibleButtonsCount": 2,
+    "bodyExcerpt": "[Financial UI content deliberately omitted]"
+  },
+  {
+    "role": "admin",
+    "workflow": "Contract Master MEP lookup",
+    "containsFixture": true
+  },
+  {
+    "role": "admin",
+    "page": "contract-master.html",
+    "title": "Payment System - Contract Master",
+    "pageErrors": [],
+    "bodyLength": 806,
+    "visibleDialogs": 0,
+    "visibleButtonsCount": 19,
+    "bodyExcerpt": "[Financial UI content deliberately omitted]"
+  },
+  {
+    "role": "admin",
+    "page": "payment-mobile-renderer.html",
+    "title": "Theo dõi thanh toán",
+    "pageErrors": [],
+    "bodyLength": 1276,
+    "visibleDialogs": 0,
+    "visibleButtonsCount": 68,
+    "bodyExcerpt": "[Financial UI content deliberately omitted]"
+  },
+  {
+    "role": "admin",
+    "blockedProductionRequests": []
+  },
+  {
+    "role": "staff",
+    "page": "index.html",
+    "authenticated": true,
+    "privateCardsVisible": 0,
+    "adminCardsVisible": 0
+  },
+  {
+    "role": "staff",
+    "page": "payment.html",
+    "title": "Theo dõi thanh toán",
+    "pageErrors": [],
+    "bodyLength": 1186,
+    "visibleDialogs": 0,
+    "visibleButtonsCount": 59,
+    "bodyExcerpt": "[Financial UI content deliberately omitted]"
+  },
+  {
+    "role": "staff",
+    "page": "cash-control.html",
+    "title": "MEP Cash Control · Quản lý dòng tiền dự án",
+    "pageErrors": [],
+    "bodyLength": 299,
+    "visibleDialogs": 0,
+    "visibleButtonsCount": 3,
+    "bodyExcerpt": "[Financial UI content deliberately omitted]"
+  },
+  {
+    "role": "staff",
+    "page": "plan-review.html",
+    "title": "Duyệt kế hoạch thanh toán",
+    "pageErrors": [],
+    "bodyLength": 1981,
+    "visibleDialogs": 0,
+    "visibleButtonsCount": 16,
+    "bodyExcerpt": "[Financial UI content deliberately omitted]"
+  },
+  {
+    "role": "staff",
+    "workflow": "Archive month detail load",
+    "containsFixture": true
+  },
+  {
+    "role": "staff",
+    "page": "payment-archive.html",
+    "title": "CSCEC MEP · Kho chứng từ thanh toán",
+    "pageErrors": [],
+    "bodyLength": 296,
+    "visibleDialogs": 0,
+    "visibleButtonsCount": 2,
+    "bodyExcerpt": "[Financial UI content deliberately omitted]"
+  },
+  {
+    "role": "staff",
+    "page": "contract-master.html",
+    "title": "Payment System - Contract Master",
+    "pageErrors": [],
+    "bodyLength": 1036,
+    "visibleDialogs": 0,
+    "visibleButtonsCount": 17,
+    "bodyExcerpt": "[Financial UI content deliberately omitted]"
+  },
+  {
+    "role": "staff",
+    "page": "payment-mobile-renderer.html",
+    "title": "Theo dõi thanh toán",
+    "pageErrors": [],
+    "bodyLength": 1186,
+    "visibleDialogs": 0,
+    "visibleButtonsCount": 59,
+    "bodyExcerpt": "[Financial UI content deliberately omitted]"
+  },
+  {
+    "role": "staff",
+    "blockedProductionRequests": []
+  }
+]

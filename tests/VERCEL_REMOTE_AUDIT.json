@@ -1,0 +1,71 @@
+{
+  "checkedAt": "2026-10-24T03:49:41.933Z",
+  "readOnly": true,
+  "project": {
+    "id": "prj_ip8IblGA7BCY0f32iOLOjjTJ0d6u",
+    "name": "cscec-mep-payment",
+    "framework": null,
+    "accountId": "team_5rRogJJCmtA3NQWhB6hel68N",
+    "createdAt": 1788339683960,
+    "updatedAt": 1792575490410,
+    "nodeVersion": "24.x",
+    "live": false,
+    "latestDeployment": {
+      "id": "dpl_EQTSGPMgU66xZ2XrHN1dhy99eSAo",
+      "url": "cscec-mep-payment-4jo2h2jj4-hoangkim5867-2166s-projects.vercel.app",
+      "createdAt": 1792575486179,
+      "readyState": "READY",
+      "target": "production"
+    },
+    "domains": [
+      "cscecmep-payment.vercel.app",
+      "cscec-mep-payment.vercel.app",
+      "cscec-mep-payment-hoangkim5867-2166s-projects.vercel.app",
+      "cscec-mep-payment-git-main-hoangkim5867-2166s-projects.vercel.app"
+    ],
+    "passwordProtection": {
+      "enabled": false,
+      "deploymentType": null
+    },
+    "ssoProtection": {
+      "enabled": true,
+      "deploymentType": "all_except_custom_domains"
+    },
+    "trustedIps": {
+      "enabled": false,
+      "deploymentType": null,
+      "addresses": [],
+      "protectionMode": null
+    }
+  },
+  "git": {
+    "repository": "hoangkim5867/payment-dashboard",
+    "branch": "main",
+    "deployedCommit": "19d9ab964c86b8cac463e15001983e10c4d08096"
+  },
+  "environmentVariableCount": 0,
+  "buildAndOutputRootVisibility": "Verified in authenticated dashboard: root directory empty; build/output overrides off",
+  "fileTreeInspection": "Git deployment file tree endpoint returned 404; no bypass/share link created",
+  "actionsTaken": [],
+  "notes": [
+    "First explicit teamId request was denied; project-name request succeeded using existing authorized connector scope",
+    "No production deployment, domain, protection, Rules or Firebase data changed",
+    "Vercel current deployment is earlier than this RC and has not been replaced"
+  ],
+  "dashboardVerified": {
+    "checkedAt": "2026-10-24T03:56:09.585Z",
+    "settingsURL": "https://vercel.com/hoangkim5867-2166s-projects/cscec-mep-payment/settings/build-and-deployment",
+    "rootDirectory": "",
+    "framework": "Other",
+    "buildCommandOverride": false,
+    "outputDirectoryOverride": false,
+    "installCommandOverride": false,
+    "developmentCommandOverride": false,
+    "nodeVersion": "24.x",
+    "deploymentChecks": "No checks configured",
+    "rollingReleases": false,
+    "productionBuildPriority": true,
+    "retentionProduction": "30 days",
+    "settingsChanged": false
+  }
+}
