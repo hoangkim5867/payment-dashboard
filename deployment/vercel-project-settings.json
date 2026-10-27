@@ -1,0 +1,8 @@
+{
+  "reason": "Vercel compacts vercel.json before the build. Compare its JSON content to the committed Git source and restore the exact Git bytes. The original 175-file and approved-manifest gates then run unchanged.",
+  "installCommand": "node -e \"let f=require('fs'),p='vercel.json',s=require('child_process').execFileSync('git',['show','HEAD:'+p]);if(JSON.stringify(JSON.parse(f.readFileSync(p)))!==JSON.stringify(JSON.parse(s)))throw Error('Config drift');f.writeFileSync(p,s)\"",
+  "buildCommand": "node deployment/build-site.cjs",
+  "outputDirectory": "build/site",
+  "nodeVersion": "24.x",
+  "productionBranch": "main"
+}

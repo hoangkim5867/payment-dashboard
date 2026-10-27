@@ -34,7 +34,9 @@ node --test tests/index-v1/*.test.cjs tests/secure/*.test.cjs tests/regression/*
 python tests/verify_js_syntax.py
 ```
 
-Cấu hình Vercel: Other, Node 24, Build Command `node deployment/build-site.cjs`, Output Directory `build/site`, Production Branch `main`, Root Directory để trống. Không dựng trực tiếp toàn bộ repo làm website.
+Cấu hình Vercel: Other, Node 24, Build Command `node deployment/build-site.cjs`, Output Directory `build/site`, Production Branch `main`, Root Directory để trống. Install Command lấy nguyên giá trị `installCommand` trong `deployment/vercel-project-settings.json`. Không dựng trực tiếp toàn bộ repo làm website.
+
+Vercel rút gọn `vercel.json` trước khi dựng, làm thay đổi định dạng byte nhưng không đổi nội dung JSON. Install Command so sánh nội dung JSON với bản đã commit trong Git, chỉ khôi phục đúng byte của bản Git khi nội dung khớp. Cổng kiểm tra 175 file RC1 và manifest production đã duyệt chạy ngay sau đó, giữ nguyên; thay đổi nội dung hoặc manifest chưa duyệt vẫn bị chặn. Năm kiểm thử hồi quy riêng kiểm chứng hành vi này.
 
 Manifest RC1: `f7b3a55b90332e9aa34ca941727c48ad67cec569b3c3c2890cceb7981486b95c`.
 
