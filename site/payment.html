@@ -9680,6 +9680,20 @@ function buildChangeDetails(before, after){
 }
 
 
+/*
+   Export Watch only tracks ADD / DELETE / CANCEL and edits to the planned
+   amount. Other activity entries are still written to Firestore unchanged,
+   but refreshing the entire Export Watch history for a paper/status tick
+   cannot change its output and burns document reads.
+*/
+function exportWatchLogCanChangeSnapshot(action, changes = []){
+    const kind = String(action || "").trim().toUpperCase();
+    if(["ADD","DELETE","CANCEL"].includes(kind)) return true;
+    return kind === "EDIT" &&
+        Array.isArray(changes) &&
+        changes.some(change => String(change?.field || "") === "amount");
+}
+
 async function logActivity(
     action,
     payment,
@@ -9768,11 +9782,7 @@ async function logActivity(
             }
         );
 
-        if(
-            ["ADD","EDIT","DELETE","CANCEL"].includes(
-                String(action || "").toUpperCase()
-            )
-        ){
+        if(exportWatchLogCanChangeSnapshot(action,changes)){
             invalidateExportWatch();
             scheduleExportWatchRefresh(500);
         }
