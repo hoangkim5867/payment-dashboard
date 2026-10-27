@@ -20,7 +20,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - run: npm install --no-audit --no-fund
+      - run: npm install --legacy-peer-deps --no-audit --no-fund
         working-directory: tests/firebase-rules
       - name: Verify owner writes without profile, other accounts remain restricted
         working-directory: tests/firebase-rules
