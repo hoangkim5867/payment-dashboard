@@ -8420,13 +8420,28 @@ function startPaymentsRealtime(
    Resume with the existing selected month, including Admin ALL view.
    No data, financial calculations, rights or Firebase rules are changed. */
 let paymentRealtimePausedWhenHidden = false;
+let paymentHiddenDisconnectTimer = null;
+// Short tab switches should NOT restart an entire Firestore query.
+// Unsubscribe only when the tab has actually remained idle for 2 minutes.
+// The 2-minute grace period avoids excessive billable initial snapshots
+// when the user briefly checks Excel, another tab, or another module.
+const PAYMENT_HIDDEN_DISCONNECT_DELAY_MS = 120000;
 document.addEventListener("visibilitychange", () => {
     if(document.visibilityState === "hidden"){
-        if(unsubscribePaymentsRealtime){
-            paymentRealtimePausedWhenHidden = true;
-            stopPaymentsRealtime();
+        if(unsubscribePaymentsRealtime && paymentHiddenDisconnectTimer === null){
+            paymentHiddenDisconnectTimer = setTimeout(() => {
+                paymentHiddenDisconnectTimer = null;
+                if(document.visibilityState === "hidden" && unsubscribePaymentsRealtime){
+                    paymentRealtimePausedWhenHidden = true;
+                    stopPaymentsRealtime();
+                }
+            }, PAYMENT_HIDDEN_DISCONNECT_DELAY_MS);
         }
         return;
+    }
+    if(paymentHiddenDisconnectTimer !== null){
+        clearTimeout(paymentHiddenDisconnectTimer);
+        paymentHiddenDisconnectTimer = null;
     }
     if(paymentRealtimePausedWhenHidden){
         paymentRealtimePausedWhenHidden = false;
