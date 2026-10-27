@@ -1,0 +1,18 @@
+name: Payment Export Watch no-op read regression
+on:
+  pull_request:
+    paths:
+      - 'site/payment.html'
+      - 'tests/regression/export-watch-edit-read-guard.test.cjs'
+      - '.github/workflows/export-watch-noop-read.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/regression/export-watch-edit-read-guard.test.cjs
