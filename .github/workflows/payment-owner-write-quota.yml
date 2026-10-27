@@ -24,4 +24,6 @@ jobs:
         working-directory: tests/firebase-rules
       - name: Verify owner writes without profile, other accounts remain restricted
         working-directory: tests/firebase-rules
-        run: npx firebase emulators:exec --project demo-payment-owner-quota --config firebase.json --only firestore "node --test owner-write-quota.rules.test.cjs"
+        run: |
+          node -e "require('fs').writeFileSync('../../firebase.owner-quota-test.json',JSON.stringify({firestore:{rules:'security/firestore.rules.PROPOSED_STAGING_ONLY'},emulators:{firestore:{host:'127.0.0.1',port:8080},ui:{enabled:false}},singleProjectMode:true}))"
+          npx firebase emulators:exec --project demo-payment-owner-quota --config ../../firebase.owner-quota-test.json --only firestore "node --test owner-write-quota.rules.test.cjs"
