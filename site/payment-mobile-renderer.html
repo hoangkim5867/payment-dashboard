@@ -18910,82 +18910,28 @@ savePaymentBtn.addEventListener(
                    MULTI-USER CONFLICT CHECK:
                    read the latest Firestore document immediately before saving.
                 */
-                const latestSnapshot =
-                    await getDoc(
-                        doc(
-                            db,
-                            "payments",
-                            editingId
-                        )
-                    );
-
-                if(!latestSnapshot.exists()){
-                    throw new Error(
-                        t("paymentNotFound")
-                    );
-                }
-
-                const latestData =
-                    latestSnapshot.data();
-
-                if(isPaymentWorkflowLocked(latestData)){
-                    throw new Error(
-                        isPaymentCarriedForward(latestData)
-                            ? t("carryForwardLocked")
-                            : isPaymentCancelled(latestData)
-                                ? t("cancelledPayment")
-                                : t("lockedEdit")
-                    );
-                }
-
-                if(
-                    !sameTimestamp(
-                        latestData.updatedAt,
-                        editingUpdatedAtAtOpen
-                    )
-                ){
-                    alert(
-                        "⚠ " +
-                        t("conflictEdit")
-                    );
-
-                    savePaymentBtn.disabled =
-                        false;
-
-                    savePaymentBtn.textContent =
-                        t("savePayment");
-
-                    return;
-                }
-
-                await updateDoc(
-
-                    doc(
-                        db,
-                        "payments",
-                        editingId
-                    ),
-
-                    {
-
-                        ...data,
-
-                        updatedAt:
-                            serverTimestamp(),
-
-                        updatedBy:
-                            currentOperatorName,
-
-                        updatedByUid:
-                            currentAuthUser.uid,
-
-                        updatedByEmail:
-                            currentAuthUser.email || ""
-
+                // Keep read/check/write atomic with the desktop Payment flow.
+                // An independent getDoc + updateDoc could overwrite another user's
+                // edit between the two operations.
+                let latestData;
+                await runTransaction(db,async transaction=>{
+                    const paymentRef=doc(db,"payments",editingId);
+                    const liveSnapshot=await transaction.get(paymentRef);
+                    if(!liveSnapshot.exists())throw new Error(t("paymentNotFound"));
+                    const livePayment=liveSnapshot.data();
+                    if(isPaymentWorkflowLocked(livePayment))throw new Error(t("lockedEdit"));
+                    if(!sameTimestamp(livePayment.updatedAt,editingUpdatedAtAtOpen)){
+                        throw new Error(t("conflictEdit"));
                     }
-
-                );
-
+                    latestData=livePayment;
+                    transaction.update(paymentRef,{
+                        ...data,
+                        updatedAt:serverTimestamp(),
+                        updatedBy:currentOperatorName,
+                        updatedByUid:currentAuthUser.uid,
+                        updatedByEmail:currentAuthUser.email || ""
+                    });
+                });
 
                 const editChanges =
                     buildChangeDetails(
