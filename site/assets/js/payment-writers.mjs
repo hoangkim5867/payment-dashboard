@@ -91,7 +91,10 @@ export function createPaymentWriters(sdk, computeIndex) {
       // A complete replacement already contains everything needed to calculate
       // the lookup index. No document read (or transaction retry) is necessary.
       // Updates and merges still use the original transaction path.
-      const needsPriorState=operations.some(op=>isPayment(op.ref)&&op.kind!=='delete'&&!isPlainPaymentSet(op));
+      const paymentPaths=operations.filter(op=>isPayment(op.ref)).map(op=>op.ref.path);
+      const hasRepeatedPaymentPath=new Set(paymentPaths).size!==paymentPaths.length;
+      const needsPriorState=hasRepeatedPaymentPath ||
+        operations.some(op=>isPayment(op.ref)&&op.kind!=='delete'&&!isPlainPaymentSet(op));
       if(needsPriorState)return sdk.runTransaction(db,tx=>flush(tx,operations));
       const batch=sdk.writeBatch(db);
       for(const op of operations) {
