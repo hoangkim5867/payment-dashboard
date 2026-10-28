@@ -28,12 +28,12 @@ export function createPaymentWriters(sdk, computeIndex) {
   function setOptions(options) {
     return options?.mergeFields ? {...options,mergeFields:[...options.mergeFields,...indexFields]} : options;
   }
-  async function flush(tx, operations) {
+  async function flush(tx, operations, priorReads) {
     // All reads precede writes; the SDK retries against a fresh document on conflict.
     const refs=new Map();
     for(const op of operations) if(isPayment(op.ref) && op.kind!=='delete') refs.set(op.ref.path,op.ref);
     const states=new Map();
-    for(const [key,ref] of refs) { const snap=await tx.get(ref);states.set(key,snap.exists()?snap.data():{}); }
+    for(const [key,ref] of refs) { const snap=priorReads?.get(key) || await tx.get(ref);states.set(key,snap.exists()?snap.data():{}); }
     for(const op of operations) {
       if(op.kind==='delete') { tx.delete(op.ref);states.set(op.ref.path,{});continue; }
       if(!isPayment(op.ref)) { tx[op.kind](op.ref,...op.args);continue; }
@@ -54,17 +54,17 @@ export function createPaymentWriters(sdk, computeIndex) {
       }
     }
   }
-  function collector(operations, reader) {
+  function collector(operations, reader, priorReads) {
     const api={};
-    if(reader)api.get=ref=>reader.get(ref);
+    if(reader)api.get=async ref=>{const snapshot=await reader.get(ref);priorReads?.set(ref.path,snapshot);return snapshot;};
     for(const kind of ['set','update','delete']) api[kind]=(ref,...args)=>{operations.push({kind,ref,args});return api;};
     return api;
   }
   async function runTransaction(db, callback, options) {
     return sdk.runTransaction(db,async tx=>{
-      const operations=[];
-      const value=await callback(collector(operations,tx));
-      await flush(tx,operations);
+      const operations=[],priorReads=new Map();
+      const value=await callback(collector(operations,tx,priorReads));
+      await flush(tx,operations,priorReads);
       return value;
     },options);
   }
