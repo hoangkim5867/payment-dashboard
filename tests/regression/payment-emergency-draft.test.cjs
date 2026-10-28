@@ -45,3 +45,22 @@ for(const page of ['payment.html','payment-mobile-renderer.html']){
   assert.match(save,/try\{\s*await loadPayments\(\)/);
  });
 }
+
+for(const page of ['payment.html','payment-mobile-renderer.html']){
+ test(page+' allows the Add modal to open for drafting when contracts cannot be fetched',()=>{
+  const src=fs.readFileSync(path.resolve(__dirname,'../../site',page),'utf8');
+  const a=src.indexOf('addPaymentBtn.addEventListener('),b=src.indexOf('/* =====================================================\n    EDIT',a);
+  const section=src.slice(a,b);
+  assert.match(section,/let addContractLoadFailed = false/);
+  assert.match(section,/addContractLoadFailed = true/);
+  assert.match(section,/paymentModal\.classList\.add\(/);
+  assert.match(section,/if\(addContractLoadFailed\)/);
+  assert.match(section,/Lưu nháp mã hóa/);
+ });
+ test(page+' does not carry an encrypted draft key into another Add/Edit record',()=>{
+  const src=fs.readFileSync(path.resolve(__dirname,'../../site',page),'utf8');
+  assert.match(src,/function closePaymentModal\(\)\{\s*emergencyPaymentDrafts\.resetSession\(\)/);
+  assert.match(src,/emergencyPaymentDrafts\.resetSession\(\);\s*editingId =\s*null;/);
+  assert.match(src,/emergencyPaymentDrafts\.resetSession\(\);\s*editingId =\s*payment\.id;/);
+ });
+}
