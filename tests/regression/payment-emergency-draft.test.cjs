@@ -64,3 +64,19 @@ for(const page of ['payment.html','payment-mobile-renderer.html']){
   assert.match(src,/emergencyPaymentDrafts\.resetSession\(\);\s*editingId =\s*payment\.id;/);
  });
 }
+
+for(const page of ['payment.html','payment-mobile-renderer.html']){
+ test(page+' restores project choices before dependent contract number',()=>{
+  const src=fs.readFileSync(path.resolve(__dirname,'../../site',page),'utf8');
+  assert.match(src,/prepareRestore:\(\)=>updateFormProjects\(\)/);
+  assert.match(src,/if\(id==="formProject"\)updateContractOptions\(\)/);
+  assert.match(src,/if\(id==="formContractNo"\)\{updateContractInfo\(\);refreshContractIPCPreview\(\);\}/);
+ });
+}
+test('draft restore displays unresolved select values instead of manufacturing selectable contracts',()=>{
+ const src=fs.readFileSync(path.resolve(__dirname,'../../site/assets/js/payment-emergency-drafts.mjs'),'utf8');
+ assert.match(src,/export function restoreDraftFields/);
+ assert.match(src,/priority=\['formPaymentMonth'/);
+ assert.match(src,/el\.value!==wanted/);
+ assert.match(src,/Cần nhập lại các trường chưa khôi phục được/);
+});
