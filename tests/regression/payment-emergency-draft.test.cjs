@@ -20,3 +20,14 @@ test('emergency drafts are encrypted at rest, never auto-submit to Firebase',()=
  assert.match(src,/payload\.context\.editVersion!==ctx\.editVersion/);
  assert.match(src,/payload\.context\.editingId!==ctx\.editingId/);
 });
+
+test('mobile edit uses atomic transaction rather than a separate getDoc and updateDoc',()=>{
+ const src=fs.readFileSync(path.resolve(__dirname,'../../site/payment-mobile-renderer.html'),'utf8');
+ const a=src.indexOf('savePaymentBtn.addEventListener('),b=src.indexOf('const editChanges =',a);
+ const save=src.slice(a,b);
+ assert.match(save,/await runTransaction\(db,async transaction=>/);
+ assert.match(save,/transaction\.get\(paymentRef\)/);
+ assert.match(save,/sameTimestamp\(livePayment\.updatedAt,editingUpdatedAtAtOpen\)/);
+ assert.match(save,/transaction\.update\(paymentRef/);
+ assert.doesNotMatch(save,/await getDoc\(/);
+});
