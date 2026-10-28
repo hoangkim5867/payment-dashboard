@@ -3577,6 +3577,7 @@ window.HISTORY_2026_EDITED_PREVIEW = null;
 </script>
 
 <script type="module">
+import {createPaymentEmergencyDrafts} from "./assets/js/payment-emergency-drafts.mjs";
 
 import {
     initializeApp
@@ -5906,6 +5907,12 @@ const savePaymentBtn =
 const modalTitle =
     document.getElementById("modalTitle");
 
+
+const emergencyPaymentDrafts=createPaymentEmergencyDrafts({
+  modal:paymentModal,saveButton:savePaymentBtn,
+  getContext:()=>({uid:currentAuthUser?.uid,editingId,editVersion:editingUpdatedAtAtOpen,entryType:currentPaymentEntryType}),
+  setEntryType:type=>setPaymentEntryType(type==="mep"?"mep":"contract")
+});
 
 /* =====================================================
    FORM
@@ -19134,6 +19141,7 @@ savePaymentBtn.addEventListener(
                 "SAVE PAYMENT ERROR:",
                 error
             );
+            emergencyPaymentDrafts.notifyWriteFailure();
 
 
             alert(
