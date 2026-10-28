@@ -68,6 +68,18 @@ export function createPaymentWriters(sdk, computeIndex) {
       return value;
     },options);
   }
+  function isPlainPaymentSet(op) {
+    if(!isPayment(op.ref) || op.kind!=='set')return false;
+    const options=op.args[1];
+    if(options?.merge || Array.isArray(options?.mergeFields))return false;
+    // Preserve the transaction path for source-field transforms, which require validation.
+    const data=op.args[0];
+    return !sourceFields.some(key=>{
+      if(!Object.hasOwn(data,key))return false;
+      const value=data[key];
+      return Boolean(value?._methodName || value?._delegate?._methodName);
+    });
+  }
   function writeBatch(db) {
     const operations=[],api=collector(operations);let committed=false;
     const check=()=>{if(committed)throw new Error('This batch has already been committed');};
@@ -76,8 +88,20 @@ export function createPaymentWriters(sdk, computeIndex) {
     }
     api.commit=async()=>{
       check();committed=true;
-      if(operations.some(op=>isPayment(op.ref)&&op.kind!=='delete'))return sdk.runTransaction(db,tx=>flush(tx,operations));
-      const batch=sdk.writeBatch(db);for(const op of operations)batch[op.kind](op.ref,...op.args);return batch.commit();
+      // A complete replacement already contains everything needed to calculate
+      // the lookup index. No document read (or transaction retry) is necessary.
+      // Updates and merges still use the original transaction path.
+      const needsPriorState=operations.some(op=>isPayment(op.ref)&&op.kind!=='delete'&&!isPlainPaymentSet(op));
+      if(needsPriorState)return sdk.runTransaction(db,tx=>flush(tx,operations));
+      const batch=sdk.writeBatch(db);
+      for(const op of operations) {
+        if(isPlainPaymentSet(op)) {
+          const payload={...op.args[0],...computeIndex(op.args[0])};
+          if(op.args[1])batch.set(op.ref,payload,op.args[1]);
+          else batch.set(op.ref,payload);
+        } else batch[op.kind](op.ref,...op.args);
+      }
+      return batch.commit();
     };
     return api;
   }
