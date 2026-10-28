@@ -31,3 +31,17 @@ test('mobile edit uses atomic transaction rather than a separate getDoc and upda
  assert.match(save,/transaction\.update\(paymentRef/);
  assert.doesNotMatch(save,/await getDoc\(/);
 });
+
+for(const page of ['payment.html','payment-mobile-renderer.html']){
+ test(page+' post-save vendor/refresh failures cannot be reported as failed Payment writes',()=>{
+  const src=fs.readFileSync(path.resolve(__dirname,'../../site',page),'utf8');
+  const start=src.indexOf('savePaymentBtn.addEventListener(');
+  const end=src.indexOf('MANUAL ADD — LIGHTWEIGHT DUPLICATE LOOKUP',start);
+  const save=src.slice(start,end);
+  assert.match(save,/PAYMENT POST-SAVE VENDOR SYNC ERROR/);
+  assert.match(save,/PAYMENT POST-SAVE VIEW REFRESH ERROR/);
+  assert.match(save,/Payment đã lưu trên Firestore/);
+  assert.match(save,/try\{\s*await upsertVendor\(/);
+  assert.match(save,/try\{\s*await loadPayments\(\)/);
+ });
+}
