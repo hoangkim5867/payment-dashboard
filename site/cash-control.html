@@ -589,6 +589,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
 </style>
 
 
+<style id="salary-bonus-year-visibility-fix">#salaryRecordModal #pyPeriodField[hidden],#salaryRecordModal #pyBonusYearField[hidden]{display:none!important}</style>
 <style id="salary-tax-period-visibility-fix">
 #salaryRecordModal #pyTaxPeriodField[hidden]{display:none!important}
 #salaryRecordModal #pyTaxPeriodField:not([hidden]){display:flex!important}
@@ -1533,7 +1534,8 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
       <div class="field"><label>Dự án <span class="required-star">*</span></label><input id="pyProject" list="projectList"></div>
       <div class="field"><label>Nhóm nhân sự</label><select id="pyStaffGroup"><option value="vn">VN</option><option value="cn">TQ</option><option value="unknown">Chưa xác định</option></select></div>
       <div class="field"><label>Khoản mục</label><select id="pyType"><option value="salary">Lương thực nhận</option><option value="bonus">Thưởng</option><option value="tax">Thuế TNCN</option><option value="insurance_vn">Bảo hiểm VN</option><option value="insurance_cn">Bảo hiểm TQ</option><option value="union">Phí công đoàn</option><option value="insurance">Bảo hiểm (dữ liệu cũ)</option><option value="meal">Tiền ăn</option><option value="other">Phụ cấp / khoản khác</option></select></div>
-      <div class="field"><label id="pyPeriodLabel">Kỳ lương <span class="required-star">*</span></label><input type="month" id="pyPeriod"></div>
+      <div class="field" id="pyPeriodField"><label id="pyPeriodLabel">Kỳ lương <span class="required-star">*</span></label><input type="month" id="pyPeriod"></div>
+      <div class="field" id="pyBonusYearField" hidden><label>Năm thưởng <span class="required-star">*</span></label><input id="pyBonusYear" type="number" min="2000" max="2099" step="1" inputmode="numeric" placeholder="Ví dụ: 2024"></div>
       <div class="field" id="pyTaxPeriodField" hidden><label>Kỳ thuế <span class="required-star">*</span></label><select id="pyTaxPeriod"></select></div>
       <div class="field"><label>Số tiền VND <span class="required-star">*</span></label><input id="pyAmount" inputmode="decimal" placeholder="0"></div>
       <div class="field"><label>Ngày thực chi / thực nộp</label><input type="date" id="pyActualDate"></div>
@@ -7035,6 +7037,10 @@ function taxDueMonth(value){
     return `${dueYear}-${pad(dueMonth)}`;
 }
 function payrollKey(record){
+    // Do not treat a year-only award as a monthly salary or collapse different awards.
+    if(record?.type==='bonus'&&/^20\d{2}$/.test(String(record.bonusYear||'')))
+      return [normProject(record.project),inferPayrollStaffGroup(record),'annual-bonus',
+        String(record.bonusYear),String(record.note||'').trim().toLowerCase().replace(/\s+/g,' ')].join('|');
     return [
       normProject(record.project),
       inferPayrollStaffGroup(record),
@@ -7044,6 +7050,7 @@ function payrollKey(record){
     ].join('|');
 }
 function payrollPlannedMonth(record){
+    if(record?.type==='bonus'&&record.bonusYear)return monthOf(record.actualDate||'');
     if(record?.type==='tax'){
         const code=payrollTaxPeriodCode(record);
         return code?taxDueMonth(code):'';
@@ -7076,6 +7083,12 @@ function fillPayrollTaxPeriodOptions(selected='',allowBlank=false){
     const wanted=normalized||(allowBlank?'':(payrollQuarterCode($('pyPeriod')?.value)||`${currentYear}-Q${Math.ceil((new Date().getMonth()+1)/3)}`));
     el.value=wanted;
 }
+function isLegacyMonthlyBonusEditor(){
+    if($('pyType')?.value!=='bonus')return false;
+    if(editingLegacySalaryId)return true;
+    const x=(cashCloudState.salaryRecords||[]).find(r=>r.id===editingSalaryId);
+    return !!(x?.type==='bonus'&&x.payrollMonth&&!x.bonusYear);
+}
 function syncPayrollPeriodUI(autoQuarter=false){
     const type=$('pyType')?.value||'other',
           isTax=type==='tax',
@@ -7083,8 +7096,13 @@ function syncPayrollPeriodUI(autoQuarter=false){
           showQuarter=isTax||isSalary,
           field=$('pyTaxPeriodField'),
           periodLabel=$('pyPeriodLabel');
-
-    if(periodLabel)periodLabel.innerHTML=(isTax?'Kỳ lương nguồn':'Kỳ lương')+' <span class="required-star">*</span>';
+    const annualBonus=type==='bonus'&&!isLegacyMonthlyBonusEditor();
+    const monthlyBonus=type==='bonus'&&!annualBonus;
+    if($('pyPeriodField'))$('pyPeriodField').hidden=annualBonus;
+    if($('pyBonusYearField'))$('pyBonusYearField').hidden=!annualBonus;
+    if($('pyPeriod'))$('pyPeriod').required=!annualBonus;
+    if($('pyBonusYear'))$('pyBonusYear').required=annualBonus;
+    if(periodLabel)periodLabel.innerHTML=(monthlyBonus?'Kỳ thưởng (tháng)':isTax?'Kỳ lương nguồn':'Kỳ lương')+' <span class="required-star">*</span>';
     if(field){
         field.hidden=!showQuarter;
         const fieldLabel=field.querySelector('label');
@@ -7097,7 +7115,11 @@ function syncPayrollPeriodUI(autoQuarter=false){
 
     if(!showQuarter){
         if($('pyTaxPeriod'))$('pyTaxPeriod').value='';
-        if($('pyPeriodHelp'))$('pyPeriodHelp').innerHTML='<b>Kỳ lương</b> dùng để biết khoản này thuộc tháng nào. BH, công đoàn, tiền ăn và các khoản khác không chia theo quý thuế. Ngày thực chi quyết định tháng dòng tiền.';
+        if($('pyPeriodHelp'))$('pyPeriodHelp').innerHTML=annualBonus
+        ?'<b>Năm thưởng</b> là năm phát sinh thưởng, không phải kỳ lương. Thưởng năm 2024 trả ngày 27/10/2026 được ghi vào dòng tiền tháng 10/2026.'
+        :monthlyBonus
+          ?'<b>Kỳ thưởng theo tháng</b> giữ nguyên cho dữ liệu thưởng cũ. Ngày thực chi quyết định tháng dòng tiền.'
+          :'<b>Kỳ lương</b> dùng để biết khoản này thuộc tháng nào. BH, công đoàn, tiền ăn và các khoản khác không chia theo quý thuế. Ngày thực chi quyết định tháng dòng tiền.';
         return;
     }
 
@@ -7128,7 +7150,9 @@ function syncSalaryCash(record){
     const taxCode=record.type==='tax'?payrollTaxPeriodCode(record):'';
     const taxPart=record.type==='tax'
       ?` · kỳ lương nguồn ${fmtMonth(record.payrollMonth)} · ${taxCode?taxPeriodLabel(taxCode):'chờ ngày trả lương'}${plannedMonth?` · dự kiến nộp ${fmtMonth(plannedMonth)}`:''}`
-      :` · ${fmtMonth(record.payrollMonth)}`;
+      :record.type==='bonus'&&record.bonusYear
+        ?` · thưởng năm ${record.bonusYear}`
+        :` · ${fmtMonth(record.payrollMonth)}`;
     const cash={id,kind:'normal',source:'payroll',direction:'out',category:payrollCashCategory(record),subCode:payrollSubCode(record),project:normProject(record.project),account:record.account||'',period:record.payrollMonth||monthOf(actualDate),recognizedMonth:plannedMonth||record.payrollMonth||monthOf(actualDate),expectedDate:'',description:`${PAYROLL_TYPE_LABELS[record.type]||'Nhân sự'}${taxPart}`,counterparty:record.type==='tax'?'Cơ quan thuế':'Nhân sự / Cơ quan BH',amount,status:actualDate?'paid':'unpaid',actualDate,actualAmount:actualDate?amount:0,note:`Tự động từ Lương & thuế${record.sourceFile?' · '+record.sourceFile:''}${record.note?' · '+record.note:''}`,needsReview:false,linkedModule:'payroll',linkedRecordId:record.id};
     if(index>=0)arr[index]={...arr[index],...cash};else arr.push(cash);
     record.cashTxnId=id;
@@ -7367,6 +7391,7 @@ function salaryHistoryAllRows(){
       staffGroup:inferPayrollStaffGroup(x),
       type:x.type||'other',
       payrollMonth:x.payrollMonth||'',
+      bonusYear:x.type==='bonus'?String(x.bonusYear||''):'',
       amount:num(x.amountVnd),
       actualDate:x.actualDate||'',
       description:'',
@@ -7494,7 +7519,7 @@ function renderSalaryHistory(){
     const desc=salaryHistoryStandardContent(x),rawDesc=salaryHistoryRawContent(x);
 
     return `<tr>
-      <td>${x.payrollMonth?fmtMonth(x.payrollMonth):'<span class="muted">—</span>'}</td>
+      <td>${x.type==='bonus'&&x.bonusYear?'Năm '+esc(x.bonusYear):x.payrollMonth?fmtMonth(x.payrollMonth):'<span class="muted">—</span>'}</td>
       <td><span class="staff-group-${esc(salaryHistoryGroup(x))}">${esc(salaryHistoryGroupLabel(x))}</span></td>
       <td><b>${esc(typeLabel)}</b></td>
       <td class="wrap"><b>${esc(desc||'—')}</b></td>
@@ -7607,7 +7632,7 @@ function exportSalaryHistoryExcel(){
 
   rows.forEach(x=>{
     aoa.push([
-      x.payrollMonth||'',
+      (x.type==='bonus'&&x.bonusYear?'Năm '+x.bonusYear:x.payrollMonth)||'',
       salaryHistoryGroupLabel(x),
       PAYROLL_TYPE_LABELS[x.type]||x.type||'',
       salaryHistoryStandardContent(x),
@@ -7882,7 +7907,7 @@ function renderPayroll(){
           <td><b>${esc(x.project)}</b></td>
           <td><span class="staff-group-${esc(inferPayrollStaffGroup(x))}">${esc(payrollStaffGroupLabel(x))}</span></td>
           <td>${esc(PAYROLL_TYPE_LABELS[x.type]||x.type)}</td>
-          <td>${fmtMonth(x.payrollMonth)}${x.type==='tax'?'<div class="mep-card-sub">Kỳ lương nguồn</div>':''}</td>
+          <td>${x.type==='bonus'&&x.bonusYear?'Năm '+esc(x.bonusYear):fmtMonth(x.payrollMonth)}${x.type==='tax'?'<div class="mep-card-sub">Kỳ lương nguồn</div>':''}</td>
           <td>${x.type==='tax'
             ?(payrollTaxPeriodCode(x)
                 ?`${esc(taxPeriodLabel(payrollTaxPeriodCode(x)))}${planned?`<div class="mep-card-sub">Dự kiến nộp ${esc(fmtMonth(planned))}</div>`:''}`
@@ -8139,6 +8164,7 @@ function openLegacySalaryRecord(id){
     $('pyStaffGroup').value=(group==='vn'||group==='cn')?group:'unknown';
     $('pyType').value=type||'other';
     $('pyPeriod').value=month||String(x.period||'').slice(0,7)||CURRENT;
+    if($('pyBonusYear'))$('pyBonusYear').value='';
     const legacyQuarter=type==='tax'
       ?(normalizeTaxPeriod(x.taxPeriod)||payrollQuarterCode($('pyPeriod').value))
       :type==='salary'
@@ -8240,6 +8266,7 @@ function openSalaryRecord(id=null){
     $('pyStaffGroup').value=x?inferPayrollStaffGroup(x):'vn';
     $('pyType').value=x?.type||'salary';
     $('pyPeriod').value=x?.payrollMonth||CURRENT;
+    if($('pyBonusYear'))$('pyBonusYear').value=x?.bonusYear||String(new Date().getFullYear());
     const recordType=x?.type||'salary';
     const recordQuarter=recordType==='tax'
       ?(x?payrollTaxPeriodCode(x):payrollQuarterCode($('pyPeriod').value))
@@ -10366,7 +10393,9 @@ if($('saveSalaryRecord'))$('saveSalaryRecord').onclick=async()=>{
     if(!ensureMepWrite())return;
     const project=normProject($('pyProject').value),
           type=$('pyType').value||'other',
-          payrollMonth=$('pyPeriod').value,
+          annualBonus=type==='bonus'&&!isLegacyMonthlyBonusEditor(),
+          payrollMonth=annualBonus?'':$('pyPeriod').value,
+          bonusYear=annualBonus?String($('pyBonusYear')?.value||'').trim():'',
           taxPeriod=type==='tax'
             ?(normalizeTaxPeriod($('pyTaxPeriod').value)||payrollQuarterCode(payrollMonth))
             :type==='salary'
@@ -10374,8 +10403,12 @@ if($('saveSalaryRecord'))$('saveSalaryRecord').onclick=async()=>{
               :'',
           amountVnd=parseTxnMoney($('pyAmount').value);
 
-    if(!project||!payrollMonth||amountVnd<=0){
-        alert('Cần nhập Dự án, Kỳ lương và Số tiền VND.');
+    if(!project||amountVnd<=0||(!annualBonus&&!payrollMonth)){
+        alert(annualBonus?'Cần nhập Dự án và Số tiền VND.':'Cần nhập Dự án, Kỳ lương và Số tiền VND.');
+        return;
+    }
+    if(annualBonus&&!/^20\d{2}$/.test(bonusYear)){
+        alert('Cần nhập Năm thưởng hợp lệ, ví dụ 2024.');
         return;
     }
     if(type==='tax'&&!taxPeriod){
@@ -10391,6 +10424,7 @@ if($('saveSalaryRecord'))$('saveSalaryRecord').onclick=async()=>{
             project,
             staffGroup:$('pyStaffGroup').value||'unknown',
             payrollMonth,
+            bonusYear,
             taxPeriod,
             amountVnd,
             actualDate:$('pyActualDate').value,
@@ -10409,7 +10443,9 @@ if($('saveSalaryRecord'))$('saveSalaryRecord').onclick=async()=>{
     if(duplicate){
         alert(type==='tax'
           ?'Đã có khoản cùng Dự án + Nhóm nhân sự + Khoản mục + Kỳ lương nguồn + Kỳ thuế. Hãy sửa dòng hiện có để tránh trùng.'
-          :'Đã có khoản cùng Dự án + Nhóm nhân sự + Khoản mục + Kỳ lương. Hãy sửa dòng hiện có để tránh trùng.');
+          :annualBonus
+            ?'Đã có khoản thưởng cùng Dự án + Nhóm nhân sự + Năm thưởng + Ghi chú. Hãy sửa dòng hiện có hoặc phân biệt rõ từng loại thưởng.'
+            :'Đã có khoản cùng Dự án + Nhóm nhân sự + Khoản mục + Kỳ lương. Hãy sửa dòng hiện có để tránh trùng.');
         return;
     }
 
@@ -10422,7 +10458,7 @@ if($('saveSalaryRecord'))$('saveSalaryRecord').onclick=async()=>{
       'payroll',
       old?'Cập nhật khoản lương / thuế':'Thêm khoản lương / thuế',
       record.id,
-      `${project} · ${payrollMonth}${type==='tax'?` · ${taxPeriodLabel(taxPeriod)}`:''} · ${PAYROLL_TYPE_LABELS[record.type]}`
+      `${project} · ${annualBonus?'thưởng năm '+bonusYear:payrollMonth}${type==='tax'?` · ${taxPeriodLabel(taxPeriod)}`:''} · ${PAYROLL_TYPE_LABELS[record.type]}`
     );
 
     if(await persistCashCloud(old?'Cập nhật khoản lương / thuế':'Thêm khoản lương / thuế')){
