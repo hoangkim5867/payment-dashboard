@@ -1,12 +1,10 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {webcrypto}=require('node:crypto');
 const {pathToFileURL}=require('node:url');
 const path=require('node:path');
 const modulePromise=import(pathToFileURL(path.resolve(__dirname,'../../site/assets/js/payment-emergency-drafts.mjs')));
 test('encrypted emergency draft round trip preserves project, contract, IPC and exact amount',async()=>{
- globalThis.crypto=webcrypto;
  const {encryptDraft,decryptDraft}=await modulePromise;
  const original={context:{uid:'userA',editingId:'payment-1',editVersion:1234,entryType:'mep'},
  fields:{formPaymentMonth:{value:'2026-10'},formProject:{value:'EATON PARK'},formContractNo:{value:'C001'},formIPC:{value:'IPC001'},formAmount:{value:'1000000'},processApproval:{value:''}}};
@@ -19,7 +17,6 @@ test('encrypted emergency draft round trip preserves project, contract, IPC and 
  await assert.rejects(decryptDraft(tampered,'local-draft-passphrase-2026'),/Không thể mở nháp/);
 });
 test('different salt and IV produce nonidentical ciphertext for same draft',async()=>{
- globalThis.crypto=webcrypto;
  const {encryptDraft}=await modulePromise;
  const a=await encryptDraft({amount:123},'local-draft-passphrase-2026');
  const b=await encryptDraft({amount:123},'local-draft-passphrase-2026');
