@@ -19082,6 +19082,9 @@ savePaymentBtn.addEventListener(
             }
 
 
+            // No local draft cleanup before Firestore's add/edit ACK.
+            emergencyPaymentDrafts.notifyWriteSuccess();
+
             if(isMEPPayment){
                 try{
                     await upsertVendor(
