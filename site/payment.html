@@ -24212,7 +24212,19 @@ function importPreviewContainsPaymentCandidate(rows){
     return Array.isArray(rows) && rows.some(item => !!item?.data);
 }
 
+let excelImportPreviewGeneration = 0;
+let importPersonPreviewTimer = null;
+
+function cancelPendingImportPersonPreview(){
+    clearTimeout(importPersonPreviewTimer);
+    importPersonPreviewTimer = null;
+    excelImportPreviewGeneration++;
+}
+
 async function renderExcelImportPreview(){
+    cancelPendingImportPersonPreview();
+    const previewGeneration = excelImportPreviewGeneration;
+    confirmExcelImportBtn.disabled = true;
 
     let rows;
 
@@ -24229,6 +24241,7 @@ async function renderExcelImportPreview(){
                     <span class="import-badge ok">⏳ Đang kiểm tra lịch sử thanh toán các tháng trước…</span>
                 `;
                 await ensureImportDuplicateHistoryForRows(localRows);
+                if(previewGeneration !== excelImportPreviewGeneration) return;
                 // Pass 2: original warnings and cross-month IPC comparisons,
                 // now backed by the complete cached payment history.
                 rows = buildExcelImportRows();
@@ -24242,6 +24255,7 @@ async function renderExcelImportPreview(){
         }
 
     }catch(error){
+        if(previewGeneration !== excelImportPreviewGeneration) return;
 
         excelImportRows = [];
 
@@ -24496,6 +24510,7 @@ async function openExcelPasteModal(){
 
 
 function closeExcelPasteImportModal(){
+    cancelPendingImportPersonPreview();
 
     pasteExcelModal.classList.remove(
         "show"
@@ -24515,8 +24530,17 @@ importDefaultMonth.addEventListener(
 importDefaultPerson.addEventListener(
     "input",
     () => {
+        // Typing a name must not rescan all payment history per character.
+        // Keep a fresh complete duplicate check once typing has settled.
+        cancelPendingImportPersonPreview();
+        confirmExcelImportBtn.disabled = true;
         if(excelPasteArea.value.trim()){
-            renderExcelImportPreview();
+            importPersonPreviewTimer = setTimeout(() => {
+                importPersonPreviewTimer = null;
+                if(pasteExcelModal.classList.contains("show") && excelPasteArea.value.trim()){
+                    renderExcelImportPreview();
+                }
+            },400);
         }
     }
 );
@@ -24553,6 +24577,7 @@ cancelExcelImportBtn.addEventListener(
 clearExcelPasteBtn.addEventListener(
     "click",
     () => {
+        cancelPendingImportPersonPreview();
 
         excelPasteArea.value = "";
         excelImportRows = [];
