@@ -18647,6 +18647,7 @@ addPaymentBtn.addEventListener(
             console.warn("PAYMENT ADD CONTRACTS UNAVAILABLE — DRAFT ONLY UNTIL LOADED",error);
         }
 
+        emergencyPaymentDrafts.resetSession();
         editingId =
             null;
 
@@ -19095,6 +19096,7 @@ async function openEditModal(
         return;
     }
 
+    emergencyPaymentDrafts.resetSession();
     editingId =
         payment.id;
 
@@ -19471,7 +19473,7 @@ formContractNo.addEventListener(
 ===================================================== */
 
 function closePaymentModal(){
-
+    emergencyPaymentDrafts.resetSession();
     paymentModal.classList.remove(
         "show"
     );
