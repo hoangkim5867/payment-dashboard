@@ -67,20 +67,39 @@ function readFields(modal){
   }
   return data;
 }
-function restoreFields(modal,values){
+// Rebuild dependent options in a defined order. A project select must be
+// restored before its contract select, and a vendor before its manual details.
+// Never invent select options: missing reference data must remain a visible
+// warning and cannot become a validated Firestore payment by accident.
+export function restoreDraftFields(modal,values,{onFieldRestored=()=>{}}={}){
   const misses=[];
-  for(const [id,entry] of Object.entries(values||{})){
-    const el=Array.from(modal.querySelectorAll('input[id],select[id],textarea[id]')).find(x=>x.id===id);
-    if(!el) {misses.push(id);continue;}
-    if('checked' in entry){if(!el.disabled)el.checked=Boolean(entry.checked);else misses.push(id);continue;}
-    if(el.disabled){misses.push(id);continue;}
-    const old=el.value;
-    el.value=String(entry.value??'');
-    if(el.value!==String(entry.value??'')){el.value=old;misses.push(id);}
+  const elements=new Map(Array.from(modal.querySelectorAll('input[id],select[id],textarea[id]')).map(el=>[el.id,el]));
+  const priority=['formPaymentMonth','formMEPNoCodeException','formProject','formContractNo','formMEPVendor','formIPC'];
+  const names=Object.keys(values||{}).sort((a,b)=>{
+    const pa=priority.indexOf(a),pb=priority.indexOf(b);
+    return (pa<0?priority.length:pa)-(pb<0?priority.length:pb);
+  });
+  for(const id of names){
+    const entry=values[id],el=elements.get(id);
+    if(!el||!entry||typeof entry!=='object'||el.disabled){misses.push(id);continue;}
+    if('checked' in entry){
+      el.checked=Boolean(entry.checked);
+      onFieldRestored(id);
+      continue;
+    }
+    const wanted=String(entry.value??''),old=el.value;
+    el.value=wanted;
+    if(el.value!==wanted){
+      el.value=old;
+      misses.push(id);
+      continue;
+    }
+    onFieldRestored(id);
   }
   return misses;
 }
-export function createPaymentEmergencyDrafts({modal,saveButton,getContext,setEntryType}){
+
+export function createPaymentEmergencyDrafts({modal,saveButton,getContext,setEntryType,prepareRestore=()=>{},onFieldRestored=()=>{}}){
   if(!modal||!saveButton)throw Error('Payment draft controls not available');
   const footer=saveButton.parentElement;
   const status=document.createElement('span');
@@ -158,11 +177,13 @@ export function createPaymentEmergencyDrafts({modal,saveButton,getContext,setEnt
       if(payload.context.editingId!==ctx.editingId)throw Error('Nháp sửa phải được mở từ đúng bản ghi Payment cũ. Không được phục hồi vào một khoản mới hoặc khoản khác.');
       if(ctx.editingId && payload.context.editVersion!==ctx.editVersion)throw Error('Bản ghi đã thay đổi từ khi lưu nháp. Không tự ghi đè: cần đối chiếu nội dung trước.');
       setEntryType(payload.context.entryType);
-      const misses=restoreFields(modal,payload.fields);
+      prepareRestore();
+      const misses=restoreDraftFields(modal,payload.fields,{onFieldRestored});
       const salt=from64(row.salt),key=await keyFor(pass,salt);
       active={id:row.id,key,salt,context:context()};
       say('⚠ Đã phục hồi vào biểu mẫu; CHƯA gửi server. Phải rà soát dữ liệu, rồi bấm Lưu thanh toán để kiểm tra lại.');
-      alert('Đã phục hồi '+(Object.keys(payload.fields).length-misses.length)+' trường. CHƯA lưu lên Firestore.'+(misses.length?'\\nCần nhập lại các trường không khôi phục được: '+misses.join(', '):'')+'\\nKiểm tra lại hợp đồng, IPC, số tiền và ngày trước khi lưu.');
+      const unresolved=misses.map(id=>id+' = '+JSON.stringify(payload.fields[id]?.value??payload.fields[id]?.checked??'')).join('\\n');
+      alert('Đã phục hồi '+(Object.keys(payload.fields).length-misses.length)+' trường. CHƯA lưu lên Firestore.'+(misses.length?'\\nCần nhập lại các trường chưa khôi phục được (dữ liệu từ nháp):\\n'+unresolved.slice(0,2200):'')+'\\nKiểm tra lại hợp đồng, IPC, số tiền và ngày trước khi lưu.');
     }catch(e){say('⚠ '+e.message);alert('Không phục hồi được nháp: '+e.message);}
   };
   remove.onclick=async()=>{
