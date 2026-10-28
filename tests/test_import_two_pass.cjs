@@ -36,7 +36,7 @@ function extractFunction(src,signature){
    for(const scenario of scenarios){
      let reads=0,builds=0;
      const sandbox={
-       Array,excelPasteArea:{value:scenario.empty?'':'contractNo\tipcNo\tamount\nA\tIPC001\t100'},
+       Array,clearTimeout,confirmExcelImportBtn:{disabled:false},excelPasteArea:{value:scenario.empty?'':'contractNo\tipcNo\tamount\nA\tIPC001\t100'},
        excelImportStatus:{innerHTML:''},previewExcelPasteBtn:{disabled:false},
        importPreviewNeedsHistoryScan:()=>scenario.valid,
        buildExcelImportRows:(options={})=>{builds++;
@@ -46,7 +46,7 @@ function extractFunction(src,signature){
        ensureImportDuplicateHistory:async()=>{reads++},
        ensureImportDuplicateHistoryForRows:async()=>{reads++},
      };
-     vm.createContext(sandbox);vm.runInContext(helperSource+'\n'+head,sandbox);
+     vm.createContext(sandbox);vm.runInContext(helperSource+'\n'+source.slice(source.indexOf('let excelImportPreviewGeneration = 0;'),p)+'\n'+head,sandbox);
      assert.strictEqual(sandbox.importPreviewContainsPaymentCandidate(scenario.rows),scenario.rows.some(x=>!!x.data));checks++;
      await sandbox.renderExcelImportPreview();
      assert.strictEqual(reads,scenario.reads,`${name} ${scenario.title} read`);checks++;
