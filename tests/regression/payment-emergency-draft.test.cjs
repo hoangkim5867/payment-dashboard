@@ -80,3 +80,15 @@ test('draft restore displays unresolved select values instead of manufacturing s
  assert.match(src,/el\.value!==wanted/);
  assert.match(src,/Cần nhập lại các trường chưa khôi phục được/);
 });
+
+test('closing a draft queues its final encrypted snapshot before clearing the active key',()=>{
+ const src=fs.readFileSync(path.resolve(__dirname,'../../site/assets/js/payment-emergency-drafts.mjs'),'utf8');
+ const start=src.indexOf('    resetSession(){'),end=src.indexOf('    notifyWriteFailure(){',start);
+ const part=src.slice(start,end);
+ assert.match(part,/const finalSnapshot=/);
+ assert.match(part,/clearTimeout\(debounce\)/);
+ assert.match(part,/persisting=persisting\.then\(async\(\)=>/);
+ assert.match(part,/await storeRow\(/);
+ assert.match(part,/active=null/);
+ assert.doesNotMatch(part,/\b(?:setDoc|addDoc|updateDoc|runTransaction)\s*\(/);
+});
