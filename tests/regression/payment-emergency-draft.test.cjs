@@ -92,3 +92,21 @@ test('closing a draft queues its final encrypted snapshot before clearing the ac
  assert.match(part,/active=null/);
  assert.doesNotMatch(part,/\b(?:setDoc|addDoc|updateDoc|runTransaction)\s*\(/);
 });
+
+test('committed local draft cleanup waits for pending writes and cannot resurrect the record',()=>{
+ const src=fs.readFileSync(path.resolve(__dirname,'../../site/assets/js/payment-emergency-drafts.mjs'),'utf8');
+ const a=src.indexOf('notifyWriteSuccess(){'),b=src.indexOf('resetSession(){',a);
+ const section=src.slice(a,b);
+ assert.match(section,/persisting=persisting\.then\(\(\)=>removeRow\(savedSession\.id\)\)/);
+ assert.match(section,/active=null/);
+});
+for(const page of ['payment.html','payment-mobile-renderer.html']){
+ test(page+' only clears draft after successful Firebase add or edit, before vendor/refresh',()=>{
+  const src=fs.readFileSync(path.resolve(__dirname,'../../site',page),'utf8');
+  const a=src.indexOf('savePaymentBtn.addEventListener('),b=src.indexOf('MANUAL ADD — LIGHTWEIGHT DUPLICATE LOOKUP',a);
+  const flow=src.slice(a,b);
+  assert.ok(flow.indexOf('await addDoc(')<flow.indexOf('emergencyPaymentDrafts.notifyWriteSuccess()'));
+  assert.ok(flow.indexOf('await runTransaction(')<flow.indexOf('emergencyPaymentDrafts.notifyWriteSuccess()'));
+  assert.ok(flow.indexOf('emergencyPaymentDrafts.notifyWriteSuccess()')<flow.indexOf('PAYMENT POST-SAVE VENDOR SYNC ERROR'));
+ });
+}
