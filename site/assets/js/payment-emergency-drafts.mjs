@@ -175,6 +175,12 @@ export function createPaymentEmergencyDrafts({modal,saveButton,getContext,setEnt
     }catch(e){say('⚠ '+e.message);alert(e.message);}
   };
   return {
+    resetSession(){
+      clearTimeout(debounce);
+      debounce=null;
+      active=null;
+      say('');
+    },
     notifyWriteFailure(){
       say('⚠ Firestore chưa xác nhận lưu. Biểu mẫu vẫn mở. Chọn “Lưu nháp mã hóa” để tránh mất dữ liệu.');
     }
