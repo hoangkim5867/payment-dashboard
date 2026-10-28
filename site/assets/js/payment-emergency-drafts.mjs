@@ -196,6 +196,21 @@ export function createPaymentEmergencyDrafts({modal,saveButton,getContext,setEnt
     }catch(e){say('⚠ '+e.message);alert(e.message);}
   };
   return {
+    notifyWriteSuccess(){
+      // This is called ONLY after Firestore acknowledged the Payment write.
+      // Serialize deletion AFTER any pending encrypted updates, so a delayed
+      // debounce cannot resurrect a draft that has already been committed.
+      const savedSession=active;
+      clearTimeout(debounce);
+      debounce=null;
+      active=null;
+      if(savedSession){
+        persisting=persisting.then(()=>removeRow(savedSession.id)).catch(error=>{
+          console.error('PAYMENT COMMITTED DRAFT CLEANUP FAILED',error);
+        });
+      }
+      say('✅ Payment đã được Firestore xác nhận. Bản nháp cùng phiên được dọn khỏi thiết bị.');
+    },
     resetSession(){
       // Closing within the 800ms debounce must not silently lose the final
       // keystrokes. Snapshot while the current session and form still exist,
