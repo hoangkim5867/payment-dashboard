@@ -35,7 +35,7 @@ async function run({monthRows,dateRows,counts,failCount=false,contextMonth='2026
    return {docs};
   },
   exportWatchLogDate:(log)=>log.createdAt,
-  console:{warn:()=>{}}
+  console:{warn:()=>{},info:()=>{}}
  };
  vm.createContext(context);vm.runInContext(source,context);
  const result=await context.readExportWatchFallback({month:contextMonth},markerMs,cutoffMs);
