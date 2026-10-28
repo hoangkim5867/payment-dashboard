@@ -54,3 +54,17 @@ test('full-set source transforms retain transaction validation',async()=>{
  await assert.rejects(batch.commit(),/Unsupported transform/);
  assert.equal(h.calls.transactions,1);assert.equal(h.calls.batches,0);
 });
+
+test('existing transaction reads each payment only once including index maintenance',async()=>{
+ const {createPaymentWriters}=await imported,h=harness();
+ const writer=createPaymentWriters(h.sdk,index.computeIndexV1);
+ const ref=h.ref('same');
+ await writer.runTransaction({},async tx=>{
+  const snapshot=await tx.get(ref);
+  assert.equal(snapshot.exists(),true);
+  tx.update(ref,{ipcNo:'IPC-EDIT'});
+ });
+ assert.equal(h.calls.transactions,1);
+ assert.equal(h.calls.reads,1,'Do not read again inside wrapper flush');
+ assert.equal(h.calls.commits[0].length,1);
+});
