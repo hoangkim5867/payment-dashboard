@@ -9,6 +9,30 @@
   <link rel="stylesheet" href="assets/css/index.css" data-stage1-extracted="primary">
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-6QQBQ1C6FE"></script>
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-6QQBQ1C6FE');</script>
+
+  <style id="internal-links-20261028">
+    .internal-links-trigger{text-align:left;font:inherit;cursor:pointer;color:inherit}
+    .internal-links-trigger:focus-visible,.internal-sheet-link:focus-visible,.internal-links-close:focus-visible{outline:3px solid #4a90c2;outline-offset:3px}
+    .internal-links-modal[hidden]{display:none!important}
+    .internal-links-modal{position:fixed;inset:0;z-index:2400;display:grid;place-items:center;padding:20px;background:rgba(16,35,56,.51);backdrop-filter:blur(3px)}
+    .internal-links-box{width:min(550px,100%);max-height:calc(100dvh - 40px);overflow-y:auto;border:1px solid #dce5ed;border-radius:22px;background:#fff;box-shadow:0 28px 85px rgba(14,36,62,.23);padding:27px}
+    .internal-links-overline{font-size:10px;letter-spacing:.13em;font-weight:800;color:#4e7e9f}
+    .internal-links-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:5px}
+    .internal-links-title-row h2{font-size:26px;letter-spacing:-.035em;color:#173756;margin:0}
+    .internal-links-close{width:35px;height:35px;border:1px solid #e0e6ee;border-radius:10px;background:#f8fafc;font-size:23px;line-height:1;color:#53677c}
+    .internal-links-close:hover{background:#eef4fa}
+    .internal-links-header p{font-size:12px;line-height:1.6;color:#6e7e8f;margin:7px 0 20px}
+    .internal-links-list{display:grid;gap:10px}
+    .internal-sheet-link{display:flex;align-items:center;gap:14px;min-height:76px;padding:15px;border:1px solid #e5ebf1;border-radius:14px;background:#fff;transition:background .16s,border-color .16s,transform .16s}
+    .internal-sheet-link:hover{background:#f6f9fc;border-color:#bdd1e2;transform:translateY(-1px)}
+    .internal-sheet-icon{flex:0 0 42px;width:42px;height:42px;display:grid;place-items:center;border-radius:12px;color:#16824e;background:#eaf8f0;font-size:26px;font-weight:700}
+    .internal-sheet-copy{min-width:0;flex:1;display:flex;flex-direction:column;gap:5px}
+    .internal-sheet-copy strong{color:#18344f;font-size:14px;font-weight:800;letter-spacing:.005em}
+    .internal-sheet-copy small{color:#7c8999;font-size:11px;line-height:1.5}
+    .internal-sheet-arrow{color:#7c98ad;font-size:19px}
+    .internal-links-footer{margin-top:19px;font-size:10px;color:#8995a1;line-height:1.65}
+    @media(max-width:520px){.internal-links-modal{padding:12px}.internal-links-box{padding:20px 16px;border-radius:18px;max-height:calc(100dvh - 24px)}.internal-links-title-row h2{font-size:23px}.internal-sheet-link{padding:12px}.internal-sheet-icon{flex-basis:38px;width:38px;height:38px}}
+  </style>
 </head>
 <body>
   <header class="topbar">
@@ -30,9 +54,27 @@
         <a class="card" href="./plan-review.html" data-private-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 9l2 2 5-5M8 15h8"/></svg></span><span class="card-copy"><h2 data-i18n="planReview">Duyệt kế hoạch</h2><p data-i18n="planReviewDesc">Xem xét, phê duyệt và khóa kế hoạch thanh toán</p><span class="private-badge" data-i18n="privateOnly">Nội bộ</span></span><span class="arrow">→</span></a>
         <a class="card" href="./cash-control.html" data-private-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M3 18h18"/></svg></span><span class="card-copy"><h2 data-i18n="cashControl">Dòng tiền dự án</h2><p data-i18n="cashControlDesc">Theo dõi dòng tiền và số dư dự án</p><span class="private-badge" data-i18n="privateOnly">Nội bộ</span></span><span class="arrow">→</span></a>
         <a class="card" href="./contract-master.html" data-admin-card hidden><span class="icon"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg></span><span class="card-copy"><h2 data-i18n="contractMaster">Danh mục hợp đồng</h2><p data-i18n="contractMasterDesc">Hợp đồng và dữ liệu MEP</p><span class="private-badge" data-i18n="adminOnly">Chỉ Admin</span></span><span class="arrow">→</span></a>
+        <button class="card internal-links-trigger" id="internalLinksTrigger" type="button" aria-controls="internalLinksDialog" aria-haspopup="dialog"><span class="icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1 0l2.2-2.2a5 5 0 0 0-7.1-7.1L10.8 5M14 11a5 5 0 0 0-7.1 0l-2.2 2.2a5 5 0 0 0 7.1 7.1l1.4-1.4"/></svg></span><span class="card-copy"><h2 data-i18n="internalLinks">Liên kết nội bộ</h2><p data-i18n="internalLinksDesc">Google Sheets từ các nhóm dự án</p></span><span class="arrow">→</span></button>
       </div>
     </section>
   </main>
+
+  <section class="internal-links-modal" id="internalLinksDialog" role="dialog" aria-modal="true" aria-labelledby="internalLinksTitle" aria-describedby="internalLinksSubtitle" hidden>
+    <div class="internal-links-box">
+      <div class="internal-links-header">
+        <div class="internal-links-overline" data-i18n="internalLinksOverline">TÀI LIỆU CÁC BỘ PHẬN</div>
+        <div class="internal-links-title-row"><h2 id="internalLinksTitle" data-i18n="internalLinks">Liên kết nội bộ</h2><button type="button" class="internal-links-close" id="internalLinksClose" aria-label="Đóng">×</button></div>
+        <p id="internalLinksSubtitle" data-i18n="internalLinksIntro">Chọn bảng hợp đồng muốn xem. Google Sheets sẽ mở ở tab mới.</p>
+      </div>
+      <div class="internal-links-list">
+        <a class="internal-sheet-link" href="https://docs.google.com/spreadsheets/d/1MAmprYCcy4WlA8vHiZ6UWAoFpD-QqF2yu2Q5CtI0V1Q/edit?gid=0#gid=0" target="_blank" rel="noopener noreferrer"><span class="internal-sheet-icon" aria-hidden="true">▦</span><span class="internal-sheet-copy"><strong>PHU HUNG</strong><small data-i18n="contractSheetDesc">Bảng theo dõi hợp đồng</small></span><span class="internal-sheet-arrow" aria-hidden="true">↗</span></a>
+        <a class="internal-sheet-link" href="https://docs.google.com/spreadsheets/d/17x3pbx_-OlYSo60mA7kfFMHddz9rCVITKsQUx_cGiC4/edit?gid=0#gid=0" target="_blank" rel="noopener noreferrer"><span class="internal-sheet-icon" aria-hidden="true">▦</span><span class="internal-sheet-copy"><strong>H14-3</strong><small data-i18n="contractSheetDesc">Bảng theo dõi hợp đồng</small></span><span class="internal-sheet-arrow" aria-hidden="true">↗</span></a>
+        <a class="internal-sheet-link" href="https://docs.google.com/spreadsheets/d/1iRxyqn_iF3UDUViwkfTMuRB8gSJfdEyImSVaftvtyRI/edit?gid=1350186176#gid=1350186176" target="_blank" rel="noopener noreferrer"><span class="internal-sheet-icon" aria-hidden="true">▦</span><span class="internal-sheet-copy"><strong>EATON</strong><small data-i18n="contractSheetDesc">Bảng theo dõi hợp đồng</small></span><span class="internal-sheet-arrow" aria-hidden="true">↗</span></a>
+        <a class="internal-sheet-link" href="https://docs.google.com/spreadsheets/d/1hIHqV6ePxLl1zRh3AM2xhZH4SSpOKOlMkEgw_sHek7s/edit?usp=sharing" target="_blank" rel="noopener noreferrer"><span class="internal-sheet-icon" aria-hidden="true">▦</span><span class="internal-sheet-copy"><strong>CN8-2 · CR5-1B · S19-3</strong><small data-i18n="sharedSheetDesc">3 dự án · Chung một bảng Google Sheets</small></span><span class="internal-sheet-arrow" aria-hidden="true">↗</span></a>
+      </div>
+      <div class="internal-links-footer" data-i18n="internalLinksFooter">Các tài liệu được quản lý trên Google Sheets. Quyền truy cập do chủ sở hữu bảng quyết định.</div>
+    </div>
+  </section>
   <section class="auth-gate" id="authGate">
     <form class="login-card" id="loginForm">
       <div class="login-brand"><img src="./logo.png" alt="CSCEC"><div><strong>中建二局安装工程有限公司</strong><span></span></div></div>
@@ -74,6 +116,36 @@
       </form>
     </div>
   </section>
+
+  <script id="internal-links-modal-behavior">
+    (() => {
+      const trigger=document.getElementById('internalLinksTrigger');
+      const modal=document.getElementById('internalLinksDialog');
+      const close=document.getElementById('internalLinksClose');
+      if(!trigger||!modal||!close)return;
+      let returnFocus=null;
+      function dismiss(){
+        if(modal.hidden)return;
+        modal.hidden=true;
+        (returnFocus||trigger).focus();
+      }
+      trigger.addEventListener('click',()=>{
+        returnFocus=document.activeElement;
+        modal.hidden=false;
+        close.focus();
+      });
+      close.addEventListener('click',dismiss);
+      modal.addEventListener('click',event=>{if(event.target===modal)dismiss();});
+      modal.addEventListener('keydown',event=>{
+        if(event.key==='Escape'){event.preventDefault();dismiss();return;}
+        if(event.key!=='Tab')return;
+        const focusables=[close,...modal.querySelectorAll('a[href]')];
+        const first=focusables[0],last=focusables[focusables.length-1];
+        if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+        else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+      });
+    })();
+  </script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
     import { getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged,setPersistence,browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
@@ -81,9 +153,9 @@
 
 
     const I18N={
-      vi:{logout:"Đăng xuất",selectFunction:"Chọn chức năng",paymentManagement:"Quản lý thanh toán",paymentManagementDesc:"Theo dõi tiến độ và lịch sử thanh toán",projectDocuments:"Hồ sơ dự án",projectDocumentsDesc:"Hợp đồng, IPC và hồ sơ hỗ trợ",paymentArchive:"Kho chứng từ thanh toán",paymentArchiveDesc:"Tháng đã chốt và chứng từ thanh toán",planReview:"Duyệt kế hoạch",planReviewDesc:"Xem xét, phê duyệt và khóa kế hoạch thanh toán",cashControl:"Dòng tiền dự án",cashControlDesc:"Theo dõi dòng tiền và số dư dự án",contractMaster:"Danh mục hợp đồng",contractMasterDesc:"Hợp đồng và dữ liệu MEP",privateOnly:"Nội bộ",adminOnly:"Chỉ Admin",username:"Tên đăng nhập",usernamePlaceholder:"Tên đăng nhập",password:"Mật khẩu",passwordPlaceholder:"Mật khẩu",login:"Đăng nhập",loggingIn:"Đang đăng nhập...",loginMissing:"Hãy nhập tên đăng nhập.",loginFailed:"Đăng nhập thất bại. Kiểm tra lại tên đăng nhập và mật khẩu.",noProfile:"Tài khoản chưa có hồ sơ hoặc chưa được cấp quyền.",permissionCheckFailed:"Không kiểm tra được quyền đăng nhập. Hãy thử lại.",adminRole:"Quản trị viên",staffRole:"Nhân viên",teamChat:"Chat nhóm",anonymousNicknames:"Biệt danh ẩn danh",chattingAs:"Bạn đang chat với tên",setNickname:"Đặt biệt danh",noMessages:"Chưa có tin nhắn. Hãy bắt đầu cuộc trò chuyện.",loadingMessages:"Đang tải tin nhắn…",chatUnavailable:"Chat tạm thời không khả dụng.",messagePlaceholder:"Nhắn tin hoặc dán ảnh…",send:"Gửi",chooseNickname:"Chọn biệt danh",nicknameHint:"Dùng bất kỳ biệt danh nào — không cần tên thật.",nicknamePlaceholder:"Biệt danh",cancel:"Hủy",continue:"Tiếp tục"},
-      zh:{logout:"退出登录",selectFunction:"选择功能",paymentManagement:"付款管理",paymentManagementDesc:"跟踪付款进度及历史记录",projectDocuments:"项目资料",projectDocumentsDesc:"合同、IPC及相关支持资料",paymentArchive:"付款档案",paymentArchiveDesc:"已关闭月份及付款凭证",planReview:"付款计划审核",planReviewDesc:"审核、批准并锁定付款计划",cashControl:"项目资金流",cashControlDesc:"查看项目资金流及当前余额",contractMaster:"合同台账",contractMasterDesc:"合同及MEP基础数据",privateOnly:"内部使用",adminOnly:"仅管理员",username:"用户名",usernamePlaceholder:"请输入用户名",password:"密码",passwordPlaceholder:"请输入密码",login:"登录",loggingIn:"正在登录...",loginMissing:"请输入用户名。",loginFailed:"登录失败，请检查用户名和密码。",noProfile:"该账号未建立资料或尚未授权。",permissionCheckFailed:"无法验证登录权限，请重试。",adminRole:"管理员",staffRole:"员工",teamChat:"团队聊天",anonymousNicknames:"匿名昵称",chattingAs:"当前昵称",setNickname:"设置昵称",noMessages:"暂无消息，开始聊天吧。",loadingMessages:"正在加载消息…",chatUnavailable:"聊天暂时不可用。",messagePlaceholder:"输入消息或粘贴图片…",send:"发送",chooseNickname:"选择昵称",nicknameHint:"可使用任意昵称，无需真实姓名。",nicknamePlaceholder:"昵称",cancel:"取消",continue:"继续"},
-      en:{logout:"Sign out",selectFunction:"Select a function",paymentManagement:"Payment Management",paymentManagementDesc:"Track payment progress and history",projectDocuments:"Project Documents",projectDocumentsDesc:"Contracts, IPCs and supporting documents",paymentArchive:"Payment Archive",paymentArchiveDesc:"Closed months and payment documents",planReview:"Plan Review",planReviewDesc:"Review, approve and lock payment plans",cashControl:"Cash Control",cashControlDesc:"Project cash flow and current balances",contractMaster:"Contract Master",contractMasterDesc:"Contracts and MEP master data",privateOnly:"Internal only",adminOnly:"Admin only",username:"Username",usernamePlaceholder:"Username",password:"Password",passwordPlaceholder:"Password",login:"Sign in",loggingIn:"Signing in...",loginMissing:"Enter your username.",loginFailed:"Sign-in failed. Check your username and password.",noProfile:"This account has no profile or access permission.",permissionCheckFailed:"Could not verify access. Please try again.",adminRole:"Administrator",staffRole:"Staff",teamChat:"Team chat",anonymousNicknames:"Anonymous nicknames",chattingAs:"You are chatting as",setNickname:"Set nickname",noMessages:"No messages yet. Start the conversation.",loadingMessages:"Loading messages…",chatUnavailable:"Chat is temporarily unavailable.",messagePlaceholder:"Message or paste an image…",send:"Send",chooseNickname:"Choose a nickname",nicknameHint:"Use any nickname — no real name required.",nicknamePlaceholder:"Nickname",cancel:"Cancel",continue:"Continue"}
+      vi:{logout:"Đăng xuất",selectFunction:"Chọn chức năng",paymentManagement:"Quản lý thanh toán",paymentManagementDesc:"Theo dõi tiến độ và lịch sử thanh toán",projectDocuments:"Hồ sơ dự án",projectDocumentsDesc:"Hợp đồng, IPC và hồ sơ hỗ trợ",paymentArchive:"Kho chứng từ thanh toán",paymentArchiveDesc:"Tháng đã chốt và chứng từ thanh toán",planReview:"Duyệt kế hoạch",planReviewDesc:"Xem xét, phê duyệt và khóa kế hoạch thanh toán",cashControl:"Dòng tiền dự án",cashControlDesc:"Theo dõi dòng tiền và số dư dự án",contractMaster:"Danh mục hợp đồng",contractMasterDesc:"Hợp đồng và dữ liệu MEP",internalLinks:"Liên kết nội bộ",internalLinksDesc:"Google Sheets từ các nhóm dự án",internalLinksOverline:"TÀI LIỆU CÁC BỘ PHẬN",internalLinksIntro:"Chọn bảng hợp đồng muốn xem. Google Sheets sẽ mở ở tab mới.",contractSheetDesc:"Bảng theo dõi hợp đồng",sharedSheetDesc:"3 dự án · Chung một bảng Google Sheets",internalLinksFooter:"Các tài liệu được quản lý trên Google Sheets. Quyền truy cập do chủ sở hữu bảng quyết định.",privateOnly:"Nội bộ",adminOnly:"Chỉ Admin",username:"Tên đăng nhập",usernamePlaceholder:"Tên đăng nhập",password:"Mật khẩu",passwordPlaceholder:"Mật khẩu",login:"Đăng nhập",loggingIn:"Đang đăng nhập...",loginMissing:"Hãy nhập tên đăng nhập.",loginFailed:"Đăng nhập thất bại. Kiểm tra lại tên đăng nhập và mật khẩu.",noProfile:"Tài khoản chưa có hồ sơ hoặc chưa được cấp quyền.",permissionCheckFailed:"Không kiểm tra được quyền đăng nhập. Hãy thử lại.",adminRole:"Quản trị viên",staffRole:"Nhân viên",teamChat:"Chat nhóm",anonymousNicknames:"Biệt danh ẩn danh",chattingAs:"Bạn đang chat với tên",setNickname:"Đặt biệt danh",noMessages:"Chưa có tin nhắn. Hãy bắt đầu cuộc trò chuyện.",loadingMessages:"Đang tải tin nhắn…",chatUnavailable:"Chat tạm thời không khả dụng.",messagePlaceholder:"Nhắn tin hoặc dán ảnh…",send:"Gửi",chooseNickname:"Chọn biệt danh",nicknameHint:"Dùng bất kỳ biệt danh nào — không cần tên thật.",nicknamePlaceholder:"Biệt danh",cancel:"Hủy",continue:"Tiếp tục"},
+      zh:{logout:"退出登录",selectFunction:"选择功能",paymentManagement:"付款管理",paymentManagementDesc:"跟踪付款进度及历史记录",projectDocuments:"项目资料",projectDocumentsDesc:"合同、IPC及相关支持资料",paymentArchive:"付款档案",paymentArchiveDesc:"已关闭月份及付款凭证",planReview:"付款计划审核",planReviewDesc:"审核、批准并锁定付款计划",cashControl:"项目资金流",cashControlDesc:"查看项目资金流及当前余额",contractMaster:"合同台账",contractMasterDesc:"合同及MEP基础数据",internalLinks:"内部链接",internalLinksDesc:"各项目组的 Google Sheets",internalLinksOverline:"部门共享资料",internalLinksIntro:"请选择要查看的合同台账，Google Sheets 将在新标签页打开。",contractSheetDesc:"合同跟踪台账",sharedSheetDesc:"3个项目 · 共用同一份 Google Sheets",internalLinksFooter:"文档存储在 Google Sheets，访问权限由文件所有者管理。",privateOnly:"内部使用",adminOnly:"仅管理员",username:"用户名",usernamePlaceholder:"请输入用户名",password:"密码",passwordPlaceholder:"请输入密码",login:"登录",loggingIn:"正在登录...",loginMissing:"请输入用户名。",loginFailed:"登录失败，请检查用户名和密码。",noProfile:"该账号未建立资料或尚未授权。",permissionCheckFailed:"无法验证登录权限，请重试。",adminRole:"管理员",staffRole:"员工",teamChat:"团队聊天",anonymousNicknames:"匿名昵称",chattingAs:"当前昵称",setNickname:"设置昵称",noMessages:"暂无消息，开始聊天吧。",loadingMessages:"正在加载消息…",chatUnavailable:"聊天暂时不可用。",messagePlaceholder:"输入消息或粘贴图片…",send:"发送",chooseNickname:"选择昵称",nicknameHint:"可使用任意昵称，无需真实姓名。",nicknamePlaceholder:"昵称",cancel:"取消",continue:"继续"},
+      en:{logout:"Sign out",selectFunction:"Select a function",paymentManagement:"Payment Management",paymentManagementDesc:"Track payment progress and history",projectDocuments:"Project Documents",projectDocumentsDesc:"Contracts, IPCs and supporting documents",paymentArchive:"Payment Archive",paymentArchiveDesc:"Closed months and payment documents",planReview:"Plan Review",planReviewDesc:"Review, approve and lock payment plans",cashControl:"Cash Control",cashControlDesc:"Project cash flow and current balances",contractMaster:"Contract Master",contractMasterDesc:"Contracts and MEP master data",internalLinks:"Internal Links",internalLinksDesc:"Google Sheets from other project teams",internalLinksOverline:"TEAM RESOURCES",internalLinksIntro:"Choose a contract tracker. Google Sheets opens in a new tab.",contractSheetDesc:"Contract tracking sheet",sharedSheetDesc:"3 projects · One shared Google Sheet",internalLinksFooter:"These files are hosted on Google Sheets. Access is controlled by each file owner.",privateOnly:"Internal only",adminOnly:"Admin only",username:"Username",usernamePlaceholder:"Username",password:"Password",passwordPlaceholder:"Password",login:"Sign in",loggingIn:"Signing in...",loginMissing:"Enter your username.",loginFailed:"Sign-in failed. Check your username and password.",noProfile:"This account has no profile or access permission.",permissionCheckFailed:"Could not verify access. Please try again.",adminRole:"Administrator",staffRole:"Staff",teamChat:"Team chat",anonymousNicknames:"Anonymous nicknames",chattingAs:"You are chatting as",setNickname:"Set nickname",noMessages:"No messages yet. Start the conversation.",loadingMessages:"Loading messages…",chatUnavailable:"Chat is temporarily unavailable.",messagePlaceholder:"Message or paste an image…",send:"Send",chooseNickname:"Choose a nickname",nicknameHint:"Use any nickname — no real name required.",nicknamePlaceholder:"Nickname",cancel:"Cancel",continue:"Continue"}
     };
     const LANG_KEY="cscec_home_language_v1";
     let currentLang=localStorage.getItem(LANG_KEY)||"vi";
