@@ -5911,7 +5911,14 @@ const modalTitle =
 const emergencyPaymentDrafts=createPaymentEmergencyDrafts({
   modal:paymentModal,saveButton:savePaymentBtn,
   getContext:()=>({uid:currentAuthUser?.uid,editingId,editVersion:editingUpdatedAtAtOpen,entryType:currentPaymentEntryType}),
-  setEntryType:type=>setPaymentEntryType(type==="mep"?"mep":"contract")
+  setEntryType:type=>setPaymentEntryType(type==="mep"?"mep":"contract"),
+  prepareRestore:()=>updateFormProjects(),
+  onFieldRestored:id=>{
+    if(id==="formProject")updateContractOptions();
+    if(id==="formContractNo"){updateContractInfo();refreshContractIPCPreview();}
+    if(id==="formIPC")refreshContractIPCPreview();
+    if(id==="formMEPNoCodeException")applyNoMEPExceptionUI();
+  }
 });
 
 /* =====================================================
