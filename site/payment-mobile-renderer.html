@@ -7822,6 +7822,16 @@ function startPaymentsRealtime(
                                 return;
                             }
 
+                            // First snapshot only; this does not make another Firestore request.
+                            if(firstSnapshot){
+                                console.info('[Firestore Read Audit] Payment listener first snapshot', {
+                                    month:normalizedMonth || 'ALL',
+                                    documentsReturned:snapshot.size,
+                                    fromCache:!!snapshot.metadata?.fromCache,
+                                    at:new Date().toISOString()
+                                });
+                            }
+
                             applyRealtimePaymentSnapshot(
                                 snapshot,
                                 {
