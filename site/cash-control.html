@@ -7313,7 +7313,9 @@ function salaryHistoryMonthLabel(month,lang=cashLang){
   return `Tháng ${m[2]}/${m[1]}`;
 }
 function salaryHistoryStandardContent(row,lang=cashLang){
-  const month=salaryHistoryMonthLabel(row?.payrollMonth,lang),
+  const month=row?.type==='bonus'&&row?.bonusYear
+          ?(lang==='zh'?String(row.bonusYear)+'年度':lang==='en'?'year '+row.bonusYear:'năm '+row.bonusYear)
+          :salaryHistoryMonthLabel(row?.payrollMonth,lang),
         g=salaryHistoryGroup(row),
         type=row?.type||'other';
 
@@ -7375,7 +7377,10 @@ function salaryHistoryRawContent(row){
 function salaryHistoryDedupeKey(row){
   const type=row?.type||'other', g=salaryHistoryGroup(row);
   const groupKey=['tax','union'].includes(type)?'*':g;
-  return [normProject(row?.project),groupKey,type,row?.payrollMonth||'',Math.round(num(row?.amount)*100)/100,row?.actualDate||''].join('|');
+  const sourcePeriod=type==='bonus'&&row?.bonusYear
+    ?'bonus-year:'+row.bonusYear+':'+salaryHistoryRawContent(row).trim().toLowerCase()
+    :row?.payrollMonth||'';
+  return [normProject(row?.project),groupKey,type,sourcePeriod,Math.round(num(row?.amount)*100)/100,row?.actualDate||''].join('|');
 }
 
 function salaryHistoryAllRows(){
@@ -7833,7 +7838,8 @@ function salaryFilteredRows(){
               PAYROLL_TYPE_LABELS[x.type],
               x.sourceFile,
               x.sourceSheet,
-              x.note
+              x.note,
+              x.bonusYear||''
           ].join(' ').toLowerCase().includes(q)) &&
           (!project||normProject(x.project)===normProject(project)) &&
           (!period||x.payrollMonth===period) &&
