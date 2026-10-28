@@ -197,9 +197,24 @@ export function createPaymentEmergencyDrafts({modal,saveButton,getContext,setEnt
   };
   return {
     resetSession(){
+      // Closing within the 800ms debounce must not silently lose the final
+      // keystrokes. Snapshot while the current session and form still exist,
+      // then queue one final encrypted IndexedDB write in the same order as
+      // previous writes. This NEVER submits anything to Firestore.
+      const session=active;
+      const finalSnapshot=session && sameContext(session.context,context()) &&
+        modal.classList.contains('show') ? snapshot() : null;
       clearTimeout(debounce);
       debounce=null;
       active=null;
+      if(finalSnapshot){
+        persisting=persisting.then(async()=>{
+          const envelope=await seal(finalSnapshot,session.key,session.salt);
+          await storeRow({id:session.id,uid:finalSnapshot.context.uid,at:Date.now(),...envelope});
+        }).catch(error=>{
+          console.error('PAYMENT ENCRYPTED DRAFT FINAL FLUSH FAILED',error);
+        });
+      }
       say('');
     },
     notifyWriteFailure(){
