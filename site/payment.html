@@ -8349,6 +8349,16 @@ function startPaymentsRealtime(
                                 return;
                             }
 
+                            // First snapshot only; this does not make another Firestore request.
+                            if(firstSnapshot){
+                                console.info('[Firestore Read Audit] Payment listener first snapshot', {
+                                    month:normalizedMonth || 'ALL',
+                                    documentsReturned:snapshot.size,
+                                    fromCache:!!snapshot.metadata?.fromCache,
+                                    at:new Date().toISOString()
+                                });
+                            }
+
                             applyRealtimePaymentSnapshot(
                                 snapshot,
                                 {
@@ -28756,6 +28766,10 @@ async function readExportWatchFallback(context, markerMs, cutoffMs){
         if(cursor) constraints.push(startAfter(cursor));
         constraints.push(limit(500));
         const snapshot=await getDocs(query(activityLogsRef,...constraints));
+        console.info('[Firestore Read Audit] Export Watch fallback page', {
+            month:context.month, mode, documentsReturned:snapshot.size,
+            at:new Date().toISOString()
+        });
         rows.push(...snapshot.docs.map(item=>({...item.data(),id:item.id})));
         if(snapshot.docs.length < 500) break;
         cursor=snapshot.docs[snapshot.docs.length-1];
@@ -28825,6 +28839,10 @@ async function loadExportWatchChanges(context = exportWatchContext(), {force = f
                 if(cursor) constraints.push(startAfter(cursor));
                 constraints.push(limit(500));
                 const snapshot = await getDocs(query(activityLogsRef,...constraints));
+                console.info('[Firestore Read Audit] Export Watch page', {
+                    month:context.month, scoped:!!scoped, documentsReturned:snapshot.size,
+                    at:new Date().toISOString()
+                });
                 result.push(...snapshot.docs.map(item => ({...item.data(),id:item.id})));
                 if(snapshot.docs.length < 500) return result;
                 cursor = snapshot.docs[snapshot.docs.length - 1];

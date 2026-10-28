@@ -2950,6 +2950,9 @@ async function autoLoadPaymentPlanMonth(month,{force=false}={}){
                 paymentsRef,
                 where('paymentMonth','==',month)
             ));
+            console.info('[Firestore Read Audit] Cash Control plan month', {
+                month, documentsReturned:snap.size, force, at:new Date().toISOString()
+            });
 
             const rows=new Map();
             snap.forEach(d=>{
@@ -2997,6 +3000,9 @@ async function autoLoadPaymentActualMonth(month,{force=false}={}){
                 where('processPaymentDate','>=',from),
                 where('processPaymentDate','<',to)
             ));
+            console.info('[Firestore Read Audit] Cash Control actual paid month', {
+                month, documentsReturned:snap.size, force, at:new Date().toISOString()
+            });
 
             const rows=new Map();
             snap.forEach(d=>{
@@ -3182,6 +3188,11 @@ async function loadProjectPayments(project,{force=false,quiet=false,refresh=true
                 getDocs(q),
                 ...legacyAliases.map(alias=>getDocs(query(paymentsRef,where('project','==',alias))))
             ]);
+            console.info('[Firestore Read Audit] Cash Control project detail', {
+                project, queries:snaps.length,
+                documentsReturned:snaps.reduce((sum,snap)=>sum+snap.size,0),
+                at:new Date().toISOString()
+            });
 
             if(
                 generation!==paymentLoadGeneration ||
