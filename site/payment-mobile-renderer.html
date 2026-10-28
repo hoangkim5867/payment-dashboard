@@ -17757,10 +17757,15 @@ addPaymentBtn.addEventListener(
     "click",
     async () => {
 
+        // Keep the Add form usable for a local encrypted draft when reads
+        // are temporarily unavailable. This does not bypass validation,
+        // duplicate checks, permissions, or Firestore's server ACK on Save.
+        let addContractLoadFailed = false;
         try{
             await loadContracts();
         }catch(error){
-            return;
+            addContractLoadFailed = true;
+            console.warn("PAYMENT ADD CONTRACTS UNAVAILABLE — DRAFT ONLY UNTIL LOADED",error);
         }
 
         editingId =
@@ -17788,6 +17793,10 @@ addPaymentBtn.addEventListener(
         paymentModal.classList.add(
             "show"
         );
+
+        if(addContractLoadFailed){
+            alert("⚠ Không tải được danh sách hợp đồng. Bạn vẫn có thể nhập thông tin và chọn ‘Lưu nháp mã hóa’. Hãy kết nối lại để tải danh sách hợp đồng và kiểm tra dữ liệu trước khi Lưu lên Firestore.");
+        }
 
     }
 );
