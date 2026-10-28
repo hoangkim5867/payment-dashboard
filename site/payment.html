@@ -20173,19 +20173,30 @@ savePaymentBtn.addEventListener(
 
 
             if(isMEPPayment){
-
-                await upsertVendor(
-                    data.company,
-                    data.bankAccount,
-                    {
-                        preferInputDefault:true
-                    }
-                );
+                try{
+                    await upsertVendor(
+                        data.company,
+                        data.bankAccount,
+                        {preferInputDefault:true}
+                    );
+                }catch(vendorError){
+                    // Payment has already received its server acknowledgement.
+                    // Do not report a failed payment or leave the form open:
+                    // retrying Add could create the same Payment twice.
+                    console.error("PAYMENT POST-SAVE VENDOR SYNC ERROR:",vendorError);
+                    alert("⚠ Payment đã lưu trên Firestore, nhưng chưa đồng bộ được danh sách nhà cung cấp. Hãy kiểm tra lại Contract Master sau.");
+                }
             }
 
             closePaymentModal();
 
-            await loadPayments();
+            try{
+                await loadPayments();
+            }catch(refreshError){
+                // A refresh error is not a failed Payment write.
+                console.error("PAYMENT POST-SAVE VIEW REFRESH ERROR:",refreshError);
+                alert("⚠ Payment đã lưu trên Firestore, nhưng bảng chưa cập nhật được. Hãy bấm Làm mới khi kết nối ổn định.");
+            }
 
         }
 
