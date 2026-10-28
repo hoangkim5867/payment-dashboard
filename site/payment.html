@@ -8193,7 +8193,7 @@ function applyRealtimePaymentSnapshot(
         if(fingerprint !== exportWatchPaymentFingerprint){
             exportWatchPaymentFingerprint = fingerprint;
             invalidateExportWatch();
-            scheduleExportWatchRefresh(1200);
+            renderExportWatchPanel(null);
         }
     }
 
@@ -9782,7 +9782,7 @@ async function logActivity(
 
         if(exportWatchLogCanChangeSnapshot(action,changes)){
             invalidateExportWatch();
-            scheduleExportWatchRefresh(500);
+            renderExportWatchPanel(null);
         }
 
     }catch(error){
@@ -12897,7 +12897,6 @@ onAuthStateChanged(
     auth,
     async user => {
 
-        clearTimeout(exportWatchRefreshTimer);
         invalidateExportWatch();
         exportWatchPanelCache = null;
         exportWatchPanelEls().panel.hidden = true;
@@ -13023,7 +13022,7 @@ onAuthStateChanged(
         if(currentAuthUser?.uid !== user.uid) return;
         await revealReadyApp();
 
-        scheduleExportWatchRefresh(150);
+        renderExportWatchPanel(null);
     }
 );
 
@@ -26826,7 +26825,6 @@ paymentMonthFilter.addEventListener(
         );
 
         applyRoleUI();
-        scheduleExportWatchRefresh(120);
     }
 );
 
@@ -29320,7 +29318,7 @@ function appendExportWatchRemovedRows(
 ===================================================== */
 
 let exportWatchPanelCache = null;
-let exportWatchRefreshTimer = null;
+let exportWatchPanelLoading = false;
 let exportWatchSelecting = false;
 let exportWatchSelection = null;
 
@@ -29849,8 +29847,29 @@ function renderExportWatchPanel(
         );
 
     if(!rows.length){
-        els.panel.hidden = true;
+        // No Activity Log read is needed to show the explicit View Changes action.
+        // A completed empty read is shown as an empty state, not a stale count.
         exportWatchPanelCache = exportWatch;
+        els.panel.hidden = false;
+        els.details.hidden = true;
+        els.add.hidden = true;
+        els.edit.hidden = true;
+        els.remove.hidden = true;
+        els.delta.textContent = "";
+        document.getElementById("exportWatchCopyStatus").textContent = "";
+        document.getElementById("exportWatchMarkerLabel").textContent = exportWatchMarkerText(markerMs);
+        const copy = exportWatchUiCopy();
+        els.title.textContent = exportWatch
+            ? (currentLanguage === "zh" ? "自上次导出 Excel 后暂无变更"
+                : currentLanguage === "en" ? "No changes since last Excel export"
+                : "Chưa có thay đổi từ lần xuất Excel")
+            : (currentLanguage === "zh" ? "自上次导出 Excel 后的变更"
+                : currentLanguage === "en" ? "Changes since last Excel export"
+                : "Thay đổi từ lần xuất Excel");
+        els.toggle.textContent = copy.open;
+        els.toggle.title = copy.open;
+        els.panel.querySelector(".export-watch-bar").setAttribute("aria-expanded","false");
+        syncExportWatchTheme();
         return;
     }
 
@@ -30081,29 +30100,6 @@ async function refreshExportWatchPanel(){
     }
 }
 
-function scheduleExportWatchRefresh(
-    delay = 900
-){
-    clearTimeout(
-        exportWatchRefreshTimer
-    );
-
-    exportWatchRefreshTimer =
-        setTimeout(
-            () => {
-                refreshExportWatchPanel()
-                    .catch(
-                        error =>
-                            console.warn(
-                                "EXPORT WATCH REFRESH ERROR:",
-                                error
-                            )
-                    );
-            },
-            delay
-        );
-}
-
 function syncExportWatchTheme(){
     const header = document.querySelector("#paymentTable thead th:not(.process-header)");
     const row = document.querySelector("#paymentTable tbody td");
@@ -30130,8 +30126,36 @@ function syncExportWatchTheme(){
 new MutationObserver(() => requestAnimationFrame(syncExportWatchTheme)).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
 
 const exportWatchSummaryBar = document.querySelector("#exportWatchPanel .export-watch-bar");
-function toggleExportWatchDetails(){
-    if(!exportWatchUserAllowed() || exportWatchPanelEls().panel.hidden) return;
+async function toggleExportWatchDetails(){
+    if(!exportWatchUserAllowed() || exportWatchPanelEls().panel.hidden || exportWatchPanelLoading) return;
+    const context = exportWatchContext();
+    const data = exportWatchPanelCache;
+    if(!data || !data.context || !exportWatchContextCurrent(data.context) || !exportWatchEventRows(data).length){
+        // The only non-Excel entry point for Export Watch reads is this user click.
+        exportWatchPanelLoading = true;
+        exportWatchPanelEls().toggle.textContent = currentLanguage === "zh" ? "加载中…" :
+            currentLanguage === "en" ? "Loading…" : "Đang tải…";
+        try{
+            await refreshExportWatchPanel();
+            if(exportWatchContextCurrent(context) && exportWatchPanelCache?.context &&
+                exportWatchEventRows(exportWatchPanelCache).length){
+                exportWatchPanelEls().details.hidden = false;
+                renderExportWatchPanel(exportWatchPanelCache);
+            }
+        }catch(error){
+            console.warn("EXPORT WATCH MANUAL LOAD ERROR:",error);
+            if(exportWatchContextCurrent(context)){
+                renderExportWatchPanel(null);
+                alert(currentLanguage === "zh" ? "无法加载变更，请重试。" :
+                    currentLanguage === "en" ? "Unable to load changes. Please retry." :
+                    "Không tải được thay đổi. Vui lòng thử lại.");
+            }
+        }finally{
+            exportWatchPanelLoading = false;
+            if(exportWatchContextCurrent(context) && !exportWatchPanelCache) renderExportWatchPanel(null);
+        }
+        return;
+    }
     const {details} = exportWatchPanelEls();
     details.hidden = !details.hidden;
     renderExportWatchPanel();
@@ -30471,7 +30495,7 @@ async function exportSelectedExcelScopes(){
             exportWatchPanelCache = null;
             exportWatchPanelEls().panel.hidden = true;
             exportWatchPanelEls().details.hidden = true;
-            scheduleExportWatchRefresh(100);
+            renderExportWatchPanel(null);
         }
         // Logging latency must never move the comparison cutoff or capture another month.
         void logActivity("EXPORT_EXCEL",{paymentMonth:exportContext.month === "ALL" ? "" : exportContext.month},
