@@ -9680,6 +9680,18 @@ function buildChangeDetails(before, after){
 }
 
 
+/*
+   Only changes that affect Export Watch should refresh the watch snapshot.
+   Unrelated process/status edits still write their audit logs normally.
+*/
+function exportWatchLogCanChangeSnapshot(action, changes = []){
+    const kind = String(action || "").trim().toUpperCase();
+    if(["ADD","DELETE","CANCEL"].includes(kind)) return true;
+    return kind === "EDIT" &&
+        Array.isArray(changes) &&
+        changes.some(change => String(change?.field || "") === "amount");
+}
+
 async function logActivity(
     action,
     payment,
@@ -9768,11 +9780,7 @@ async function logActivity(
             }
         );
 
-        if(
-            ["ADD","EDIT","DELETE","CANCEL"].includes(
-                String(action || "").toUpperCase()
-            )
-        ){
+        if(exportWatchLogCanChangeSnapshot(action,changes)){
             invalidateExportWatch();
             scheduleExportWatchRefresh(500);
         }
@@ -28668,23 +28676,49 @@ function exportWatchLogRelevant(log, context = exportWatchContext()){
    No partial caps: read every page before building Export Watch changes.
 */
 async function readExportWatchFallback(context, markerMs, cutoffMs){
+    // Cache the scan-choice estimate only. The actual log query is always
+    // complete for its context and cutoff, including the final pagination.
+    // A cutoff-independent estimate can be reused by Excel exports.
+    const choiceCache = readExportWatchFallback._modeChoices ||
+        (readExportWatchFallback._modeChoices = new Map());
     let mode="time";
     if(context.month !== "ALL"){
-        try{
-            const [monthCount,timeCount]=await Promise.all([
-                getCountFromServer(query(activityLogsRef,
-                    where("paymentMonth","==",context.month)
-                )),
-                getCountFromServer(query(activityLogsRef,
-                    where("createdAt",">",new Date(markerMs)),
-                    ...(cutoffMs == null ? [] : [where("createdAt","<=",new Date(cutoffMs))])
-                ))
-            ]);
-            if(monthCount.data().count < timeCount.data().count) mode="month";
-        }catch(error){
-            // Conservative fallback: use exactly the old indexed date scan.
-            console.warn("Export Watch read estimates unavailable",error);
+        const cacheKey=JSON.stringify([context.month,markerMs]);
+        const cached=choiceCache.get(cacheKey);
+        let selection;
+        if(cached && cached.until > Date.now()){
+            selection=await cached.promise;
+        }else{
+            const promise=(async()=>{
+                try{
+                    const [monthCount,timeCount]=await Promise.all([
+                        getCountFromServer(query(activityLogsRef,
+                            where("paymentMonth","==",context.month)
+                        )),
+                        getCountFromServer(query(activityLogsRef,
+                            where("createdAt",">",new Date(markerMs))
+                        ))
+                    ]);
+                    // Using all subsequent logs for this estimate can make
+                    // either scan preferable; neither route loses a log.
+                    return {mode:monthCount.data().count < timeCount.data().count ? "month" : "time",failed:false};
+                }catch(error){
+                    console.warn("Export Watch read estimates unavailable",error);
+                    return {mode:"time",failed:true};
+                }
+            })();
+            choiceCache.delete(cacheKey);
+            choiceCache.set(cacheKey,{promise,until:Date.now()+1800000});
+            if(choiceCache.size>16)choiceCache.delete(choiceCache.keys().next().value);
+            selection=await promise;
+            if(choiceCache.get(cacheKey)?.promise === promise){
+                choiceCache.set(cacheKey,{
+                    promise:Promise.resolve(selection),
+                    until:Date.now()+(selection.failed?300000:1800000)
+                });
+            }
         }
+        mode=selection.mode;
     }
     const rows=[];
     let cursor=null;
