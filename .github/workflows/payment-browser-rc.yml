@@ -32,4 +32,7 @@ jobs:
         run: node tests/build-emulator-site.cjs
       - name: Browser save and read trace against localhost only
         working-directory: tests/firebase-rules
-        run: pnpm exec firebase emulators:exec --config ../../firebase.emulator.json --only firestore,auth --project demo-payment-security "node ../payment-browser-emulator.cjs"\n      - name: Cash Control bonus and linked tax browser (isolated emulator)\n        working-directory: tests/firebase-rules\n        run: pnpm exec firebase emulators:exec --config ../../firebase.emulator.json --only firestore,auth --project demo-payment-security "node ../cash-bonus-browser-emulator.cjs"
+        run: pnpm exec firebase emulators:exec --config ../../firebase.emulator.json --only firestore,auth --project demo-payment-security "node ../payment-browser-emulator.cjs"
+      - name: Cash Control bonus and linked tax browser (isolated emulator)
+        working-directory: tests/firebase-rules
+        run: pnpm exec firebase emulators:exec --config ../../firebase.emulator.json --only firestore,auth --project demo-payment-security "node ../cash-bonus-browser-emulator.cjs"
