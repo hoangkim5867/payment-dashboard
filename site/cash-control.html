@@ -2811,6 +2811,9 @@ async function subscribeCashCloud(){
         cashPrivateRef,
         snap=>{
             if(!snap.exists()){
+                // A cache-only "missing" event cannot prove server absence.
+                // Never create defaults until Firestore reports server state.
+                if(snap.metadata?.fromCache)return;
                 void ensureCashCloudDocument().then(ok=>{
                     if(!ok && currentAuthUser && isCashControlOwner()){
                         setCashCloudConnection('error','Cash Control: chưa khởi tạo được dữ liệu online');
