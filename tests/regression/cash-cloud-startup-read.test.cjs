@@ -24,3 +24,14 @@ test('Missing Cash Control document is rechecked and only initialized for owner'
  assert.match(scope,/if\(!snap\.exists\(\)\)/);
  assert.match(scope,/await setDoc\(cashPrivateRef/);
 });
+
+test('Missing document initialization is not repeated during overlapping server snapshots',()=>{
+ const start=source.indexOf('async function subscribeCashCloud()');
+ const end=source.indexOf('async function mergeLegacyLocalIntoCloud()',start);
+ const scope=source.slice(start,end);
+ assert.match(scope,/let cashCloudInitializationPending=false/);
+ assert.match(scope,/snap\.metadata\?\.fromCache \|\| cashCloudInitializationPending/);
+ assert.match(scope,/cashCloudInitializationPending=true/);
+ assert.match(scope,/\.finally\(\(\)=>\{\s*cashCloudInitializationPending=false/);
+ assert.match(scope,/currentAuthUser\?\.uid===subscriptionUid/);
+});
