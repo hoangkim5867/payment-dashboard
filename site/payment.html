@@ -10676,8 +10676,7 @@ function isAdminActivityLog(item){
 }
 
 
-const ACTIVITY_LOG_PAGE_SIZE = 30;
-const ACTIVITY_LOG_MAX_PAGES_PER_ACTION = 4;
+const ACTIVITY_LOG_PAGE_SIZE = 100;
 const ACTIVITY_LOG_MONTH_OPTION_COUNT = 24;
 
 const activityLogState = {
@@ -10686,8 +10685,7 @@ const activityLogState = {
     lastDoc: null,
     hasMore: false,
     loading: false,
-    loadError: false,
-    scanned: 0
+    loadError: false
 };
 
 function normalizeActivityLogMonth(value){
@@ -10869,21 +10867,8 @@ function renderActivityLogRows(){
         auditList.innerHTML =
             `<div class="empty">${escapeHTML(t("auditLoadError"))}</div>`;
     }else if(!activityLogState.logs.length){
-        // A complete page of hidden Admin rows must not masquerade as "no history".
-        const noVisible = activityLogState.scanned > 0
-            ? (activityLogState.hasMore
-                ? (currentLanguage === "zh"
-                    ? "已查看最近 "+activityLogState.scanned+" 条记录，尚无可显示的员工操作。点击“查看更多”继续查找。"
-                    : currentLanguage === "en"
-                    ? "Checked "+activityLogState.scanned+" recent records; no visible Staff actions yet. Select Load more to continue."
-                    : "Đã kiểm tra "+activityLogState.scanned+" thao tác gần nhất, chưa tìm thấy thao tác Staff được hiển thị. Bấm “Xem thêm” để tìm tiếp.")
-                : (currentLanguage === "zh"
-                    ? "所选月份没有可显示的员工操作。"
-                    : currentLanguage === "en"
-                    ? "No visible Staff actions in the selected month."
-                    : "Không tìm thấy thao tác Staff được hiển thị trong tháng đã chọn."))
-            : t("noAudit");
-        auditList.innerHTML = `<div class="empty">${escapeHTML(noVisible)}</div>`;
+        auditList.innerHTML =
+            `<div class="empty">${escapeHTML(t("noAudit"))}</div>`;
     }else{
         auditList.innerHTML = activityLogRowsHTML(activityLogState.logs);
     }
@@ -10911,7 +10896,6 @@ async function renderActivityLog({reset=true}={}){
     if(reset){
         activityLogState.logs = [];
         activityLogState.lastDoc = null;
-        activityLogState.scanned = 0;
         activityLogState.hasMore = false;
         activityLogState.loadError = false;
         auditList.innerHTML =
@@ -10930,37 +10914,38 @@ async function renderActivityLog({reset=true}={}){
 
     try{
         const range = activityLogMonthRange(activityLogState.month);
-        const displayed = [];
-        let cursor = activityLogState.lastDoc;
-        let more = activityLogState.hasMore;
-        // Read at most four SMALL pages per deliberate user action.
-        // Filter Admin rows client-side, but keep the cursor on the last RAW doc
-        // so hidden rows never block finding the older visible Staff entries.
-        for(let attempt=0;attempt<ACTIVITY_LOG_MAX_PAGES_PER_ACTION;attempt++){
-            const constraints = [
-                where("createdAt",">=",range.start),
-                where("createdAt","<",range.end),
-                orderBy("createdAt","desc")
-            ];
-            if(cursor)constraints.push(startAfter(cursor));
-            constraints.push(limit(ACTIVITY_LOG_PAGE_SIZE));
+        const constraints = [
+            where("createdAt",">=",range.start),
+            where("createdAt","<",range.end),
+            orderBy("createdAt","desc")
+        ];
 
-            const snapshot = await getDocs(query(activityLogsRef,...constraints));
-            const docs = snapshot.docs;
-            activityLogState.scanned += docs.length;
-            displayed.push(...docs
-                .map(item=>({id:item.id,...item.data()}))
-                .filter(item=>!isAdminActivityLog(item)));
-            if(docs.length)cursor = docs[docs.length-1];
-            more = docs.length === ACTIVITY_LOG_PAGE_SIZE;
-            if(displayed.length || !more)break;
+        if(!reset && activityLogState.lastDoc){
+            constraints.push(startAfter(activityLogState.lastDoc));
         }
+        constraints.push(limit(ACTIVITY_LOG_PAGE_SIZE));
+
+        const snapshot =
+            await getDocs(
+                query(
+                    activityLogsRef,
+                    ...constraints
+                )
+            );
+
+        const docs = snapshot.docs;
+        const pageLogs = docs
+            .map(item => ({id:item.id,...item.data()}))
+            .filter(item => !isAdminActivityLog(item));
+
         activityLogState.loadError = false;
         activityLogState.logs = reset
-            ? displayed
-            : [...activityLogState.logs,...displayed];
-        activityLogState.lastDoc = cursor;
-        activityLogState.hasMore = more;
+            ? pageLogs
+            : [...activityLogState.logs,...pageLogs];
+        activityLogState.lastDoc = docs.length
+            ? docs[docs.length-1]
+            : activityLogState.lastDoc;
+        activityLogState.hasMore = docs.length === ACTIVITY_LOG_PAGE_SIZE;
     }catch(error){
         console.error("ACTIVITY LOG LOAD ERROR:",error);
         if(reset){
