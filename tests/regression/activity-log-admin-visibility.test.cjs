@@ -27,7 +27,7 @@ test('desktop retains raw pages and the visibility click only rerenders cached d
  const block=html.slice(start,end);
  assert.match(block,/if\(!isAdmin\(\)\) return/);
  assert.match(block,/renderActivityLogRows\(\)/);
- assert.doesNotMatch(block,/getDocs|renderActivityLog\(/);
+ assert.doesNotMatch(block.replace(/\/\/[^\n]*/g,''),/getDocs|renderActivityLog\(/);
  assert.match(html,/docs\.length === ACTIVITY_LOG_PAGE_SIZE/);
 });
 test('mobile cached-only toggle avoids network and resets on reopening',()=>{
