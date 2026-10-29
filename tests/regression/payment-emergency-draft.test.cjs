@@ -83,7 +83,7 @@ test('draft restore displays unresolved select values instead of manufacturing s
 
 test('closing a draft queues its final encrypted snapshot before clearing the active key',()=>{
  const src=fs.readFileSync(path.resolve(__dirname,'../../site/assets/js/payment-emergency-drafts.mjs'),'utf8');
- const start=src.indexOf('    resetSession(){'),end=src.indexOf('    notifyWriteFailure(){',start);
+ const start=src.indexOf('    resetSession(){'),end=src.indexOf('    notifyWriteFailure(token){',start);
  const part=src.slice(start,end);
  assert.match(part,/const finalSnapshot=/);
  assert.match(part,/clearTimeout\(debounce\)/);
@@ -95,7 +95,7 @@ test('closing a draft queues its final encrypted snapshot before clearing the ac
 
 test('committed local draft cleanup waits for pending writes and cannot resurrect the record',()=>{
  const src=fs.readFileSync(path.resolve(__dirname,'../../site/assets/js/payment-emergency-drafts.mjs'),'utf8');
- const a=src.indexOf('notifyWriteSuccess(){'),b=src.indexOf('resetSession(){',a);
+ const a=src.indexOf('notifyWriteSuccess(token){'),b=src.indexOf('resetSession(){',a);
  const section=src.slice(a,b);
  assert.match(section,/then\(\(\)=>removeRow\(savedSession\.id\)\)/);
  assert.match(section,/active=null/);
@@ -106,14 +106,14 @@ for(const page of ['payment.html','payment-mobile-renderer.html']){
   const a=src.indexOf('savePaymentBtn.addEventListener(');
   const z=src.indexOf('/* =====================================================\\n   MANUAL ADD',a);
   const save=src.slice(a,z);
-  const acks=[...save.matchAll(/emergencyPaymentDrafts\\.notifyWriteSuccess\\(draftWriteToken\\)/g)].map(x=>x.index);
+  const acks=[...save.matchAll(/emergencyPaymentDrafts\.notifyWriteSuccess\(draftWriteToken\)/g)].map(x=>x.index);
   const editWrite=save.indexOf('await runTransaction('),addWrite=save.indexOf('await addDoc(');
   const editLog=save.indexOf('await logActivity(',editWrite),addLog=save.indexOf('await logActivity(',addWrite);
   assert.equal(acks.length,2);
   assert.ok(editWrite>=0&&editWrite<acks[0]&&acks[0]<editLog);
   assert.ok(addWrite>=0&&addWrite<acks[1]&&acks[1]<addLog);
   assert.ok(addLog<save.indexOf('await upsertVendor('));
-  assert.equal((save.match(/emergencyPaymentDrafts\\.beginWrite\\(\\)/g)||[]).length,2);
+  assert.equal((save.match(/emergencyPaymentDrafts\.beginWrite\(\)/g)||[]).length,2);
   assert.match(save,/PAYMENT POST-SAVE ACTIVITY LOG ERROR/);
   assert.match(save,/paymentWriteAcknowledged/);
  });
@@ -121,9 +121,9 @@ for(const page of ['payment.html','payment-mobile-renderer.html']){
 test('draft cleanup and explicit removal serialize behind pending writes',()=>{
  const src=fs.readFileSync(path.resolve(__dirname,'../../site/assets/js/payment-emergency-drafts.mjs'),'utf8');
  assert.match(src,/pendingWrites=new Map/);
- assert.match(src,/beginWrite\\(\\)/);
+ assert.match(src,/beginWrite\(\)/);
  assert.match(src,/session=active/);
- assert.match(src,/then\\(\\(\\)=>removeRow\\(savedSession\\.id\\)\\)/);
- assert.match(src,/then\\(\\(\\)=>removeRow\\(row\\.id\\)\\)/);
+ assert.match(src,/then\(\(\)=>removeRow\(savedSession\.id\)\)/);
+ assert.match(src,/then\(\(\)=>removeRow\(row\.id\)\)/);
  assert.match(src,/PAYMENT COMMITTED DRAFT CLEANUP FAILED/);
 });
