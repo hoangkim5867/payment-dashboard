@@ -2802,6 +2802,10 @@ async function subscribeCashCloud(){
     }
 
     setCashCloudConnection('loading','Cash Control: đang kết nối online...');
+    // Snapshot callbacks can be repeated; initialize a missing document at most
+    // once per subscription at a time. Never issue overlapping default writes.
+    let cashCloudInitializationPending=false;
+    const subscriptionUid=currentAuthUser.uid;
 
     // The initial listener snapshot already checks whether the private document
     // exists. Avoid a duplicate getDoc on every login; only initialize if absent.
@@ -2813,16 +2817,19 @@ async function subscribeCashCloud(){
             if(!snap.exists()){
                 // A cache-only "missing" event cannot prove server absence.
                 // Never create defaults until Firestore reports server state.
-                if(snap.metadata?.fromCache)return;
+                if(snap.metadata?.fromCache || cashCloudInitializationPending)return;
+                cashCloudInitializationPending=true;
                 void ensureCashCloudDocument().then(ok=>{
-                    if(!ok && currentAuthUser && isCashControlOwner()){
+                    if(!ok && currentAuthUser?.uid===subscriptionUid && isCashControlOwner()){
                         setCashCloudConnection('error','Cash Control: chưa khởi tạo được dữ liệu online');
                     }
                 }).catch(error=>{
                     console.error('CASH CLOUD INIT ERROR',error);
-                    if(currentAuthUser && isCashControlOwner()){
+                    if(currentAuthUser?.uid===subscriptionUid && isCashControlOwner()){
                         setCashCloudConnection('error','Cash Control: chưa khởi tạo được dữ liệu online');
                     }
+                }).finally(()=>{
+                    cashCloudInitializationPending=false;
                 });
                 return;
             }
