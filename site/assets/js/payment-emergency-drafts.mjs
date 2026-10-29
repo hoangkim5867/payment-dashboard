@@ -112,16 +112,19 @@ export function createPaymentEmergencyDrafts({modal,saveButton,getContext,setEnt
   }
   footer.insertBefore(status,saveButton);
   let active=null,debounce=null,persisting=Promise.resolve();
+  const pendingWrites=new Map();
   const context=()=>{const x=getContext();return {uid:x?.uid||'',editingId:x?.editingId||null,editVersion:stamp(x?.editVersion),entryType:x?.entryType||'contract'};};
   const sameContext=(a,b)=>a.uid===b.uid&&a.editingId===b.editingId&&a.editVersion===b.editVersion;
   const snapshot=()=>({context:context(),fields:readFields(modal),capturedAt:Date.now()});
   function say(message){status.textContent=message;}
   async function persist(){
-    if(!active || !sameContext(active.context,context()) || !modal.classList.contains('show'))return;
+    const session=active;
+    if(!session || !sameContext(session.context,context()) || !modal.classList.contains('show'))return;
+    // Capture before encryption yields: never retarget a pending write to a new form.
     const payload=snapshot();
-    const envelope=await seal(payload,active.key,active.salt);
-    await storeRow({id:active.id,uid:payload.context.uid,at:Date.now(),...envelope});
-    say('🔒 Nháp đã lưu trên thiết bị (CHƯA gửi lên Firestore).');
+    const envelope=await seal(payload,session.key,session.salt);
+    await storeRow({id:session.id,uid:payload.context.uid,at:Date.now(),...envelope});
+    if(active?.id===session.id)say('🔒 Nháp đã lưu trên thiết bị (CHƯA gửi lên Firestore).');
   }
   function schedule(){
     if(!active||!sameContext(active.context,context()))return;
@@ -190,26 +193,53 @@ export function createPaymentEmergencyDrafts({modal,saveButton,getContext,setEnt
     try{
       const row=choose(await available());if(!row)return;
       if(!confirm('Xóa vĩnh viễn nháp mã hóa trên thiết bị? Chỉ làm sau khi chắc chắn Payment đã được server xác nhận.'))return;
-      await removeRow(row.id);
-      if(active?.id===row.id)active=null;
+      if(active?.id===row.id){
+        clearTimeout(debounce);
+        debounce=null;
+        active=null;
+      }
+      // Delete after pending writes: otherwise an in-flight put revives the draft.
+      persisting=persisting.catch(error=>{
+        console.warn('PAYMENT DRAFT PRIOR WRITE FAILED BEFORE DELETE',error);
+      }).then(()=>removeRow(row.id));
+      await persisting;
       say('Đã xóa nháp đã chọn khỏi thiết bị.');
     }catch(e){say('⚠ '+e.message);alert(e.message);}
   };
   return {
-    notifyWriteSuccess(){
-      // This is called ONLY after Firestore acknowledged the Payment write.
-      // Serialize deletion AFTER any pending encrypted updates, so a delayed
-      // debounce cannot resurrect a draft that has already been committed.
-      const savedSession=active;
-      clearTimeout(debounce);
-      debounce=null;
-      active=null;
-      if(savedSession){
-        persisting=persisting.then(()=>removeRow(savedSession.id)).catch(error=>{
-          console.error('PAYMENT COMMITTED DRAFT CLEANUP FAILED',error);
-        });
+    beginWrite(){
+      // Bind a specific draft to a single Save attempt. The user may close the
+      // form while the server is working, but its ACK must clean that draft only.
+      if(!active)return null;
+      const token=crypto.randomUUID();
+      pendingWrites.set(token,active);
+      return token;
+    },
+    notifyWriteSuccess(token){
+      // Payment server ACK is the sole authority for deleting a recovery draft.
+      const savedSession=token===undefined ? active : (token ? pendingWrites.get(token) : null);
+      if(token)pendingWrites.delete(token);
+      if(savedSession && active?.id===savedSession.id){
+        clearTimeout(debounce);
+        debounce=null;
+        active=null;
       }
-      say('✅ Payment đã được Firestore xác nhận. Bản nháp cùng phiên được dọn khỏi thiết bị.');
+      if(!savedSession){
+        if(!active)say('✅ Firestore đã xác nhận thanh toán (không có nháp đang mở).');
+        return;
+      }
+      // A failed earlier put must not prevent a best-effort local cleanup.
+      // Both a pending put and a close-flush finish before this deletion.
+      const cleanup=persisting.catch(error=>{
+        console.warn('PAYMENT DRAFT PRIOR WRITE FAILED BEFORE CLEANUP',error);
+      }).then(()=>removeRow(savedSession.id));
+      persisting=cleanup.catch(error=>{
+        console.error('PAYMENT COMMITTED DRAFT CLEANUP FAILED',error);
+        if(!active)say('⚠ Firestore đã xác nhận thanh toán nhưng CHƯA xóa được nháp. Hãy xóa nháp thủ công.');
+      });
+      cleanup.then(()=>{
+        if(!active)say('✅ Firestore đã xác nhận thanh toán; nháp cùng phiên đã được xóa.');
+      },()=>{});
     },
     resetSession(){
       // Closing within the 800ms debounce must not silently lose the final
@@ -232,8 +262,12 @@ export function createPaymentEmergencyDrafts({modal,saveButton,getContext,setEnt
       }
       say('');
     },
-    notifyWriteFailure(){
-      say('⚠ Firestore chưa xác nhận lưu. Biểu mẫu vẫn mở. Chọn “Lưu nháp mã hóa” để tránh mất dữ liệu.');
+    notifyWriteFailure(token){
+      const session=token ? pendingWrites.get(token) : null;
+      if(token)pendingWrites.delete(token);
+      if(!session || !active || session.id===active.id){
+        say('⚠ Firestore chưa xác nhận lưu. Giữ nháp mã hóa để đối chiếu và thử lại sau.');
+      }
     }
   };
 }

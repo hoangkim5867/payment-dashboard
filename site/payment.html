@@ -20001,6 +20001,8 @@ savePaymentBtn.addEventListener(
             t("saving");
 
 
+        let draftWriteToken=null;
+        let paymentWriteAcknowledged=false;
         try{
 
 
@@ -20025,6 +20027,8 @@ savePaymentBtn.addEventListener(
                    read the latest Firestore document immediately before saving.
                 */
                 let latestData;
+
+                draftWriteToken=emergencyPaymentDrafts.beginWrite();
 
                 await runTransaction(db, async transaction => {
                     const paymentRef = doc(db,"payments",editingId);
@@ -20058,6 +20062,9 @@ savePaymentBtn.addEventListener(
 
                     );
                 });
+                paymentWriteAcknowledged=true;
+                emergencyPaymentDrafts.notifyWriteSuccess(draftWriteToken);
+                draftWriteToken=null;
 
                 const editChanges =
                     buildChangeDetails(
@@ -20066,15 +20073,17 @@ savePaymentBtn.addEventListener(
                     );
 
 
-                await logActivity(
-                    "EDIT",
-                    {
-                        id:editingId,
-                        ...data
-                    },
-                    "",
-                    editChanges
-                );
+                try{
+                    await logActivity(
+                        "EDIT",
+                        {id:editingId,...data},
+                        "",
+                        editChanges
+                    );
+                }catch(activityError){
+                    console.error("PAYMENT POST-SAVE ACTIVITY LOG ERROR:",activityError);
+                    alert("⚠ Payment đã lưu trên Firestore nhưng chưa ghi được Activity Log. Hãy kiểm tra lại nhật ký.");
+                }
 
                 alert(
                     "✅ " + t("updated")
@@ -20130,6 +20139,7 @@ savePaymentBtn.addEventListener(
                 savePaymentBtn.textContent =
                     t("saving");
 
+                draftWriteToken=emergencyPaymentDrafts.beginWrite();
                 const createdPaymentRef =
                     await addDoc(
 
@@ -20171,16 +20181,15 @@ savePaymentBtn.addEventListener(
                         }
 
                     );
-
-
-                await logActivity(
-                    "ADD",
-                    {
-                        id:
-                            createdPaymentRef.id,
-                        ...data
-                    }
-                );
+                paymentWriteAcknowledged=true;
+                emergencyPaymentDrafts.notifyWriteSuccess(draftWriteToken);
+                draftWriteToken=null;
+                try{
+                    await logActivity("ADD",{id:createdPaymentRef.id,...data});
+                }catch(activityError){
+                    console.error("PAYMENT POST-SAVE ACTIVITY LOG ERROR:",activityError);
+                    alert("⚠ Payment đã lưu trên Firestore nhưng chưa ghi được Activity Log. Hãy kiểm tra lại nhật ký.");
+                }
 
 
                 alert(
@@ -20189,9 +20198,6 @@ savePaymentBtn.addEventListener(
 
             }
 
-
-            // No local draft cleanup before Firestore's add/edit ACK.
-            emergencyPaymentDrafts.notifyWriteSuccess();
 
             if(isMEPPayment){
                 try{
@@ -20227,13 +20233,13 @@ savePaymentBtn.addEventListener(
                 "SAVE PAYMENT ERROR:",
                 error
             );
-            emergencyPaymentDrafts.notifyWriteFailure();
-
-
-            alert(
-                "❌ " + t("saveError") +
-                error.message
-            );
+            if(paymentWriteAcknowledged){
+                console.error("PAYMENT POST-SAVE ERROR (PAYMENT COMMITTED):",error);
+                alert("⚠ Payment đã lưu trên Firestore nhưng xảy ra lỗi sau lưu. KHÔNG bấm Lưu lại; hãy kiểm tra bảng thanh toán.");
+            }else{
+                emergencyPaymentDrafts.notifyWriteFailure(draftWriteToken);
+                alert("❌ " + t("saveError") + error.message);
+            }
 
         }
 

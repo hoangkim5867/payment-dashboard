@@ -97,37 +97,33 @@ test('committed local draft cleanup waits for pending writes and cannot resurrec
  const src=fs.readFileSync(path.resolve(__dirname,'../../site/assets/js/payment-emergency-drafts.mjs'),'utf8');
  const a=src.indexOf('notifyWriteSuccess(){'),b=src.indexOf('resetSession(){',a);
  const section=src.slice(a,b);
- assert.match(section,/persisting=persisting\.then\(\(\)=>removeRow\(savedSession\.id\)\)/);
+ assert.match(section,/then\(\(\)=>removeRow\(savedSession\.id\)\)/);
  assert.match(section,/active=null/);
 });
 for(const page of ['payment.html','payment-mobile-renderer.html']){
- test(page+' only clears draft after successful Firebase add or edit, before vendor/refresh',()=>{
-  const src=fs.readFileSync(path.resolve(__dirname,'../../site',page),'utf8');
-  const a=src.indexOf('savePaymentBtn.addEventListener('),b=src.indexOf('MANUAL ADD — LIGHTWEIGHT DUPLICATE LOOKUP',a);
-  const flow=src.slice(a,b);
-  assert.ok(flow.indexOf('await addDoc(')<flow.indexOf('emergencyPaymentDrafts.notifyWriteSuccess()'));
-  assert.ok(flow.indexOf('await runTransaction(')<flow.indexOf('emergencyPaymentDrafts.notifyWriteSuccess()'));
-  assert.ok(flow.indexOf('emergencyPaymentDrafts.notifyWriteSuccess()')<flow.indexOf('PAYMENT POST-SAVE VENDOR SYNC ERROR'));
- });
-}
-
-for(const page of ['payment.html','payment-mobile-renderer.html']){
- test(page+' clears encrypted draft only following confirmed Add/Edit server commit',()=>{
+ test(page+' acknowledges both Add and Edit at the server write, before optional activity logging',()=>{
   const src=fs.readFileSync(path.resolve(__dirname,'../../site',page),'utf8');
   const a=src.indexOf('savePaymentBtn.addEventListener(');
-  const z=src.indexOf('/* =====================================================\n   MANUAL ADD',a);
+  const z=src.indexOf('/* =====================================================\\n   MANUAL ADD',a);
   const save=src.slice(a,z);
-  assert.equal((save.match(/emergencyPaymentDrafts\.notifyWriteSuccess\(\)/g)||[]).length,1);
-  assert.ok(save.indexOf('await addDoc(')<save.indexOf('emergencyPaymentDrafts.notifyWriteSuccess()'));
-  assert.ok(save.indexOf('await runTransaction(')<save.indexOf('emergencyPaymentDrafts.notifyWriteSuccess()'));
-  assert.ok(save.indexOf('emergencyPaymentDrafts.notifyWriteSuccess()')<save.indexOf('await upsertVendor('));
+  const acks=[...save.matchAll(/emergencyPaymentDrafts\\.notifyWriteSuccess\\(draftWriteToken\\)/g)].map(x=>x.index);
+  const editWrite=save.indexOf('await runTransaction('),addWrite=save.indexOf('await addDoc(');
+  const editLog=save.indexOf('await logActivity(',editWrite),addLog=save.indexOf('await logActivity(',addWrite);
+  assert.equal(acks.length,2);
+  assert.ok(editWrite>=0&&editWrite<acks[0]&&acks[0]<editLog);
+  assert.ok(addWrite>=0&&addWrite<acks[1]&&acks[1]<addLog);
+  assert.ok(addLog<save.indexOf('await upsertVendor('));
+  assert.equal((save.match(/emergencyPaymentDrafts\\.beginWrite\\(\\)/g)||[]).length,2);
+  assert.match(save,/PAYMENT POST-SAVE ACTIVITY LOG ERROR/);
+  assert.match(save,/paymentWriteAcknowledged/);
  });
 }
-test('successful draft cleanup is serialized after all pending writes',()=>{
+test('draft cleanup and explicit removal serialize behind pending writes',()=>{
  const src=fs.readFileSync(path.resolve(__dirname,'../../site/assets/js/payment-emergency-drafts.mjs'),'utf8');
- const a=src.indexOf('    notifyWriteSuccess(){'),z=src.indexOf('    resetSession(){',a);
- const part=src.slice(a,z);
- assert.match(part,/clearTimeout\(debounce\)/);
- assert.match(part,/active=null/);
- assert.match(part,/persisting=persisting\.then\(\(\)=>removeRow\(savedSession\.id\)\)/);
+ assert.match(src,/pendingWrites=new Map/);
+ assert.match(src,/beginWrite\\(\\)/);
+ assert.match(src,/session=active/);
+ assert.match(src,/then\\(\\(\\)=>removeRow\\(savedSession\\.id\\)\\)/);
+ assert.match(src,/then\\(\\(\\)=>removeRow\\(row\\.id\\)\\)/);
+ assert.match(src,/PAYMENT COMMITTED DRAFT CLEANUP FAILED/);
 });
