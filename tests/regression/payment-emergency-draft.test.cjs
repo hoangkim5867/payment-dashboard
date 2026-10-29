@@ -110,3 +110,24 @@ for(const page of ['payment.html','payment-mobile-renderer.html']){
   assert.ok(flow.indexOf('emergencyPaymentDrafts.notifyWriteSuccess()')<flow.indexOf('PAYMENT POST-SAVE VENDOR SYNC ERROR'));
  });
 }
+
+for(const page of ['payment.html','payment-mobile-renderer.html']){
+ test(page+' clears encrypted draft only following confirmed Add/Edit server commit',()=>{
+  const src=fs.readFileSync(path.resolve(__dirname,'../../site',page),'utf8');
+  const a=src.indexOf('savePaymentBtn.addEventListener(');
+  const z=src.indexOf('/* =====================================================\n   MANUAL ADD',a);
+  const save=src.slice(a,z);
+  assert.equal((save.match(/emergencyPaymentDrafts\.notifyWriteSuccess\(\)/g)||[]).length,1);
+  assert.ok(save.indexOf('await addDoc(')<save.indexOf('emergencyPaymentDrafts.notifyWriteSuccess()'));
+  assert.ok(save.indexOf('await runTransaction(')<save.indexOf('emergencyPaymentDrafts.notifyWriteSuccess()'));
+  assert.ok(save.indexOf('emergencyPaymentDrafts.notifyWriteSuccess()')<save.indexOf('await upsertVendor('));
+ });
+}
+test('successful draft cleanup is serialized after all pending writes',()=>{
+ const src=fs.readFileSync(path.resolve(__dirname,'../../site/assets/js/payment-emergency-drafts.mjs'),'utf8');
+ const a=src.indexOf('    notifyWriteSuccess(){'),z=src.indexOf('    resetSession(){',a);
+ const part=src.slice(a,z);
+ assert.match(part,/clearTimeout\(debounce\)/);
+ assert.match(part,/active=null/);
+ assert.match(part,/persisting=persisting\.then\(\(\)=>removeRow\(savedSession\.id\)\)/);
+});
