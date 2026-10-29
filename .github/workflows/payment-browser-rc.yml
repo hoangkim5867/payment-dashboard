@@ -1,7 +1,7 @@
 name: Payment RC Browser Save (Isolated Emulator)
 on:
   pull_request:
-    paths: ['site/**','tests/payment-browser-emulator.cjs','tests/build-emulator-site.cjs','.github/workflows/payment-browser-rc.yml']
+    paths: ['site/**','tests/payment-browser-emulator.cjs','tests/cash-bonus-browser-emulator.cjs','tests/build-emulator-site.cjs','.github/workflows/payment-browser-rc.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -32,4 +32,4 @@ jobs:
         run: node tests/build-emulator-site.cjs
       - name: Browser save and read trace against localhost only
         working-directory: tests/firebase-rules
-        run: pnpm exec firebase emulators:exec --config ../../firebase.emulator.json --only firestore,auth --project demo-payment-security "node ../payment-browser-emulator.cjs"
+        run: pnpm exec firebase emulators:exec --config ../../firebase.emulator.json --only firestore,auth --project demo-payment-security "node ../payment-browser-emulator.cjs"\n      - name: Cash Control bonus and linked tax browser (isolated emulator)\n        working-directory: tests/firebase-rules\n        run: pnpm exec firebase emulators:exec --config ../../firebase.emulator.json --only firestore,auth --project demo-payment-security "node ../cash-bonus-browser-emulator.cjs"
