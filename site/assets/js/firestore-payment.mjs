@@ -22,10 +22,12 @@ function recordReadAudit(event){
             time:new Date().toISOString(),
             page:window.location.pathname.split('/').pop() || 'index',
             operation:event.operation,
+            caller:event.caller||'unknown',
             collection:event.collection,
             scope:event.scope,
             documentsReturned:event.documentsReturned??null,
             documentChanges:event.documentChanges??null,
+            added:event.added??null,modified:event.modified??null,removed:event.removed??null,
             fromCache:event.fromCache??null,
             durationMs:event.durationMs??null,
             error:event.error??null
@@ -34,11 +36,15 @@ function recordReadAudit(event){
         if(event.operation==='listen-stop')readAuditActiveListeners=Math.max(0,readAuditActiveListeners-1);
         readAuditEvents.push(row);
         if(readAuditEvents.length>500)readAuditEvents.shift();
-        const key=[row.page,row.operation,row.collection,row.scope].join('|');
-        const prior=readAuditAggregate.get(key)||{page:row.page,operation:row.operation,collection:row.collection,scope:row.scope,calls:0,documentsReturned:0,documentChanges:0,cacheResponses:0,errors:0};
+        const key=[row.page,row.caller,row.operation,row.collection,row.scope].join('|');
+        const prior=readAuditAggregate.get(key)||{page:row.page,operation:row.operation,collection:row.collection,scope:row.scope,caller:row.caller,calls:0,documentsReturned:0,documentChanges:0,added:0,modified:0,removed:0,cacheResponses:0,errors:0};
         prior.calls++;
-        prior.documentsReturned+=Number(row.documentsReturned)||0;
+        // Later listener snapshot.size is the entire cached view, NOT a new document-read count.
+        if(row.operation!=='listen-change')prior.documentsReturned+=Number(row.documentsReturned)||0;
         prior.documentChanges+=Number(row.documentChanges)||0;
+        prior.added+=Number(row.added)||0;
+        prior.modified+=Number(row.modified)||0;
+        prior.removed+=Number(row.removed)||0;
         if(row.fromCache===true)prior.cacheResponses++;
         if(row.error)prior.errors++;
         readAuditAggregate.set(key,prior);
