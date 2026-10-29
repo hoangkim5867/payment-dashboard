@@ -1,6 +1,6 @@
 'use strict';
 // Generates an isolated local-only copy. Never deploy this directory.
-const fs=require('node:fs'),path=require('node:path');
+const fs=require('node:fs'),path=require('node:path'),{createHash}=require('node:crypto');
 const source=path.resolve(__dirname,'../site'),target=path.resolve(__dirname,'../../emulator-site');
 fs.cpSync(source,target,{recursive:true});
 const js=path.join(target,'assets/js');fs.mkdirSync(js,{recursive:true});
@@ -18,6 +18,13 @@ for(const version of ['10.12.2','12.0.0']){
 for(const name of fs.readdirSync(target).filter(x=>x.endsWith('.html'))){
  const file=path.join(target,name);let text=fs.readFileSync(file,'utf8');
  text=text.replaceAll('cscecmep-payment','demo-payment-security').replaceAll('AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE','demo-api-key');
+ // Only the discarded localhost fixture uses an empty synthetic legacy history.
+ // Production HTML and its protected seed checksum are NEVER touched.
+ if(name==='cash-control.html'){
+   const empty={LEGACY_SALARY:[],LEGACY_FINANCE:[],LEGACY_VNB:[],LEGACY_CASH_SPECIAL:[]};
+   const digest=createHash('sha256').update(JSON.stringify(empty)).digest('hex');
+   text=text.replace(/const CASH_SEED_HASH="[a-f0-9]{64}";/,'const CASH_SEED_HASH="'+digest+'";');
+ }
  for(const version of ['10.12.2','12.0.0'])text=text.replaceAll(`https://www.gstatic.com/firebasejs/${version}/firebase-auth.js`,`./assets/js/emulator-auth-${version}.mjs`).replaceAll(`https://www.gstatic.com/firebasejs/${version}/firebase-firestore.js`,`./assets/js/emulator-firestore-${version}.mjs`);
  fs.writeFileSync(file,text);
 }
