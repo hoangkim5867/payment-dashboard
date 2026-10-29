@@ -3267,6 +3267,7 @@ html[data-theme="ivorybunny"] .process-inline-input{
                 </div>
             </div>
             <span class="activity-log-month-static" id="activityLogMonthStatic"></span>
+            <button type="button" class="btn-gray" id="activityLogIncludeAdminBtn" hidden aria-pressed="false">Hiện thao tác Admin</button>
         </div>
 
         <div class="audit-list" id="auditList"></div>
@@ -6067,6 +6068,8 @@ const closeActivityLogModal =
 
 const auditList =
     document.getElementById("auditList");
+const activityLogIncludeAdminBtn =
+    document.getElementById("activityLogIncludeAdminBtn");
 
 const activityLogMonthPicker =
     document.getElementById("activityLogMonthPicker");
@@ -10676,12 +10679,22 @@ function isAdminActivityLog(item){
 }
 
 
+/*
+ * Admin events are preserved in Firestore and in the raw, already-loaded page.
+ * Staff must never see them. Admin may explicitly reveal them locally, without
+ * a new query. Default remains hidden to preserve the existing privacy setting.
+ */
+function activityLogsVisibleToViewer(rows,includeAdmin=false){
+    return rows.filter(item => (isAdmin() && includeAdmin) || !isAdminActivityLog(item));
+}
 const ACTIVITY_LOG_PAGE_SIZE = 100;
 const ACTIVITY_LOG_MONTH_OPTION_COUNT = 24;
 
 const activityLogState = {
     month: CURRENT_MONTH,
+    rawLogs: [],
     logs: [],
+    showAdmin: false,
     lastDoc: null,
     hasMore: false,
     loading: false,
@@ -10776,6 +10789,14 @@ function openActivityLogMonthPicker(){
 function syncActivityLogMonthUI(){
     if(!activityLogMonthPicker || !activityLogMonthStatic) return;
 
+    if(activityLogIncludeAdminBtn){
+        activityLogIncludeAdminBtn.hidden = !isAdmin();
+        activityLogIncludeAdminBtn.setAttribute("aria-pressed",String(isAdmin() && activityLogState.showAdmin));
+        activityLogIncludeAdminBtn.textContent = isAdmin() && activityLogState.showAdmin
+            ? (currentLanguage==="zh"?"隐藏管理员操作":currentLanguage==="en"?"Hide Admin actions":"Ẩn thao tác Admin")
+            : (currentLanguage==="zh"?"显示管理员操作":currentLanguage==="en"?"Show Admin actions":"Hiện thao tác Admin");
+    }
+
     if(activityLogMonthTrigger){
         activityLogMonthTrigger.setAttribute("aria-label",t("auditMonthAria"));
     }
@@ -10862,13 +10883,22 @@ function activityLogRowsHTML(logs){
 
 function renderActivityLogRows(){
     if(!auditList) return;
+    // Refilter the local cache. Changing visibility must never re-query Firestore.
+    activityLogState.logs = activityLogsVisibleToViewer(
+        activityLogState.rawLogs,activityLogState.showAdmin
+    );
 
     if(activityLogState.loadError){
         auditList.innerHTML =
             `<div class="empty">${escapeHTML(t("auditLoadError"))}</div>`;
     }else if(!activityLogState.logs.length){
-        auditList.innerHTML =
-            `<div class="empty">${escapeHTML(t("noAudit"))}</div>`;
+        // An empty filtered page is not evidence that Firestore has no logs.
+        const explanation = activityLogState.rawLogs.length
+            ? (isAdmin() && !activityLogState.showAdmin
+                ? (currentLanguage==="zh"?"本页有已隐藏的管理员操作。点击“显示管理员操作”查看，或点击“查看更多”。":currentLanguage==="en"?"Admin actions are hidden on this page. Select Show Admin actions to reveal them without reloading, or Load more.":"Trang này có thao tác Admin đang ẩn. Bấm “Hiện thao tác Admin” để xem ngay (không tải thêm dữ liệu), hoặc “Xem thêm”.")
+                : (currentLanguage==="zh"?"本页没有可显示的操作。可以点击“查看更多”。":currentLanguage==="en"?"No visible actions on this page. Use Load more for older records.":"Trang này chưa có thao tác được phép hiển thị. Có thể bấm “Xem thêm” để xem trang trước."))
+            : t("noAudit");
+        auditList.innerHTML = `<div class="empty">${escapeHTML(explanation)}</div>`;
     }else{
         auditList.innerHTML = activityLogRowsHTML(activityLogState.logs);
     }
@@ -10894,6 +10924,7 @@ async function renderActivityLog({reset=true}={}){
     activityLogState.month = normalizeActivityLogMonth(activityLogState.month);
 
     if(reset){
+        activityLogState.rawLogs = [];
         activityLogState.logs = [];
         activityLogState.lastDoc = null;
         activityLogState.hasMore = false;
@@ -10934,14 +10965,11 @@ async function renderActivityLog({reset=true}={}){
             );
 
         const docs = snapshot.docs;
-        const pageLogs = docs
-            .map(item => ({id:item.id,...item.data()}))
-            .filter(item => !isAdminActivityLog(item));
-
+        const pageLogs = docs.map(item => ({id:item.id,...item.data()}));
         activityLogState.loadError = false;
-        activityLogState.logs = reset
+        activityLogState.rawLogs = reset
             ? pageLogs
-            : [...activityLogState.logs,...pageLogs];
+            : [...activityLogState.rawLogs,...pageLogs];
         activityLogState.lastDoc = docs.length
             ? docs[docs.length-1]
             : activityLogState.lastDoc;
@@ -12782,7 +12810,9 @@ activityLogBtn.addEventListener(
         }
 
         activityLogState.month = CURRENT_MONTH;
+        activityLogState.rawLogs = [];
         activityLogState.logs = [];
+        activityLogState.showAdmin = false;
         activityLogState.lastDoc = null;
         activityLogState.hasMore = false;
         activityLogState.loadError = false;
@@ -12796,6 +12826,13 @@ activityLogBtn.addEventListener(
     }
 );
 
+
+activityLogIncludeAdminBtn.addEventListener("click",()=>{
+    if(!isAdmin()) return;
+    activityLogState.showAdmin = !activityLogState.showAdmin;
+    syncActivityLogMonthUI();
+    renderActivityLogRows(); // Uses local cache, never calls getDocs.
+});
 
 activityLogMonthTrigger.addEventListener(
     "click",

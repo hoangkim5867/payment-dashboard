@@ -2985,6 +2985,9 @@ html[data-theme="ivorybunny"] .process-inline-input{
             <button class="close" id="closeActivityLogModal">×</button>
         </div>
 
+        <div style="padding:6px 0 10px">
+            <button type="button" class="btn-gray" id="mobileActivityLogIncludeAdminBtn" hidden aria-pressed="false">Hiện thao tác Admin</button>
+        </div>
         <div class="audit-list" id="auditList"></div>
     </div>
 </div>
@@ -5693,6 +5696,8 @@ const closeActivityLogModal =
 
 const auditList =
     document.getElementById("auditList");
+const mobileActivityLogIncludeAdminBtn =
+    document.getElementById("mobileActivityLogIncludeAdminBtn");
 
 const batchPaymentBtn =
     document.getElementById("batchPaymentBtn");
@@ -10025,8 +10030,21 @@ function isAdminActivityLog(item){
 }
 
 
-async function renderActivityLog(){
+function activityLogsVisibleToViewer(rows,includeAdmin=false){
+    return rows.filter(item => (isAdmin() && includeAdmin) || !isAdminActivityLog(item));
+}
+let mobileActivityLogRawLogs = [];
+let mobileActivityLogShowAdmin = false;
 
+async function renderActivityLog({cachedOnly=false}={}){
+    if(mobileActivityLogIncludeAdminBtn){
+        mobileActivityLogIncludeAdminBtn.hidden = !isAdmin();
+        mobileActivityLogIncludeAdminBtn.setAttribute("aria-pressed",String(isAdmin() && mobileActivityLogShowAdmin));
+        mobileActivityLogIncludeAdminBtn.textContent = isAdmin() && mobileActivityLogShowAdmin
+            ? (currentLanguage==="zh"?"隐藏管理员操作":currentLanguage==="en"?"Hide Admin actions":"Ẩn thao tác Admin")
+            : (currentLanguage==="zh"?"显示管理员操作":currentLanguage==="en"?"Show Admin actions":"Hiện thao tác Admin");
+    }
+    if(!cachedOnly){
     const snapshot =
         await getDocs(
             query(
@@ -10048,18 +10066,17 @@ async function renderActivityLog(){
         }
     );
 
-    /* The query already returns newest first and never downloads old logs. */
-
-    /* Admin activity is hidden for every role, including legacy Admin rows. */
-    const visibleLogs = logs.filter(
-        item => !isAdminActivityLog(item)
-    );
+    /* Save the exact returned page for local visibility switches. */
+    mobileActivityLogRawLogs = logs;
+    }
+    const visibleLogs = activityLogsVisibleToViewer(mobileActivityLogRawLogs,mobileActivityLogShowAdmin);
 
     if(!visibleLogs.length){
 
-        auditList.innerHTML =
-            `<div class="empty">${escapeHTML(t("noAudit"))}</div>`;
-
+        const explanation = mobileActivityLogRawLogs.length && isAdmin() && !mobileActivityLogShowAdmin
+            ? (currentLanguage==="zh"?"管理员操作已隐藏，点击“显示管理员操作”查看。":currentLanguage==="en"?"Admin actions are hidden. Select Show Admin actions.":"Thao tác Admin đang ẩn. Bấm “Hiện thao tác Admin” để xem ngay, không đọc thêm Firestore.")
+            : t("noAudit");
+        auditList.innerHTML = `<div class="empty">${escapeHTML(explanation)}</div>`;
         return;
     }
 
@@ -11712,6 +11729,12 @@ selectAllRecyclePayments.addEventListener(
 );
 
 
+mobileActivityLogIncludeAdminBtn.addEventListener("click",async()=>{
+    if(!isAdmin()) return;
+    mobileActivityLogShowAdmin = !mobileActivityLogShowAdmin;
+    await renderActivityLog({cachedOnly:true});
+});
+
 activityLogBtn.addEventListener(
     "click",
     async () => {
@@ -11732,6 +11755,8 @@ activityLogBtn.addEventListener(
         activityLogModal.classList.add(
             "show"
         );
+        mobileActivityLogRawLogs = [];
+        mobileActivityLogShowAdmin = false;
 
         auditList.innerHTML =
             `<div class="empty">⏳</div>`;
