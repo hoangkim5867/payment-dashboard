@@ -24,7 +24,7 @@ const server=http.createServer((request,response)=>{
  const browser=await chromium.launch({headless:true});
  try{
   const ctx=await browser.newContext(),page=await ctx.newPage(),errors=[],blocked=[];
-  await ctx.route('**/*',route=>{const host=new URL(route.request().url).hostname;
+  await ctx.route('**/*',route=>{const host=new URL(route.request().url()).hostname;
     if(['firestore.googleapis.com','identitytoolkit.googleapis.com','securetoken.googleapis.com','storage.googleapis.com'].includes(host)){blocked.push(host);return route.abort();}return route.continue();});
   page.on('pageerror',e=>errors.push(e.message));
   page.on('dialog',d=>d.accept());
