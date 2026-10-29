@@ -2803,12 +2803,27 @@ async function subscribeCashCloud(){
 
     setCashCloudConnection('loading','Cash Control: đang kết nối online...');
 
-    await ensureCashCloudDocument();
-
+    // The initial listener snapshot already checks whether the private document
+    // exists. Avoid a duplicate getDoc on every login; only initialize if absent.
+    // ensureCashCloudDocument() re-reads before creating, never overwriting an
+    // existing Cash Control document or weakening the owner-only guard.
     cashCloudUnsubscribe=onSnapshot(
         cashPrivateRef,
         snap=>{
-            cashCloudState=normalizeCashCloudState(snap.exists()?snap.data():{});
+            if(!snap.exists()){
+                void ensureCashCloudDocument().then(ok=>{
+                    if(!ok && currentAuthUser && isCashControlOwner()){
+                        setCashCloudConnection('error','Cash Control: chưa khởi tạo được dữ liệu online');
+                    }
+                }).catch(error=>{
+                    console.error('CASH CLOUD INIT ERROR',error);
+                    if(currentAuthUser && isCashControlOwner()){
+                        setCashCloudConnection('error','Cash Control: chưa khởi tạo được dữ liệu online');
+                    }
+                });
+                return;
+            }
+            cashCloudState=normalizeCashCloudState(snap.data());
             invalidateCashCalculations();
             cashCloudReady=true;
             setCashCloudConnection('ok','Cash Control: online · đã đồng bộ');
