@@ -1,9 +1,11 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),assert=require('node:assert/strict');
 const {chromium}=require('playwright');
-const {initializeApp,deleteApp}=require('./firebase-rules/node_modules/firebase-admin/app');
-const {getFirestore}=require('./firebase-rules/node_modules/firebase-admin/firestore');
-const {getAuth}=require('./firebase-rules/node_modules/firebase-admin/auth');
+const {createRequire}=require('node:module');
+const firebaseRequire=createRequire(path.join(__dirname,'firebase-rules/package.json'));
+const {initializeApp,deleteApp}=firebaseRequire('firebase-admin/app');
+const {getFirestore}=firebaseRequire('firebase-admin/firestore');
+const {getAuth}=firebaseRequire('firebase-admin/auth');
 if(process.env.FIRESTORE_EMULATOR_HOST!=='127.0.0.1:8080'||process.env.FIREBASE_AUTH_EMULATOR_HOST!=='127.0.0.1:9099')
  throw Error('Only isolated local Emulators are permitted');
 const root=path.resolve(__dirname,'../../emulator-site');
