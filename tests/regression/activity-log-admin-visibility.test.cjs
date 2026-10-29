@@ -1,44 +1,42 @@
 'use strict';
-const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
-const read=file=>fs.readFileSync(path.resolve(__dirname,'../../site',file),'utf8');
-for(const file of ['payment.html','payment-mobile-renderer.html']){
-    test(file+' admin-only visibility is explicit and does not perform a Firestore read',()=>{
-        const code=read(file);
-        assert.match(code,/function activityLogsVisibleToViewer\(rows,includeAdmin=false\)/);
-        assert.match(code,/\(isAdmin\(\) && includeAdmin\) \|\| !isAdminActivityLog\(item\)/);
-        const js=code.slice(code.indexOf('function activityLogsVisibleToViewer('),code.indexOf('function activityLogsVisibleToViewer(')+200);
-        const scope={isAdmin:()=>false,isAdminActivityLog:item=>item.operatorRole==='Admin'};
-        vm.createContext(scope);vm.runInContext(js.slice(0,js.indexOf('\n}')+2),scope);
-        const entries=[{operatorRole:'Admin',id:'a'},{operatorRole:'Staff',id:'s'}];
-        assert.deepEqual(Array.from(scope.activityLogsVisibleToViewer(entries,true)).map(x=>x.id),['s'],'Staff may never reveal Admin logs');
-        scope.isAdmin=()=>true;
-        assert.deepEqual(Array.from(scope.activityLogsVisibleToViewer(entries,false)).map(x=>x.id),['s'],'Admin default hides own logs');
-        assert.deepEqual(Array.from(scope.activityLogsVisibleToViewer(entries,true)).map(x=>x.id),['a','s'],'Admin can explicitly reveal logs');
-    });
-}
-test('desktop retains raw pages and the visibility click only rerenders cached data',()=>{
- const html=read('payment.html');
- assert.match(html,/id="activityLogIncludeAdminBtn" hidden/);
- assert.match(html,/rawLogs: \[\]/);
- assert.match(html,/activityLogState\.rawLogs = reset/);
- const start=html.indexOf('activityLogIncludeAdminBtn.addEventListener("click"');
- const end=html.indexOf('activityLogMonthTrigger.addEventListener(',start);
- assert.ok(start>0&&end>start);
- const block=html.slice(start,end);
- assert.match(block,/if\(!isAdmin\(\)\) return/);
- assert.match(block,/renderActivityLogRows\(\)/);
- assert.doesNotMatch(block.replace(/\/\/[^\n]*/g,''),/getDocs|renderActivityLog\(/);
- assert.match(html,/docs\.length === ACTIVITY_LOG_PAGE_SIZE/);
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const read=name=>fs.readFileSync(path.resolve(__dirname,'../../site',name),'utf8');
+test('desktop Activity Log searches bounded pages for Staff and keeps Admin hidden',()=>{
+ const s=read('payment.html');
+ assert.match(s,/const ACTIVITY_LOG_PAGE_SIZE = 30/);
+ assert.match(s,/const ACTIVITY_LOG_MAX_PAGES_PER_ACTION = 4/);
+ const start=s.indexOf('async function renderActivityLog({reset=true}={}){');
+ const end=s.indexOf('async function doFirebaseLogin()',start);
+ const block=s.slice(start,end);
+ assert.match(block,/for\(let attempt=0;attempt<ACTIVITY_LOG_MAX_PAGES_PER_ACTION;attempt\+\+\)/);
+ assert.match(block,/\.filter\(item=>!isAdminActivityLog\(item\)\)/);
+ assert.match(block,/if\(docs\.length\)cursor = docs\[docs\.length-1\]/);
+ assert.match(block,/if\(displayed\.length \|\| !more\)break/);
+ assert.match(block,/activityLogState\.hasMore = more/);
+ assert.match(s,/Đã kiểm tra.*thao tác gần nhất/);
+ assert.doesNotMatch(s,/activityLogIncludeAdminBtn|showAdmin/);
 });
-test('mobile cached-only toggle avoids network and resets on reopening',()=>{
- const html=read('payment-mobile-renderer.html');
- assert.match(html,/id="mobileActivityLogIncludeAdminBtn" hidden/);
- assert.match(html,/if\(!cachedOnly\)\{/);
- const a=html.indexOf('mobileActivityLogIncludeAdminBtn.addEventListener("click"');
- const b=html.indexOf('activityLogBtn.addEventListener(',a);
- assert.ok(a>0&&b>a);
- const block=html.slice(a,b);
- assert.match(block,/renderActivityLog\(\{cachedOnly:true\}\)/);
- assert.doesNotMatch(block,/getDocs/);
- assert.match(html,/mobileActivityLogRawLogs = \[\];\s*mobileActivityLogShowAdmin = false/);
+test('mobile Activity Log no longer reads 500 documents on open and can continue by explicit click',()=>{
+ const s=read('payment-mobile-renderer.html');
+ assert.match(s,/MOBILE_ACTIVITY_LOG_PAGE_SIZE = 30/);
+ assert.match(s,/MOBILE_ACTIVITY_LOG_MAX_PAGES_PER_ACTION = 4/);
+ assert.match(s,/id="mobileActivityLogLoadMoreBtn"/);
+ assert.match(s,/mobileActivityLogLoadMoreBtn\.addEventListener\("click"/);
+ assert.match(s,/await renderActivityLog\(\{reset:false\}\)/);
+ assert.match(s,/\.filter\(item=>!isAdminActivityLog\(item\)\)/);
+ assert.match(s,/if\(newlyVisible\.length \|\| !more\)break/);
+ assert.doesNotMatch(s,/mobileActivityLogIncludeAdminBtn|mobileActivityLogShowAdmin/);
+});
+test('both pages preserve append-only Activity Log writes and client-only Admin masking',()=>{
+ for(const file of ['payment.html','payment-mobile-renderer.html']){
+  const s=read(file);
+  assert.match(s,/async function logActivity\(/);
+  assert.match(s,/function isAdminActivityLog\(/);
+  assert.match(s,/collection\(\s*db,\s*"activityLogs"/);
+  const begin=s.indexOf('function isAdminActivityLog(');
+  assert.match(s.slice(begin,begin+1200),/operatorRole/);
+ }
 });

@@ -2985,10 +2985,10 @@ html[data-theme="ivorybunny"] .process-inline-input{
             <button class="close" id="closeActivityLogModal">×</button>
         </div>
 
-        <div style="padding:6px 0 10px">
-            <button type="button" class="btn-gray" id="mobileActivityLogIncludeAdminBtn" hidden aria-pressed="false">Hiện thao tác Admin</button>
-        </div>
         <div class="audit-list" id="auditList"></div>
+        <div class="activity-log-load-more" id="mobileActivityLogMoreWrap" hidden>
+            <button type="button" class="btn-gray" id="mobileActivityLogLoadMoreBtn">Xem thêm</button>
+        </div>
     </div>
 </div>
 
@@ -3623,6 +3623,7 @@ import {
     where,
     orderBy,
     limit,
+    startAfter,
     serverTimestamp
 }
 from
@@ -5696,8 +5697,10 @@ const closeActivityLogModal =
 
 const auditList =
     document.getElementById("auditList");
-const mobileActivityLogIncludeAdminBtn =
-    document.getElementById("mobileActivityLogIncludeAdminBtn");
+const mobileActivityLogMoreWrap =
+    document.getElementById("mobileActivityLogMoreWrap");
+const mobileActivityLogLoadMoreBtn =
+    document.getElementById("mobileActivityLogLoadMoreBtn");
 
 const batchPaymentBtn =
     document.getElementById("batchPaymentBtn");
@@ -10030,53 +10033,64 @@ function isAdminActivityLog(item){
 }
 
 
-function activityLogsVisibleToViewer(rows,includeAdmin=false){
-    return rows.filter(item => (isAdmin() && includeAdmin) || !isAdminActivityLog(item));
-}
-let mobileActivityLogRawLogs = [];
-let mobileActivityLogShowAdmin = false;
-
-async function renderActivityLog({cachedOnly=false}={}){
-    if(mobileActivityLogIncludeAdminBtn){
-        mobileActivityLogIncludeAdminBtn.hidden = !isAdmin();
-        mobileActivityLogIncludeAdminBtn.setAttribute("aria-pressed",String(isAdmin() && mobileActivityLogShowAdmin));
-        mobileActivityLogIncludeAdminBtn.textContent = isAdmin() && mobileActivityLogShowAdmin
-            ? (currentLanguage==="zh"?"隐藏管理员操作":currentLanguage==="en"?"Hide Admin actions":"Ẩn thao tác Admin")
-            : (currentLanguage==="zh"?"显示管理员操作":currentLanguage==="en"?"Show Admin actions":"Hiện thao tác Admin");
+const MOBILE_ACTIVITY_LOG_PAGE_SIZE = 30;
+const MOBILE_ACTIVITY_LOG_MAX_PAGES_PER_ACTION = 4;
+const mobileActivityLogState = {logs:[],lastDoc:null,hasMore:false,scanned:0,loading:false,loadError:false};
+async function renderActivityLog({reset=true}={}){
+    if(mobileActivityLogState.loading)return;
+    if(reset){
+        mobileActivityLogState.logs=[];
+        mobileActivityLogState.lastDoc=null;
+        mobileActivityLogState.scanned=0;
+        mobileActivityLogState.hasMore=false;
+        mobileActivityLogState.loadError=false;
     }
-    if(!cachedOnly){
-    const snapshot =
-        await getDocs(
-            query(
-                activityLogsRef,
-                orderBy("createdAt","desc"),
-                limit(500)
-            )
-        );
-
-    const logs = [];
-
-    snapshot.forEach(
-        item => {
-
-            logs.push({
-                id:item.id,
-                ...item.data()
-            });
+    mobileActivityLogState.loading=true;
+    auditList.innerHTML = '<div class="empty">⏳</div>';
+    if(mobileActivityLogMoreWrap)mobileActivityLogMoreWrap.hidden=true;
+    try{
+        const newlyVisible=[];
+        let cursor=mobileActivityLogState.lastDoc;
+        let more=mobileActivityLogState.hasMore;
+        // Do not pull 500 raw logs every time the modal opens. Find visible
+        // Staff rows in bounded 30-document pages, and load more on click only.
+        for(let attempt=0;attempt<MOBILE_ACTIVITY_LOG_MAX_PAGES_PER_ACTION;attempt++){
+            const constraints=[orderBy("createdAt","desc")];
+            if(cursor)constraints.push(startAfter(cursor));
+            constraints.push(limit(MOBILE_ACTIVITY_LOG_PAGE_SIZE));
+            const snapshot=await getDocs(query(activityLogsRef,...constraints));
+            const docs=snapshot.docs;
+            mobileActivityLogState.scanned+=docs.length;
+            newlyVisible.push(...docs
+                .map(item=>({id:item.id,...item.data()}))
+                .filter(item=>!isAdminActivityLog(item)));
+            if(docs.length)cursor=docs[docs.length-1];
+            more=docs.length===MOBILE_ACTIVITY_LOG_PAGE_SIZE;
+            if(newlyVisible.length || !more)break;
         }
-    );
-
-    /* Save the exact returned page for local visibility switches. */
-    mobileActivityLogRawLogs = logs;
+        mobileActivityLogState.logs = reset
+            ? newlyVisible
+            : [...mobileActivityLogState.logs,...newlyVisible];
+        mobileActivityLogState.lastDoc=cursor;
+        mobileActivityLogState.hasMore=more;
+    }catch(error){
+        console.error("ACTIVITY LOG LOAD ERROR:",error);
+        mobileActivityLogState.loadError=true;
+    }finally{
+        mobileActivityLogState.loading=false;
+        if(mobileActivityLogMoreWrap)mobileActivityLogMoreWrap.hidden=!mobileActivityLogState.hasMore;
+        if(mobileActivityLogLoadMoreBtn)mobileActivityLogLoadMoreBtn.disabled=false;
     }
-    const visibleLogs = activityLogsVisibleToViewer(mobileActivityLogRawLogs,mobileActivityLogShowAdmin);
-
+    if(mobileActivityLogState.loadError){
+        auditList.innerHTML = '<div class="empty">Không tải được lịch sử thao tác.</div>';
+        return;
+    }
+    const visibleLogs=mobileActivityLogState.logs;
     if(!visibleLogs.length){
-
-        const explanation = mobileActivityLogRawLogs.length && isAdmin() && !mobileActivityLogShowAdmin
-            ? (currentLanguage==="zh"?"管理员操作已隐藏，点击“显示管理员操作”查看。":currentLanguage==="en"?"Admin actions are hidden. Select Show Admin actions.":"Thao tác Admin đang ẩn. Bấm “Hiện thao tác Admin” để xem ngay, không đọc thêm Firestore.")
+        const message = mobileActivityLogState.scanned && mobileActivityLogState.hasMore
+            ? "Đã kiểm tra "+mobileActivityLogState.scanned+" thao tác gần nhất, chưa tìm thấy thao tác Staff được hiển thị. Bấm “Xem thêm” để tìm tiếp."
             : t("noAudit");
-        auditList.innerHTML = `<div class="empty">${escapeHTML(explanation)}</div>`;
+        auditList.innerHTML = `<div class="empty">${escapeHTML(message)}</div>`;
         return;
     }
 
@@ -11729,10 +11743,10 @@ selectAllRecyclePayments.addEventListener(
 );
 
 
-mobileActivityLogIncludeAdminBtn.addEventListener("click",async()=>{
-    if(!isAdmin()) return;
-    mobileActivityLogShowAdmin = !mobileActivityLogShowAdmin;
-    await renderActivityLog({cachedOnly:true});
+mobileActivityLogLoadMoreBtn.addEventListener("click",async()=>{
+    if(mobileActivityLogState.loading || !mobileActivityLogState.hasMore)return;
+    mobileActivityLogLoadMoreBtn.disabled=true;
+    await renderActivityLog({reset:false});
 });
 
 activityLogBtn.addEventListener(
@@ -11755,8 +11769,6 @@ activityLogBtn.addEventListener(
         activityLogModal.classList.add(
             "show"
         );
-        mobileActivityLogRawLogs = [];
-        mobileActivityLogShowAdmin = false;
 
         auditList.innerHTML =
             `<div class="empty">⏳</div>`;
