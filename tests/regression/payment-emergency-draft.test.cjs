@@ -5,7 +5,7 @@ for(const page of ['payment.html','payment-mobile-renderer.html']){
   const src=fs.readFileSync(path.resolve(__dirname,'../../site',page),'utf8');
   assert.match(src,/import \{createPaymentEmergencyDrafts\} from "\.\/assets\/js\/payment-emergency-drafts\.mjs"/);
   assert.match(src,/const emergencyPaymentDrafts=createPaymentEmergencyDrafts\(/);
-  assert.match(src,/emergencyPaymentDrafts\.notifyWriteFailure\(\)/);
+  assert.match(src,/emergencyPaymentDrafts\.notifyWriteFailure\(draftWriteToken\)/);
   assert.match(src,/savePaymentBtn\.addEventListener\(/);
   assert.match(src,/findManualDuplicatePayment\(/);
   assert.match(src,/editingUpdatedAtAtOpen/);
