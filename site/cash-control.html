@@ -8359,6 +8359,7 @@ function openSalaryRecord(id=null){
 
 async function deleteSalaryRecord(id){
     if(!ensureMepWrite())return;const x=(cashCloudState.salaryRecords||[]).find(r=>r.id===id);if(!x)return;
+    if(x.type==='bonus'&&findLinkedBonusTaxRecord(x)){alert('Thưởng có Thuế TNCN liên kết. Vui lòng xử lý khoản thuế riêng trước khi xóa thưởng.');return;}
     if(!confirm(`Xóa ${PAYROLL_TYPE_LABELS[x.type]||'khoản nhân sự'} của ${x.project} · ${fmtMonth(x.payrollMonth)}?\nDòng liên kết trong sổ thu chi cũng sẽ bị xóa.`))return;
     cashCloudState.salaryRecords=(cashCloudState.salaryRecords||[]).filter(r=>r.id!==id);cashCloudState.manualRecords=manual().filter(r=>r.id!==x.cashTxnId&&r.linkedRecordId!==id);salarySelectedIds.delete(id);pushAudit('payroll','Xóa khoản lương / thuế',id,`${x.project} · ${x.payrollMonth}`);if(await persistCashCloud('Xóa khoản lương / thuế'))renderAll();
 }
@@ -8366,12 +8367,36 @@ async function deleteSalaryRecord(id){
 async function applySalaryPaymentDate(clear=false){
     if(!ensureMepWrite())return;if(!salarySelectedIds.size){alert('Chọn ít nhất một khoản.');return}
     const actualDate=clear?'':$('salaryBatchDate').value,account=DEFAULT_PAYROLL_ACCOUNT;if(!clear&&!actualDate){alert('Chọn ngày thực trả.');return}
-    const arr=[...(cashCloudState.salaryRecords||[])];let changed=0;arr.forEach(x=>{if(!salarySelectedIds.has(x.id))return;x.actualDate=actualDate;if(!clear)x.account=account;x.updatedAt=new Date().toISOString();syncSalaryCash(x);changed++});cashCloudState.salaryRecords=arr;
+    const arr=[...(cashCloudState.salaryRecords||[])];let changed=0;
+    for(const x of arr){
+      if(!salarySelectedIds.has(x.id))continue;
+      if(x.type==='bonus'){
+        const linked=findLinkedBonusTaxRecord(x,arr);
+        if(linked?.actualDate&&linked.taxPeriod!==bonusTaxQuarterFromPaymentDate(actualDate)){
+          alert('Không đổi ngày trả thưởng vì thuế liên kết đã nộp ở kỳ khác. Hãy đối chiếu thuế trước.');return;
+        }
+      }
+    }
+    arr.forEach(x=>{
+      if(!salarySelectedIds.has(x.id))return;
+      x.actualDate=actualDate;if(!clear)x.account=account;x.updatedAt=new Date().toISOString();syncSalaryCash(x);changed++;
+      if(x.type==='bonus'){
+        const linked=findLinkedBonusTaxRecord(x,arr);
+        if(linked&&!linked.actualDate){
+          linked.taxPeriod=bonusTaxQuarterFromPaymentDate(actualDate);
+          linked.taxBasisDate=actualDate;
+          linked.payrollMonth=monthOf(actualDate);
+          linked.updatedAt=x.updatedAt;
+          syncSalaryCash(linked);
+        }
+      }
+    });cashCloudState.salaryRecords=arr;
     pushAudit('payroll',clear?'Bỏ ngày thực trả':'Gán ngày thực trả','',`${changed} khoản${actualDate?' · '+actualDate:''}`);if(await persistCashCloud(clear?'Bỏ ngày thực trả lương & thuế':'Gán ngày thực trả lương & thuế')){salarySelectedIds.clear();$('salaryBatchDate').value='';renderAll()}
 }
 
 async function deleteSelectedSalaryRecords(){
     if(!ensureMepWrite())return;if(!salarySelectedIds.size)return;const selected=(cashCloudState.salaryRecords||[]).filter(x=>salarySelectedIds.has(x.id));if(!confirm(`Xóa ${selected.length} khoản đã chọn?\nCác dòng liên kết trong sổ thu chi cũng sẽ bị xóa.`))return;
+    if(selected.some(x=>x.type==='bonus'&&findLinkedBonusTaxRecord(x)&&!salarySelectedIds.has(findLinkedBonusTaxRecord(x).id))){alert('Có Thưởng liên kết với Thuế TNCN. Phải chọn cả dòng thuế để xóa, tránh để lại khoản thuế không rõ nguồn.');return;}
     const ids=new Set(selected.map(x=>x.id)),cashIds=new Set(selected.map(x=>x.cashTxnId).filter(Boolean));cashCloudState.salaryRecords=(cashCloudState.salaryRecords||[]).filter(x=>!ids.has(x.id));cashCloudState.manualRecords=manual().filter(x=>!cashIds.has(x.id)&&!ids.has(x.linkedRecordId));pushAudit('payroll','Xóa nhiều khoản lương / thuế','',`${selected.length} khoản`);if(await persistCashCloud('Xóa nhiều khoản lương / thuế')){salarySelectedIds.clear();renderAll()}
 }
 
