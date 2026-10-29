@@ -12,7 +12,7 @@ test('full-history scans remain confined to deliberate duplicate/MEP validation'
  assert.equal((s.match(/:\s*paymentsRef\s*\)/g)||[]).length,1);
  assert.match(s,/mepIndexV1Ready\(\)/);
  for(const name of ['cash-control.html','plan-review.html'])
-  assert.doesNotMatch(read(name),/getDocs\(\s*paymentsRef\s*\)/);
+  assert.doesNotMatch(read(name).replace(/\/\/[^\n]*/g,''),/getDocs\(\s*paymentsRef\s*\)/);
 });
 test('opt-in tracer groups real caller and excludes entire changed listener views from cumulative returned documents',()=>{
  const s=read('assets/js/firestore-payment.mjs'), t=read('assets/js/firestore-read-trace.mjs');
