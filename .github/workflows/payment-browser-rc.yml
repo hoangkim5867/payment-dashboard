@@ -1,0 +1,38 @@
+name: Payment RC Browser Save (Isolated Emulator)
+on:
+  pull_request:
+    paths: ['site/**','tests/payment-browser-emulator.cjs','tests/cash-bonus-browser-emulator.cjs','tests/build-emulator-site.cjs','.github/workflows/payment-browser-rc.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d1654d11
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Prepare Emulators and Chromium
+        run: |
+          npm install -g pnpm@10
+          cd tests/firebase-rules
+          pnpm install --frozen-lockfile
+          cd ../
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Build isolated browser fixture
+        run: node tests/build-emulator-site.cjs
+      - name: Browser save and read trace against localhost only
+        working-directory: tests/firebase-rules
+        run: pnpm exec firebase emulators:exec --config ../../firebase.emulator.json --only firestore,auth --project demo-payment-security "node ../payment-browser-emulator.cjs"
+      - name: Cash Control bonus and linked tax browser (isolated emulator)
+        working-directory: tests/firebase-rules
+        run: pnpm exec firebase emulators:exec --config ../../firebase.emulator.json --only firestore,auth --project demo-payment-security "node ../cash-bonus-browser-emulator.cjs"

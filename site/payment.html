@@ -3902,6 +3902,7 @@ window.HISTORY_2026_EDITED_PREVIEW = null;
 </script>
 
 <script type="module">
+import {createPaymentEmergencyDrafts} from "./assets/js/payment-emergency-drafts.mjs";
 
 import {
     initializeApp
@@ -6313,6 +6314,19 @@ const savePaymentBtn =
 const modalTitle =
     document.getElementById("modalTitle");
 
+
+const emergencyPaymentDrafts=createPaymentEmergencyDrafts({
+  modal:paymentModal,saveButton:savePaymentBtn,
+  getContext:()=>({uid:currentAuthUser?.uid,editingId,editVersion:editingUpdatedAtAtOpen,entryType:currentPaymentEntryType}),
+  setEntryType:type=>setPaymentEntryType(type==="mep"?"mep":"contract"),
+  prepareRestore:()=>updateFormProjects(),
+  onFieldRestored:id=>{
+    if(id==="formProject")updateContractOptions();
+    if(id==="formContractNo"){updateContractInfo();refreshContractIPCPreview();}
+    if(id==="formIPC")refreshContractIPCPreview();
+    if(id==="formMEPNoCodeException")applyNoMEPExceptionUI();
+  }
+});
 
 /* =====================================================
    FORM
@@ -18629,12 +18643,18 @@ addPaymentBtn.addEventListener(
     "click",
     async () => {
 
+        // Keep the Add form usable for a local encrypted draft when reads
+        // are temporarily unavailable. This does not bypass validation,
+        // duplicate checks, permissions, or Firestore's server ACK on Save.
+        let addContractLoadFailed = false;
         try{
             await loadContracts();
         }catch(error){
-            return;
+            addContractLoadFailed = true;
+            console.warn("PAYMENT ADD CONTRACTS UNAVAILABLE — DRAFT ONLY UNTIL LOADED",error);
         }
 
+        emergencyPaymentDrafts.resetSession();
         editingId =
             null;
 
@@ -18660,6 +18680,10 @@ addPaymentBtn.addEventListener(
         paymentModal.classList.add(
             "show"
         );
+
+        if(addContractLoadFailed){
+            alert("⚠ Không tải được danh sách hợp đồng. Bạn vẫn có thể nhập thông tin và chọn ‘Lưu nháp mã hóa’. Hãy kết nối lại để tải danh sách hợp đồng và kiểm tra dữ liệu trước khi Lưu lên Firestore.");
+        }
 
     }
 );
@@ -19079,6 +19103,7 @@ async function openEditModal(
         return;
     }
 
+    emergencyPaymentDrafts.resetSession();
     editingId =
         payment.id;
 
@@ -19455,7 +19480,7 @@ formContractNo.addEventListener(
 ===================================================== */
 
 function closePaymentModal(){
-
+    emergencyPaymentDrafts.resetSession();
     paymentModal.classList.remove(
         "show"
     );
@@ -19976,6 +20001,8 @@ savePaymentBtn.addEventListener(
             t("saving");
 
 
+        let draftWriteToken=null;
+        let paymentWriteAcknowledged=false;
         try{
 
 
@@ -20000,6 +20027,8 @@ savePaymentBtn.addEventListener(
                    read the latest Firestore document immediately before saving.
                 */
                 let latestData;
+
+                draftWriteToken=emergencyPaymentDrafts.beginWrite();
 
                 await runTransaction(db, async transaction => {
                     const paymentRef = doc(db,"payments",editingId);
@@ -20033,6 +20062,9 @@ savePaymentBtn.addEventListener(
 
                     );
                 });
+                paymentWriteAcknowledged=true;
+                emergencyPaymentDrafts.notifyWriteSuccess(draftWriteToken);
+                draftWriteToken=null;
 
                 const editChanges =
                     buildChangeDetails(
@@ -20041,15 +20073,17 @@ savePaymentBtn.addEventListener(
                     );
 
 
-                await logActivity(
-                    "EDIT",
-                    {
-                        id:editingId,
-                        ...data
-                    },
-                    "",
-                    editChanges
-                );
+                try{
+                    await logActivity(
+                        "EDIT",
+                        {id:editingId,...data},
+                        "",
+                        editChanges
+                    );
+                }catch(activityError){
+                    console.error("PAYMENT POST-SAVE ACTIVITY LOG ERROR:",activityError);
+                    alert("⚠ Payment đã lưu trên Firestore nhưng chưa ghi được Activity Log. Hãy kiểm tra lại nhật ký.");
+                }
 
                 alert(
                     "✅ " + t("updated")
@@ -20105,6 +20139,7 @@ savePaymentBtn.addEventListener(
                 savePaymentBtn.textContent =
                     t("saving");
 
+                draftWriteToken=emergencyPaymentDrafts.beginWrite();
                 const createdPaymentRef =
                     await addDoc(
 
@@ -20146,16 +20181,15 @@ savePaymentBtn.addEventListener(
                         }
 
                     );
-
-
-                await logActivity(
-                    "ADD",
-                    {
-                        id:
-                            createdPaymentRef.id,
-                        ...data
-                    }
-                );
+                paymentWriteAcknowledged=true;
+                emergencyPaymentDrafts.notifyWriteSuccess(draftWriteToken);
+                draftWriteToken=null;
+                try{
+                    await logActivity("ADD",{id:createdPaymentRef.id,...data});
+                }catch(activityError){
+                    console.error("PAYMENT POST-SAVE ACTIVITY LOG ERROR:",activityError);
+                    alert("⚠ Payment đã lưu trên Firestore nhưng chưa ghi được Activity Log. Hãy kiểm tra lại nhật ký.");
+                }
 
 
                 alert(
@@ -20166,19 +20200,30 @@ savePaymentBtn.addEventListener(
 
 
             if(isMEPPayment){
-
-                await upsertVendor(
-                    data.company,
-                    data.bankAccount,
-                    {
-                        preferInputDefault:true
-                    }
-                );
+                try{
+                    await upsertVendor(
+                        data.company,
+                        data.bankAccount,
+                        {preferInputDefault:true}
+                    );
+                }catch(vendorError){
+                    // Payment has already received its server acknowledgement.
+                    // Do not report a failed payment or leave the form open:
+                    // retrying Add could create the same Payment twice.
+                    console.error("PAYMENT POST-SAVE VENDOR SYNC ERROR:",vendorError);
+                    alert("⚠ Payment đã lưu trên Firestore, nhưng chưa đồng bộ được danh sách nhà cung cấp. Hãy kiểm tra lại Contract Master sau.");
+                }
             }
 
             closePaymentModal();
 
-            await loadPayments();
+            try{
+                await loadPayments();
+            }catch(refreshError){
+                // A refresh error is not a failed Payment write.
+                console.error("PAYMENT POST-SAVE VIEW REFRESH ERROR:",refreshError);
+                alert("⚠ Payment đã lưu trên Firestore, nhưng bảng chưa cập nhật được. Hãy bấm Làm mới khi kết nối ổn định.");
+            }
 
         }
 
@@ -20188,12 +20233,13 @@ savePaymentBtn.addEventListener(
                 "SAVE PAYMENT ERROR:",
                 error
             );
-
-
-            alert(
-                "❌ " + t("saveError") +
-                error.message
-            );
+            if(paymentWriteAcknowledged){
+                console.error("PAYMENT POST-SAVE ERROR (PAYMENT COMMITTED):",error);
+                alert("⚠ Payment đã lưu trên Firestore nhưng xảy ra lỗi sau lưu. KHÔNG bấm Lưu lại; hãy kiểm tra bảng thanh toán.");
+            }else{
+                emergencyPaymentDrafts.notifyWriteFailure(draftWriteToken);
+                alert("❌ " + t("saveError") + error.message);
+            }
 
         }
 

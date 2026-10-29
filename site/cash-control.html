@@ -1536,6 +1536,11 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
       <div class="field"><label>Khoản mục</label><select id="pyType"><option value="salary">Lương thực nhận</option><option value="bonus">Thưởng</option><option value="tax">Thuế TNCN</option><option value="insurance_vn">Bảo hiểm VN</option><option value="insurance_cn">Bảo hiểm TQ</option><option value="union">Phí công đoàn</option><option value="insurance">Bảo hiểm (dữ liệu cũ)</option><option value="meal">Tiền ăn</option><option value="other">Phụ cấp / khoản khác</option></select></div>
       <div class="field" id="pyPeriodField"><label id="pyPeriodLabel">Kỳ lương <span class="required-star">*</span></label><input type="month" id="pyPeriod"></div>
       <div class="field" id="pyBonusYearField" hidden><label>Năm thưởng <span class="required-star">*</span></label><input id="pyBonusYear" type="number" min="2000" max="2099" step="1" inputmode="numeric" placeholder="Ví dụ: 2024"></div>
+      <div class="field full" id="pyBonusTaxField" hidden>
+        <label>Thuế TNCN của thưởng (VND) <span class="mep-card-sub">· nhập cùng lúc với thưởng</span></label>
+        <input id="pyBonusTaxAmount" inputmode="decimal" placeholder="Số thuế phải nộp, để trống nếu chưa có">
+        <div class="mep-card-sub" id="pyBonusTaxHelp" role="status">Thuế được theo dõi riêng; ngày trả thưởng quyết định quý thuế và tháng dự kiến nộp.</div>
+      </div>
       <div class="field" id="pyTaxPeriodField" hidden><label>Kỳ thuế <span class="required-star">*</span></label><select id="pyTaxPeriod"></select></div>
       <div class="field"><label>Số tiền VND <span class="required-star">*</span></label><input id="pyAmount" inputmode="decimal" placeholder="0"></div>
       <div class="field"><label>Ngày thực chi / thực nộp</label><input type="date" id="pyActualDate"></div>
@@ -1843,6 +1848,7 @@ import {
     FieldPath,
     serverTimestamp
 } from "./assets/js/firestore-payment.mjs";
+import {bonusTaxQuarterFromPaymentDate,bonusTaxDueMonth,buildLinkedBonusTaxRecord} from "./assets/js/payroll-bonus-tax.mjs";
 const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
 const app=initializeApp(firebaseConfig),db=getFirestore(app),auth=getAuth(app),paymentsRef=collection(db,"payments");
 const CASH_PRIVATE_DOC_ID="lehoangoanh";
@@ -2802,13 +2808,38 @@ async function subscribeCashCloud(){
     }
 
     setCashCloudConnection('loading','Cash Control: đang kết nối online...');
+    // Snapshot callbacks can be repeated; initialize a missing document at most
+    // once per subscription at a time. Never issue overlapping default writes.
+    let cashCloudInitializationPending=false;
+    const subscriptionUid=currentAuthUser.uid;
 
-    await ensureCashCloudDocument();
-
+    // The initial listener snapshot already checks whether the private document
+    // exists. Avoid a duplicate getDoc on every login; only initialize if absent.
+    // ensureCashCloudDocument() re-reads before creating, never overwriting an
+    // existing Cash Control document or weakening the owner-only guard.
     cashCloudUnsubscribe=onSnapshot(
         cashPrivateRef,
         snap=>{
-            cashCloudState=normalizeCashCloudState(snap.exists()?snap.data():{});
+            if(!snap.exists()){
+                // A cache-only "missing" event cannot prove server absence.
+                // Never create defaults until Firestore reports server state.
+                if(snap.metadata?.fromCache || cashCloudInitializationPending)return;
+                cashCloudInitializationPending=true;
+                void ensureCashCloudDocument().then(ok=>{
+                    if(!ok && currentAuthUser?.uid===subscriptionUid && isCashControlOwner()){
+                        setCashCloudConnection('error','Cash Control: chưa khởi tạo được dữ liệu online');
+                    }
+                }).catch(error=>{
+                    console.error('CASH CLOUD INIT ERROR',error);
+                    if(currentAuthUser?.uid===subscriptionUid && isCashControlOwner()){
+                        setCashCloudConnection('error','Cash Control: chưa khởi tạo được dữ liệu online');
+                    }
+                }).finally(()=>{
+                    cashCloudInitializationPending=false;
+                });
+                return;
+            }
+            cashCloudState=normalizeCashCloudState(snap.data());
             invalidateCashCalculations();
             cashCloudReady=true;
             setCashCloudConnection('ok','Cash Control: online · đã đồng bộ');
@@ -7048,6 +7079,10 @@ function taxDueMonth(value){
     return `${dueYear}-${pad(dueMonth)}`;
 }
 function payrollKey(record){
+    // Tax for each bonus is a separate, linked obligation; never merge with
+    // standalone salary tax or a different award in the same quarter.
+    if(record?.type==='tax'&&record.linkedBonusId)
+      return [normProject(record.project),inferPayrollStaffGroup(record),'bonus-tax',String(record.linkedBonusId)].join('|');
     // Do not treat a year-only award as a monthly salary or collapse different awards.
     if(record?.type==='bonus'&&/^20\d{2}$/.test(String(record.bonusYear||'')))
       return [normProject(record.project),inferPayrollStaffGroup(record),'annual-bonus',
@@ -7094,6 +7129,22 @@ function fillPayrollTaxPeriodOptions(selected='',allowBlank=false){
     const wanted=normalized||(allowBlank?'':(payrollQuarterCode($('pyPeriod')?.value)||`${currentYear}-Q${Math.ceil((new Date().getMonth()+1)/3)}`));
     el.value=wanted;
 }
+function findLinkedBonusTaxRecord(bonus,rows=cashCloudState.salaryRecords||[]){
+    if(!bonus||bonus.type!=='bonus')return null;
+    const expectedId=String(bonus.bonusTaxRecordId||'');
+    const direct=expectedId
+      ?rows.find(x=>x.id===expectedId&&x.type==='tax'&&(!x.linkedBonusId||x.linkedBonusId===bonus.id))
+      :null;
+    return direct||rows.find(x=>x.type==='tax'&&x.linkedBonusId===bonus.id)||null;
+}
+function updateBonusTaxPreview(){
+    const el=$('pyBonusTaxHelp');if(!el)return;
+    const date=$('pyActualDate')?.value||'';
+    const code=bonusTaxQuarterFromPaymentDate(date);
+    el.textContent=code
+      ?'Theo ngày trả thưởng '+date+': kỳ thuế '+taxPeriodLabel(code)+', dự kiến nộp tháng '+fmtMonth(bonusTaxDueMonth(code))+'. Thuế chưa ghi thực chi cho tới khi nhập ngày nộp riêng.'
+      :'Chưa có ngày thực trả thưởng: lưu nghĩa vụ thuế chờ xác định quý; khi gán ngày trả thưởng, hệ thống tự cập nhật kỳ thuế.';
+}
 function isLegacyMonthlyBonusEditor(){
     if($('pyType')?.value!=='bonus')return false;
     if(editingLegacySalaryId)return true;
@@ -7111,6 +7162,8 @@ function syncPayrollPeriodUI(autoQuarter=false){
     const monthlyBonus=type==='bonus'&&!annualBonus;
     if($('pyPeriodField'))$('pyPeriodField').hidden=annualBonus;
     if($('pyBonusYearField'))$('pyBonusYearField').hidden=!annualBonus;
+    if($('pyBonusTaxField'))$('pyBonusTaxField').hidden=type!=='bonus'||!!editingLegacySalaryId;
+    if(type==='bonus')updateBonusTaxPreview();
     if($('pyPeriod'))$('pyPeriod').required=!annualBonus;
     if($('pyBonusYear'))$('pyBonusYear').required=annualBonus;
     if(periodLabel)periodLabel.innerHTML=(monthlyBonus?'Kỳ thưởng (tháng)':isTax?'Kỳ lương nguồn':'Kỳ lương')+' <span class="required-star">*</span>';
@@ -7924,11 +7977,13 @@ function renderPayroll(){
           <td><b>${esc(x.project)}</b></td>
           <td><span class="staff-group-${esc(inferPayrollStaffGroup(x))}">${esc(payrollStaffGroupLabel(x))}</span></td>
           <td>${esc(PAYROLL_TYPE_LABELS[x.type]||x.type)}</td>
-          <td>${x.type==='bonus'&&x.bonusYear?'Năm '+esc(x.bonusYear):fmtMonth(x.payrollMonth)}${x.type==='tax'?'<div class="mep-card-sub">Kỳ lương nguồn</div>':''}</td>
+          <td>${x.type==='bonus'&&x.bonusYear?'Năm thưởng '+esc(x.bonusYear):fmtMonth(x.payrollMonth)}${x.type==='tax'?'<div class="mep-card-sub">Kỳ lương nguồn</div>':''}</td>
           <td>${x.type==='tax'
             ?(payrollTaxPeriodCode(x)
                 ?`${esc(taxPeriodLabel(payrollTaxPeriodCode(x)))}${planned?`<div class="mep-card-sub">Dự kiến nộp ${esc(fmtMonth(planned))}</div>`:''}`
                 :'<span class="mep-card-sub">Chờ ngày trả lương</span>')
+            :x.type==='bonus'&&findLinkedBonusTaxRecord(x)
+              ?`${esc(payrollTaxScheduleText(findLinkedBonusTaxRecord(x)))}<div class="mep-card-sub">Thuế thưởng theo ngày trả</div>`
             :x.type==='salary'&&normalizeTaxPeriod(x.taxPeriod)
               ?`${esc(taxPeriodLabel(x.taxPeriod))}<div class="mep-card-sub">Liên quan thuế</div>`
               :'—'}</td>
@@ -8182,6 +8237,7 @@ function openLegacySalaryRecord(id){
     $('pyType').value=type||'other';
     $('pyPeriod').value=month||String(x.period||'').slice(0,7)||CURRENT;
     if($('pyBonusYear'))$('pyBonusYear').value='';
+    if($('pyBonusTaxAmount'))$('pyBonusTaxAmount').value='';
     const legacyQuarter=type==='tax'
       ?(normalizeTaxPeriod(x.taxPeriod)||payrollQuarterCode($('pyPeriod').value))
       :type==='salary'
@@ -8284,6 +8340,8 @@ function openSalaryRecord(id=null){
     $('pyType').value=x?.type||'salary';
     $('pyPeriod').value=x?.payrollMonth||CURRENT;
     if($('pyBonusYear'))$('pyBonusYear').value=x?.bonusYear||String(new Date().getFullYear());
+    const linkedBonusTax=x?.type==='bonus'?findLinkedBonusTaxRecord(x):null;
+    if($('pyBonusTaxAmount'))$('pyBonusTaxAmount').value=linkedBonusTax?.amountVnd?money(linkedBonusTax.amountVnd):'';
     const recordType=x?.type||'salary';
     const recordQuarter=recordType==='tax'
       ?(x?payrollTaxPeriodCode(x):payrollQuarterCode($('pyPeriod').value))
@@ -8301,6 +8359,7 @@ function openSalaryRecord(id=null){
 
 async function deleteSalaryRecord(id){
     if(!ensureMepWrite())return;const x=(cashCloudState.salaryRecords||[]).find(r=>r.id===id);if(!x)return;
+    if(x.type==='bonus'&&findLinkedBonusTaxRecord(x)){alert('Thưởng có Thuế TNCN liên kết. Vui lòng xử lý khoản thuế riêng trước khi xóa thưởng.');return;}
     if(!confirm(`Xóa ${PAYROLL_TYPE_LABELS[x.type]||'khoản nhân sự'} của ${x.project} · ${fmtMonth(x.payrollMonth)}?\nDòng liên kết trong sổ thu chi cũng sẽ bị xóa.`))return;
     cashCloudState.salaryRecords=(cashCloudState.salaryRecords||[]).filter(r=>r.id!==id);cashCloudState.manualRecords=manual().filter(r=>r.id!==x.cashTxnId&&r.linkedRecordId!==id);salarySelectedIds.delete(id);pushAudit('payroll','Xóa khoản lương / thuế',id,`${x.project} · ${x.payrollMonth}`);if(await persistCashCloud('Xóa khoản lương / thuế'))renderAll();
 }
@@ -8308,12 +8367,36 @@ async function deleteSalaryRecord(id){
 async function applySalaryPaymentDate(clear=false){
     if(!ensureMepWrite())return;if(!salarySelectedIds.size){alert('Chọn ít nhất một khoản.');return}
     const actualDate=clear?'':$('salaryBatchDate').value,account=DEFAULT_PAYROLL_ACCOUNT;if(!clear&&!actualDate){alert('Chọn ngày thực trả.');return}
-    const arr=[...(cashCloudState.salaryRecords||[])];let changed=0;arr.forEach(x=>{if(!salarySelectedIds.has(x.id))return;x.actualDate=actualDate;if(!clear)x.account=account;x.updatedAt=new Date().toISOString();syncSalaryCash(x);changed++});cashCloudState.salaryRecords=arr;
+    const arr=[...(cashCloudState.salaryRecords||[])];let changed=0;
+    for(const x of arr){
+      if(!salarySelectedIds.has(x.id))continue;
+      if(x.type==='bonus'){
+        const linked=findLinkedBonusTaxRecord(x,arr);
+        if(linked?.actualDate&&linked.taxPeriod!==bonusTaxQuarterFromPaymentDate(actualDate)){
+          alert('Không đổi ngày trả thưởng vì thuế liên kết đã nộp ở kỳ khác. Hãy đối chiếu thuế trước.');return;
+        }
+      }
+    }
+    arr.forEach(x=>{
+      if(!salarySelectedIds.has(x.id))return;
+      x.actualDate=actualDate;if(!clear)x.account=account;x.updatedAt=new Date().toISOString();syncSalaryCash(x);changed++;
+      if(x.type==='bonus'){
+        const linked=findLinkedBonusTaxRecord(x,arr);
+        if(linked&&!linked.actualDate){
+          linked.taxPeriod=bonusTaxQuarterFromPaymentDate(actualDate);
+          linked.taxBasisDate=actualDate;
+          linked.payrollMonth=monthOf(actualDate);
+          linked.updatedAt=x.updatedAt;
+          syncSalaryCash(linked);
+        }
+      }
+    });cashCloudState.salaryRecords=arr;
     pushAudit('payroll',clear?'Bỏ ngày thực trả':'Gán ngày thực trả','',`${changed} khoản${actualDate?' · '+actualDate:''}`);if(await persistCashCloud(clear?'Bỏ ngày thực trả lương & thuế':'Gán ngày thực trả lương & thuế')){salarySelectedIds.clear();$('salaryBatchDate').value='';renderAll()}
 }
 
 async function deleteSelectedSalaryRecords(){
     if(!ensureMepWrite())return;if(!salarySelectedIds.size)return;const selected=(cashCloudState.salaryRecords||[]).filter(x=>salarySelectedIds.has(x.id));if(!confirm(`Xóa ${selected.length} khoản đã chọn?\nCác dòng liên kết trong sổ thu chi cũng sẽ bị xóa.`))return;
+    if(selected.some(x=>x.type==='bonus'&&findLinkedBonusTaxRecord(x)&&!salarySelectedIds.has(findLinkedBonusTaxRecord(x).id))){alert('Có Thưởng liên kết với Thuế TNCN. Phải chọn cả dòng thuế để xóa, tránh để lại khoản thuế không rõ nguồn.');return;}
     const ids=new Set(selected.map(x=>x.id)),cashIds=new Set(selected.map(x=>x.cashTxnId).filter(Boolean));cashCloudState.salaryRecords=(cashCloudState.salaryRecords||[]).filter(x=>!ids.has(x.id));cashCloudState.manualRecords=manual().filter(x=>!cashIds.has(x.id)&&!ids.has(x.linkedRecordId));pushAudit('payroll','Xóa nhiều khoản lương / thuế','',`${selected.length} khoản`);if(await persistCashCloud('Xóa nhiều khoản lương / thuế')){salarySelectedIds.clear();renderAll()}
 }
 
@@ -8463,7 +8546,7 @@ function exportMEPWorkbook(){
     add('De nghi thanh toan',(cashCloudState.paymentRequests||[]).map(x=>({'Số đề nghị':x.number,'Dự án':x.project,'Người nhận / NCC':x.recipient,'Nhóm chi':x.category,'Số tiền đề nghị':num(x.amount),'Đã trả':num(x.paidAmount),'Còn phải trả':requestOutstanding(x),'Hạn thanh toán':x.dueDate,'Ngày thực trả':x.actualDate,'Tài khoản chi':x.account,'Ưu tiên':x.priority,'Trạng thái':REQUEST_STATUS_LABELS[x.status]||x.status,'Người đề nghị':x.requester,'Mã Payment / UNC':x.paymentRef,'Nội dung':x.note})),[18,14,30,28,18,18,18,16,16,22,12,22,20,20,36]);
     add('Bao lanh',(cashCloudState.guarantees||[]).map(x=>({'Dự án':x.project,'Loại bảo lãnh':GUARANTEE_TYPE_LABELS[x.type]||x.type,'Ngân hàng':x.bank,'Số bảo lãnh':x.number,'Giá trị':num(x.amount),'Ký quỹ':num(x.collateral),'Phí':num(x.fee),'Ngày phát hành':x.issueDate,'Ngày hết hạn':x.expiryDate,'Trạng thái':effectiveGuaranteeStatus(x),'Ghi chú':x.note})),[14,22,24,20,18,18,16,16,16,16,34]);
     add('Han muc - Khoan vay',(cashCloudState.facilities||[]).map(x=>({'Loại':x.kind==='loan'?'Khoản vay':'Hạn mức tín dụng','Ngân hàng':x.bank,'Số hợp đồng / hạn mức':x.number,'Dự án':x.project,'Mục đích':x.purpose,'Hạn mức / Gốc':num(x.limitAmount),'Đã sử dụng / Dư nợ':num(x.usedAmount),'Còn lại':Math.max(num(x.limitAmount)-num(x.usedAmount),0),'Lãi suất %/năm':num(x.interestRate),'Ngày trả nợ kế tiếp':x.nextPaymentDate,'Gốc đến hạn':num(x.principalDue),'Lãi đến hạn':num(x.interestDue),'Ngày bắt đầu':x.startDate,'Ngày hết hạn':x.endDate,'Trạng thái':x.status,'Ghi chú':x.note})),[20,24,24,14,30,18,20,18,16,18,18,18,14,14,16,34]);
-    add('Luong - Thue',(cashCloudState.salaryRecords||[]).map(x=>({'Dự án':x.project,'Nhóm nhân sự':payrollStaffGroupLabel(x),'Khoản mục':PAYROLL_TYPE_LABELS[x.type]||x.type,'Kỳ phát sinh':x.payrollMonth,'Kỳ thuế / dự kiến nộp':(x.type==='tax'||x.type==='salary')?payrollTaxScheduleText(x):'','Số tiền VND':num(x.amountVnd),'Ngày thực chi / nộp':x.actualDate,'Tháng dòng tiền':monthOf(x.actualDate),'Tài khoản chi':x.account,'Nguồn nhập':PAYROLL_SOURCE_LABELS[x.sourceType]||x.sourceType,'File nguồn':x.sourceFile,'Sheet nguồn':x.sourceSheet,'Trạng thái':x.actualDate?'Đã thực chi':'Chưa thực chi','Ghi chú':x.note})),[18,22,16,18,20,18,16,24,18,28,28,18,36]);
+    add('Luong - Thue',(cashCloudState.salaryRecords||[]).map(x=>({'Dự án':x.project,'Nhóm nhân sự':payrollStaffGroupLabel(x),'Khoản mục':PAYROLL_TYPE_LABELS[x.type]||x.type,'Kỳ phát sinh':x.type==='bonus'&&x.bonusYear?'Năm thưởng '+x.bonusYear:x.payrollMonth,'Kỳ thuế / dự kiến nộp':(x.type==='tax'||x.type==='salary')?payrollTaxScheduleText(x):(x.type==='bonus'&&findLinkedBonusTaxRecord(x)?payrollTaxScheduleText(findLinkedBonusTaxRecord(x)):''),'Số tiền VND':num(x.amountVnd),'Ngày thực chi / nộp':x.actualDate,'Tháng dòng tiền':monthOf(x.actualDate),'Tài khoản chi':x.account,'Nguồn nhập':PAYROLL_SOURCE_LABELS[x.sourceType]||x.sourceType,'File nguồn':x.sourceFile,'Sheet nguồn':x.sourceSheet,'Trạng thái':x.actualDate?'Đã thực chi':'Chưa thực chi','Ghi chú':x.note})),[18,22,16,18,20,18,16,24,18,28,28,18,36]);
     add('Doi tac',(cashCloudState.partnerMasters||[]).map(x=>({'Mã':x.code,'Tên đối tác':x.name,'Loại':PARTNER_TYPE_LABELS[x.type]||x.type,'Mã số thuế':x.taxCode,'Người liên hệ':x.contact,'Điện thoại':x.phone,'Email':x.email,'Điều khoản thanh toán':x.paymentTerms,'Ghi chú':x.note})),[14,34,24,18,22,18,28,30,36]);
     add('Nhat ky',(cashCloudState.auditLog||[]).map(x=>({'Thời gian':x.at,'Người cập nhật':x.by,'Phân hệ':x.module,'Hành động':x.action,'Chi tiết':x.detail})),[22,18,18,28,48]);
     XLSX.writeFile(wb,`MEP_Cash_Control_${isoToday()}.xlsx`);
@@ -10391,6 +10474,7 @@ if($('pyActualDate'))$('pyActualDate').onchange=()=>{
     syncPayrollPeriodUI(false);
 };
 if($('pyTaxPeriod'))$('pyTaxPeriod').onchange=()=>syncPayrollPeriodUI(false);
+if($('pyBonusTaxAmount'))$('pyBonusTaxAmount').addEventListener('input',function(){formatTxnMoneyInput(this)});
 if($('addSalaryRecord'))$('addSalaryRecord').onclick=()=>{editingLegacySalaryId=null;openSalaryRecord()};
 if($('openSalaryImport'))$('openSalaryImport').onclick=()=>{
     salaryImportPreview=[];salaryImportErrors=[];$('salaryPasteData').value='';$('salaryExcelFile').value='';$('salaryFileStatus').textContent='Chưa chọn file.';$('salaryImportSummary').innerHTML='<span class="salary-preview-pill">Chưa có dữ liệu xem trước</span>';$('salaryImportPreviewBody').innerHTML='<tr><td colspan="8" class="mep-empty">Dán bảng hoặc chọn file Excel để xem trước.</td></tr>';$('commitSalaryImport').disabled=true;$('salaryImportNote').textContent='Khi nhập lại cùng Dự án + Khoản mục + Kỳ phát sinh: dòng giống hệt sẽ được bỏ qua; dòng chưa thanh toán sẽ được cập nhật; dòng đã thanh toán được khóa để tránh sai dòng tiền.';openModal('salaryImportModal');
@@ -10418,7 +10502,9 @@ if($('saveSalaryRecord'))$('saveSalaryRecord').onclick=async()=>{
             :type==='salary'
               ?normalizeTaxPeriod($('pyTaxPeriod').value)
               :'',
-          amountVnd=parseTxnMoney($('pyAmount').value);
+          amountVnd=parseTxnMoney($('pyAmount').value),
+          bonusTaxText=type==='bonus'?String($('pyBonusTaxAmount')?.value||'').trim():'',
+          bonusTaxAmount=bonusTaxText?parseTxnMoney(bonusTaxText):0;
 
     if(!project||amountVnd<=0||(!annualBonus&&!payrollMonth)){
         alert(annualBonus?'Cần nhập Dự án và Số tiền VND.':'Cần nhập Dự án, Kỳ lương và Số tiền VND.');
@@ -10432,6 +10518,9 @@ if($('saveSalaryRecord'))$('saveSalaryRecord').onclick=async()=>{
         alert('Thuế TNCN cần chọn Kỳ thuế.');
         return;
     }
+    if(bonusTaxText&&bonusTaxAmount<=0){
+        alert('Số thuế TNCN của thưởng phải là số tiền VND lớn hơn 0.');return;
+    }
 
     const arr=[...(cashCloudState.salaryRecords||[])],
           old=editingSalaryId?arr.find(x=>x.id===editingSalaryId):null,
@@ -10444,6 +10533,10 @@ if($('saveSalaryRecord'))$('saveSalaryRecord').onclick=async()=>{
             bonusYear,
             taxPeriod,
             amountVnd,
+            // Preserve the link on tax edits and bonuses (including existing rows).
+            linkedBonusId:type==='tax'?old?.linkedBonusId||'':'',
+            bonusTaxRecordId:type==='bonus'?old?.bonusTaxRecordId||'':'',
+            taxBasisDate:type==='tax'?old?.taxBasisDate||'':'',
             actualDate:$('pyActualDate').value,
             account:DEFAULT_PAYROLL_ACCOUNT.trim()||DEFAULT_PAYROLL_ACCOUNT,
             note:$('pyNote').value.trim(),
@@ -10466,16 +10559,57 @@ if($('saveSalaryRecord'))$('saveSalaryRecord').onclick=async()=>{
         return;
     }
 
+    // Do not lose a previously linked tax record if someone changes the type.
+    const previousLinkedTax=old?.type==='bonus'?findLinkedBonusTaxRecord(old,arr):null;
+    if(previousLinkedTax&&type!=='bonus'){
+        alert('Thưởng đang có thuế TNCN liên kết. Hãy đối chiếu hoặc xóa riêng khoản thuế trước khi đổi loại khoản.');return;
+    }
+    if(old?.linkedBonusId&&type!=='tax'){
+        alert('Khoản Thuế TNCN này đang liên kết với Thưởng; không đổi loại trực tiếp.');return;
+    }
+    if(old?.linkedBonusId){
+        const originalBonus=arr.find(x=>x.id===old.linkedBonusId&&x.type==='bonus');
+        if(originalBonus){
+            if(project!==normProject(originalBonus.project)||record.staffGroup!==originalBonus.staffGroup){
+                alert('Thuế đã liên kết với khoản thưởng khác. Không thể đổi dự án / nhóm nhân sự qua dòng thuế.');return;
+            }
+            record.taxPeriod=bonusTaxQuarterFromPaymentDate(originalBonus.actualDate);
+            record.taxBasisDate=originalBonus.actualDate||'';
+            record.payrollMonth=monthOf(originalBonus.actualDate||'');
+        }
+    }
+    let linkedTax=null;
+    if(type==='bonus'){
+        if(previousLinkedTax&&!bonusTaxText){
+            alert('Khoản thưởng này đã có thuế liên kết. Muốn xóa nghĩa vụ thuế, hãy xử lý dòng Thuế TNCN riêng; không được xóa ngầm từ form Thưởng.');return;
+        }
+        if(bonusTaxAmount>0){
+            try{
+                linkedTax=buildLinkedBonusTaxRecord({
+                    bonus:record,existing:previousLinkedTax,amountVnd:bonusTaxAmount,
+                    id:mepId('payroll_bonus_tax'),now:new Date().toISOString()
+                });
+            }catch(error){alert(error.message);return;}
+            record.bonusTaxRecordId=linkedTax.id;
+        }
+    }
+    // Exactly one linked PIT row per bonus, plus one bonus row; both saved in
+    // the same Cash Control cloud document and with independent cash-ledger IDs.
     syncSalaryCash(record);
     const i=arr.findIndex(x=>x.id===record.id);
     if(i>=0)arr[i]=record;else arr.push(record);
+    if(linkedTax){
+        syncSalaryCash(linkedTax);
+        const taxIndex=arr.findIndex(x=>x.id===linkedTax.id);
+        if(taxIndex>=0)arr[taxIndex]=linkedTax;else arr.push(linkedTax);
+    }
     cashCloudState.salaryRecords=arr;
 
     pushAudit(
       'payroll',
       old?'Cập nhật khoản lương / thuế':'Thêm khoản lương / thuế',
       record.id,
-      `${project} · ${annualBonus?'thưởng năm '+bonusYear:payrollMonth}${type==='tax'?` · ${taxPeriodLabel(taxPeriod)}`:''} · ${PAYROLL_TYPE_LABELS[record.type]}`
+      `${project} · ${annualBonus?'thưởng năm '+bonusYear:payrollMonth}${type==='tax'?` · ${taxPeriodLabel(taxPeriod)}`:''} · ${PAYROLL_TYPE_LABELS[record.type]}${linkedTax?' · Thuế thưởng '+money(linkedTax.amountVnd)+' · '+(linkedTax.taxPeriod?taxPeriodLabel(linkedTax.taxPeriod):'chờ ngày trả'):''}`
     );
 
     if(await persistCashCloud(old?'Cập nhật khoản lương / thuế':'Thêm khoản lương / thuế')){

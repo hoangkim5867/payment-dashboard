@@ -1,0 +1,35 @@
+name: Payment Emulator Security and Concurrency
+on:
+  pull_request:
+    paths:
+      - 'site/**'
+      - 'backend/**'
+      - 'security/**'
+      - 'tests/firebase-rules/**'
+      - '.github/workflows/payment-emulator-check.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d1654d11
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install pnpm and isolated Emulator test dependencies
+        run: |
+          npm install --global pnpm@10
+          cd tests/firebase-rules
+          pnpm install --frozen-lockfile
+      - name: Firestore Emulator — Roles, indexed writes, large batches and concurrent users
+        working-directory: tests/firebase-rules
+        run: pnpm run emulator
