@@ -85,3 +85,34 @@ test('Only export code modified; Payment and underlying tax obligations are not 
   const code=extract('function excelTaxQuarterCode(','function legacyCashExportRows(');
   assert.doesNotMatch(code,/setDoc\(|updateDoc\(|deleteDoc\(|persistCashCloud\(|getDocs\(/);
 });
+
+test('Management report 02A groups same-day quarterly tax without changing closing balance',()=>{
+ const core=extract('function excelGroupQuarterlyTaxRows(','function legacyCashExportRows(');
+ const ledger=extract('function excelBuildLedger(','function excelBuildCategorySummary(');
+ const transactions=[
+  {id:'t1',type:'tax',description:'2026年07月个人所得税',amount:120,period:'2026-07'},
+  {id:'t2',type:'tax',description:'2026年08月个人所得税',amount:180,period:'2026-08'},
+  {id:'p1',category:'材料款',amount:75}
+ ];
+ const context={
+  projectListForExport:()=>['CR5-1B'],
+  allExpenses:()=>transactions,
+  opening:()=>1000,
+  movements:()=>[
+   {recordId:'t1',date:'2026-10-20',in:0,out:120,desc:'2026年07月个人所得税',source:'legacy_salary',category:'税费'},
+   {recordId:'p1',date:'2026-10-20',in:0,out:75,desc:'材料款',source:'payment',category:'材料款'},
+   {recordId:'t2',date:'2026-10-20',in:0,out:180,desc:'2026年08月个人所得税',source:'legacy_salary',category:'税费'}
+  ],
+  excelTaxQuarterCode:x=>x.type==='tax'?(x.period==='2026-07'||x.period==='2026-08'?'2026-Q3':''):'',
+  excelTaxQuarterContent:()=> '2026年第3季度个人所得税',
+  window:{cashExportLang:'zh'},cashLang:'zh'
+ };
+ const fn=vm.runInNewContext(core+'\n'+ledger+'\nexcelBuildLedger',context);
+ const out=fn('2026-10',['CR5-1B']);
+ assert.equal(out.length,2);
+ assert.equal(out[0]._taxQuarter,'2026-Q3');
+ assert.equal(out[0].cashOut,300);
+ assert.equal(out[1].cashOut,75);
+ assert.equal(out[1].balance,625);
+ assert.equal(out.reduce((a,x)=>a+x.movement,0),-375);
+});
