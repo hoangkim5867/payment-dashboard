@@ -1536,14 +1536,14 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
       <div class="field"><label>Khoản mục</label><select id="pyType"><option value="salary">Lương thực nhận</option><option value="bonus">Thưởng</option><option value="tax">Thuế TNCN</option><option value="insurance_vn">Bảo hiểm VN</option><option value="insurance_cn">Bảo hiểm TQ</option><option value="union">Phí công đoàn</option><option value="insurance">Bảo hiểm (dữ liệu cũ)</option><option value="meal">Tiền ăn</option><option value="other">Phụ cấp / khoản khác</option></select></div>
       <div class="field" id="pyPeriodField"><label id="pyPeriodLabel">Kỳ lương <span class="required-star">*</span></label><input type="month" id="pyPeriod"></div>
       <div class="field" id="pyBonusYearField" hidden><label>Năm thưởng <span class="required-star">*</span></label><input id="pyBonusYear" type="number" min="2000" max="2099" step="1" inputmode="numeric" placeholder="Ví dụ: 2024"></div>
+      <div class="field" id="pyTaxPeriodField" hidden><label>Kỳ thuế <span class="required-star">*</span></label><select id="pyTaxPeriod"></select></div>
+      <div class="field"><label id="pyAmountLabel">Số tiền VND <span class="required-star">*</span></label><input id="pyAmount" inputmode="decimal" placeholder="0"></div>
+      <div class="field"><label>Ngày thực chi / thực nộp</label><input type="date" id="pyActualDate"></div>
       <div class="field full" id="pyBonusTaxField" hidden>
         <label id="pyLinkedTaxLabel">Thuế TNCN của thưởng (VND) · nhập cùng khoản thưởng</label>
         <input id="pyBonusTaxAmount" inputmode="decimal" placeholder="Số thuế phải nộp, để trống nếu chưa có">
         <div class="mep-card-sub" id="pyBonusTaxHelp" role="status">Thuế được theo dõi riêng; ngày trả thưởng quyết định quý thuế và tháng dự kiến nộp.</div>
       </div>
-      <div class="field" id="pyTaxPeriodField" hidden><label>Kỳ thuế <span class="required-star">*</span></label><select id="pyTaxPeriod"></select></div>
-      <div class="field"><label>Số tiền VND <span class="required-star">*</span></label><input id="pyAmount" inputmode="decimal" placeholder="0"></div>
-      <div class="field"><label>Ngày thực chi / thực nộp</label><input type="date" id="pyActualDate"></div>
       <div class="field full"><label>Ghi chú</label><textarea id="pyNote" placeholder="Nội dung điều chỉnh, chứng từ..."></textarea></div>
     </div>
     <div class="section-note" id="pyPeriodHelp">Kỳ lương dùng để biết khoản này thuộc lương tháng nào. Ngày thực chi quyết định tháng dòng tiền.</div>
@@ -7176,6 +7176,7 @@ function syncPayrollPeriodUI(autoQuarter=false){
     const monthlyBonus=type==='bonus'&&!annualBonus;
     if($('pyPeriodField'))$('pyPeriodField').hidden=annualBonus;
     if($('pyBonusYearField'))$('pyBonusYearField').hidden=!annualBonus;
+    if($('pyAmountLabel'))$('pyAmountLabel').innerHTML=(type==='salary'?'Lương thực nhận':type==='bonus'?'Số tiền thưởng':type==='tax'?'Số tiền thuế TNCN':'Số tiền')+' (VND) <span class="required-star">*</span>';
     if($('pyBonusTaxField'))$('pyBonusTaxField').hidden=!['salary','bonus'].includes(type)||!!editingLegacySalaryId;
     if(type==='salary'||type==='bonus')updateBonusTaxPreview();
     if($('pyPeriod'))$('pyPeriod').required=!annualBonus;
