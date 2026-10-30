@@ -2172,6 +2172,7 @@ function excelTransferContent(x,lang=cashLang){
     return `${from} điều chuyển sang ${to}`;
 }
 function excelLedgerDescription(row,lang=cashLang){
+    if(row?._taxQuarter)return excelTaxQuarterContent(row._taxQuarter,lang);
     const rid=String(row?.recordId||'');
     if(rid){
         const txn=allExpenses().find(x=>String(x.id||'')===rid);
@@ -4915,16 +4916,29 @@ function excelBuildProjectSummary(month,selectedProject){
 function excelBuildLedger(month,selectedProject){
     const projects=projectListForExport(selectedProject);
     const rows=[];
+    // Export-time lookup over the already-loaded cash rows. No extra reads.
+    const taxLookup=new Map(allExpenses().map(x=>[String(x.id||''),x]));
     projects.forEach(project=>{
-        let running=opening(project,month);
+        const original=[];
         const mv=movements(month,project).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
         mv.forEach(x=>{
-            running += Number(x.in||0)-Number(x.out||0);
-            rows.push({
+            const txn=taxLookup.get(String(x.recordId||''));
+            const quarter=x.out>0&&txn?excelTaxQuarterCode(txn):'';
+            original.push({
                 date:x.date,project,source:x.source,category:x.category||'',paymentSubtype:x.paymentSubtype||'',desc:x.desc||'',
-                cashIn:Number(x.in||0),cashOut:Number(x.out||0),movement:Number(x.in||0)-Number(x.out||0),balance:running
+                recordId:x.recordId||'',
+                cashIn:Number(x.in||0),cashOut:Number(x.out||0),movement:Number(x.in||0)-Number(x.out||0),
+                _taxQuarter:quarter,_taxDirection:quarter?'out':''
             });
         });
+        // Group only same-day / same-quarter tax lines; calculate exported
+        // intermediate balances again from unchanged opening and movements.
+        let running=opening(project,month);
+        excelGroupQuarterlyTaxRows(original,['cashIn','cashOut','movement'],window.cashExportLang||cashLang)
+            .forEach(x=>{
+                running+=Number(x.movement||0);
+                rows.push({...x,balance:running});
+            });
     });
     return rows;
 }
