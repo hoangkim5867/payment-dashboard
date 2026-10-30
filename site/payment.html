@@ -3666,6 +3666,17 @@ html[data-theme="ivorybunny"] .process-inline-input{
                 </div>
             </div>
 
+            <section class="bulk-unc-group-section" id="bulkUncGroupSection">
+                <label class="bulk-unc-group-switch"><input id="bulkUncGroupToggle" type="checkbox">
+                    <strong>1 UNC thanh toán nhiều IPC</strong><span>Chọn ít nhất 2 khoản, kiểm tra tổng trước khi lưu</span>
+                </label>
+                <div id="bulkUncGroupPanel" hidden>
+                    <label for="bulkUncGroupSearch">Tìm dự án, công ty, hợp đồng hoặc IPC</label>
+                    <input id="bulkUncGroupSearch" type="search" placeholder="VD: TH VN, IPC011, CSCECVN..." autocomplete="off">
+                    <div class="bulk-unc-group-choices" id="bulkUncGroupChoices"></div>
+                    <div class="bulk-unc-group-result" id="bulkUncGroupResult" role="status"></div>
+                </div>
+            </section>
             <div class="bulk-unc-summary" id="bulkUncSummary">Chưa chọn file.</div>
 
             <div class="bulk-unc-workspace">
@@ -3706,6 +3717,23 @@ html[data-theme="ivorybunny"] .process-inline-input{
 </div>
 
 <style id="unc-voucher-style">
+.bulk-unc-group-section{margin:10px 0;padding:12px;border:1px solid var(--theme-border,#d5dce5);border-radius:10px;background:var(--theme-surface-alt,#f8fafc)}
+.bulk-unc-group-switch{display:flex;align-items:center;gap:8px;font-size:12px;flex-wrap:wrap;cursor:pointer}
+.bulk-unc-group-switch input{width:16px;height:16px}
+.bulk-unc-group-switch span{color:var(--theme-muted,#667085);font-weight:400}
+#bulkUncGroupPanel{margin-top:12px}
+#bulkUncGroupPanel[hidden]{display:none!important}
+#bulkUncGroupSearch{width:100%;margin:5px 0 10px;padding:9px;border:1px solid var(--theme-border,#d5dce5);border-radius:7px}
+.bulk-unc-group-choices{max-height:265px;overflow:auto;background:var(--theme-surface,#fff);border:1px solid var(--theme-border,#d5dce5);border-radius:8px}
+.bulk-unc-group-choice{display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--theme-border,#eee);font-size:11px;cursor:pointer;line-height:1.55}
+.bulk-unc-group-choice:last-child{border-bottom:0}
+.bulk-unc-group-choice input{flex:0 0 auto;width:16px;height:16px}
+.bulk-unc-group-choice small{display:block;color:var(--theme-muted,#667085)}
+.bulk-unc-group-result{margin-top:8px;padding:9px;border-radius:7px;background:var(--theme-surface,#fff);font-size:12px;white-space:pre-line;line-height:1.6}
+.bulk-unc-group-result.error{color:#b42318;background:#fff1f0}
+.bulk-unc-group-result.good{color:#166534;background:#f0fdf4}
+.bulk-unc-modal-box.group-unc-mode .bulk-unc-workspace{display:none!important}
+
 #uncModal{padding:18px!important;align-items:center!important;justify-content:center!important;overflow:hidden!important}
 #uncModal>.unc-modal-box{display:flex!important;flex-direction:column!important;width:min(700px,calc(100vw - 36px))!important;max-width:min(700px,calc(100vw - 36px))!important;height:auto!important;min-height:0!important;max-height:calc(100vh - 36px)!important;margin:auto!important;padding:0!important;overflow:hidden!important}
 #uncModal.preview-open>.unc-modal-box{width:min(1040px,calc(100vw - 36px))!important;max-width:min(1040px,calc(100vw - 36px))!important;height:min(860px,calc(100vh - 36px))!important;max-height:calc(100vh - 36px)!important}
