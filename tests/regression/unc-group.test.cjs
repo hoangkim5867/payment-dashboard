@@ -38,7 +38,7 @@ const doc=(transfer=2081135100)=>({validPdf:true,info:{
  date:'2026-10-29',beneficiary:'CONG TY THUONG MAI TH VN'}});
 test('one remitted sum for IPC011+IPC012: fee excluded, original allocations intact',()=>{
  const result=validate(doc(),[p1,p2]);
- assert.equal(result.ok,true);
+ assert.equal(result.ok,true,JSON.stringify(result));
  assert.equal(result.total,2081135100);
  assert.equal(result.expected,2081135100);
  assert.equal(vm.runInContext('bulkUncGroupAllocation',context)(p1),564300000);
