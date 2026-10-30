@@ -10517,8 +10517,8 @@ if($('saveSalaryRecord'))$('saveSalaryRecord').onclick=async()=>{
               ?normalizeTaxPeriod($('pyTaxPeriod').value)
               :'',
           amountVnd=parseTxnMoney($('pyAmount').value),
-          bonusTaxText=type==='bonus'?String($('pyBonusTaxAmount')?.value||'').trim():'',
-          bonusTaxAmount=bonusTaxText?parseTxnMoney(bonusTaxText):0;
+          linkedTaxText=['bonus','salary'].includes(type)?String($('pyBonusTaxAmount')?.value||'').trim():'',
+          linkedTaxAmount=linkedTaxText?parseTxnMoney(linkedTaxText):0;
 
     if(!project||amountVnd<=0||(!annualBonus&&!payrollMonth)){
         alert(annualBonus?'Cần nhập Dự án và Số tiền VND.':'Cần nhập Dự án, Kỳ lương và Số tiền VND.');
@@ -10532,8 +10532,8 @@ if($('saveSalaryRecord'))$('saveSalaryRecord').onclick=async()=>{
         alert('Thuế TNCN cần chọn Kỳ thuế.');
         return;
     }
-    if(bonusTaxText&&bonusTaxAmount<=0){
-        alert('Số thuế TNCN của thưởng phải là số tiền VND lớn hơn 0.');return;
+    if(linkedTaxText&&linkedTaxAmount<=0){
+        alert('Số thuế TNCN phải là số tiền VND lớn hơn 0.');return;
     }
 
     const arr=[...(cashCloudState.salaryRecords||[])],
@@ -10549,7 +10549,9 @@ if($('saveSalaryRecord'))$('saveSalaryRecord').onclick=async()=>{
             amountVnd,
             // Preserve the link on tax edits and bonuses (including existing rows).
             linkedBonusId:type==='tax'?old?.linkedBonusId||'':'',
+            linkedSalaryId:type==='tax'?old?.linkedSalaryId||'':'',
             bonusTaxRecordId:type==='bonus'?old?.bonusTaxRecordId||'':'',
+            salaryTaxRecordId:type==='salary'?old?.salaryTaxRecordId||'':'',
             taxBasisDate:type==='tax'?old?.taxBasisDate||'':'',
             actualDate:$('pyActualDate').value,
             account:DEFAULT_PAYROLL_ACCOUNT.trim()||DEFAULT_PAYROLL_ACCOUNT,
@@ -10574,12 +10576,12 @@ if($('saveSalaryRecord'))$('saveSalaryRecord').onclick=async()=>{
     }
 
     // Do not lose a previously linked tax record if someone changes the type.
-    const previousLinkedTax=old?.type==='bonus'?findLinkedBonusTaxRecord(old,arr):null;
-    if(previousLinkedTax&&type!=='bonus'){
-        alert('Thưởng đang có thuế TNCN liên kết. Hãy đối chiếu hoặc xóa riêng khoản thuế trước khi đổi loại khoản.');return;
+    const previousLinkedTax=old?.type==='bonus'?findLinkedBonusTaxRecord(old,arr):old?.type==='salary'?findLinkedSalaryTaxRecord(old,arr):null;
+    if(previousLinkedTax&&old?.type!==type){
+        alert('Khoản đang có thuế TNCN liên kết. Hãy xử lý khoản thuế riêng trước khi đổi loại.');return;
     }
-    if(old?.linkedBonusId&&type!=='tax'){
-        alert('Khoản Thuế TNCN này đang liên kết với Thưởng; không đổi loại trực tiếp.');return;
+    if((old?.linkedBonusId||old?.linkedSalaryId)&&type!=='tax'){
+        alert('Thuế TNCN này đang liên kết với Lương / Thưởng; không đổi loại trực tiếp.');return;
     }
     if(old?.linkedBonusId){
         const originalBonus=arr.find(x=>x.id===old.linkedBonusId&&x.type==='bonus');
@@ -10592,22 +10594,53 @@ if($('saveSalaryRecord'))$('saveSalaryRecord').onclick=async()=>{
             record.payrollMonth=monthOf(originalBonus.actualDate||'');
         }
     }
+    if(old?.linkedSalaryId){
+        const sourceSalary=arr.find(x=>x.id===old.linkedSalaryId&&x.type==='salary');
+        if(sourceSalary){
+            if(project!==normProject(sourceSalary.project)||record.staffGroup!==sourceSalary.staffGroup){alert('Thuế liên kết với Lương không được đổi dự án / nhóm nhân sự.');return;}
+            record.taxPeriod=normalizeTaxPeriod(sourceSalary.taxPeriod)||bonusTaxQuarterFromPaymentDate(sourceSalary.actualDate);
+            record.taxBasisDate=sourceSalary.actualDate||'';
+            record.payrollMonth=sourceSalary.payrollMonth||'';
+        }
+    }
     let linkedTax=null;
     if(type==='bonus'){
-        if(previousLinkedTax&&!bonusTaxText){
+        if(previousLinkedTax&&!linkedTaxText){
             alert('Khoản thưởng này đã có thuế liên kết. Muốn xóa nghĩa vụ thuế, hãy xử lý dòng Thuế TNCN riêng; không được xóa ngầm từ form Thưởng.');return;
         }
-        if(bonusTaxAmount>0){
+        if(linkedTaxAmount>0){
             try{
                 linkedTax=buildLinkedBonusTaxRecord({
-                    bonus:record,existing:previousLinkedTax,amountVnd:bonusTaxAmount,
+                    bonus:record,existing:previousLinkedTax,amountVnd:linkedTaxAmount,
                     id:mepId('payroll_bonus_tax'),now:new Date().toISOString()
                 });
             }catch(error){alert(error.message);return;}
             record.bonusTaxRecordId=linkedTax.id;
         }
     }
-    // Exactly one linked PIT row per bonus, plus one bonus row; both saved in
+    if(type==='salary'){
+        if(previousLinkedTax&&!linkedTaxText){
+            alert('Lương đã có thuế liên kết. Không được xóa ngầm thuế khi bỏ trống ô; hãy xử lý dòng thuế riêng.');return;
+        }
+        if(linkedTaxAmount>0){
+            if(!previousLinkedTax){
+                // Avoid double booking an already imported or manually entered PIT obligation.
+                const expectedQuarter=taxPeriod||bonusTaxQuarterFromPaymentDate(record.actualDate);
+                const duplicateTax=arr.find(x=>x.type==='tax'&&!x.linkedBonusId&&!x.linkedSalaryId&&
+                    normProject(x.project)===project&&inferPayrollStaffGroup(x)===record.staffGroup&&
+                    x.payrollMonth===record.payrollMonth&&payrollTaxPeriodCode(x)===expectedQuarter);
+                if(duplicateTax){alert('Đã có Thuế TNCN riêng cho cùng dự án, nhóm nhân sự, kỳ lương và quý thuế. Hãy đối chiếu trước để tránh ghi trùng.');return;}
+            }
+            try{
+                linkedTax=buildLinkedSalaryTaxRecord({
+                    salary:record,existing:previousLinkedTax,amountVnd:linkedTaxAmount,
+                    id:mepId('payroll_salary_tax'),now:new Date().toISOString()
+                });
+            }catch(error){alert(error.message);return;}
+            record.salaryTaxRecordId=linkedTax.id;
+        }
+    }
+    // Exactly one linked PIT row per source, both saved in
     // the same Cash Control cloud document and with independent cash-ledger IDs.
     syncSalaryCash(record);
     const i=arr.findIndex(x=>x.id===record.id);
@@ -10623,7 +10656,7 @@ if($('saveSalaryRecord'))$('saveSalaryRecord').onclick=async()=>{
       'payroll',
       old?'Cập nhật khoản lương / thuế':'Thêm khoản lương / thuế',
       record.id,
-      `${project} · ${annualBonus?'thưởng năm '+bonusYear:payrollMonth}${type==='tax'?` · ${taxPeriodLabel(taxPeriod)}`:''} · ${PAYROLL_TYPE_LABELS[record.type]}${linkedTax?' · Thuế thưởng '+money(linkedTax.amountVnd)+' · '+(linkedTax.taxPeriod?taxPeriodLabel(linkedTax.taxPeriod):'chờ ngày trả'):''}`
+      `${project} · ${annualBonus?'thưởng năm '+bonusYear:payrollMonth}${type==='tax'?` · ${taxPeriodLabel(taxPeriod)}`:''} · ${PAYROLL_TYPE_LABELS[record.type]}${linkedTax?' · Thuế '+(type==='bonus'?'thưởng':'lương')+' '+money(linkedTax.amountVnd)+' · '+(linkedTax.taxPeriod?taxPeriodLabel(linkedTax.taxPeriod):'chờ ngày trả'):''}`
     );
 
     if(await persistCashCloud(old?'Cập nhật khoản lương / thuế':'Thêm khoản lương / thuế')){
