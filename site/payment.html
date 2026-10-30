@@ -39266,33 +39266,47 @@ Xác nhận lưu 1 PDF lên Drive, rồi liên kết tới ${chosen.length} kho�
         await ensureAnyoneCanViewDriveFile(driveFile.id);
         const ids=fresh.map(p=>String(p.id));
         const storedName=String(driveFile.name||getUncDriveFileName(namingPayment));
-        const batch=writeBatch(db);
-        fresh.forEach(payment=>{
-            const actual=Number(payment.processActualAmount);
-            const setActual=!(Number.isFinite(actual)&&actual>0);
-            const setDate=!String(payment.processPaymentDate||"").trim();
-            batch.update(doc(db,"payments",payment.id),{
-                uncStorageProvider:"google-drive",
-                uncDriveFileId:driveFile.id,
-                uncPath:"",
-                uncName:storedName,
-                uncSize:row.file.size,
-                uncGroupPaymentIds:ids,
-                uncGroupAmount:finalCheck.expected,
-                uncUploadedAt:serverTimestamp(),
-                uncUploadedBy:currentOperatorName,
-                uncUploadedByUid:currentAuthUser?.uid||"",
-                uncUploadedByEmail:currentAuthUser?.email||"",
-                ...(setActual?{processActualAmount:bulkUncGroupAllocation(payment)}:{}),
-                ...(setDate?{processPaymentDate:finalCheck.date}:{}),
-                updatedAt:serverTimestamp(),
-                updatedBy:currentOperatorName,
-                updatedByUid:currentAuthUser?.uid||"",
-                updatedByEmail:currentAuthUser?.email||""
+        // Transaction reads every target first, checks latest values, then writes all.
+        // If another operator changed an IPC while the PDF uploaded, abort safely.
+        await runTransaction(db,async transaction=>{
+            const refs=fresh.map(p=>doc(db,"payments",p.id));
+            const snapshots=await Promise.all(refs.map(ref=>transaction.get(ref)));
+            if(snapshots.some(snapshot=>!snapshot.exists()))
+                throw new Error("Một Payment đã bị xóa trong lúc tải UNC. Chưa gắn chứng từ.");
+            const live=snapshots.map((snapshot,i)=>({...snapshot.data(),id:fresh[i].id}));
+            const liveCheck=validateBulkUncGroup(row,live);
+            if(!liveCheck.ok)
+                throw new Error("Payment đã thay đổi trong lúc upload: "+liveCheck.error);
+            if(live.some((p,i)=>
+                bulkUncGroupAllocation(p)!==bulkUncGroupAllocation(fresh[i]) ||
+                String(p.processPaymentDate||"")!==String(fresh[i].processPaymentDate||"") ||
+                String(p.uncDriveFileId||"")!==String(fresh[i].uncDriveFileId||"")
+            )) throw new Error("IPC vừa được người khác sửa. Hãy tải lại và đối chiếu trước khi gắn UNC.");
+            live.forEach((payment,index)=>{
+                const actual=Number(payment.processActualAmount);
+                const setActual=!(Number.isFinite(actual)&&actual>0);
+                const setDate=!String(payment.processPaymentDate||"").trim();
+                transaction.update(refs[index],{
+                    uncStorageProvider:"google-drive",
+                    uncDriveFileId:driveFile.id,
+                    uncPath:"",
+                    uncName:storedName,
+                    uncSize:row.file.size,
+                    uncGroupPaymentIds:ids,
+                    uncGroupAmount:liveCheck.expected,
+                    uncUploadedAt:serverTimestamp(),
+                    uncUploadedBy:currentOperatorName,
+                    uncUploadedByUid:currentAuthUser?.uid||"",
+                    uncUploadedByEmail:currentAuthUser?.email||"",
+                    ...(setActual?{processActualAmount:bulkUncGroupAllocation(payment)}:{}),
+                    ...(setDate?{processPaymentDate:liveCheck.date}:{}),
+                    updatedAt:serverTimestamp(),
+                    updatedBy:currentOperatorName,
+                    updatedByUid:currentAuthUser?.uid||"",
+                    updatedByEmail:currentAuthUser?.email||""
+                });
             });
-        });
-        bulkUncProgress.textContent="Đang xác nhận "+fresh.length+" khoản trong Firestore...";
-        await batch.commit(); // No success or local mutation before Firestore ACK.
+        }); // No success or local mutation before Firestore transaction ACK.
         committed=true;
         const now=new Date();
         fresh.forEach(payment=>{
