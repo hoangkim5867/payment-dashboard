@@ -20,6 +20,7 @@ const context={
   isPaymentCarriedForward:p=>!!p.carriedForward,
   hasUncDriveFile:p=>!!p.uncDriveFileId,
   bulkUncCompanyScore:(company,beneficiary)=>beneficiary.includes('th vn')?16:0,
+  BULK_UNC_GROUP_MAX:40,
   Number,Set,String,Array,Math
 };
 vm.createContext(context);
