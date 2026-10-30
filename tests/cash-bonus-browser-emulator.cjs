@@ -33,6 +33,8 @@ const server=http.createServer((request,response)=>{
   await page.locator('#cashAuthPassword').fill(password);
   await page.locator('#cashAuthSubmit').click();
   await page.waitForFunction(()=>!document.body.classList.contains('auth-checking')&&document.querySelector('#cashLoginModal')&&!document.querySelector('#cashLoginModal').classList.contains('show'),{},{timeout:30000});
+  // Do not try to write before Cash Control's first owner-scoped Firestore snapshot arrives.
+  await page.locator('#cashCloudDot.ok').waitFor({state:'attached',timeout:30000});
   // The payroll action is inside its own hidden view until navigation opens it.
   await page.evaluate(()=>document.querySelector('.nav[data-view="payroll"]')?.click());
   await page.locator('#payrollView.active').waitFor({state:'visible',timeout:10000});
