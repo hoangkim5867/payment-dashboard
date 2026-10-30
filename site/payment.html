@@ -13120,6 +13120,25 @@ function isPaymentWorkflowLocked(payment){
     );
 }
 
+/* Paid payment locks remain; only workflow progress has its own permission. */
+function canEditPaymentWorkflowSteps(payment){
+    if(
+        !payment ||
+        payment.deleted === true ||
+        isPaymentCarriedForward(payment) ||
+        isPaymentCancelled(payment) ||
+        !currentAuthUser ||
+        !currentUserProfile
+    ){
+        return false;
+    }
+    if(isAdmin()) return true;
+    // Temporary historical Staff access is always view-only.
+    return isStaff() &&
+        canStaffViewPaymentMonth(payment.paymentMonth) &&
+        !isStaffTemporaryHistoryScope(payment.paymentMonth);
+}
+
 function canAdminSelectPaidForArchive(payment){
     return !!(
         payment &&
@@ -14371,7 +14390,7 @@ function renderPaperStatusControl(payment){
        - done => chỉ hiện dấu ✓ giống các cột process khác
        - trạng thái cũ chưa hoàn tất => text tĩnh, không còn hình dạng control
     */
-    if(isPaymentWorkflowLocked(payment)){
+    if(!canEditPaymentWorkflowSteps(payment)){
         if(status==="done"){
             return `<span class="process-done">✓</span>`;
         }
@@ -14431,7 +14450,7 @@ function ensurePaperStatusMenu(){
 
         const payment=allPayments.find(item=>item.id===activePaperPaymentId);
 
-        if(!payment || isPaymentWorkflowLocked(payment)){
+        if(!canEditPaymentWorkflowSteps(payment)){
             paperStatusMenu.classList.remove("show");
             return;
         }
@@ -15371,6 +15390,8 @@ function renderPayments(){
 
             const workflowLocked =
                 isPaymentWorkflowLocked(item);
+            const workflowStepsEditable =
+                canEditPaymentWorkflowSteps(item);
 
             const staffHistoricalReadOnly =
                 !isAdmin() &&
@@ -15531,7 +15552,7 @@ function renderPayments(){
 
                 <td class="process-cell">
                     ${
-                        workflowLocked
+                        !workflowStepsEditable
                         ?
                         processText(item.processPlatformPlan)
                         :
@@ -15555,7 +15576,7 @@ function renderPayments(){
 
                 <td class="process-cell">
                     ${
-                        workflowLocked
+                        !workflowStepsEditable
                         ?
                         processText(item.processSettlement)
                         :
@@ -15575,7 +15596,7 @@ function renderPayments(){
                 <td class="process-cell">
 
                     ${
-                        workflowLocked
+                        !workflowStepsEditable
                         ?
                         (
                             item.processPaymentNo
@@ -15601,7 +15622,7 @@ function renderPayments(){
 
                 <td class="process-cell">
                     ${
-                        workflowLocked
+                        !workflowStepsEditable
                         ?
                         processText(item.processPlatformPayment)
                         :
@@ -15620,7 +15641,7 @@ function renderPayments(){
 
                 <td class="process-cell">
                     ${
-                        (workflowLocked || !isAdmin())
+                        (!workflowStepsEditable || !isAdmin())
                         ?
                         processText(item.processApproval)
                         :
@@ -15639,7 +15660,7 @@ function renderPayments(){
 
                 <td class="process-cell">
                     ${
-                        (workflowLocked || !isAdmin())
+                        (!workflowStepsEditable || !isAdmin())
                         ?
                         processText(item.processBanking)
                         :
@@ -15984,7 +16005,7 @@ function renderPayments(){
 
                         if(
                             !payment ||
-                            isPaymentWorkflowLocked(payment)
+                            !canEditPaymentWorkflowSteps(payment)
                         ){
                             return;
                         }
@@ -16117,7 +16138,7 @@ function renderPayments(){
 
                         if(
                             !payment ||
-                            isPaymentWorkflowLocked(payment)
+                            !canEditPaymentWorkflowSteps(payment)
                         ){
                             return;
                         }
