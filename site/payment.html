@@ -39207,7 +39207,130 @@ bulkUncBody.addEventListener("click",event=>{
     bulkUncPreview.hidden = false;
 });
 
+async function confirmBulkUncGroup(){
+    if(!isAdmin()||!ensureOperator())return;
+    if(bulkUncBusy)return;
+    const row=bulkUncRows.length===1?bulkUncRows[0]:null;
+    const chosen=selectedBulkUncGroupPayments();
+    const checked=validateBulkUncGroup(row,chosen);
+    if(!checked.ok){alert("⚠ "+checked.error);return;}
+    if(!getConfiguredDriveClientId()){
+        bulkUncDriveSetup.open=true;
+        bulkUncDriveStatus.className="unc-drive-status error";
+        bulkUncDriveStatus.textContent="Hãy kết nối Google Drive trước khi lưu.";
+        bulkUncDriveClientId.focus();return;
+    }
+    const ipcText=chosen.map(p=>p.ipcNo||p.processPaymentNo||p.id).join(", ");
+    if(!confirm(`GẮN CHUNG 1 UNC CHO ${chosen.length} IPC
+
+Công ty: ${checked.company}
+IPC: ${ipcText}
+Tổng chuyển khoản: ${formatMoney(checked.expected)} VND
+Ngày: ${checked.date}
+Sẽ ghi tiền thực trả của TỪNG IPC (không ghi tổng UNC vào một dòng).
+Xác nhận lưu 1 PDF lên Drive, rồi liên kết tới ${chosen.length} khoản?`))return;
+    // Re-check from current in-memory snapshot just before any Google Drive operation.
+    const fresh=selectedBulkUncGroupPayments();
+    const finalCheck=validateBulkUncGroup(row,fresh);
+    if(!finalCheck.ok){alert("⚠ "+finalCheck.error);return;}
+    setBulkUncBusy(true);
+    let driveFile=null,committed=false;
+    try{
+        bulkUncProgress.textContent="Đang upload 1 PDF gộp...";
+        const folderId=await ensureUncDriveFolder();
+        const lead=fresh[0];
+        const namingPayment={
+            ...lead,
+            ipcNo:fresh.map(p=>String(p.ipcNo||"")).filter(Boolean).join("-"),
+            processActualAmount:finalCheck.expected,
+            processPaymentDate:finalCheck.date
+        };
+        driveFile=await createUncDriveFile(namingPayment,row.file,folderId);
+        if(!driveFile?.id)throw new Error("Drive không trả về mã file.");
+        await ensureAnyoneCanViewDriveFile(driveFile.id);
+        const ids=fresh.map(p=>String(p.id));
+        const storedName=String(driveFile.name||getUncDriveFileName(namingPayment));
+        const batch=writeBatch(db);
+        fresh.forEach(payment=>{
+            const actual=Number(payment.processActualAmount);
+            const setActual=!(Number.isFinite(actual)&&actual>0);
+            const setDate=!String(payment.processPaymentDate||"").trim();
+            batch.update(doc(db,"payments",payment.id),{
+                uncStorageProvider:"google-drive",
+                uncDriveFileId:driveFile.id,
+                uncPath:"",
+                uncName:storedName,
+                uncSize:row.file.size,
+                uncGroupPaymentIds:ids,
+                uncGroupAmount:finalCheck.expected,
+                uncUploadedAt:serverTimestamp(),
+                uncUploadedBy:currentOperatorName,
+                uncUploadedByUid:currentAuthUser?.uid||"",
+                uncUploadedByEmail:currentAuthUser?.email||"",
+                ...(setActual?{processActualAmount:bulkUncGroupAllocation(payment)}:{}),
+                ...(setDate?{processPaymentDate:finalCheck.date}:{}),
+                updatedAt:serverTimestamp(),
+                updatedBy:currentOperatorName,
+                updatedByUid:currentAuthUser?.uid||"",
+                updatedByEmail:currentAuthUser?.email||""
+            });
+        });
+        bulkUncProgress.textContent="Đang xác nhận "+fresh.length+" khoản trong Firestore...";
+        await batch.commit(); // No success or local mutation before Firestore ACK.
+        committed=true;
+        const now=new Date();
+        fresh.forEach(payment=>{
+            const actual=Number(payment.processActualAmount);
+            if(!(Number.isFinite(actual)&&actual>0))
+                payment.processActualAmount=bulkUncGroupAllocation(payment);
+            if(!String(payment.processPaymentDate||"").trim())
+                payment.processPaymentDate=finalCheck.date;
+            Object.assign(payment,{
+                uncStorageProvider:"google-drive",uncDriveFileId:driveFile.id,
+                uncPath:"",uncName:storedName,uncSize:row.file.size,
+                uncGroupPaymentIds:ids,uncGroupAmount:finalCheck.expected,
+                uncUploadedAt:now,uncUploadedBy:currentOperatorName,
+                uncUploadedByUid:currentAuthUser?.uid||"",
+                uncUploadedByEmail:currentAuthUser?.email||""
+            });
+        });
+        row.uploaded=true;row.checked=false;
+        const months=new Map();
+        fresh.forEach(payment=>{
+            const month=String(payment.paymentMonth||"");
+            if(/^\d{4}-\d{2}$/.test(month)&&month<CURRENT_MONTH)months.set(month,payment);
+        });
+        let warning="";
+        for(const payment of months.values()){
+            try{await refreshExistingPaymentArchiveAfterUnc(payment);}
+            catch(error){console.error("GROUP UNC ARCHIVE REFRESH:",error);warning="\n⚠ Có tháng Kho chứng từ cần mở Chốt tháng để cập nhật lại."; }
+        }
+        renderPayments();
+        bulkUncGroupIds.clear();
+        bulkUncGroupToggle.checked=false;
+        renderBulkUncRows();
+        alert("✅ Đã lưu 1 UNC cho "+fresh.length+" IPC · "+
+            formatMoney(finalCheck.expected)+" VND · "+finalCheck.date+warning);
+    }catch(error){
+        console.error("GROUP UNC SAVE ERROR:",error);
+        if(!committed&&driveFile?.id){
+            await driveApi("/drive/v3/files/"+encodeURIComponent(driveFile.id),
+                {method:"DELETE"}).catch(cleanupError=>console.warn("UNC cleanup:",cleanupError));
+        }
+        alert(committed?"⚠ UNC đã lưu trong Firestore, nhưng có bước cập nhật phụ bị lỗi: "+uncErrorMessage(error):
+            "❌ Chưa ghi UNC vào Firestore. "+uncErrorMessage(error));
+    }finally{
+        setBulkUncBusy(false);
+        bulkUncProgress.textContent="";
+        renderBulkUncRows();
+    }
+}
+
 confirmBulkUncBtn.addEventListener("click",async()=>{
+    if(bulkUncGroupToggle.checked){
+        await confirmBulkUncGroup();
+        return;
+    }
     if(!isAdmin()){
         alert("🔒 " + t("adminOnly"));
         return;
