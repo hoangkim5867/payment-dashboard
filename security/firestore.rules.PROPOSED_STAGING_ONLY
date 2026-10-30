@@ -30,6 +30,19 @@ service cloud.firestore {
     function adminUser(){
       return approvedUser() && get(/databases/$(database)/documents/authUsers/$(request.auth.uid)).data.role.lower() == 'admin';
     }
+    // Owner-only Payment UPDATE fast path, for times when Firestore reads are
+    // exhausted but writes are still available. Authentication is proven by
+    // Firebase Auth (immutable UID + exact email), WITHOUT dependent get()/exists()
+    // calls on authUsers. This does not grant any new permission to Staff or to
+    // other administrators, and it never applies to CREATE/DELETE/other collections.
+    // IMPORTANT SECURITY TRADEOFF: disabling the owner's Firestore authUsers
+    // profile alone no longer revokes this narrow Payment update path.
+    // Disable/revoke the owner's Firebase Auth session to revoke it.
+    function trustedOwnerPaymentUpdateNoProfileRead(){
+      return request.auth != null
+        && request.auth.uid == "HTx2QuATHxh8zgAawwreg88w65M2"
+        && request.auth.token.email == "lehoangoanh@cscecmep.internal";
+    }
     function currentPaymentMonth(){
       let local = request.time + duration.value(7, 'h');
       return string(local.year()) + '-' + (local.month() < 10 ? '0' : '') + string(local.month());
@@ -81,10 +94,14 @@ service cloud.firestore {
         && (adminUser() || (request.resource.data.get('createdByUid', '') == request.auth.uid
           && pendingPayment(request.resource.data) && blankAdminFields(request.resource.data)))
         && (!request.resource.data.keys().hasAny(planFields()) || reviewOwner());
-      allow update: if approvedUser() && validPayment(request.resource.data)
-        && (adminUser() || (resource.data.paymentMonth == currentPaymentMonth()
-          && pendingPayment(resource.data) && staffEditableFields()))
-        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(planFields()) || reviewOwner());
+      allow update: if validPayment(request.resource.data)
+        && (
+          trustedOwnerPaymentUpdateNoProfileRead()
+          || (approvedUser()
+            && (adminUser() || (resource.data.paymentMonth == currentPaymentMonth()
+              && pendingPayment(resource.data) && staffEditableFields()))
+            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(planFields()) || reviewOwner()))
+        );
       allow delete: if approvedUser() && (adminUser() || (
         resource.data.get('source', '') == 'excel-paste'
         && resource.data.get('importBatchId', '') != ''
