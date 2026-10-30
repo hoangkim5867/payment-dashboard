@@ -61,7 +61,12 @@ test('Needs Updates does not flag Admin-only approval/banking or explicit N/A',(
  assert.equal(f.archiveWorkflowNeedsAttention({...paid,processPaper:''}),true);
 });
 test('UI has no Kho tab, financial fields remain Admin-only, original archive untouched',()=>{
- assert.match(html,/value:"attention", label:copy.attention, count:attentionRows.length/);
+ assert.doesNotMatch(html,/\{value:"attention", label:copy.attention, count:attentionRows.length\}/);
+ assert.match(html,/id="paymentAttentionTools"/);
+ assert.match(html,/id="paymentAttentionFilter"/);
+ assert.match(html,/aria-pressed="false"/);
+ assert.match(html,/previousStatusBeforeAttention/);
+ assert.match(html,/button\.classList\.toggle\("active",active==="attention"\)/);
  assert.doesNotMatch(html,/value:"archive", label:copy.archive/);
  assert.doesNotMatch(html,/id="archiveWorkflowMessage"|archiveWorkflowPendingOnly|syncArchiveWorkflowNotice/);
  assert.match(html,/archiveWorkflowNeedsAttention\(item\)/);
@@ -69,7 +74,10 @@ test('UI has no Kho tab, financial fields remain Admin-only, original archive un
  assert.match(html,/const workflowStepsEditable\s*=\s*canEditPaymentWorkflowSteps\(item\)/);
  assert.match(html,/workflowLocked \|\|\s*!isAdmin\(\)/);
  assert.match(html,/function paymentSourceForMonth\(month\)/);
- assert.match(html,/\.payment-status-segments\{min-width:0!important;max-width:100%!important/);
+ assert.match(html,/html\[data-theme\] \.payment-status-segments\{/);
+ assert.match(html,/overflow:visible!important/);
+ assert.doesNotMatch(html,/overflow-x:auto;overflow-y:hidden;scrollbar-width:thin/);
+ assert.match(html,/\.payment-attention-tools\{/);
  assert.match(archiveHtml,/paymentArchiveDetails/);
  assert.doesNotMatch(archiveHtml,/archiveWorkflowPendingOnly|archiveWorkflowNotice|archiveWorkflowLink/);
  const helperScript=html.slice(helperStart,helperEnd);
