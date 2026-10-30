@@ -75,6 +75,20 @@ service cloud.firestore {
         'duplicateKeyV1','mepLookupV1','paymentLookupSchemaV1'
       ]);
     }
+    // Only workflow progress may change after a payment is paid.
+    // No result/date/UNC/approval/banking/amount or month mutation by Staff.
+    function staffPaidWorkflowOnly(){
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return paidPayment(resource.data)
+        && resource.data.get('deleted', false) != true
+        && !(resource.data.get('monthOutcome', '').lower() in ['cancelled', 'carried_forward'])
+        && changed.hasOnly([
+          'processPlatformPlan','processPaper','processSettlement','processPaymentNo','processPlatformPayment',
+          'updatedAt','updatedBy','updatedByUid','updatedByEmail'
+        ]) && changed.hasAny([
+          'processPlatformPlan','processPaper','processSettlement','processPaymentNo','processPlatformPayment'
+        ]);
+    }
     match /payments/{paymentId} {
       allow read: if approvedUser();
       allow create: if approvedUser() && validPayment(request.resource.data)
@@ -83,7 +97,7 @@ service cloud.firestore {
         && (!request.resource.data.keys().hasAny(planFields()) || reviewOwner());
       allow update: if approvedUser() && validPayment(request.resource.data)
         && (adminUser() || (resource.data.paymentMonth == currentPaymentMonth()
-          && pendingPayment(resource.data) && staffEditableFields()))
+          && ((pendingPayment(resource.data) && staffEditableFields()) || staffPaidWorkflowOnly())))
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(planFields()) || reviewOwner());
       allow delete: if approvedUser() && (adminUser() || (
         resource.data.get('source', '') == 'excel-paste'
