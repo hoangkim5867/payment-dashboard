@@ -83,3 +83,14 @@ test('UI has no Kho tab, financial fields remain Admin-only, original archive un
  const helperScript=html.slice(helperStart,helperEnd);
  assert.doesNotMatch(helperScript,/getDocs\(|getDoc\(|onSnapshot\(|updateDoc\(|setDoc\(|deleteDoc\(/);
 });
+
+test('Attention chip is docked inside the existing search field, with no extra toolbar row',()=>{
+ assert.match(html,/const searchField=document\.getElementById\("searchInput"\)\?\.closest\("\.global-search-field"\)/);
+ assert.match(html,/searchField\.appendChild\(toolsRow\)/);
+ assert.doesNotMatch(html,/tableWrap\.parentElement\.insertBefore\(toolsRow,tableWrap\)/);
+ assert.match(html,/\.global-search-field > \.payment-attention-tools\{/);
+ assert.match(html,/\.global-search-field > #searchInput\{[\s\S]*?padding-right:119px!important/);
+ assert.match(html,/@media\(max-width:620px\)\{[\s\S]*?\.payment-attention-label\{display:none\}/);
+ assert.match(html,/button\.setAttribute\("aria-label",button\.title\)/);
+ assert.match(html,/paymentStatusFilter\.value=currentlyOpen\?previousStatusBeforeAttention:"attention"/);
+});
