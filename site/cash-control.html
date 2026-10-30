@@ -589,7 +589,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
 </style>
 
 
-<style id="salary-bonus-year-visibility-fix">#salaryRecordModal #pyPeriodField[hidden],#salaryRecordModal #pyBonusYearField[hidden]{display:none!important}</style>
+<style id="salary-bonus-year-visibility-fix">#salaryRecordModal #pyPeriodField[hidden],#salaryRecordModal #pyBonusYearField[hidden],#salaryRecordModal #pyBonusTaxField[hidden]{display:none!important}</style>
 <style id="salary-tax-period-visibility-fix">
 #salaryRecordModal #pyTaxPeriodField[hidden]{display:none!important}
 #salaryRecordModal #pyTaxPeriodField:not([hidden]){display:flex!important}
@@ -1537,7 +1537,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
       <div class="field" id="pyPeriodField"><label id="pyPeriodLabel">Kỳ lương <span class="required-star">*</span></label><input type="month" id="pyPeriod"></div>
       <div class="field" id="pyBonusYearField" hidden><label>Năm thưởng <span class="required-star">*</span></label><input id="pyBonusYear" type="number" min="2000" max="2099" step="1" inputmode="numeric" placeholder="Ví dụ: 2024"></div>
       <div class="field full" id="pyBonusTaxField" hidden>
-        <label>Thuế TNCN của thưởng (VND) <span class="mep-card-sub">· nhập cùng lúc với thưởng</span></label>
+        <label id="pyLinkedTaxLabel">Thuế TNCN của thưởng (VND) · nhập cùng khoản thưởng</label>
         <input id="pyBonusTaxAmount" inputmode="decimal" placeholder="Số thuế phải nộp, để trống nếu chưa có">
         <div class="mep-card-sub" id="pyBonusTaxHelp" role="status">Thuế được theo dõi riêng; ngày trả thưởng quyết định quý thuế và tháng dự kiến nộp.</div>
       </div>
@@ -1848,7 +1848,7 @@ import {
     FieldPath,
     serverTimestamp
 } from "./assets/js/firestore-payment.mjs";
-import {bonusTaxQuarterFromPaymentDate,bonusTaxDueMonth,buildLinkedBonusTaxRecord} from "./assets/js/payroll-bonus-tax.mjs";
+import {bonusTaxQuarterFromPaymentDate,bonusTaxDueMonth,buildLinkedBonusTaxRecord,buildLinkedSalaryTaxRecord} from "./assets/js/payroll-bonus-tax.mjs";
 const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
 const app=initializeApp(firebaseConfig),db=getFirestore(app),auth=getAuth(app),paymentsRef=collection(db,"payments");
 const CASH_PRIVATE_DOC_ID="lehoangoanh";
@@ -7064,6 +7064,10 @@ function payrollTaxPeriodCode(record){
         return basisDate?payrollQuarterCode(monthOf(basisDate)):'';
     }
 
+    if(record?.type==='tax'&&record.linkedSalaryId){
+        const basis=payrollTaxBasisDate(record);
+        return basis?payrollQuarterCode(monthOf(basis)):'';
+    }
     return payrollQuarterCode(record?.payrollMonth);
 }
 function payrollTaxQuarter(record){
@@ -7083,6 +7087,8 @@ function payrollKey(record){
     // standalone salary tax or a different award in the same quarter.
     if(record?.type==='tax'&&record.linkedBonusId)
       return [normProject(record.project),inferPayrollStaffGroup(record),'bonus-tax',String(record.linkedBonusId)].join('|');
+    if(record?.type==='tax'&&record.linkedSalaryId)
+      return [normProject(record.project),inferPayrollStaffGroup(record),'salary-tax',String(record.linkedSalaryId)].join('|');
     // Do not treat a year-only award as a monthly salary or collapse different awards.
     if(record?.type==='bonus'&&/^20\d{2}$/.test(String(record.bonusYear||'')))
       return [normProject(record.project),inferPayrollStaffGroup(record),'annual-bonus',
@@ -7139,11 +7145,19 @@ function findLinkedBonusTaxRecord(bonus,rows=cashCloudState.salaryRecords||[]){
 }
 function updateBonusTaxPreview(){
     const el=$('pyBonusTaxHelp');if(!el)return;
+    const source=$('pyType')?.value==='salary'?'lương':'thưởng';
+    if($('pyLinkedTaxLabel'))$('pyLinkedTaxLabel').textContent='Thuế TNCN của '+source+' (VND) · nhập cùng khoản '+source;
     const date=$('pyActualDate')?.value||'';
     const code=bonusTaxQuarterFromPaymentDate(date);
     el.textContent=code
-      ?'Theo ngày trả thưởng '+date+': kỳ thuế '+taxPeriodLabel(code)+', dự kiến nộp tháng '+fmtMonth(bonusTaxDueMonth(code))+'. Thuế chưa ghi thực chi cho tới khi nhập ngày nộp riêng.'
-      :'Chưa có ngày thực trả thưởng: lưu nghĩa vụ thuế chờ xác định quý; khi gán ngày trả thưởng, hệ thống tự cập nhật kỳ thuế.';
+      ?'Theo ngày trả '+source+' '+date+': kỳ thuế '+taxPeriodLabel(code)+', dự kiến nộp tháng '+fmtMonth(bonusTaxDueMonth(code))+'. Thuế CHƯA NỘP tới khi ghi ngày thực nộp riêng.'
+      :'Chưa có ngày thực trả '+source+': thuế được lưu như nghĩa vụ chưa nộp; khi gán ngày trả sẽ xác định quý thuế.';
+}
+function findLinkedSalaryTaxRecord(salary,rows=cashCloudState.salaryRecords||[]){
+    if(!salary||salary.type!=='salary')return null;
+    const id=String(salary.salaryTaxRecordId||'');
+    return (id?rows.find(x=>x.id===id&&x.type==='tax'&&(!x.linkedSalaryId||x.linkedSalaryId===salary.id)&&!x.linkedBonusId):null)
+      ||rows.find(x=>x.type==='tax'&&x.linkedSalaryId===salary.id)||null;
 }
 function isLegacyMonthlyBonusEditor(){
     if($('pyType')?.value!=='bonus')return false;
@@ -7162,8 +7176,8 @@ function syncPayrollPeriodUI(autoQuarter=false){
     const monthlyBonus=type==='bonus'&&!annualBonus;
     if($('pyPeriodField'))$('pyPeriodField').hidden=annualBonus;
     if($('pyBonusYearField'))$('pyBonusYearField').hidden=!annualBonus;
-    if($('pyBonusTaxField'))$('pyBonusTaxField').hidden=type!=='bonus'||!!editingLegacySalaryId;
-    if(type==='bonus')updateBonusTaxPreview();
+    if($('pyBonusTaxField'))$('pyBonusTaxField').hidden=!['salary','bonus'].includes(type)||!!editingLegacySalaryId;
+    if(type==='salary'||type==='bonus')updateBonusTaxPreview();
     if($('pyPeriod'))$('pyPeriod').required=!annualBonus;
     if($('pyBonusYear'))$('pyBonusYear').required=annualBonus;
     if(periodLabel)periodLabel.innerHTML=(monthlyBonus?'Kỳ thưởng (tháng)':isTax?'Kỳ lương nguồn':'Kỳ lương')+' <span class="required-star">*</span>';
@@ -8340,8 +8354,8 @@ function openSalaryRecord(id=null){
     $('pyType').value=x?.type||'salary';
     $('pyPeriod').value=x?.payrollMonth||CURRENT;
     if($('pyBonusYear'))$('pyBonusYear').value=x?.bonusYear||String(new Date().getFullYear());
-    const linkedBonusTax=x?.type==='bonus'?findLinkedBonusTaxRecord(x):null;
-    if($('pyBonusTaxAmount'))$('pyBonusTaxAmount').value=linkedBonusTax?.amountVnd?money(linkedBonusTax.amountVnd):'';
+    const linkedTax=x?.type==='bonus'?findLinkedBonusTaxRecord(x):x?.type==='salary'?findLinkedSalaryTaxRecord(x):null;
+    if($('pyBonusTaxAmount'))$('pyBonusTaxAmount').value=linkedTax?.amountVnd?money(linkedTax.amountVnd):'';
     const recordType=x?.type||'salary';
     const recordQuarter=recordType==='tax'
       ?(x?payrollTaxPeriodCode(x):payrollQuarterCode($('pyPeriod').value))
@@ -8359,7 +8373,7 @@ function openSalaryRecord(id=null){
 
 async function deleteSalaryRecord(id){
     if(!ensureMepWrite())return;const x=(cashCloudState.salaryRecords||[]).find(r=>r.id===id);if(!x)return;
-    if(x.type==='bonus'&&findLinkedBonusTaxRecord(x)){alert('Thưởng có Thuế TNCN liên kết. Vui lòng xử lý khoản thuế riêng trước khi xóa thưởng.');return;}
+    if((x.type==='bonus'&&findLinkedBonusTaxRecord(x))||(x.type==='salary'&&findLinkedSalaryTaxRecord(x))){alert('Khoản này có Thuế TNCN liên kết. Hãy xử lý khoản thuế riêng trước khi xóa để không mất nghĩa vụ thuế.');return;}
     if(!confirm(`Xóa ${PAYROLL_TYPE_LABELS[x.type]||'khoản nhân sự'} của ${x.project} · ${fmtMonth(x.payrollMonth)}?\nDòng liên kết trong sổ thu chi cũng sẽ bị xóa.`))return;
     cashCloudState.salaryRecords=(cashCloudState.salaryRecords||[]).filter(r=>r.id!==id);cashCloudState.manualRecords=manual().filter(r=>r.id!==x.cashTxnId&&r.linkedRecordId!==id);salarySelectedIds.delete(id);pushAudit('payroll','Xóa khoản lương / thuế',id,`${x.project} · ${x.payrollMonth}`);if(await persistCashCloud('Xóa khoản lương / thuế'))renderAll();
 }
@@ -8396,7 +8410,7 @@ async function applySalaryPaymentDate(clear=false){
 
 async function deleteSelectedSalaryRecords(){
     if(!ensureMepWrite())return;if(!salarySelectedIds.size)return;const selected=(cashCloudState.salaryRecords||[]).filter(x=>salarySelectedIds.has(x.id));if(!confirm(`Xóa ${selected.length} khoản đã chọn?\nCác dòng liên kết trong sổ thu chi cũng sẽ bị xóa.`))return;
-    if(selected.some(x=>x.type==='bonus'&&findLinkedBonusTaxRecord(x)&&!salarySelectedIds.has(findLinkedBonusTaxRecord(x).id))){alert('Có Thưởng liên kết với Thuế TNCN. Phải chọn cả dòng thuế để xóa, tránh để lại khoản thuế không rõ nguồn.');return;}
+    if(selected.some(x=>{const linked=x.type==='bonus'?findLinkedBonusTaxRecord(x):x.type==='salary'?findLinkedSalaryTaxRecord(x):null;return linked&&!salarySelectedIds.has(linked.id);})){alert('Có Lương / Thưởng liên kết với Thuế TNCN. Phải chọn cả dòng thuế để xóa, tránh mất liên kết.');return;}
     const ids=new Set(selected.map(x=>x.id)),cashIds=new Set(selected.map(x=>x.cashTxnId).filter(Boolean));cashCloudState.salaryRecords=(cashCloudState.salaryRecords||[]).filter(x=>!ids.has(x.id));cashCloudState.manualRecords=manual().filter(x=>!cashIds.has(x.id)&&!ids.has(x.linkedRecordId));pushAudit('payroll','Xóa nhiều khoản lương / thuế','',`${selected.length} khoản`);if(await persistCashCloud('Xóa nhiều khoản lương / thuế')){salarySelectedIds.clear();renderAll()}
 }
 
@@ -10467,9 +10481,9 @@ if($('pyPeriod'))$('pyPeriod').onchange=()=>{
     else syncPayrollPeriodUI(false);
 };
 if($('pyActualDate'))$('pyActualDate').onchange=()=>{
-    if($('pyType')?.value==='salary'&&!normalizeTaxPeriod($('pyTaxPeriod')?.value)){
+    if($('pyType')?.value==='salary'){
         const actualMonth=monthOf($('pyActualDate').value||'');
-        if(actualMonth)$('pyTaxPeriod').value=payrollQuarterCode(actualMonth);
+        $('pyTaxPeriod').value=actualMonth?payrollQuarterCode(actualMonth):'';
     }
     syncPayrollPeriodUI(false);
 };
