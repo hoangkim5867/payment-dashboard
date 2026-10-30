@@ -1340,16 +1340,94 @@ html[data-theme="ivorybunny"] .process-inline-input{
 #exportWatchPanel .export-watch-old{opacity:1;color:var(--ew-text,#172033)!important}
 </style>
 <style id="archiveWorkflowViewStyles">
-/* Compact status row. Never let the optional Archive tab cover Refresh/Reset. */
-html[data-theme] .payment-status-segments{min-width:0!important;max-width:100%!important;box-sizing:border-box;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
-html[data-theme] .payment-status-segment{flex-shrink:0;gap:3px!important;padding-left:5px!important;padding-right:5px!important}
-html[data-theme] .payment-status-segment strong{min-width:16px!important;padding-left:3px!important;padding-right:3px!important}
-@media(max-width:900px){
-  html[data-theme] .payment-status-segments{flex-wrap:wrap;height:auto!important;min-height:36px!important;overflow-x:visible;overflow-y:visible}
-  html[data-theme] .payment-status-segment{flex:0 0 auto}
-  html[data-theme] .data-first-summary .payment-status-segments{height:auto!important;min-height:36px!important}
+/* Payment statuses stay a short single group. No horizontal scrollbar. */
+html[data-theme] .payment-status-segments{
+    min-width:0!important;
+    max-width:100%!important;
+    box-sizing:border-box;
+    overflow:visible!important;
+    display:inline-flex!important;
+    flex-wrap:nowrap!important;
 }
-.paid-progress-pending{display:inline-flex;margin:0 3px;padding:2px 5px;border:1px solid #efc98c;border-radius:4px;background:#fff8e8;color:#a45c05;font-size:9px;font-weight:750;white-space:nowrap}
+html[data-theme] .payment-status-segment{
+    flex:0 0 auto;
+    gap:3px!important;
+    padding-left:5px!important;
+    padding-right:5px!important;
+}
+html[data-theme] .payment-status-segment strong{
+    min-width:16px!important;
+    padding-left:3px!important;
+    padding-right:3px!important;
+}
+@media(max-width:1200px){
+    html[data-theme] .payment-status-segments{
+        flex-wrap:wrap!important;
+        height:auto!important;
+        min-height:36px!important;
+    }
+    html[data-theme] .data-first-summary .payment-status-segments{
+        height:auto!important;
+        min-height:36px!important;
+    }
+}
+.payment-attention-tools{
+    display:flex;
+    justify-content:flex-end;
+    align-items:center;
+    margin:5px 9px 5px;
+    min-height:26px;
+}
+.payment-attention-chip{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    padding:5px 9px;
+    max-width:100%;
+    border:1px solid var(--theme-border,#d7dee8);
+    border-radius:6px;
+    background:var(--theme-surface,#fff);
+    color:var(--theme-text,#344054);
+    font-size:10px;
+    font-weight:700;
+    white-space:nowrap;
+    box-shadow:none;
+    cursor:pointer;
+}
+.payment-attention-chip:hover{
+    border-color:#e2bc7c;
+    color:var(--theme-primary,#17365d);
+}
+.payment-attention-chip.active{
+    border-color:#e6bb74;
+    color:#875410;
+    background:#fff9eb;
+}
+.payment-attention-count{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:17px;
+    height:17px;
+    padding:0 4px;
+    border-radius:9px;
+    background:rgba(155,124,63,.10);
+    font-size:9px;
+    font-variant-numeric:tabular-nums;
+}
+.paid-progress-pending{
+    display:inline-flex;
+    margin:0 3px;
+    padding:2px 5px;
+    border:1px solid #efc98c;
+    border-radius:4px;
+    background:#fff8e8;
+    color:#a45c05;
+    font-size:9px;
+    font-weight:750;
+    white-space:nowrap;
+}
 </style>
 </head>
 
@@ -8824,6 +8902,8 @@ function getPaymentStatusContextRows(attentionOnly=false){
 }
 
 
+let previousStatusBeforeAttention="";
+
 function renderPaymentStatusSegments(){
 
     const wrap =
@@ -8868,7 +8948,6 @@ function renderPaymentStatusSegments(){
         {value:"paid", label:copy.paid, count:paid},
         {value:"carried", label:copy.carried, count:carried},
         {value:"cancelled", label:copy.cancelled, count:cancelled},
-        {value:"attention", label:copy.attention, count:attentionRows.length},
         {value:"", label:copy.all, count:rows.length}
     ];
 
@@ -8878,14 +8957,49 @@ function renderPaymentStatusSegments(){
                 type="button"
                 class="payment-status-segment ${item.value === active ? "active" : ""}"
                 data-payment-status-view="${item.value}"
-                title="${escapeHTML(item.value==="attention"
-                    ? (currentLanguage==="zh"?"已付款但流程尚未完成":currentLanguage==="en"?"Paid, workflow needs updates":"Đã thanh toán nhưng chưa hoàn thiện tiến trình")
-                    : item.label)}"
+                title="${escapeHTML(item.label)}"
             >
                 <span>${escapeHTML(item.label)}</span>
                 <strong>${Number(item.count).toLocaleString()}</strong>
             </button>
         `).join("");
+
+    // One compact workflow filter above the table, NOT a sixth payment status.
+    // Uses the same monthly allPayments snapshot; no extra Firestore listener.
+    const tableWrap=document.getElementById("paymentTable")?.closest(".table-wrap");
+    if(!tableWrap?.parentElement) return;
+    let toolsRow=document.getElementById("paymentAttentionTools");
+    if(!toolsRow){
+        toolsRow=document.createElement("div");
+        toolsRow.id="paymentAttentionTools";
+        toolsRow.className="payment-attention-tools";
+        toolsRow.innerHTML=`<button type="button" id="paymentAttentionFilter"
+            class="payment-attention-chip" aria-pressed="false">
+            <span class="payment-attention-label"></span>
+            <span class="payment-attention-count"></span>
+        </button>`;
+        tableWrap.parentElement.insertBefore(toolsRow,tableWrap);
+        toolsRow.querySelector("#paymentAttentionFilter").addEventListener("click",()=>{
+            const currentlyOpen=paymentStatusFilter.value==="attention";
+            if(!currentlyOpen){
+                previousStatusBeforeAttention=paymentStatusFilter.value || "";
+            }
+            paymentStatusFilter.value=currentlyOpen?previousStatusBeforeAttention:"attention";
+            selectedPaymentIds.clear();
+            updateBatchSelectionUI();
+            applyPaymentStatusView();
+            renderPayments();
+        });
+    }
+    const button=toolsRow.querySelector("#paymentAttentionFilter");
+    button.classList.toggle("active",active==="attention");
+    button.setAttribute("aria-pressed",String(active==="attention"));
+    button.title=currentLanguage==="zh"?"已付款但流程尚未完成"
+        : currentLanguage==="en"?"Paid, workflow needs updates"
+        :"Đã thanh toán nhưng chưa hoàn thiện tiến trình";
+    button.querySelector(".payment-attention-label").textContent=copy.attention;
+    button.querySelector(".payment-attention-count").textContent=
+        Number(attentionRows.length).toLocaleString();
 }
 
 
