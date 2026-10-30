@@ -38806,15 +38806,15 @@ function validateBulkUncGroup(row,payments){
         return fail("PDF chỉ đọc được tiền trích nợ (có thể gồm phí). Cần số tiền chuyển riêng.");
     if(!info.date) return fail("PDF chưa đọc được ngày thanh toán.");
     const root=payments[0],company=normalize(root.company||""),
-          month=String(root.paymentMonth||""),bank=String(root.bankAccount||"").replace(/\D/g,"");
+          month=String(root.paymentMonth||"");
+    const bankAccounts=new Set(payments.map(p=>String(p?.bankAccount||"").replace(/\D/g,"")).filter(Boolean));
+    if(bankAccounts.size>1)return fail("Các IPC có số tài khoản thụ hưởng khác nhau.");
     if(!company) return fail("Payment thiếu tên công ty thụ hưởng.");
     if(!/^\d{4}-\d{2}$/.test(month)) return fail("Payment thiếu tháng thanh toán.");
     const invalid=payments.find(p=>
         !p || p.deleted===true || isPaymentCancelled(p) || isPaymentCarriedForward(p) ||
         hasUncDriveFile(p) || normalize(p.company||"")!==company ||
         String(p.paymentMonth||"")!==month ||
-        (bank && String(p.bankAccount||"").replace(/\D/g,"") &&
-            String(p.bankAccount||"").replace(/\D/g,"")!==bank) ||
         (p.processPaymentDate && String(p.processPaymentDate)!==String(info.date)) ||
         !Number.isFinite(bulkUncGroupAllocation(p))
     );
@@ -39226,6 +39226,7 @@ async function confirmBulkUncGroup(){
     if(bulkUncBusy)return;
     const row=bulkUncRows.length===1?bulkUncRows[0]:null;
     const chosen=selectedBulkUncGroupPayments();
+    if(chosen.length!==bulkUncGroupIds.size){alert("Danh sách Payment vừa thay đổi. Hãy chọn lại.");return;}
     const checked=validateBulkUncGroup(row,chosen);
     if(!checked.ok){alert("⚠ "+checked.error);return;}
     if(!getConfiguredDriveClientId()){
@@ -39245,6 +39246,7 @@ Sẽ ghi tiền thực trả của TỪNG IPC (không ghi tổng UNC vào một 
 Xác nhận lưu 1 PDF lên Drive, rồi liên kết tới ${chosen.length} khoản?`))return;
     // Re-check from current in-memory snapshot just before any Google Drive operation.
     const fresh=selectedBulkUncGroupPayments();
+    if(fresh.length!==bulkUncGroupIds.size){alert("Danh sách Payment vừa thay đổi. Hãy chọn lại.");return;}
     const finalCheck=validateBulkUncGroup(row,fresh);
     if(!finalCheck.ok){alert("⚠ "+finalCheck.error);return;}
     setBulkUncBusy(true);
