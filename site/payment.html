@@ -3666,6 +3666,17 @@ html[data-theme="ivorybunny"] .process-inline-input{
                 </div>
             </div>
 
+            <section class="bulk-unc-group-section" id="bulkUncGroupSection">
+                <label class="bulk-unc-group-switch"><input id="bulkUncGroupToggle" type="checkbox">
+                    <strong>1 UNC thanh toán nhiều IPC</strong><span>Chọn ít nhất 2 khoản, kiểm tra tổng trước khi lưu</span>
+                </label>
+                <div id="bulkUncGroupPanel" hidden>
+                    <label for="bulkUncGroupSearch">Tìm dự án, công ty, hợp đồng hoặc IPC</label>
+                    <input id="bulkUncGroupSearch" type="search" placeholder="VD: TH VN, IPC011, CSCECVN..." autocomplete="off">
+                    <div class="bulk-unc-group-choices" id="bulkUncGroupChoices"></div>
+                    <div class="bulk-unc-group-result" id="bulkUncGroupResult" role="status"></div>
+                </div>
+            </section>
             <div class="bulk-unc-summary" id="bulkUncSummary">Chưa chọn file.</div>
 
             <div class="bulk-unc-workspace">
@@ -3706,6 +3717,23 @@ html[data-theme="ivorybunny"] .process-inline-input{
 </div>
 
 <style id="unc-voucher-style">
+.bulk-unc-group-section{margin:10px 0;padding:12px;border:1px solid var(--theme-border,#d5dce5);border-radius:10px;background:var(--theme-surface-alt,#f8fafc)}
+.bulk-unc-group-switch{display:flex;align-items:center;gap:8px;font-size:12px;flex-wrap:wrap;cursor:pointer}
+.bulk-unc-group-switch input{width:16px;height:16px}
+.bulk-unc-group-switch span{color:var(--theme-muted,#667085);font-weight:400}
+#bulkUncGroupPanel{margin-top:12px}
+#bulkUncGroupPanel[hidden]{display:none!important}
+#bulkUncGroupSearch{width:100%;margin:5px 0 10px;padding:9px;border:1px solid var(--theme-border,#d5dce5);border-radius:7px}
+.bulk-unc-group-choices{max-height:265px;overflow:auto;background:var(--theme-surface,#fff);border:1px solid var(--theme-border,#d5dce5);border-radius:8px}
+.bulk-unc-group-choice{display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--theme-border,#eee);font-size:11px;cursor:pointer;line-height:1.55}
+.bulk-unc-group-choice:last-child{border-bottom:0}
+.bulk-unc-group-choice input{flex:0 0 auto;width:16px;height:16px}
+.bulk-unc-group-choice small{display:block;color:var(--theme-muted,#667085)}
+.bulk-unc-group-result{margin-top:8px;padding:9px;border-radius:7px;background:var(--theme-surface,#fff);font-size:12px;white-space:pre-line;line-height:1.6}
+.bulk-unc-group-result.error{color:#b42318;background:#fff1f0}
+.bulk-unc-group-result.good{color:#166534;background:#f0fdf4}
+.bulk-unc-modal-box.group-unc-mode .bulk-unc-workspace{display:none!important}
+
 #uncModal{padding:18px!important;align-items:center!important;justify-content:center!important;overflow:hidden!important}
 #uncModal>.unc-modal-box{display:flex!important;flex-direction:column!important;width:min(700px,calc(100vw - 36px))!important;max-width:min(700px,calc(100vw - 36px))!important;height:auto!important;min-height:0!important;max-height:calc(100vh - 36px)!important;margin:auto!important;padding:0!important;overflow:hidden!important}
 #uncModal.preview-open>.unc-modal-box{width:min(1040px,calc(100vw - 36px))!important;max-width:min(1040px,calc(100vw - 36px))!important;height:min(860px,calc(100vh - 36px))!important;max-height:calc(100vh - 36px)!important}
@@ -37803,7 +37831,9 @@ uncUploadBtn.addEventListener("click",async()=>{
     try{
         const existingFileId = String(payment.uncDriveFileId || "").trim();
 
-        if(existingFileId){
+        // A grouped voucher is shared by several IPCs. Never overwrite its PDF
+        // when changing only one IPC; create a separate file for that row.
+        if(existingFileId && !isSharedUncPayment(payment)){
             try{
                 driveFile = await replaceUncDriveFile(existingFileId,file,payment);
             }catch(error){
@@ -37834,6 +37864,8 @@ uncUploadBtn.addEventListener("click",async()=>{
                 uncPath:"",
                 uncName:storedUncName,
                 uncSize:file.size,
+                uncGroupPaymentIds:[],
+                uncGroupAmount:0,
                 uncUploadedAt:serverTimestamp(),
                 uncUploadedBy:currentOperatorName,
                 uncUploadedByUid:currentAuthUser?.uid || "",
@@ -37860,6 +37892,8 @@ uncUploadBtn.addEventListener("click",async()=>{
             uncPath:"",
             uncName:storedUncName,
             uncSize:file.size,
+            uncGroupPaymentIds:[],
+            uncGroupAmount:0,
             uncUploadedAt:new Date(),
             uncUploadedBy:currentOperatorName,
             uncUploadedByUid:currentAuthUser?.uid || "",
@@ -37942,7 +37976,10 @@ uncDeleteBtn.addEventListener("click",async()=>{
         return;
     }
 
-    if(!confirm("Xóa UNC của khoản thanh toán này?\n\nFile sẽ được chuyển vào Thùng rác Google Drive của Admin.")){
+    const shared=isSharedUncPayment(payment);
+    if(!confirm(shared
+        ?"Gỡ liên kết UNC gộp khỏi IPC này?\n\nFile Drive sẽ ĐƯỢC GIỮ LẠI để các IPC còn lại tiếp tục xem."
+        :"Xóa UNC của khoản thanh toán này?\n\nFile sẽ được chuyển vào Thùng rác Google Drive của Admin.")){
         return;
     }
 
@@ -37950,19 +37987,19 @@ uncDeleteBtn.addEventListener("click",async()=>{
     let movedToTrash = false;
 
     try{
-        try{
-            await driveApi(
-                `/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,trashed`,
-                {
-                    method:"PATCH",
-                    headers:{"Content-Type":"application/json"},
-                    body:JSON.stringify({trashed:true})
-                }
-            );
-            movedToTrash = true;
-        }catch(driveError){
-            if(Number(driveError?.status) !== 404){
-                throw driveError;
+        if(!shared){
+            try{
+                await driveApi(
+                    `/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,trashed`,
+                    {
+                        method:"PATCH",
+                        headers:{"Content-Type":"application/json"},
+                        body:JSON.stringify({trashed:true})
+                    }
+                );
+                movedToTrash = true;
+            }catch(driveError){
+                if(Number(driveError?.status) !== 404) throw driveError;
             }
         }
 
@@ -37975,6 +38012,8 @@ uncDeleteBtn.addEventListener("click",async()=>{
                 uncPath:"",
                 uncName:"",
                 uncSize:0,
+                uncGroupPaymentIds:[],
+                uncGroupAmount:0,
                 uncUploadedAt:null,
                 uncUploadedBy:"",
                 uncUploadedByUid:"",
@@ -38005,6 +38044,8 @@ uncDeleteBtn.addEventListener("click",async()=>{
             uncPath:"",
             uncName:"",
             uncSize:0,
+            uncGroupPaymentIds:[],
+            uncGroupAmount:0,
             uncUploadedAt:null,
             uncUploadedBy:"",
             uncUploadedByUid:"",
@@ -38014,7 +38055,8 @@ uncDeleteBtn.addEventListener("click",async()=>{
         resetUncPreview();
         renderUncModal();
         renderPayments();
-        alert("✅ Đã gỡ UNC khỏi Payment và chuyển file vào Thùng rác Google Drive.");
+        alert(shared?"✅ Đã gỡ UNC khỏi IPC này. File gộp vẫn còn cho các IPC khác."
+                    :"✅ Đã gỡ UNC khỏi Payment và chuyển file vào Thùng rác Google Drive.");
     }catch(error){
         console.error("UNC DELETE ERROR:",error);
         alert("❌ " + uncErrorMessage(error));
@@ -38718,6 +38760,132 @@ function bulkUncTargetPayment(row){
         : null;
 }
 
+/* One bank transfer may settle several IPCs for the same beneficiary.
+   Use one Drive file ID for all Payments and ONE Firestore batch. */
+const bulkUncGroupToggle=document.getElementById("bulkUncGroupToggle");
+const bulkUncGroupPanel=document.getElementById("bulkUncGroupPanel");
+const bulkUncGroupSearch=document.getElementById("bulkUncGroupSearch");
+const bulkUncGroupChoices=document.getElementById("bulkUncGroupChoices");
+const bulkUncGroupResult=document.getElementById("bulkUncGroupResult");
+const bulkUncGroupIds=new Set();
+const BULK_UNC_GROUP_MAX=40;
+
+function isSharedUncPayment(payment){
+    return Array.isArray(payment?.uncGroupPaymentIds) &&
+           payment.uncGroupPaymentIds.length>1;
+}
+function bulkUncGroupAllocation(payment){
+    const actual=Number(payment?.processActualAmount);
+    const planned=Number(payment?.amount);
+    const amount=Number.isFinite(actual)&&actual>0 ? actual : planned;
+    return Number.isSafeInteger(amount)&&amount>0 ? amount : NaN;
+}
+function bulkUncGroupCandidates(){
+    return bulkUncAvailablePayments().filter(payment=>
+        !hasUncDriveFile(payment) &&
+        Number.isFinite(bulkUncGroupAllocation(payment))
+    );
+}
+function validateBulkUncGroup(row,payments){
+    const fail=(error)=>({ok:false,error,total:payments.reduce((sum,p)=>{
+        const amount=bulkUncGroupAllocation(p);
+        return sum+(Number.isFinite(amount)?amount:0);
+    },0),expected:Number(row?.info?.remittanceAmount)||Number(row?.info?.amount)||0});
+    if(!row || !row.validPdf || row.error || !row.info) return fail("Chưa đọc được PDF hợp lệ.");
+    if(payments.length<2) return fail("Hãy chọn ít nhất 2 IPC.");
+    if(payments.length>BULK_UNC_GROUP_MAX) return fail("Một UNC gộp tối đa 40 khoản.");
+    if(new Set(payments.map(p=>String(p.id))).size!==payments.length) return fail("Có Payment bị chọn trùng.");
+    const info=row.info;
+    // Always use the amount remitted to the beneficiary; never the bank-fee-inclusive debit.
+    const expected=Number.isFinite(info.remittanceAmount)&&info.remittanceAmount>0
+        ? info.remittanceAmount : Number(info.amount);
+    if(!Number.isSafeInteger(expected)||expected<=0)
+        return fail("PDF chưa đọc được số tiền chuyển khoản VND.");
+    if(!Number.isFinite(info.remittanceAmount) &&
+        Number.isFinite(info.debitAmount) && expected===info.debitAmount)
+        return fail("PDF chỉ đọc được tiền trích nợ (có thể gồm phí). Cần số tiền chuyển riêng.");
+    if(!info.date) return fail("PDF chưa đọc được ngày thanh toán.");
+    const root=payments[0],company=normalize(root.company||""),
+          month=String(root.paymentMonth||"");
+    const bankAccounts=new Set(payments.map(p=>String(p?.bankAccount||"").replace(/\D/g,"")).filter(Boolean));
+    if(bankAccounts.size>1)return fail("Các IPC có số tài khoản thụ hưởng khác nhau.");
+    if(!company) return fail("Payment thiếu tên công ty thụ hưởng.");
+    if(!/^\d{4}-\d{2}$/.test(month)) return fail("Payment thiếu tháng thanh toán.");
+    const invalid=payments.find(p=>
+        !p || p.deleted===true || isPaymentCancelled(p) || isPaymentCarriedForward(p) ||
+        hasUncDriveFile(p) || normalize(p.company||"")!==company ||
+        String(p.paymentMonth||"")!==month ||
+        (p.processPaymentDate && String(p.processPaymentDate)!==String(info.date)) ||
+        !Number.isFinite(bulkUncGroupAllocation(p))
+    );
+    if(invalid) return fail("Các khoản phải cùng công ty, cùng tháng, cùng tài khoản (nếu có), chưa có UNC và không sai ngày đã ghi.");
+    const beneficiary=String(info.beneficiary||"").trim();
+    if(beneficiary && bulkUncCompanyScore(root.company,normalize(beneficiary))<6)
+        return fail("Tên người thụ hưởng trên UNC không khớp công ty Payment.");
+    const total=payments.reduce((sum,p)=>sum+bulkUncGroupAllocation(p),0);
+    if(!Number.isSafeInteger(total)||total!==expected)
+        return fail("Tổng các IPC phải bằng ĐÚNG số tiền chuyển trên UNC, không bao gồm phí ngân hàng.");
+    return {ok:true,error:"",total,expected,date:info.date,company:root.company,month};
+}
+function selectedBulkUncGroupPayments(){
+    return [...bulkUncGroupIds].map(id=>
+        allPayments.find(item=>String(item.id)===id)
+    ).filter(Boolean);
+}
+function renderBulkUncGroup(){
+    const row=bulkUncRows.length===1?bulkUncRows[0]:null;
+    const enabled=!!bulkUncGroupToggle.checked;
+    bulkUncGroupToggle.disabled=bulkUncBusy || !row?.validPdf || !!row.error || !!row.uploaded;
+    if(!row?.validPdf && enabled){bulkUncGroupToggle.checked=false;bulkUncGroupIds.clear();}
+    const mode=!!bulkUncGroupToggle.checked;
+    bulkUncGroupPanel.hidden=!mode;
+    bulkUncModal.querySelector(".bulk-unc-modal-box").classList.toggle("group-unc-mode",mode);
+    if(!mode)return false;
+    const search=normalize(bulkUncGroupSearch.value||"");
+    const candidates=bulkUncGroupCandidates().filter(p=>
+        !search || normalize([p.project,p.company,p.contractNo,p.ipcNo,p.processPaymentNo].join(" ")).includes(search)
+    ).slice(0,160);
+    bulkUncGroupChoices.innerHTML=candidates.map(payment=>{
+        const id=String(payment.id);
+        const amount=bulkUncGroupAllocation(payment);
+        return `<label class="bulk-unc-group-choice"><input type="checkbox" data-group-payment-id="${escapeHTML(id)}" ${bulkUncGroupIds.has(id)?"checked":""} ${bulkUncBusy?"disabled":""}>
+            <span><strong>${escapeHTML(payment.ipcNo||"—")} · ${escapeHTML(payment.contractNo||"—")}</strong>
+              · ${escapeHTML(formatMoney(amount))} VND
+              <small>${escapeHTML(payment.project||"—")} · ${escapeHTML(payment.company||"—")}
+              ${payment.processPaymentDate?"· "+escapeHTML(payment.processPaymentDate):""}</small></span></label>`;
+    }).join("") || '<div class="bulk-unc-empty">Không có khoản phù hợp chưa gắn UNC trong dữ liệu đang mở.</div>';
+    const chosen=selectedBulkUncGroupPayments();
+    const check=validateBulkUncGroup(row,chosen);
+    const transfer=Number.isFinite(row?.info?.remittanceAmount) ?
+        row.info.remittanceAmount : Number(row?.info?.amount)||0;
+    bulkUncGroupResult.className="bulk-unc-group-result "+(check.ok?"good":"error");
+    bulkUncGroupResult.textContent=
+        `Đã chọn ${chosen.length} IPC · Tổng IPC: ${formatMoney(check.total)} VND
+Tiền chuyển trên UNC: ${formatMoney(transfer)} VND
+Ngày trên UNC: ${row?.info?.date||"chưa nhận diện"}
+${check.ok?"✓ Tổng khớp, cùng người thụ hưởng · sẽ lưu 1 PDF cho "+chosen.length+" khoản.": "⚠ "+check.error}`;
+    bulkUncSummary.textContent=`UNC gộp: ${row.file.name} · ${chosen.length} IPC đã chọn`;
+    confirmBulkUncBtn.textContent="Xác nhận thanh toán & lưu 1 UNC gộp";
+    confirmBulkUncBtn.disabled=bulkUncBusy || !check.ok;
+    return true;
+}
+bulkUncGroupToggle.addEventListener("change",()=>{
+    bulkUncGroupIds.clear();
+    renderBulkUncRows();
+});
+bulkUncGroupSearch.addEventListener("input",renderBulkUncGroup);
+bulkUncGroupChoices.addEventListener("change",event=>{
+    const checkbox=event.target.closest("input[data-group-payment-id]");
+    if(!checkbox||bulkUncBusy)return;
+    const id=String(checkbox.dataset.groupPaymentId||"");
+    if(checkbox.checked&&bulkUncGroupIds.size>=BULK_UNC_GROUP_MAX){
+        alert("Một UNC gộp tối đa 40 IPC.");checkbox.checked=false;return;
+    }
+    if(checkbox.checked)bulkUncGroupIds.add(id);
+    else bulkUncGroupIds.delete(id);
+    renderBulkUncGroup();
+});
+
 function bulkUncIsReplacement(row){
     return hasUncDriveFile(bulkUncTargetPayment(row));
 }
@@ -38725,6 +38893,8 @@ function bulkUncIsReplacement(row){
 function renderBulkUncRows(){
     if(!bulkUncBody) return;
     const copy = bulkUncCopy();
+    if(renderBulkUncGroup()) return;
+    confirmBulkUncBtn.textContent=copy.confirm;
 
     if(!bulkUncRows.length){
         bulkUncBody.innerHTML = `<tr><td colspan="5" class="bulk-unc-empty">${escapeHTML(copy.none)}</td></tr>`;
@@ -38837,6 +39007,9 @@ function clearBulkUncRows(){
     if(bulkUncBusy) return;
     closeBulkUncPreviewPanel();
     bulkUncRows = [];
+    bulkUncGroupIds.clear();
+    bulkUncGroupToggle.checked=false;
+    bulkUncGroupSearch.value="";
     bulkUncFileInput.value = "";
     bulkUncProgress.textContent = "";
     renderBulkUncRows();
@@ -39048,7 +39221,146 @@ bulkUncBody.addEventListener("click",event=>{
     bulkUncPreview.hidden = false;
 });
 
+async function confirmBulkUncGroup(){
+    if(!isAdmin()||!ensureOperator())return;
+    if(bulkUncBusy)return;
+    const row=bulkUncRows.length===1?bulkUncRows[0]:null;
+    const chosen=selectedBulkUncGroupPayments();
+    if(chosen.length!==bulkUncGroupIds.size){alert("Danh sách Payment vừa thay đổi. Hãy chọn lại.");return;}
+    const checked=validateBulkUncGroup(row,chosen);
+    if(!checked.ok){alert("⚠ "+checked.error);return;}
+    if(!getConfiguredDriveClientId()){
+        bulkUncDriveSetup.open=true;
+        bulkUncDriveStatus.className="unc-drive-status error";
+        bulkUncDriveStatus.textContent="Hãy kết nối Google Drive trước khi lưu.";
+        bulkUncDriveClientId.focus();return;
+    }
+    const ipcText=chosen.map(p=>p.ipcNo||p.processPaymentNo||p.id).join(", ");
+    if(!confirm(`GẮN CHUNG 1 UNC CHO ${chosen.length} IPC
+
+Công ty: ${checked.company}
+IPC: ${ipcText}
+Tổng chuyển khoản: ${formatMoney(checked.expected)} VND
+Ngày: ${checked.date}
+Sẽ ghi tiền thực trả của TỪNG IPC (không ghi tổng UNC vào một dòng).
+Xác nhận lưu 1 PDF lên Drive, rồi liên kết tới ${chosen.length} khoản?`))return;
+    // Re-check from current in-memory snapshot just before any Google Drive operation.
+    const fresh=selectedBulkUncGroupPayments();
+    if(fresh.length!==bulkUncGroupIds.size){alert("Danh sách Payment vừa thay đổi. Hãy chọn lại.");return;}
+    const finalCheck=validateBulkUncGroup(row,fresh);
+    if(!finalCheck.ok){alert("⚠ "+finalCheck.error);return;}
+    setBulkUncBusy(true);
+    let driveFile=null,committed=false;
+    try{
+        bulkUncProgress.textContent="Đang upload 1 PDF gộp...";
+        const folderId=await ensureUncDriveFolder();
+        const lead=fresh[0];
+        const namingPayment={
+            ...lead,
+            ipcNo:fresh.map(p=>String(p.ipcNo||"")).filter(Boolean).join("-"),
+            processActualAmount:finalCheck.expected,
+            processPaymentDate:finalCheck.date
+        };
+        driveFile=await createUncDriveFile(namingPayment,row.file,folderId);
+        if(!driveFile?.id)throw new Error("Drive không trả về mã file.");
+        await ensureAnyoneCanViewDriveFile(driveFile.id);
+        const ids=fresh.map(p=>String(p.id));
+        const storedName=String(driveFile.name||getUncDriveFileName(namingPayment));
+        // Transaction reads every target first, checks latest values, then writes all.
+        // If another operator changed an IPC while the PDF uploaded, abort safely.
+        await runTransaction(db,async transaction=>{
+            const refs=fresh.map(p=>doc(db,"payments",p.id));
+            const snapshots=await Promise.all(refs.map(ref=>transaction.get(ref)));
+            if(snapshots.some(snapshot=>!snapshot.exists()))
+                throw new Error("Một Payment đã bị xóa trong lúc tải UNC. Chưa gắn chứng từ.");
+            const live=snapshots.map((snapshot,i)=>({...snapshot.data(),id:fresh[i].id}));
+            const liveCheck=validateBulkUncGroup(row,live);
+            if(!liveCheck.ok)
+                throw new Error("Payment đã thay đổi trong lúc upload: "+liveCheck.error);
+            if(live.some((p,i)=>
+                bulkUncGroupAllocation(p)!==bulkUncGroupAllocation(fresh[i]) ||
+                String(p.processPaymentDate||"")!==String(fresh[i].processPaymentDate||"") ||
+                String(p.uncDriveFileId||"")!==String(fresh[i].uncDriveFileId||"")
+            )) throw new Error("IPC vừa được người khác sửa. Hãy tải lại và đối chiếu trước khi gắn UNC.");
+            live.forEach((payment,index)=>{
+                const actual=Number(payment.processActualAmount);
+                const setActual=!(Number.isFinite(actual)&&actual>0);
+                const setDate=!String(payment.processPaymentDate||"").trim();
+                transaction.update(refs[index],{
+                    uncStorageProvider:"google-drive",
+                    uncDriveFileId:driveFile.id,
+                    uncPath:"",
+                    uncName:storedName,
+                    uncSize:row.file.size,
+                    uncGroupPaymentIds:ids,
+                    uncGroupAmount:liveCheck.expected,
+                    uncUploadedAt:serverTimestamp(),
+                    uncUploadedBy:currentOperatorName,
+                    uncUploadedByUid:currentAuthUser?.uid||"",
+                    uncUploadedByEmail:currentAuthUser?.email||"",
+                    ...(setActual?{processActualAmount:bulkUncGroupAllocation(payment)}:{}),
+                    ...(setDate?{processPaymentDate:liveCheck.date}:{}),
+                    updatedAt:serverTimestamp(),
+                    updatedBy:currentOperatorName,
+                    updatedByUid:currentAuthUser?.uid||"",
+                    updatedByEmail:currentAuthUser?.email||""
+                });
+            });
+        }); // No success or local mutation before Firestore transaction ACK.
+        committed=true;
+        const now=new Date();
+        fresh.forEach(payment=>{
+            const actual=Number(payment.processActualAmount);
+            if(!(Number.isFinite(actual)&&actual>0))
+                payment.processActualAmount=bulkUncGroupAllocation(payment);
+            if(!String(payment.processPaymentDate||"").trim())
+                payment.processPaymentDate=finalCheck.date;
+            Object.assign(payment,{
+                uncStorageProvider:"google-drive",uncDriveFileId:driveFile.id,
+                uncPath:"",uncName:storedName,uncSize:row.file.size,
+                uncGroupPaymentIds:ids,uncGroupAmount:finalCheck.expected,
+                uncUploadedAt:now,uncUploadedBy:currentOperatorName,
+                uncUploadedByUid:currentAuthUser?.uid||"",
+                uncUploadedByEmail:currentAuthUser?.email||""
+            });
+        });
+        row.uploaded=true;row.checked=false;
+        const months=new Map();
+        fresh.forEach(payment=>{
+            const month=String(payment.paymentMonth||"");
+            if(/^\d{4}-\d{2}$/.test(month)&&month<CURRENT_MONTH)months.set(month,payment);
+        });
+        let warning="";
+        for(const payment of months.values()){
+            try{await refreshExistingPaymentArchiveAfterUnc(payment);}
+            catch(error){console.error("GROUP UNC ARCHIVE REFRESH:",error);warning="\n⚠ Có tháng Kho chứng từ cần mở Chốt tháng để cập nhật lại."; }
+        }
+        renderPayments();
+        bulkUncGroupIds.clear();
+        bulkUncGroupToggle.checked=false;
+        renderBulkUncRows();
+        alert("✅ Đã lưu 1 UNC cho "+fresh.length+" IPC · "+
+            formatMoney(finalCheck.expected)+" VND · "+finalCheck.date+warning);
+    }catch(error){
+        console.error("GROUP UNC SAVE ERROR:",error);
+        if(!committed&&driveFile?.id){
+            await driveApi("/drive/v3/files/"+encodeURIComponent(driveFile.id),
+                {method:"DELETE"}).catch(cleanupError=>console.warn("UNC cleanup:",cleanupError));
+        }
+        alert(committed?"⚠ UNC đã lưu trong Firestore, nhưng có bước cập nhật phụ bị lỗi: "+uncErrorMessage(error):
+            "❌ Chưa ghi UNC vào Firestore. "+uncErrorMessage(error));
+    }finally{
+        setBulkUncBusy(false);
+        bulkUncProgress.textContent="";
+        renderBulkUncRows();
+    }
+}
+
 confirmBulkUncBtn.addEventListener("click",async()=>{
+    if(bulkUncGroupToggle.checked){
+        await confirmBulkUncGroup();
+        return;
+    }
     if(!isAdmin()){
         alert("🔒 " + t("adminOnly"));
         return;
@@ -39170,7 +39482,8 @@ confirmBulkUncBtn.addEventListener("click",async()=>{
             let createdNewFile = false;
             const existingFileId = String(payment.uncDriveFileId || "").trim();
 
-            if(row.existing && existingFileId){
+            // Do not replace the shared Drive content for every other linked IPC.
+            if(row.existing && existingFileId && !isSharedUncPayment(payment)){
                 try{
                     driveFile = await replaceUncDriveFile(
                         existingFileId,
@@ -39212,6 +39525,8 @@ confirmBulkUncBtn.addEventListener("click",async()=>{
                 uncPath:"",
                 uncName:storedUncName,
                 uncSize:row.file.size,
+                uncGroupPaymentIds:[],
+                uncGroupAmount:0,
                 uncUploadedAt:serverTimestamp(),
                 uncUploadedBy:currentOperatorName,
                 uncUploadedByUid:currentAuthUser?.uid || "",
@@ -39238,6 +39553,8 @@ confirmBulkUncBtn.addEventListener("click",async()=>{
                 uncPath:"",
                 uncName:storedUncName,
                 uncSize:row.file.size,
+                uncGroupPaymentIds:[],
+                uncGroupAmount:0,
                 uncUploadedAt:uploadedAt,
                 uncUploadedBy:currentOperatorName,
                 uncUploadedByUid:currentAuthUser?.uid || "",
