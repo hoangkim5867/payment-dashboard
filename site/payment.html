@@ -1341,11 +1341,20 @@ html[data-theme="ivorybunny"] .process-inline-input{
 </style>
 <style id="archiveWorkflowViewStyles">
 #archiveWorkflowNotice[hidden]{display:none!important}
-#archiveWorkflowNotice{margin:8px 0 7px;padding:9px 12px;border:1px solid #bfdaef;border-radius:8px;background:#f1f8ff;color:#25415f;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;font-size:11px;font-weight:650}
-.archive-workflow-filter{display:inline-flex;gap:7px;align-items:center;cursor:pointer;font-size:11px}
-.archive-workflow-filter input{width:14px;height:14px;accent-color:#225a8b}
+#archiveWorkflowNotice{display:flex;justify-content:flex-end;align-items:center;min-height:23px;margin:2px 7px 4px;padding:0;border:0;background:transparent;color:var(--theme-muted,#667085);font-size:10px;font-weight:650}
+.archive-workflow-filter{display:inline-flex;gap:5px;align-items:center;cursor:pointer;font-size:10px;white-space:nowrap}
+.archive-workflow-filter input{width:13px;height:13px;accent-color:var(--theme-primary,#225a8b)}
+/* Compact status row. Never let the optional Archive tab cover Refresh/Reset. */
+html[data-theme] .payment-status-segments{min-width:0!important;max-width:100%!important;box-sizing:border-box;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
+html[data-theme] .payment-status-segment{flex-shrink:0;gap:3px!important;padding-left:5px!important;padding-right:5px!important}
+html[data-theme] .payment-status-segment strong{min-width:16px!important;padding-left:3px!important;padding-right:3px!important}
+@media(max-width:900px){
+  html[data-theme] .payment-status-segments{flex-wrap:wrap;height:auto!important;min-height:36px!important;overflow-x:visible;overflow-y:visible}
+  html[data-theme] .payment-status-segment{flex:0 0 auto}
+  html[data-theme] .data-first-summary .payment-status-segments{height:auto!important;min-height:36px!important}
+}
 .archive-workflow-badge{display:inline-block;margin:0 4px;padding:3px 6px;border:1px solid #b8d5ea;border-radius:5px;background:#edf6ff;color:#235d81;font-size:9px;font-weight:750;white-space:nowrap}
-html[data-theme="blueberrycocoa"] #archiveWorkflowNotice{background:#182c42;color:#eef5fb;border-color:#527392}
+html[data-theme="blueberrycocoa"] #archiveWorkflowNotice{background:transparent;color:#c6d8e8;border:0}
 html[data-theme="blueberrycocoa"] .archive-workflow-badge{background:#254765;color:#e2f1ff;border-color:#527392}
 </style>
 </head>
@@ -8744,11 +8753,11 @@ function getFilteredPayments(skipHeaderColumnIndex = null, scopeOverride = null,
 function getStatusSegmentCopy(){
 
     if(currentLanguage === "zh"){
-        return {unpaid:"跟进中", paid:"已付款", carried:"转下月", cancelled:"已取消", archive:"已归档", all:"全部"};
+        return {unpaid:"跟进中", paid:"已付款", carried:"转下月", cancelled:"已取消", archive:"归档", all:"全部"};
     }
 
     if(currentLanguage === "en"){
-        return {unpaid:"In progress", paid:"Paid", carried:"Carried", cancelled:"Cancelled", archive:"In archive", all:"All"};
+        return {unpaid:"In progress", paid:"Paid", carried:"Carried", cancelled:"Cancelled", archive:"Archive", all:"All"};
     }
 
     return {
@@ -8756,7 +8765,7 @@ function getStatusSegmentCopy(){
         paid:"Đã thanh toán",
         carried:"Chuyển tháng",
         cancelled:"Đã hủy",
-        archive:"Đã vào Kho",
+        archive:"Kho",
         all:"Tất cả"
     };
 }
@@ -8784,7 +8793,7 @@ function syncArchiveWorkflowNotice(){
         node=document.createElement("div");
         node.id="archiveWorkflowNotice";
         node.className="archive-workflow-notice";
-        node.innerHTML=`<span id="archiveWorkflowMessage"></span><label class="archive-workflow-filter"><input id="archiveWorkflowPendingOnly" type="checkbox"><span id="archiveWorkflowFilterLabel"></span></label>`;
+        node.innerHTML=`<label class="archive-workflow-filter"><input id="archiveWorkflowPendingOnly" type="checkbox"><span id="archiveWorkflowFilterLabel"></span></label>`;
         tableWrap.parentElement.insertBefore(node,tableWrap);
         node.querySelector("#archiveWorkflowPendingOnly").addEventListener("change",event=>{
             archiveWorkflowPendingOnly=event.target.checked;renderPayments();
@@ -8793,13 +8802,10 @@ function syncArchiveWorkflowNotice(){
     const active=paymentStatusFilter.value==="archive";
     node.hidden=!active;
     if(!active) return;
-    const copy=currentLanguage==="zh"
-        ? {msg:"已归档款项仍可查看流程；员工仅能更新获授权的当月步骤，付款金额、日期及付款凭证保持锁定。",label:"仅显示待补充步骤（参考筛选）"}
-        : currentLanguage==="en"
-            ? {msg:"Archive records remain stored. Staff may update permitted current-month workflow steps; paid amount, date and UNC stay locked.",label:"Show steps needing updates (advisory)"}
-            : {msg:"Kho chứng từ không thay đổi. Staff chỉ bổ sung tiến trình tháng hiện tại; số tiền, ngày trả và UNC vẫn khóa.",label:"Chỉ hiện khoản có bước cần bổ sung (tham khảo)"};
-    node.querySelector("#archiveWorkflowMessage").textContent=copy.msg;
-    node.querySelector("#archiveWorkflowFilterLabel").textContent=copy.label;
+    node.querySelector("#archiveWorkflowFilterLabel").textContent=
+        currentLanguage==="zh" ? "待补充步骤"
+        : currentLanguage==="en" ? "Pending steps"
+        : "Chưa đủ tiến trình";
     node.querySelector("#archiveWorkflowPendingOnly").checked=archiveWorkflowPendingOnly;
 }
 function getPaymentStatusContextRows(archivedOnly=false){
@@ -8887,6 +8893,9 @@ function renderPaymentStatusSegments(){
                 type="button"
                 class="payment-status-segment ${item.value === active ? "active" : ""}"
                 data-payment-status-view="${item.value}"
+                title="${escapeHTML(item.value==="archive"
+                    ? (currentLanguage==="zh"?"已归档":currentLanguage==="en"?"In archive":"Đã vào Kho")
+                    : item.label)}"
             >
                 <span>${escapeHTML(item.label)}</span>
                 <strong>${Number(item.count).toLocaleString()}</strong>
