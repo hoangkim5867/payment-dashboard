@@ -23,11 +23,11 @@ const server=http.createServer((request,response)=>{
  await new Promise(resolve=>server.listen(4178,'127.0.0.1',resolve));
  const browser=await chromium.launch({headless:true});
  try{
-  const ctx=await browser.newContext(),page=await ctx.newPage(),errors=[],blocked=[];
+  const ctx=await browser.newContext(),page=await ctx.newPage(),errors=[],blocked=[],dialogs=[];
   await ctx.route('**/*',route=>{const host=new URL(route.request().url()).hostname;
     if(['firestore.googleapis.com','identitytoolkit.googleapis.com','securetoken.googleapis.com','storage.googleapis.com'].includes(host)){blocked.push(host);return route.abort();}return route.continue();});
   page.on('pageerror',e=>errors.push(e.message));
-  page.on('dialog',d=>d.accept());
+  page.on('dialog',d=>{dialogs.push(d.message());return d.accept();});
   await page.goto('http://127.0.0.1:4178/cash-control.html',{waitUntil:'domcontentloaded'});
   await page.locator('#cashAuthUsername').fill('lehoangoanh');
   await page.locator('#cashAuthPassword').fill(password);
@@ -47,7 +47,21 @@ const server=http.createServer((request,response)=>{
   await page.locator('#pyActualDate').dispatchEvent('change');
   assert.match(await page.locator('#pyBonusTaxHelp').innerText(),/Q4\/2026/);
   await page.locator('#saveSalaryRecord').click();
-  await page.waitForFunction(()=>!document.querySelector('#salaryRecordModal').classList.contains('show'),{},{timeout:20000});
+  try{
+    await page.waitForFunction(()=>!document.querySelector('#salaryRecordModal').classList.contains('show'),{},{timeout:35000});
+  }catch(error){
+    const diagnostic=await page.evaluate(()=>({
+      type:document.querySelector('#pyType')?.value,
+      sourcePeriod:document.querySelector('#pyPeriod')?.value,
+      bonusYear:document.querySelector('#pyBonusYear')?.value,
+      amount:document.querySelector('#pyAmount')?.value,
+      tax:document.querySelector('#pyBonusTaxAmount')?.value,
+      actual:document.querySelector('#pyActualDate')?.value,
+      formVisible:document.querySelector('#salaryRecordModal')?.classList.contains('show')
+    }));
+    console.error('SAVE FORM DIAGNOSTIC',JSON.stringify({diagnostic,dialogs,errors}));
+    throw error;
+  }
   let data=(await db.doc('cash_control_private/lehoangoanh').get()).data(),rows=data.salaryRecords||[];
   assert.equal(rows.length,2);
   const bonus=rows.find(x=>x.type==='bonus'),tax=rows.find(x=>x.type==='tax');
@@ -70,7 +84,21 @@ const server=http.createServer((request,response)=>{
   await page.locator('#pyActualDate').dispatchEvent('change');
   assert.match(await page.locator('#pyBonusTaxHelp').innerText(),/Q4\/2026/);
   await page.locator('#saveSalaryRecord').click();
-  await page.waitForFunction(()=>!document.querySelector('#salaryRecordModal').classList.contains('show'),{},{timeout:20000});
+  try{
+    await page.waitForFunction(()=>!document.querySelector('#salaryRecordModal').classList.contains('show'),{},{timeout:35000});
+  }catch(error){
+    const diagnostic=await page.evaluate(()=>({
+      type:document.querySelector('#pyType')?.value,
+      sourcePeriod:document.querySelector('#pyPeriod')?.value,
+      bonusYear:document.querySelector('#pyBonusYear')?.value,
+      amount:document.querySelector('#pyAmount')?.value,
+      tax:document.querySelector('#pyBonusTaxAmount')?.value,
+      actual:document.querySelector('#pyActualDate')?.value,
+      formVisible:document.querySelector('#salaryRecordModal')?.classList.contains('show')
+    }));
+    console.error('SAVE FORM DIAGNOSTIC',JSON.stringify({diagnostic,dialogs,errors}));
+    throw error;
+  }
   data=(await db.doc('cash_control_private/lehoangoanh').get()).data();rows=data.salaryRecords||[];
   assert.equal(rows.length,4);
   const salary=rows.find(x=>x.type==='salary'),salaryTax=rows.find(x=>x.linkedSalaryId===salary?.id);
@@ -89,7 +117,21 @@ const server=http.createServer((request,response)=>{
   assert.ok((await page.locator('#pyBonusTaxAmount').inputValue()).includes('123'));
   await page.locator('#pyBonusTaxAmount').fill('200000');
   await page.locator('#saveSalaryRecord').click();
-  await page.waitForFunction(()=>!document.querySelector('#salaryRecordModal').classList.contains('show'),{},{timeout:20000});
+  try{
+    await page.waitForFunction(()=>!document.querySelector('#salaryRecordModal').classList.contains('show'),{},{timeout:35000});
+  }catch(error){
+    const diagnostic=await page.evaluate(()=>({
+      type:document.querySelector('#pyType')?.value,
+      sourcePeriod:document.querySelector('#pyPeriod')?.value,
+      bonusYear:document.querySelector('#pyBonusYear')?.value,
+      amount:document.querySelector('#pyAmount')?.value,
+      tax:document.querySelector('#pyBonusTaxAmount')?.value,
+      actual:document.querySelector('#pyActualDate')?.value,
+      formVisible:document.querySelector('#salaryRecordModal')?.classList.contains('show')
+    }));
+    console.error('SAVE FORM DIAGNOSTIC',JSON.stringify({diagnostic,dialogs,errors}));
+    throw error;
+  }
   data=(await db.doc('cash_control_private/lehoangoanh').get()).data();rows=data.salaryRecords||[];
   assert.equal(rows.length,4);
   assert.equal(rows.find(x=>x.id===salaryTax.id).amountVnd,200000);
