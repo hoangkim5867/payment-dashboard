@@ -8390,6 +8390,12 @@ async function applySalaryPaymentDate(clear=false){
           alert('Không đổi ngày trả thưởng vì thuế liên kết đã nộp ở kỳ khác. Hãy đối chiếu thuế trước.');return;
         }
       }
+      if(x.type==='salary'){
+        const linked=findLinkedSalaryTaxRecord(x,arr);
+        if(linked?.actualDate&&linked.taxPeriod!==bonusTaxQuarterFromPaymentDate(actualDate)){
+          alert('Không đổi ngày trả lương vì thuế liên kết đã nộp ở kỳ khác. Hãy đối chiếu thuế trước.');return;
+        }
+      }
     }
     arr.forEach(x=>{
       if(!salarySelectedIds.has(x.id))return;
@@ -8401,6 +8407,19 @@ async function applySalaryPaymentDate(clear=false){
           linked.taxBasisDate=actualDate;
           linked.payrollMonth=monthOf(actualDate);
           linked.updatedAt=x.updatedAt;
+          syncSalaryCash(linked);
+        }
+      }
+      if(x.type==='salary'){
+        const linked=findLinkedSalaryTaxRecord(x,arr);
+        if(linked){
+          const quarter=bonusTaxQuarterFromPaymentDate(actualDate);
+          x.taxPeriod=quarter;
+          linked.taxPeriod=quarter;
+          linked.taxBasisDate=actualDate;
+          linked.payrollMonth=x.payrollMonth;
+          linked.updatedAt=x.updatedAt;
+          syncSalaryCash(x);
           syncSalaryCash(linked);
         }
       }
