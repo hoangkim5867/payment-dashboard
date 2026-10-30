@@ -55,6 +55,7 @@ test('reject a wrong payee, mismatched existing date and different month',()=>{
  assert.equal(validate(doc(),[p1,{...p2,company:'UNRELATED'}]).ok,false);
  assert.equal(validate(doc(),[p1,{...p2,processPaymentDate:'2026-10-28'}]).ok,false);
  assert.equal(validate(doc(),[p1,{...p2,paymentMonth:'2026-09'}]).ok,false);
+ assert.equal(validate(doc(),[p1,{...p2,bankAccount:'999999999999'}]).ok,false);
 });
 test('reject preexisting UNC, duplicate selected row, wrong amount, one IPC',()=>{
  assert.equal(validate(doc(),[p1,{...p2,uncDriveFileId:'EXISTING'}]).ok,false);
