@@ -38746,6 +38746,132 @@ function bulkUncTargetPayment(row){
         : null;
 }
 
+/* One bank transfer may settle several IPCs for the same beneficiary.
+   Use one Drive file ID for all Payments and ONE Firestore batch. */
+const bulkUncGroupToggle=document.getElementById("bulkUncGroupToggle");
+const bulkUncGroupPanel=document.getElementById("bulkUncGroupPanel");
+const bulkUncGroupSearch=document.getElementById("bulkUncGroupSearch");
+const bulkUncGroupChoices=document.getElementById("bulkUncGroupChoices");
+const bulkUncGroupResult=document.getElementById("bulkUncGroupResult");
+const bulkUncGroupIds=new Set();
+const BULK_UNC_GROUP_MAX=40;
+
+function isSharedUncPayment(payment){
+    return Array.isArray(payment?.uncGroupPaymentIds) &&
+           payment.uncGroupPaymentIds.length>1;
+}
+function bulkUncGroupAllocation(payment){
+    const actual=Number(payment?.processActualAmount);
+    const planned=Number(payment?.amount);
+    const amount=Number.isFinite(actual)&&actual>0 ? actual : planned;
+    return Number.isSafeInteger(amount)&&amount>0 ? amount : NaN;
+}
+function bulkUncGroupCandidates(){
+    return bulkUncAvailablePayments().filter(payment=>
+        !hasUncDriveFile(payment) &&
+        Number.isFinite(bulkUncGroupAllocation(payment))
+    );
+}
+function validateBulkUncGroup(row,payments){
+    const fail=(error)=>({ok:false,error,total:payments.reduce((sum,p)=>{
+        const amount=bulkUncGroupAllocation(p);
+        return sum+(Number.isFinite(amount)?amount:0);
+    },0),expected:Number(row?.info?.remittanceAmount)||Number(row?.info?.amount)||0});
+    if(!row || !row.validPdf || row.error || !row.info) return fail("Chưa đọc được PDF hợp lệ.");
+    if(payments.length<2) return fail("Hãy chọn ít nhất 2 IPC.");
+    if(payments.length>BULK_UNC_GROUP_MAX) return fail("Một UNC gộp tối đa 40 khoản.");
+    if(new Set(payments.map(p=>String(p.id))).size!==payments.length) return fail("Có Payment bị chọn trùng.");
+    const info=row.info;
+    // Always use the amount remitted to the beneficiary; never the bank-fee-inclusive debit.
+    const expected=Number.isFinite(info.remittanceAmount)&&info.remittanceAmount>0
+        ? info.remittanceAmount : Number(info.amount);
+    if(!Number.isSafeInteger(expected)||expected<=0)
+        return fail("PDF chưa đọc được số tiền chuyển khoản VND.");
+    if(!Number.isFinite(info.remittanceAmount) &&
+        Number.isFinite(info.debitAmount) && expected===info.debitAmount)
+        return fail("PDF chỉ đọc được tiền trích nợ (có thể gồm phí). Cần số tiền chuyển riêng.");
+    if(!info.date) return fail("PDF chưa đọc được ngày thanh toán.");
+    const root=payments[0],company=normalize(root.company||""),
+          month=String(root.paymentMonth||""),bank=String(root.bankAccount||"").replace(/\D/g,"");
+    if(!company) return fail("Payment thiếu tên công ty thụ hưởng.");
+    if(!/^\d{4}-\d{2}$/.test(month)) return fail("Payment thiếu tháng thanh toán.");
+    const invalid=payments.find(p=>
+        !p || p.deleted===true || isPaymentCancelled(p) || isPaymentCarriedForward(p) ||
+        hasUncDriveFile(p) || normalize(p.company||"")!==company ||
+        String(p.paymentMonth||"")!==month ||
+        (bank && String(p.bankAccount||"").replace(/\D/g,"") &&
+            String(p.bankAccount||"").replace(/\D/g,"")!==bank) ||
+        (p.processPaymentDate && String(p.processPaymentDate)!==String(info.date)) ||
+        !Number.isFinite(bulkUncGroupAllocation(p))
+    );
+    if(invalid) return fail("Các khoản phải cùng công ty, cùng tháng, cùng tài khoản (nếu có), chưa có UNC và không sai ngày đã ghi.");
+    const beneficiary=String(info.beneficiary||"").trim();
+    if(beneficiary && bulkUncCompanyScore(root.company,normalize(beneficiary))<6)
+        return fail("Tên người thụ hưởng trên UNC không khớp công ty Payment.");
+    const total=payments.reduce((sum,p)=>sum+bulkUncGroupAllocation(p),0);
+    if(!Number.isSafeInteger(total)||total!==expected)
+        return fail("Tổng các IPC phải bằng ĐÚNG số tiền chuyển trên UNC, không bao gồm phí ngân hàng.");
+    return {ok:true,error:"",total,expected,date:info.date,company:root.company,month};
+}
+function selectedBulkUncGroupPayments(){
+    return [...bulkUncGroupIds].map(id=>
+        allPayments.find(item=>String(item.id)===id)
+    ).filter(Boolean);
+}
+function renderBulkUncGroup(){
+    const row=bulkUncRows.length===1?bulkUncRows[0]:null;
+    const enabled=!!bulkUncGroupToggle.checked;
+    bulkUncGroupToggle.disabled=bulkUncBusy || !row?.validPdf || !!row.error || !!row.uploaded;
+    if(!row?.validPdf && enabled){bulkUncGroupToggle.checked=false;bulkUncGroupIds.clear();}
+    const mode=!!bulkUncGroupToggle.checked;
+    bulkUncGroupPanel.hidden=!mode;
+    bulkUncModal.querySelector(".bulk-unc-modal-box").classList.toggle("group-unc-mode",mode);
+    if(!mode)return false;
+    const search=normalize(bulkUncGroupSearch.value||"");
+    const candidates=bulkUncGroupCandidates().filter(p=>
+        !search || normalize([p.project,p.company,p.contractNo,p.ipcNo,p.processPaymentNo].join(" ")).includes(search)
+    ).slice(0,160);
+    bulkUncGroupChoices.innerHTML=candidates.map(payment=>{
+        const id=String(payment.id);
+        const amount=bulkUncGroupAllocation(payment);
+        return `<label class="bulk-unc-group-choice"><input type="checkbox" data-group-payment-id="${escapeHTML(id)}" ${bulkUncGroupIds.has(id)?"checked":""} ${bulkUncBusy?"disabled":""}>
+            <span><strong>${escapeHTML(payment.ipcNo||"—")} · ${escapeHTML(payment.contractNo||"—")}</strong>
+              · ${escapeHTML(formatMoney(amount))} VND
+              <small>${escapeHTML(payment.project||"—")} · ${escapeHTML(payment.company||"—")}
+              ${payment.processPaymentDate?"· "+escapeHTML(payment.processPaymentDate):""}</small></span></label>`;
+    }).join("") || '<div class="bulk-unc-empty">Không có khoản phù hợp chưa gắn UNC trong dữ liệu đang mở.</div>';
+    const chosen=selectedBulkUncGroupPayments();
+    const check=validateBulkUncGroup(row,chosen);
+    const transfer=Number.isFinite(row?.info?.remittanceAmount) ?
+        row.info.remittanceAmount : Number(row?.info?.amount)||0;
+    bulkUncGroupResult.className="bulk-unc-group-result "+(check.ok?"good":"error");
+    bulkUncGroupResult.textContent=
+        `Đã chọn ${chosen.length} IPC · Tổng IPC: ${formatMoney(check.total)} VND
+Tiền chuyển trên UNC: ${formatMoney(transfer)} VND
+Ngày trên UNC: ${row?.info?.date||"chưa nhận diện"}
+${check.ok?"✓ Tổng khớp, cùng người thụ hưởng · sẽ lưu 1 PDF cho "+chosen.length+" khoản.": "⚠ "+check.error}`;
+    bulkUncSummary.textContent=`UNC gộp: ${row.file.name} · ${chosen.length} IPC đã chọn`;
+    confirmBulkUncBtn.textContent="Xác nhận thanh toán & lưu 1 UNC gộp";
+    confirmBulkUncBtn.disabled=bulkUncBusy || !check.ok;
+    return true;
+}
+bulkUncGroupToggle.addEventListener("change",()=>{
+    bulkUncGroupIds.clear();
+    renderBulkUncRows();
+});
+bulkUncGroupSearch.addEventListener("input",renderBulkUncGroup);
+bulkUncGroupChoices.addEventListener("change",event=>{
+    const checkbox=event.target.closest("input[data-group-payment-id]");
+    if(!checkbox||bulkUncBusy)return;
+    const id=String(checkbox.dataset.groupPaymentId||"");
+    if(checkbox.checked&&bulkUncGroupIds.size>=BULK_UNC_GROUP_MAX){
+        alert("Một UNC gộp tối đa 40 IPC.");checkbox.checked=false;return;
+    }
+    if(checkbox.checked)bulkUncGroupIds.add(id);
+    else bulkUncGroupIds.delete(id);
+    renderBulkUncGroup();
+});
+
 function bulkUncIsReplacement(row){
     return hasUncDriveFile(bulkUncTargetPayment(row));
 }
@@ -38753,6 +38879,8 @@ function bulkUncIsReplacement(row){
 function renderBulkUncRows(){
     if(!bulkUncBody) return;
     const copy = bulkUncCopy();
+    if(renderBulkUncGroup()) return;
+    confirmBulkUncBtn.textContent=copy.confirm;
 
     if(!bulkUncRows.length){
         bulkUncBody.innerHTML = `<tr><td colspan="5" class="bulk-unc-empty">${escapeHTML(copy.none)}</td></tr>`;
@@ -38865,6 +38993,9 @@ function clearBulkUncRows(){
     if(bulkUncBusy) return;
     closeBulkUncPreviewPanel();
     bulkUncRows = [];
+    bulkUncGroupIds.clear();
+    bulkUncGroupToggle.checked=false;
+    bulkUncGroupSearch.value="";
     bulkUncFileInput.value = "";
     bulkUncProgress.textContent = "";
     renderBulkUncRows();
