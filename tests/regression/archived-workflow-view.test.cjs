@@ -53,3 +53,16 @@ test('New archive tab reuses monthly listener and never mutates archive document
  assert.match(archiveHtml,/paymentArchiveDetails/);
  assert.doesNotMatch(archiveHtml,/archiveWorkflowPendingOnly|archiveWorkflowNotice|archiveWorkflowLink/);
 });
+
+test('Archive view stays compact, with no explanatory banner or clipped status group',()=>{
+ assert.doesNotMatch(html,/Kho chứng từ không thay đổi\. Staff chỉ bổ sung tiến trình/);
+ assert.doesNotMatch(html,/id="archiveWorkflowMessage"/);
+ assert.match(html,/archive:"Kho"/);
+ assert.match(html,/archive:"Archive"/);
+ assert.match(html,/archive:"归档"/);
+ assert.match(html,/Chưa đủ tiến trình/);
+ assert.match(html,/\.payment-status-segments\{min-width:0!important;max-width:100%!important/);
+ assert.match(html,/\.payment-status-segment\{flex-shrink:0;/);
+ assert.match(html,/@media\(max-width:900px\)\{[\s\S]*?\.payment-status-segments\{flex-wrap:wrap;/);
+ assert.match(html,/data-payment-status-view="\$\{item.value\}"/);
+});
