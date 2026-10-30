@@ -1339,6 +1339,15 @@ html[data-theme="ivorybunny"] .process-inline-input{
 #exportWatchPanel .export-watch-delta.positive{color:#087443!important}
 #exportWatchPanel .export-watch-old{opacity:1;color:var(--ew-text,#172033)!important}
 </style>
+<style id="archiveWorkflowViewStyles">
+#archiveWorkflowNotice[hidden]{display:none!important}
+#archiveWorkflowNotice{margin:8px 0 7px;padding:9px 12px;border:1px solid #bfdaef;border-radius:8px;background:#f1f8ff;color:#25415f;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;font-size:11px;font-weight:650}
+.archive-workflow-filter{display:inline-flex;gap:7px;align-items:center;cursor:pointer;font-size:11px}
+.archive-workflow-filter input{width:14px;height:14px;accent-color:#225a8b}
+.archive-workflow-badge{display:inline-block;margin:0 4px;padding:3px 6px;border:1px solid #b8d5ea;border-radius:5px;background:#edf6ff;color:#235d81;font-size:9px;font-weight:750;white-space:nowrap}
+html[data-theme="blueberrycocoa"] #archiveWorkflowNotice{background:#182c42;color:#eef5fb;border-color:#527392}
+html[data-theme="blueberrycocoa"] .archive-workflow-badge{background:#254765;color:#e2f1ff;border-color:#527392}
+</style>
 </head>
 
 
@@ -1803,6 +1812,7 @@ html[data-theme="ivorybunny"] .process-inline-input{
         <option value="paid">Đã thanh toán</option>
         <option value="carried">Chuyển tháng</option>
         <option value="cancelled">Đã hủy</option>
+        <option value="archive">Đã vào Kho</option>
     </select>
 
     <div
@@ -8526,9 +8536,10 @@ function getFilteredPayments(skipHeaderColumnIndex = null, scopeOverride = null,
         .filter(
             payment =>
                 payment.deleted !== true &&
-                (isAdmin() || !isPaymentArchived(payment))
+                isPaymentVisibleInWorkflowView(payment,paymentStatus,ignorePaymentStatus)
         )
         .filter(payment => !isPaymentLocallyHidden(payment))
+        .filter(payment => paymentStatus!=="archive" || !archiveWorkflowPendingOnly || archiveWorkflowNeedsAttention(payment))
         .filter(
         item => {
 
@@ -8636,6 +8647,9 @@ function getFilteredPayments(skipHeaderColumnIndex = null, scopeOverride = null,
                 (
                     paymentStatus === "cancelled" &&
                     isPaymentCancelled(item)
+                ) || (
+                    paymentStatus === "archive" && isPaymentArchived(item) &&
+                    isPaymentPaid(item) && !isPaymentCarriedForward(item) && !isPaymentCancelled(item)
                 );
 
 
@@ -8730,11 +8744,11 @@ function getFilteredPayments(skipHeaderColumnIndex = null, scopeOverride = null,
 function getStatusSegmentCopy(){
 
     if(currentLanguage === "zh"){
-        return {unpaid:"跟进中", paid:"已付款", carried:"转下月", cancelled:"已取消", all:"全部"};
+        return {unpaid:"跟进中", paid:"已付款", carried:"转下月", cancelled:"已取消", archive:"已归档", all:"全部"};
     }
 
     if(currentLanguage === "en"){
-        return {unpaid:"In progress", paid:"Paid", carried:"Carried", cancelled:"Cancelled", all:"All"};
+        return {unpaid:"In progress", paid:"Paid", carried:"Carried", cancelled:"Cancelled", archive:"In archive", all:"All"};
     }
 
     return {
@@ -8742,12 +8756,53 @@ function getStatusSegmentCopy(){
         paid:"Đã thanh toán",
         carried:"Chuyển tháng",
         cancelled:"Đã hủy",
+        archive:"Đã vào Kho",
         all:"Tất cả"
     };
 }
 
 
-function getPaymentStatusContextRows(){
+/* Archive mode only filters the existing monthly listener; no extra reads. */
+function isPaymentVisibleInWorkflowView(payment,status,ignoreStatus=false){
+    if(ignoreStatus) return isAdmin() || !isPaymentArchived(payment); // keep legacy KPI/export data
+    return status==="archive" ? isPaymentArchived(payment) : !isPaymentArchived(payment);
+}
+/* Advisory: only Staff-owned fields, not Admin-owned approval/banking or optional payment number. */
+function isExplicitWorkflowNotApplicable(v){
+    return ["n/a","na","not_applicable","not applicable","không áp dụng","不适用","无需"].includes(String(v??"").trim().toLowerCase());
+}
+function archiveWorkflowNeedsAttention(payment){
+    return ["processPlatformPlan","processPaper","processSettlement","processPlatformPayment"]
+        .some(field=>!isDone(payment?.[field])&&!isExplicitWorkflowNotApplicable(payment?.[field]));
+}
+let archiveWorkflowPendingOnly=false;
+function syncArchiveWorkflowNotice(){
+    const tableWrap=paymentTable?.closest(".table-wrap");
+    if(!tableWrap?.parentElement) return;
+    let node=document.getElementById("archiveWorkflowNotice");
+    if(!node){
+        node=document.createElement("div");
+        node.id="archiveWorkflowNotice";
+        node.className="archive-workflow-notice";
+        node.innerHTML=`<span id="archiveWorkflowMessage"></span><label class="archive-workflow-filter"><input id="archiveWorkflowPendingOnly" type="checkbox"><span id="archiveWorkflowFilterLabel"></span></label>`;
+        tableWrap.parentElement.insertBefore(node,tableWrap);
+        node.querySelector("#archiveWorkflowPendingOnly").addEventListener("change",event=>{
+            archiveWorkflowPendingOnly=event.target.checked;renderPayments();
+        });
+    }
+    const active=paymentStatusFilter.value==="archive";
+    node.hidden=!active;
+    if(!active) return;
+    const copy=currentLanguage==="zh"
+        ? {msg:"已归档款项仍可查看流程；员工仅能更新获授权的当月步骤，付款金额、日期及付款凭证保持锁定。",label:"仅显示待补充步骤（参考筛选）"}
+        : currentLanguage==="en"
+            ? {msg:"Archive records remain stored. Staff may update permitted current-month workflow steps; paid amount, date and UNC stay locked.",label:"Show steps needing updates (advisory)"}
+            : {msg:"Kho chứng từ không thay đổi. Staff chỉ bổ sung tiến trình tháng hiện tại; số tiền, ngày trả và UNC vẫn khóa.",label:"Chỉ hiện khoản có bước cần bổ sung (tham khảo)"};
+    node.querySelector("#archiveWorkflowMessage").textContent=copy.msg;
+    node.querySelector("#archiveWorkflowFilterLabel").textContent=copy.label;
+    node.querySelector("#archiveWorkflowPendingOnly").checked=archiveWorkflowPendingOnly;
+}
+function getPaymentStatusContextRows(archivedOnly=false){
 
     const month =
         String(paymentMonthFilter.value || "").trim();
@@ -8760,7 +8815,7 @@ function getPaymentStatusContextRows(){
 
     return allPayments.filter(item =>
         item.deleted !== true &&
-        (isAdmin() || !isPaymentArchived(item)) &&
+        (archivedOnly ? isPaymentArchived(item) : !isPaymentArchived(item)) &&
         !isPaymentLocallyHidden(item) &&
         (!month || item.paymentMonth === month) &&
         (
@@ -8792,6 +8847,7 @@ function renderPaymentStatusSegments(){
 
     const rows =
         getPaymentStatusContextRows();
+    const archiveRows = getPaymentStatusContextRows(true);
 
     const paid =
         rows.filter(item =>
@@ -8821,6 +8877,7 @@ function renderPaymentStatusSegments(){
         {value:"paid", label:copy.paid, count:paid},
         {value:"carried", label:copy.carried, count:carried},
         {value:"cancelled", label:copy.cancelled, count:cancelled},
+        {value:"archive", label:copy.archive, count:archiveRows.length},
         {value:"", label:copy.all, count:rows.length}
     ];
 
@@ -9006,9 +9063,13 @@ document
             return;
         }
 
+        const beforeStatus=paymentStatusFilter.value;
         paymentStatusFilter.value =
             button.dataset.paymentStatusView || "";
-
+        if(beforeStatus==="archive"||paymentStatusFilter.value==="archive"){
+            selectedPaymentIds.clear();updateBatchSelectionUI();
+        }
+        archiveWorkflowPendingOnly=false;
         applyPaymentStatusView();
         renderPayments();
     });
@@ -15227,6 +15288,7 @@ function updatePaymentLiveTotalBar(rows){
 
 function renderPayments(){
 
+    syncArchiveWorkflowNotice();
     setupSortableHeaders();
     initHeaderColumnMenus();
     renderHeaderColumnFilterIndicators();
@@ -15263,7 +15325,7 @@ function renderPayments(){
         allPayments.filter(
             item =>
                 item.deleted !== true &&
-                (isAdmin() || !isPaymentArchived(item)) &&
+                isPaymentVisibleInWorkflowView(item,paymentStatusFilter.value,false) &&
                 (
                     !selectedPaymentMonth ||
                     item.paymentMonth ===
@@ -15758,6 +15820,7 @@ function renderPayments(){
                                 ? `<span class="payment-carried-badge">${escapeHTML(t("carriedForward", {month:item.carryForwardToMonth || "—"}))}</span>`
                                 : `
                                 <span class="payment-locked">${t("paid")}</span>
+                                ${isPaymentArchived(item) ? `<span class="archive-workflow-badge">${currentLanguage==="zh"?"已归档":currentLanguage==="en"?"In archive":"Đã vào Kho"}</span>` : ""}
                                 ${
                                     isAdmin()
                                     ? `
