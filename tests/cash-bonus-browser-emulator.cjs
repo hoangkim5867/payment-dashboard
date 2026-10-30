@@ -23,16 +23,18 @@ const server=http.createServer((request,response)=>{
  await new Promise(resolve=>server.listen(4178,'127.0.0.1',resolve));
  const browser=await chromium.launch({headless:true});
  try{
-  const ctx=await browser.newContext(),page=await ctx.newPage(),errors=[],blocked=[];
+  const ctx=await browser.newContext(),page=await ctx.newPage(),errors=[],blocked=[],dialogs=[];
   await ctx.route('**/*',route=>{const host=new URL(route.request().url()).hostname;
     if(['firestore.googleapis.com','identitytoolkit.googleapis.com','securetoken.googleapis.com','storage.googleapis.com'].includes(host)){blocked.push(host);return route.abort();}return route.continue();});
   page.on('pageerror',e=>errors.push(e.message));
-  page.on('dialog',d=>d.accept());
+  page.on('dialog',d=>{dialogs.push(d.message());return d.accept();});
   await page.goto('http://127.0.0.1:4178/cash-control.html',{waitUntil:'domcontentloaded'});
   await page.locator('#cashAuthUsername').fill('lehoangoanh');
   await page.locator('#cashAuthPassword').fill(password);
   await page.locator('#cashAuthSubmit').click();
   await page.waitForFunction(()=>!document.body.classList.contains('auth-checking')&&document.querySelector('#cashLoginModal')&&!document.querySelector('#cashLoginModal').classList.contains('show'),{},{timeout:30000});
+  // Do not try to write before Cash Control's first owner-scoped Firestore snapshot arrives.
+  await page.locator('#cashCloudDot.ok').waitFor({state:'attached',timeout:30000});
   // The payroll action is inside its own hidden view until navigation opens it.
   await page.evaluate(()=>document.querySelector('.nav[data-view="payroll"]')?.click());
   await page.locator('#payrollView.active').waitFor({state:'visible',timeout:10000});
@@ -47,7 +49,21 @@ const server=http.createServer((request,response)=>{
   await page.locator('#pyActualDate').dispatchEvent('change');
   assert.match(await page.locator('#pyBonusTaxHelp').innerText(),/Q4\/2026/);
   await page.locator('#saveSalaryRecord').click();
-  await page.waitForFunction(()=>!document.querySelector('#salaryRecordModal').classList.contains('show'),{},{timeout:20000});
+  try{
+    await page.waitForFunction(()=>!document.querySelector('#salaryRecordModal').classList.contains('show'),{},{timeout:35000});
+  }catch(error){
+    const diagnostic=await page.evaluate(()=>({
+      type:document.querySelector('#pyType')?.value,
+      sourcePeriod:document.querySelector('#pyPeriod')?.value,
+      bonusYear:document.querySelector('#pyBonusYear')?.value,
+      amount:document.querySelector('#pyAmount')?.value,
+      tax:document.querySelector('#pyBonusTaxAmount')?.value,
+      actual:document.querySelector('#pyActualDate')?.value,
+      formVisible:document.querySelector('#salaryRecordModal')?.classList.contains('show')
+    }));
+    console.error('SAVE FORM DIAGNOSTIC',JSON.stringify({diagnostic,dialogs,errors}));
+    throw error;
+  }
   let data=(await db.doc('cash_control_private/lehoangoanh').get()).data(),rows=data.salaryRecords||[];
   assert.equal(rows.length,2);
   const bonus=rows.find(x=>x.type==='bonus'),tax=rows.find(x=>x.type==='tax');
@@ -56,6 +72,76 @@ const server=http.createServer((request,response)=>{
   assert.equal(data.manualRecords.filter(x=>x.linkedModule==='payroll').length,2);
   assert.equal(data.manualRecords.find(x=>x.linkedRecordId===tax.id).actualAmount,0);
   assert.deepEqual(blocked,[]);assert.deepEqual(errors,[]);
+  // Salary PIT is entered in the same modal but must be stored as a separate unpaid row.
+  await page.locator('#addSalaryRecord').click();
+  await page.locator('#pyProject').fill('CN8-2');
+  await page.locator('#pyStaffGroup').selectOption('cn');
+  await page.locator('#pyType').selectOption('salary');
+  await page.locator('#pyPeriod').fill('2026-09');
+  await page.locator('#pyAmount').fill('217392119');
+  assert.equal(await page.locator('#pyBonusTaxField').isVisible(),true);
+  assert.match(await page.locator('#pyLinkedTaxLabel').innerText(),/Thuế TNCN của lương/);
+  await page.locator('#pyBonusTaxAmount').fill('123456');
+  await page.locator('#pyActualDate').fill('2026-10-28');
+  await page.locator('#pyActualDate').dispatchEvent('change');
+  assert.match(await page.locator('#pyBonusTaxHelp').innerText(),/Q4\/2026/);
+  await page.locator('#saveSalaryRecord').click();
+  try{
+    await page.waitForFunction(()=>!document.querySelector('#salaryRecordModal').classList.contains('show'),{},{timeout:35000});
+  }catch(error){
+    const diagnostic=await page.evaluate(()=>({
+      type:document.querySelector('#pyType')?.value,
+      sourcePeriod:document.querySelector('#pyPeriod')?.value,
+      bonusYear:document.querySelector('#pyBonusYear')?.value,
+      amount:document.querySelector('#pyAmount')?.value,
+      tax:document.querySelector('#pyBonusTaxAmount')?.value,
+      actual:document.querySelector('#pyActualDate')?.value,
+      formVisible:document.querySelector('#salaryRecordModal')?.classList.contains('show')
+    }));
+    console.error('SAVE FORM DIAGNOSTIC',JSON.stringify({diagnostic,dialogs,errors}));
+    throw error;
+  }
+  data=(await db.doc('cash_control_private/lehoangoanh').get()).data();rows=data.salaryRecords||[];
+  assert.equal(rows.length,4);
+  const salary=rows.find(x=>x.type==='salary'),salaryTax=rows.find(x=>x.linkedSalaryId===salary?.id);
+  assert.equal(salary.payrollMonth,'2026-09');
+  assert.equal(salary.salaryTaxRecordId,salaryTax.id);
+  assert.equal(salaryTax.amountVnd,123456);
+  assert.equal(salaryTax.taxPeriod,'2026-Q4');
+  assert.equal(salaryTax.taxBasisDate,'2026-10-28');
+  assert.equal(salaryTax.actualDate,'');
+  const salaryTaxCash=data.manualRecords.find(x=>x.linkedRecordId===salaryTax.id);
+  assert.equal(salaryTaxCash.recognizedMonth,'2027-01');
+  assert.equal(salaryTaxCash.status,'unpaid');
+  assert.equal(salaryTaxCash.actualAmount,0);
+  // Editing the source salary must update the same linked tax, not duplicate it.
+  await page.locator('[data-edit-salary="'+salary.id+'"]').click();
+  assert.ok((await page.locator('#pyBonusTaxAmount').inputValue()).includes('123'));
+  await page.locator('#pyBonusTaxAmount').fill('200000');
+  await page.locator('#saveSalaryRecord').click();
+  try{
+    await page.waitForFunction(()=>!document.querySelector('#salaryRecordModal').classList.contains('show'),{},{timeout:35000});
+  }catch(error){
+    const diagnostic=await page.evaluate(()=>({
+      type:document.querySelector('#pyType')?.value,
+      sourcePeriod:document.querySelector('#pyPeriod')?.value,
+      bonusYear:document.querySelector('#pyBonusYear')?.value,
+      amount:document.querySelector('#pyAmount')?.value,
+      tax:document.querySelector('#pyBonusTaxAmount')?.value,
+      actual:document.querySelector('#pyActualDate')?.value,
+      formVisible:document.querySelector('#salaryRecordModal')?.classList.contains('show')
+    }));
+    console.error('SAVE FORM DIAGNOSTIC',JSON.stringify({diagnostic,dialogs,errors}));
+    throw error;
+  }
+  data=(await db.doc('cash_control_private/lehoangoanh').get()).data();rows=data.salaryRecords||[];
+  assert.equal(rows.length,4);
+  assert.equal(rows.find(x=>x.id===salaryTax.id).amountVnd,200000);
+  await page.locator('#addSalaryRecord').click();
+  await page.locator('#pyType').selectOption('insurance_vn');
+  assert.equal(await page.locator('#pyBonusTaxField').isVisible(),false);
+  await page.locator('[data-close="salaryRecordModal"]').last().click();
+  console.log('PASS salary linked PIT browser E2E: source period Sep, paid Oct, PIT Q4 due Jan; tax pending; edit in-place; unrelated field hidden');
   console.log('PASS Cash Control bonus+linked PIT local E2E; 2026-Q4 => 2027-01; no production writes');
   await ctx.close();
  }finally{await browser.close();server.close();}

@@ -54,3 +54,57 @@ export function buildLinkedBonusTaxRecord({bonus,existing=null,amountVnd,id,now}
     updatedAt:now
   };
 }
+
+
+/**
+ * Tax entered together with a net-salary record is its own unpaid obligation.
+ * The salary payment date determines the quarter, not the salary source month.
+ * Existing paid tax records cannot be silently changed through salary edits.
+ */
+export function buildLinkedSalaryTaxRecord({salary,existing=null,amountVnd,id,now}){
+  if(salary?.type!=='salary'||!salary.id)throw Error('Chỉ tạo thuế liên kết cho khoản lương đã xác định.');
+  const amount=Number(amountVnd);
+  if(!Number.isFinite(amount)||amount<=0)throw Error('Số thuế của lương phải lớn hơn 0.');
+  if(!existing&&!id)throw Error('Thiếu mã thuế của lương.');
+  if(existing&&(existing.type!=='tax'||(existing.linkedSalaryId&&existing.linkedSalaryId!==salary.id)||existing.linkedBonusId))
+    throw Error('Khoản thuế liên kết không hợp lệ; không ghi đè dữ liệu khác.');
+  const date=salary.actualDate||'';
+  const dateQuarter=bonusTaxQuarterFromPaymentDate(date);
+  if(date&&!dateQuarter)throw Error('Ngày thực trả lương không hợp lệ.');
+  const selectedQuarter=String(salary.taxPeriod||'');
+  if(selectedQuarter&&!/^(20\d{2})-Q[1-4]$/.test(selectedQuarter))
+    throw Error('Quý thuế của lương không hợp lệ.');
+  if(dateQuarter&&selectedQuarter&&selectedQuarter!==dateQuarter)
+    throw Error('Quý thuế không khớp với ngày thực trả lương. Hãy chọn lại quý theo ngày trả.');
+  const period=dateQuarter||selectedQuarter;
+  if(existing?.actualDate&&(
+    Number(existing.amountVnd)!==amount ||
+    String(existing.taxPeriod||'')!==period ||
+    String(existing.project||'')!==String(salary.project||'') ||
+    String(existing.staffGroup||'')!==String(salary.staffGroup||'') ||
+    String(existing.payrollMonth||'')!==String(salary.payrollMonth||'')
+  ))throw Error('Thuế lương đã nộp: không được tự đổi số tiền, dự án, kỳ lương hoặc kỳ thuế.');
+  return {
+    ...(existing||{}),
+    id:existing?.id||id,
+    linkedSalaryId:salary.id,
+    type:'tax',
+    project:salary.project,
+    staffGroup:salary.staffGroup||'unknown',
+    payrollMonth:salary.payrollMonth||'',
+    bonusYear:'',
+    taxPeriod:period,
+    taxBasisDate:date,
+    amountVnd:amount,
+    actualDate:existing?.actualDate||'',
+    account:existing?.account||'',
+    note:'Thuế TNCN của lương kỳ '+(salary.payrollMonth||'chưa xác định')+(salary.note?' · '+salary.note:''),
+    sourceType:existing?.sourceType||'manual',
+    sourceFile:existing?.sourceFile||'',
+    sourceSheet:existing?.sourceSheet||'',
+    batchId:existing?.batchId||'',
+    cashTxnId:existing?.cashTxnId||'',
+    createdAt:existing?.createdAt||now,
+    updatedAt:now
+  };
+}
