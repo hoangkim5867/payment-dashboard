@@ -37831,7 +37831,9 @@ uncUploadBtn.addEventListener("click",async()=>{
     try{
         const existingFileId = String(payment.uncDriveFileId || "").trim();
 
-        if(existingFileId){
+        // A grouped voucher is shared by several IPCs. Never overwrite its PDF
+        // when changing only one IPC; create a separate file for that row.
+        if(existingFileId && !isSharedUncPayment(payment)){
             try{
                 driveFile = await replaceUncDriveFile(existingFileId,file,payment);
             }catch(error){
@@ -37862,6 +37864,8 @@ uncUploadBtn.addEventListener("click",async()=>{
                 uncPath:"",
                 uncName:storedUncName,
                 uncSize:file.size,
+                uncGroupPaymentIds:[],
+                uncGroupAmount:0,
                 uncUploadedAt:serverTimestamp(),
                 uncUploadedBy:currentOperatorName,
                 uncUploadedByUid:currentAuthUser?.uid || "",
@@ -37888,6 +37892,8 @@ uncUploadBtn.addEventListener("click",async()=>{
             uncPath:"",
             uncName:storedUncName,
             uncSize:file.size,
+            uncGroupPaymentIds:[],
+            uncGroupAmount:0,
             uncUploadedAt:new Date(),
             uncUploadedBy:currentOperatorName,
             uncUploadedByUid:currentAuthUser?.uid || "",
@@ -37970,7 +37976,10 @@ uncDeleteBtn.addEventListener("click",async()=>{
         return;
     }
 
-    if(!confirm("Xóa UNC của khoản thanh toán này?\n\nFile sẽ được chuyển vào Thùng rác Google Drive của Admin.")){
+    const shared=isSharedUncPayment(payment);
+    if(!confirm(shared
+        ?"Gỡ liên kết UNC gộp khỏi IPC này?\n\nFile Drive sẽ ĐƯỢC GIỮ LẠI để các IPC còn lại tiếp tục xem."
+        :"Xóa UNC của khoản thanh toán này?\n\nFile sẽ được chuyển vào Thùng rác Google Drive của Admin.")){
         return;
     }
 
@@ -37978,19 +37987,19 @@ uncDeleteBtn.addEventListener("click",async()=>{
     let movedToTrash = false;
 
     try{
-        try{
-            await driveApi(
-                `/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,trashed`,
-                {
-                    method:"PATCH",
-                    headers:{"Content-Type":"application/json"},
-                    body:JSON.stringify({trashed:true})
-                }
-            );
-            movedToTrash = true;
-        }catch(driveError){
-            if(Number(driveError?.status) !== 404){
-                throw driveError;
+        if(!shared){
+            try{
+                await driveApi(
+                    `/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,trashed`,
+                    {
+                        method:"PATCH",
+                        headers:{"Content-Type":"application/json"},
+                        body:JSON.stringify({trashed:true})
+                    }
+                );
+                movedToTrash = true;
+            }catch(driveError){
+                if(Number(driveError?.status) !== 404) throw driveError;
             }
         }
 
@@ -38003,6 +38012,8 @@ uncDeleteBtn.addEventListener("click",async()=>{
                 uncPath:"",
                 uncName:"",
                 uncSize:0,
+                uncGroupPaymentIds:[],
+                uncGroupAmount:0,
                 uncUploadedAt:null,
                 uncUploadedBy:"",
                 uncUploadedByUid:"",
@@ -38033,6 +38044,8 @@ uncDeleteBtn.addEventListener("click",async()=>{
             uncPath:"",
             uncName:"",
             uncSize:0,
+            uncGroupPaymentIds:[],
+            uncGroupAmount:0,
             uncUploadedAt:null,
             uncUploadedBy:"",
             uncUploadedByUid:"",
@@ -38042,7 +38055,8 @@ uncDeleteBtn.addEventListener("click",async()=>{
         resetUncPreview();
         renderUncModal();
         renderPayments();
-        alert("✅ Đã gỡ UNC khỏi Payment và chuyển file vào Thùng rác Google Drive.");
+        alert(shared?"✅ Đã gỡ UNC khỏi IPC này. File gộp vẫn còn cho các IPC khác."
+                    :"✅ Đã gỡ UNC khỏi Payment và chuyển file vào Thùng rác Google Drive.");
     }catch(error){
         console.error("UNC DELETE ERROR:",error);
         alert("❌ " + uncErrorMessage(error));
@@ -39452,7 +39466,8 @@ confirmBulkUncBtn.addEventListener("click",async()=>{
             let createdNewFile = false;
             const existingFileId = String(payment.uncDriveFileId || "").trim();
 
-            if(row.existing && existingFileId){
+            // Do not replace the shared Drive content for every other linked IPC.
+            if(row.existing && existingFileId && !isSharedUncPayment(payment)){
                 try{
                     driveFile = await replaceUncDriveFile(
                         existingFileId,
@@ -39494,6 +39509,8 @@ confirmBulkUncBtn.addEventListener("click",async()=>{
                 uncPath:"",
                 uncName:storedUncName,
                 uncSize:row.file.size,
+                uncGroupPaymentIds:[],
+                uncGroupAmount:0,
                 uncUploadedAt:serverTimestamp(),
                 uncUploadedBy:currentOperatorName,
                 uncUploadedByUid:currentAuthUser?.uid || "",
@@ -39520,6 +39537,8 @@ confirmBulkUncBtn.addEventListener("click",async()=>{
                 uncPath:"",
                 uncName:storedUncName,
                 uncSize:row.file.size,
+                uncGroupPaymentIds:[],
+                uncGroupAmount:0,
                 uncUploadedAt:uploadedAt,
                 uncUploadedBy:currentOperatorName,
                 uncUploadedByUid:currentAuthUser?.uid || "",
