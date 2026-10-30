@@ -56,6 +56,48 @@ const server=http.createServer((request,response)=>{
   assert.equal(data.manualRecords.filter(x=>x.linkedModule==='payroll').length,2);
   assert.equal(data.manualRecords.find(x=>x.linkedRecordId===tax.id).actualAmount,0);
   assert.deepEqual(blocked,[]);assert.deepEqual(errors,[]);
+  // Salary PIT is entered in the same modal but must be stored as a separate unpaid row.
+  await page.locator('#addSalaryRecord').click();
+  await page.locator('#pyProject').fill('CN8-2');
+  await page.locator('#pyStaffGroup').selectOption('cn');
+  await page.locator('#pyType').selectOption('salary');
+  await page.locator('#pyPeriod').fill('2026-09');
+  await page.locator('#pyAmount').fill('217392119');
+  assert.equal(await page.locator('#pyBonusTaxField').isVisible(),true);
+  assert.match(await page.locator('#pyLinkedTaxLabel').innerText(),/Thuế TNCN của lương/);
+  await page.locator('#pyBonusTaxAmount').fill('123456');
+  await page.locator('#pyActualDate').fill('2026-10-28');
+  await page.locator('#pyActualDate').dispatchEvent('change');
+  assert.match(await page.locator('#pyBonusTaxHelp').innerText(),/Q4\/2026/);
+  await page.locator('#saveSalaryRecord').click();
+  await page.waitForFunction(()=>!document.querySelector('#salaryRecordModal').classList.contains('show'),{},{timeout:20000});
+  data=(await db.doc('cash_control_private/lehoangoanh').get()).data();rows=data.salaryRecords||[];
+  assert.equal(rows.length,4);
+  const salary=rows.find(x=>x.type==='salary'),salaryTax=rows.find(x=>x.linkedSalaryId===salary?.id);
+  assert.equal(salary.payrollMonth,'2026-09');
+  assert.equal(salary.salaryTaxRecordId,salaryTax.id);
+  assert.equal(salaryTax.amountVnd,123456);
+  assert.equal(salaryTax.taxPeriod,'2026-Q4');
+  assert.equal(salaryTax.taxBasisDate,'2026-10-28');
+  assert.equal(salaryTax.actualDate,'');
+  const salaryTaxCash=data.manualRecords.find(x=>x.linkedRecordId===salaryTax.id);
+  assert.equal(salaryTaxCash.recognizedMonth,'2027-01');
+  assert.equal(salaryTaxCash.status,'unpaid');
+  assert.equal(salaryTaxCash.actualAmount,0);
+  // Editing the source salary must update the same linked tax, not duplicate it.
+  await page.locator('[data-edit-salary="'+salary.id+'"]').click();
+  assert.ok((await page.locator('#pyBonusTaxAmount').inputValue()).includes('123'));
+  await page.locator('#pyBonusTaxAmount').fill('200000');
+  await page.locator('#saveSalaryRecord').click();
+  await page.waitForFunction(()=>!document.querySelector('#salaryRecordModal').classList.contains('show'),{},{timeout:20000});
+  data=(await db.doc('cash_control_private/lehoangoanh').get()).data();rows=data.salaryRecords||[];
+  assert.equal(rows.length,4);
+  assert.equal(rows.find(x=>x.id===salaryTax.id).amountVnd,200000);
+  await page.locator('#addSalaryRecord').click();
+  await page.locator('#pyType').selectOption('insurance_vn');
+  assert.equal(await page.locator('#pyBonusTaxField').isVisible(),false);
+  await page.locator('[data-close="salaryRecordModal"]').last().click();
+  console.log('PASS salary linked PIT browser E2E: source period Sep, paid Oct, PIT Q4 due Jan; tax pending; edit in-place; unrelated field hidden');
   console.log('PASS Cash Control bonus+linked PIT local E2E; 2026-Q4 => 2027-01; no production writes');
   await ctx.close();
  }finally{await browser.close();server.close();}
