@@ -15,7 +15,7 @@ function extract(start,end){
 const core=extract('function bulkUncGroupAllocation(payment){','function bulkUncGroupCandidates(){')
  + '\n'+extract('function validateBulkUncGroup(row,payments){','function selectedBulkUncGroupPayments(){');
 const context={
-  normalize:value=>String(value||'').trim().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase(),
+  normalize:value=>String(value||'').trim().toLowerCase(),
   isPaymentCancelled:p=>!!p.cancelled,
   isPaymentCarriedForward:p=>!!p.carriedForward,
   hasUncDriveFile:p=>!!p.uncDriveFileId,
