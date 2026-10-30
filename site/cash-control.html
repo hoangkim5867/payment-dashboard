@@ -2120,8 +2120,8 @@ function excelCashContent(x){
       const linked=(cashCloudState.inflowRecords||[])
         .find(r=>String(r.id||'')===String(x.linkedRecordId||''));
       const number=String(linked?.number||x.subCode||'').trim();
-      const ipc=number.match(/IPC[\s._-]*0*([0-9]+)/i);
-      const code=ipc?'IPC'+(ipc[1].padStart(Math.max(3,ipc[1].length),'0')):number;
+      const ipc=number.match(/IPC[\s._-]*([0-9]+)/i);
+      const code=ipc?'IPC'+ipc[1]:number;
       if(lang==='zh')return code?(ipc?`内部结算${code}`:`业主收款 · ${code}`):'业主收款';
       if(lang==='en')return code?`Client receipt · ${code}`:'Client receipt';
       return code?`Thu tiền · ${code}`:'Thu tiền';
