@@ -1,5 +1,5 @@
 'use strict';
-const test=require('node:test'),fs=require('node:fs'),path=require('node:path');
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {initializeTestEnvironment,assertSucceeds,assertFails}=require('@firebase/rules-unit-testing');
 const sdk=require('firebase/firestore');
 let env;const month=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit'}).format(new Date());
@@ -32,6 +32,29 @@ test('Staff Bulk Edit can move a pending current row to another plan month',asyn
  const ref=sdk.doc(as('staff'),'payments/move');await assertSucceeds(sdk.setDoc(ref,pending));
  await assertSucceeds(sdk.updateDoc(ref,{paymentMonth:previous}));
  await assertFails(sdk.updateDoc(ref,{remark:'cannot edit historical row after moving'}));
+});
+test('Staff can finish a paid current-month workflow without changing the payment result',async()=>{
+ const ref=sdk.doc(as('staff'),'payments/paid');
+ await assertSucceeds(sdk.updateDoc(ref,{processPlatformPlan:'done',processPaper:'stamp_request',processSettlement:'done'}));
+ await assertSucceeds(sdk.updateDoc(ref,{processPaymentNo:'PLAN-PAID',processPlatformPayment:'done'}));
+ const snap=await sdk.getDoc(ref);
+ assert.equal(snap.data().processPaymentDate,month+'-01');
+ assert.equal(snap.data().processActualAmount,1000);
+ for(const patch of [
+  {processActualAmount:2000},{processPaymentDate:month+'-02'},
+  {amount:1200},{paymentMonth:previous},{processApproval:'done'},
+  {processBanking:'done'},{uncDriveFileId:'forged'},
+  {processPlatformPlan:'',processActualAmount:2000},
+  {remark:'Should remain locked'}
+ ])await assertFails(sdk.updateDoc(ref,patch));
+});
+test('Staff cannot edit paid workflow in historical month, or cancelled/carried/deleted rows',async()=>{
+ for(const id of ['old','cancelled','carried','deleted']) {
+  await assertFails(sdk.updateDoc(sdk.doc(as('staff'),'payments',id),{processPlatformPlan:'done'}));
+ }
+ const ref=sdk.doc(as('admin'),'payments/old');
+ await assertSucceeds(sdk.updateDoc(ref,{processActualAmount:1000,processPaymentDate:previous+'-01'}));
+ await assertFails(sdk.updateDoc(sdk.doc(as('staff'),'payments/old'),{processPlatformPlan:'done'}));
 });
 for(const id of ['old','paid','cancelled','carried','deleted'])test('Staff cannot edit locked row '+id,async()=>{await assertFails(sdk.updateDoc(sdk.doc(as('staff'),'payments',id),{amount:1}))});
 test('historic view grant remains read-only and duplicate lookup remains permitted',async()=>{
