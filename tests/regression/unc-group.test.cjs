@@ -67,5 +67,7 @@ test('shared UNC guard covers all single-row replacement and delete paths',()=>{
  assert.match(html,/if\(existingFileId && !isSharedUncPayment\(payment\)\)/);
  assert.match(html,/if\(row\.existing && existingFileId && !isSharedUncPayment\(payment\)\)/);
  assert.match(html,/if\(!shared\)\{[\s\S]*?trashed:true/);
- assert.match(html,/await batch\.commit\(\); \/\/ No success or local mutation before Firestore ACK/);
+ assert.match(html,/await runTransaction\(db,async transaction=>\{/);
+ assert.match(html,/transaction\.get\(ref\)/);
+ assert.match(html,/No success or local mutation before Firestore transaction ACK/);
 });
