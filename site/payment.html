@@ -1340,10 +1340,6 @@ html[data-theme="ivorybunny"] .process-inline-input{
 #exportWatchPanel .export-watch-old{opacity:1;color:var(--ew-text,#172033)!important}
 </style>
 <style id="archiveWorkflowViewStyles">
-#archiveWorkflowNotice[hidden]{display:none!important}
-#archiveWorkflowNotice{display:flex;justify-content:flex-end;align-items:center;min-height:23px;margin:2px 7px 4px;padding:0;border:0;background:transparent;color:var(--theme-muted,#667085);font-size:10px;font-weight:650}
-.archive-workflow-filter{display:inline-flex;gap:5px;align-items:center;cursor:pointer;font-size:10px;white-space:nowrap}
-.archive-workflow-filter input{width:13px;height:13px;accent-color:var(--theme-primary,#225a8b)}
 /* Compact status row. Never let the optional Archive tab cover Refresh/Reset. */
 html[data-theme] .payment-status-segments{min-width:0!important;max-width:100%!important;box-sizing:border-box;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
 html[data-theme] .payment-status-segment{flex-shrink:0;gap:3px!important;padding-left:5px!important;padding-right:5px!important}
@@ -1353,9 +1349,7 @@ html[data-theme] .payment-status-segment strong{min-width:16px!important;padding
   html[data-theme] .payment-status-segment{flex:0 0 auto}
   html[data-theme] .data-first-summary .payment-status-segments{height:auto!important;min-height:36px!important}
 }
-.archive-workflow-badge{display:inline-block;margin:0 4px;padding:3px 6px;border:1px solid #b8d5ea;border-radius:5px;background:#edf6ff;color:#235d81;font-size:9px;font-weight:750;white-space:nowrap}
-html[data-theme="blueberrycocoa"] #archiveWorkflowNotice{background:transparent;color:#c6d8e8;border:0}
-html[data-theme="blueberrycocoa"] .archive-workflow-badge{background:#254765;color:#e2f1ff;border-color:#527392}
+.paid-progress-pending{display:inline-flex;margin:0 3px;padding:2px 5px;border:1px solid #efc98c;border-radius:4px;background:#fff8e8;color:#a45c05;font-size:9px;font-weight:750;white-space:nowrap}
 </style>
 </head>
 
@@ -1821,7 +1815,7 @@ html[data-theme="blueberrycocoa"] .archive-workflow-badge{background:#254765;col
         <option value="paid">Đã thanh toán</option>
         <option value="carried">Chuyển tháng</option>
         <option value="cancelled">Đã hủy</option>
-        <option value="archive">Đã vào Kho</option>
+        <option value="attention">Cần bổ sung tiến trình</option>
     </select>
 
     <div
@@ -8548,7 +8542,6 @@ function getFilteredPayments(skipHeaderColumnIndex = null, scopeOverride = null,
                 isPaymentVisibleInWorkflowView(payment,paymentStatus,ignorePaymentStatus)
         )
         .filter(payment => !isPaymentLocallyHidden(payment))
-        .filter(payment => paymentStatus!=="archive" || !archiveWorkflowPendingOnly || archiveWorkflowNeedsAttention(payment))
         .filter(
         item => {
 
@@ -8657,8 +8650,11 @@ function getFilteredPayments(skipHeaderColumnIndex = null, scopeOverride = null,
                     paymentStatus === "cancelled" &&
                     isPaymentCancelled(item)
                 ) || (
-                    paymentStatus === "archive" && isPaymentArchived(item) &&
-                    isPaymentPaid(item) && !isPaymentCarriedForward(item) && !isPaymentCancelled(item)
+                    paymentStatus === "attention" &&
+                    isPaymentPaid(item) &&
+                    !isPaymentCarriedForward(item) &&
+                    !isPaymentCancelled(item) &&
+                    archiveWorkflowNeedsAttention(item)
                 );
 
 
@@ -8753,11 +8749,11 @@ function getFilteredPayments(skipHeaderColumnIndex = null, scopeOverride = null,
 function getStatusSegmentCopy(){
 
     if(currentLanguage === "zh"){
-        return {unpaid:"跟进中", paid:"已付款", carried:"转下月", cancelled:"已取消", archive:"归档", all:"全部"};
+        return {unpaid:"跟进中", paid:"已付款", carried:"转下月", cancelled:"已取消", attention:"待补充", all:"全部"};
     }
 
     if(currentLanguage === "en"){
-        return {unpaid:"In progress", paid:"Paid", carried:"Carried", cancelled:"Cancelled", archive:"Archive", all:"All"};
+        return {unpaid:"In progress", paid:"Paid", carried:"Carried", cancelled:"Cancelled", attention:"Needs updates", all:"All"};
     }
 
     return {
@@ -8765,16 +8761,26 @@ function getStatusSegmentCopy(){
         paid:"Đã thanh toán",
         carried:"Chuyển tháng",
         cancelled:"Đã hủy",
-        archive:"Kho",
+        attention:"Cần bổ sung",
         all:"Tất cả"
     };
 }
 
 
-/* Archive mode only filters the existing monthly listener; no extra reads. */
+/* Payment status and document archiving are independent.
+   Admin sees EVERY paid row in the normal Paid tab (including archived).
+   Staff's normal views stay decluttered; only Needs Updates reveals paid
+   archived rows with outstanding Staff-owned steps. No extra Firestore reads.
+   Preserve preexisting role-specific KPI/export scope when ignoring status. */
 function isPaymentVisibleInWorkflowView(payment,status,ignoreStatus=false){
-    if(ignoreStatus) return isAdmin() || !isPaymentArchived(payment); // keep legacy KPI/export data
-    return status==="archive" ? isPaymentArchived(payment) : !isPaymentArchived(payment);
+    if(ignoreStatus) return isAdmin() || !isPaymentArchived(payment);
+    if(status==="attention"){
+        return isPaymentPaid(payment) &&
+            !isPaymentCarriedForward(payment) &&
+            !isPaymentCancelled(payment) &&
+            archiveWorkflowNeedsAttention(payment);
+    }
+    return isAdmin() || !isPaymentArchived(payment);
 }
 /* Advisory: only Staff-owned fields, not Admin-owned approval/banking or optional payment number. */
 function isExplicitWorkflowNotApplicable(v){
@@ -8784,31 +8790,7 @@ function archiveWorkflowNeedsAttention(payment){
     return ["processPlatformPlan","processPaper","processSettlement","processPlatformPayment"]
         .some(field=>!isDone(payment?.[field])&&!isExplicitWorkflowNotApplicable(payment?.[field]));
 }
-let archiveWorkflowPendingOnly=false;
-function syncArchiveWorkflowNotice(){
-    const tableWrap=paymentTable?.closest(".table-wrap");
-    if(!tableWrap?.parentElement) return;
-    let node=document.getElementById("archiveWorkflowNotice");
-    if(!node){
-        node=document.createElement("div");
-        node.id="archiveWorkflowNotice";
-        node.className="archive-workflow-notice";
-        node.innerHTML=`<label class="archive-workflow-filter"><input id="archiveWorkflowPendingOnly" type="checkbox"><span id="archiveWorkflowFilterLabel"></span></label>`;
-        tableWrap.parentElement.insertBefore(node,tableWrap);
-        node.querySelector("#archiveWorkflowPendingOnly").addEventListener("change",event=>{
-            archiveWorkflowPendingOnly=event.target.checked;renderPayments();
-        });
-    }
-    const active=paymentStatusFilter.value==="archive";
-    node.hidden=!active;
-    if(!active) return;
-    node.querySelector("#archiveWorkflowFilterLabel").textContent=
-        currentLanguage==="zh" ? "待补充步骤"
-        : currentLanguage==="en" ? "Pending steps"
-        : "Chưa đủ tiến trình";
-    node.querySelector("#archiveWorkflowPendingOnly").checked=archiveWorkflowPendingOnly;
-}
-function getPaymentStatusContextRows(archivedOnly=false){
+function getPaymentStatusContextRows(attentionOnly=false){
 
     const month =
         String(paymentMonthFilter.value || "").trim();
@@ -8821,7 +8803,10 @@ function getPaymentStatusContextRows(archivedOnly=false){
 
     return allPayments.filter(item =>
         item.deleted !== true &&
-        (archivedOnly ? isPaymentArchived(item) : !isPaymentArchived(item)) &&
+        (attentionOnly
+            ? (isPaymentPaid(item) && !isPaymentCarriedForward(item) &&
+               !isPaymentCancelled(item) && archiveWorkflowNeedsAttention(item))
+            : (isAdmin() || !isPaymentArchived(item))) &&
         !isPaymentLocallyHidden(item) &&
         (!month || item.paymentMonth === month) &&
         (
@@ -8853,7 +8838,7 @@ function renderPaymentStatusSegments(){
 
     const rows =
         getPaymentStatusContextRows();
-    const archiveRows = getPaymentStatusContextRows(true);
+    const attentionRows = getPaymentStatusContextRows(true);
 
     const paid =
         rows.filter(item =>
@@ -8883,7 +8868,7 @@ function renderPaymentStatusSegments(){
         {value:"paid", label:copy.paid, count:paid},
         {value:"carried", label:copy.carried, count:carried},
         {value:"cancelled", label:copy.cancelled, count:cancelled},
-        {value:"archive", label:copy.archive, count:archiveRows.length},
+        {value:"attention", label:copy.attention, count:attentionRows.length},
         {value:"", label:copy.all, count:rows.length}
     ];
 
@@ -8893,8 +8878,8 @@ function renderPaymentStatusSegments(){
                 type="button"
                 class="payment-status-segment ${item.value === active ? "active" : ""}"
                 data-payment-status-view="${item.value}"
-                title="${escapeHTML(item.value==="archive"
-                    ? (currentLanguage==="zh"?"已归档":currentLanguage==="en"?"In archive":"Đã vào Kho")
+                title="${escapeHTML(item.value==="attention"
+                    ? (currentLanguage==="zh"?"已付款但流程尚未完成":currentLanguage==="en"?"Paid, workflow needs updates":"Đã thanh toán nhưng chưa hoàn thiện tiến trình")
                     : item.label)}"
             >
                 <span>${escapeHTML(item.label)}</span>
@@ -9075,10 +9060,9 @@ document
         const beforeStatus=paymentStatusFilter.value;
         paymentStatusFilter.value =
             button.dataset.paymentStatusView || "";
-        if(beforeStatus==="archive"||paymentStatusFilter.value==="archive"){
+        if(beforeStatus==="attention"||paymentStatusFilter.value==="attention"){
             selectedPaymentIds.clear();updateBatchSelectionUI();
         }
-        archiveWorkflowPendingOnly=false;
         applyPaymentStatusView();
         renderPayments();
     });
@@ -15297,7 +15281,6 @@ function updatePaymentLiveTotalBar(rows){
 
 function renderPayments(){
 
-    syncArchiveWorkflowNotice();
     setupSortableHeaders();
     initHeaderColumnMenus();
     renderHeaderColumnFilterIndicators();
@@ -15829,7 +15812,9 @@ function renderPayments(){
                                 ? `<span class="payment-carried-badge">${escapeHTML(t("carriedForward", {month:item.carryForwardToMonth || "—"}))}</span>`
                                 : `
                                 <span class="payment-locked">${t("paid")}</span>
-                                ${isPaymentArchived(item) ? `<span class="archive-workflow-badge">${currentLanguage==="zh"?"已归档":currentLanguage==="en"?"In archive":"Đã vào Kho"}</span>` : ""}
+                                ${archiveWorkflowNeedsAttention(item)
+                                    ? `<span class="paid-progress-pending" title="${currentLanguage==="zh"?"付款已完成，流程待补充":currentLanguage==="en"?"Paid; workflow steps still need updates":"Đã trả tiền; còn bước tiến trình cần bổ sung"}">${currentLanguage==="zh"?"流程待补充":currentLanguage==="en"?"Pending steps":"Thiếu tiến trình"}</span>`
+                                    : ""}
                                 ${
                                     isAdmin()
                                     ? `
