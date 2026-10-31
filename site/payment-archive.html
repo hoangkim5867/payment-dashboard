@@ -195,7 +195,7 @@
               : currentUserIsAdmin&&paymentId
                 ? `<a class="unc-link" href="${editUncUrl}" target="_blank" rel="noopener">${escapeHtml(t("addUnc"))}</a>`
                 : `<span class="unc-missing">${escapeHtml(t("noUnc"))}</span>`;
-            return `<tr class="project-detail-row" data-project-parent="${groupId}" data-company-search="${escapeHtml(buildRowSearchText(row))}" hidden><td class="center visible-row-number"></td><td>${escapeHtml(row.company)}</td><td>${escapeHtml(row.bankAccount||row.bank)}</td><td>${escapeHtml(row.contractNo)}</td><td>${escapeHtml(row.contractName)}</td><td class="center">${escapeHtml(row.ipcNo)}</td><td class="right">${formatMoney(row.actualAmount)}</td><td class="center">${escapeHtml(row.paymentDate)}</td><td class="center">${uncAction}</td></tr>`;
+            return `<tr class="project-detail-row" data-project-parent="${groupId}" data-payment-id="${escapeHtml(paymentId)}" data-company-search="${escapeHtml(buildRowSearchText(row))}" hidden><td class="center visible-row-number"></td><td>${escapeHtml(row.company)}</td><td>${escapeHtml(row.bankAccount||row.bank)}</td><td>${escapeHtml(row.contractNo)}</td><td>${escapeHtml(row.contractName)}</td><td class="center">${escapeHtml(row.ipcNo)}</td><td class="right">${formatMoney(row.actualAmount)}</td><td class="center">${escapeHtml(row.paymentDate)}</td><td class="center">${uncAction}</td></tr>`;
           }).join("");
           return divider+detailRows;
         }).join("");
@@ -764,5 +764,6 @@
       }
     });
   </script>
+<script type="module" src="./assets/js/payment-doc-link-ui.mjs"></script>
 </body>
 </html>
