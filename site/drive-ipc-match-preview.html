@@ -91,7 +91,7 @@ const fileUrl=f=>f.webViewLink||"https://drive.google.com/file/d/"+encodeURIComp
 const textEl=(tag,value)=>{const el=document.createElement(tag);el.textContent=value;return el;};
 const moneyFreeRow=(row,i)=>({id:escapeS(row.paymentId)||"row-"+i,project:escapeS(row.project),contractNo:escapeS(row.contractNo),ipcNo:escapeS(row.ipcNo)});
 function setRows(rows,from){
- allRows=rows.filter(r=>r.project&&r.contractNo&&r.ipcNo);
+ allRows=rows.filter(r=>r.project&&r.contractNo&&r.ipcNo); driveFiles=[]; scanRootName="";
  const projects=[...new Set(allRows.map(r=>r.project))].sort((a,b)=>a.localeCompare(b,"vi"));
  const select=byId("project"),previous=select.value;
  select.replaceChildren(new Option("Chọn dự án", ""));
@@ -239,9 +239,16 @@ function renderPreview(){
  +(partialScan?" CẢNH BÁO: Chưa quét hết thư mục, hãy chọn thư mục hẹp hơn.":""),partialScan?"error":"neutral");
 }
 byId("project").addEventListener("change",()=>{
- approved.clear();lastPreview=[];
+ const hadFiles=driveFiles.length>0;
+ approved.clear();lastPreview=[];driveFiles=[];scanRootName="";
  byId("results").style.display="none";
- if(driveFiles.length&&byId("project").value)renderPreview();
+ if(hadFiles)status("driveStatus","Đã đổi dự án. Hãy chọn thư mục đúng dự án rồi quét lại, không dùng kết quả cũ.","neutral");
+});
+byId("folderUrl").addEventListener("input",()=>{
+ if(!driveFiles.length)return;
+ approved.clear();lastPreview=[];driveFiles=[];scanRootName="";
+ byId("results").style.display="none";
+ status("driveStatus","Đã đổi thư mục Drive. Cần quét lại để tránh nhầm link.","neutral");
 });
 byId("scan").addEventListener("click",async()=>{
  const project=byId("project").value;
@@ -249,7 +256,7 @@ byId("scan").addEventListener("click",async()=>{
  const id=folderId(byId("folderUrl").value);
  if(!id){status("driveStatus","Dán link thư mục Google Drive (không phải link file PDF).","error");return;}
  byId("scan").disabled=true;
- driveFiles=[];approved.clear();
+ driveFiles=[];approved.clear();lastPreview=[];byId("results").style.display="none";
  status("driveStatus","Đang đọc danh sách file trong thư mục được chọn…");
  try{
   const info=await scanFolder(id);
@@ -268,7 +275,7 @@ byId("export").addEventListener("click",()=>{
   const file=entry.candidates.find(f=>f.id===selected);
   if(!file)continue;
   const cells=[entry.row.id,entry.row.project,entry.row.contractNo,entry.row.ipcNo,file.id,fileUrl(file),file.name];
-  out.push(cells.map(v=>String(v).replace(/[\t\r\n]/g," ")).join("\t"));
+  out.push(cells.map(v=>{const clean=String(v).replace(/[\t\r\n]/g," ");return /^[\s]*[=+@-]/.test(clean)?"\x27"+clean:clean;}).join("\t"));
  }
  if(out.length===1){status("status","M chưa duyệt PDF nào. Hãy chọn đúng file ở ít nhất một dòng.","error");return;}
  const blob=new Blob(["\ufeff"+out.join("\r\n")],{type:"text/tab-separated-values;charset=utf-8"});
