@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="vi"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Payment MASTER · Thử tìm hồ sơ IPC trên Drive</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#15334e;background:#f1f5f9}
+*{box-sizing:border-box}body{margin:0}header{background:#173c61;color:white;padding:17px max(20px,calc((100% - 1200px)/2));display:flex;justify-content:space-between;align-items:center;gap:12px}
+header b{font-size:17px}header a{color:white}main{max-width:1200px;padding:24px 16px 60px;margin:auto}
+h1{font-size:23px;margin:0 0 7px}h2{font-size:16px;margin:0 0 12px}p{line-height:1.55}small,.muted{color:#5c7185}.note{background:#edf8f5;border:1px solid #b5ddd0;padding:11px 14px;border-radius:10px;font-size:14px}
+.warn{background:#fff6df;border-color:#e7c879}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.card{background:white;border:1px solid #d7e1ea;border-radius:13px;padding:18px;margin:14px 0;min-width:0}
+label{display:block;font-weight:600;font-size:13px;margin:12px 0 6px}input,select,textarea{width:100%;font:inherit;color:#193653;padding:10px;border:1px solid #bacad9;border-radius:8px;background:white}
+textarea{min-height:105px;font-family:ui-monospace,Consolas,monospace;font-size:12px;resize:vertical}
+button{background:#1a4d78;color:white;border:1px solid #1a4d78;border-radius:8px;padding:9px 13px;font:600 13px system-ui;cursor:pointer}
+button.secondary{color:#1a4d78;background:white}button:disabled{opacity:.45;cursor:not-allowed}
+.controls{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:12px}
+#status,#driveStatus,#archiveStatus{font-size:13px;margin-top:8px;white-space:pre-line}
+.success{color:#117454}.error{color:#b42318}.neutral{color:#5c7185}
+.tablewrap{overflow:auto;border:1px solid #d5e0ec;border-radius:9px}
+table{border-collapse:collapse;width:100%;min-width:780px}th{background:#173c61;color:white;text-align:left;font-size:12px;padding:11px}
+td{border-bottom:1px solid #dfebf3;padding:10px;font-size:12px;vertical-align:top}
+tr:nth-child(even) td{background:#f6f9fc}td select{font-size:12px;min-width:245px}
+.tag{display:inline-block;font-size:11px;font-weight:600;padding:4px 7px;border-radius:6px;background:#edf2fa;color:#234e77}
+.tag.good{background:#e1f5e9;color:#087142}.tag.ambig{background:#fff1d5;color:#916200}.tag.none{background:#f2f3f5;color:#626b74}
+#results{display:none}#testBanner{margin-top:0}.wide{grid-column:1/-1}
+code{background:#edf1f5;padding:2px 4px;border-radius:4px}
+@media(max-width:780px){.grid{grid-template-columns:1fr}main{padding:15px 10px}header{padding:13px}h1{font-size:20px}}
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js" defer></script>
+</head><body>
+<header><b>Payment MASTER · Thử tìm hồ sơ IPC</b><a href="./payment-archive.html">← Kho chứng từ</a></header>
+<main>
+<h1>Đối chiếu hồ sơ được chia sẻ trên Google Drive</h1>
+<p class="muted">Thử tìm PDF theo <strong>hợp đồng + số IPC</strong>, ngay cả khi tên dự án bị nhân viên gõ khác. M dùng file Excel xuất từ Kho chứng từ, không cần nhập từng khoản hoặc đọc Firebase.</p>
+<div id="testBanner" class="note warn"><strong>CHẾ ĐỘ THỬ AN TOÀN:</strong> Chỉ đọc file Excel ngay trong trình duyệt và chỉ quét Drive khi m bấm nút. Không đọc/ghi Firebase, không chỉnh sửa Google Drive, không động tới UNC. Token Google chỉ nằm trong bộ nhớ tab, không gửi đến máy chủ Payment.</div>
+<div class="grid">
+<section class="card">
+<h2>1. Chọn các khoản cần tìm hồ sơ</h2>
+<label for="excelFile">Chọn file Excel đã tải từ Kho chứng từ hoặc Payment</label>
+<input type="file" id="excelFile" accept=".xlsx,.xls,.xlsm">
+<div class="controls"><button id="loadArchive">Đọc danh sách trong Excel</button><button class="secondary" id="demo">Nạp 3 IPC ví dụ</button></div>
+<div id="archiveStatus" class="neutral">File Excel chỉ được xử lý ngay trên trình duyệt của m, không tải lên máy chủ. Cần có cột Dự án, Số hợp đồng và IPC.</div>
+<label for="project">Chỉ đối chiếu dự án</label><select id="project"><option value="">Chọn dự án sau khi nạp dữ liệu</option></select>
+<p class="muted" style="font-size:12px">Chỉ quét Drive của <strong>một dự án</strong> để tránh nhầm hợp đồng có số giống nhau giữa các dự án.</p>
+</section>
+<section class="card">
+<h2>2. Đọc thư mục Google Drive được chia sẻ</h2>
+<label for="folderUrl">Link thư mục dự án hoặc thư mục hợp đồng</label>
+<input id="folderUrl" placeholder="https://drive.google.com/drive/folders/...">
+<p class="muted" style="font-size:12px">Dùng thư mục được chia sẻ cho chính nick Google của m. Có thể dán link thư mục <code>SUBP-002</code> chứa các IPC. Không cần là chủ sở hữu.</p>
+<div class="controls"><button class="secondary" id="connectGoogle">Kết nối Google (chỉ đọc tên file)</button><button id="scan" disabled>Quét thư mục &amp; đối chiếu</button></div>
+<div id="driveStatus" class="neutral">Chưa kết nối Google. Google có thể yêu cầu cấp thêm quyền xem thông tin file.</div>
+</section>
+</div>
+<section class="card" id="results">
+<div class="controls" style="justify-content:space-between;margin-top:0">
+<h2 style="margin:0">3. Xem kết quả và duyệt thủ công</h2>
+<button id="export" class="secondary">Tải danh sách link đã duyệt (.tsv)</button>
+</div>
+<p class="muted" style="font-size:12px">Không có link nào được lưu chỉ bằng việc chọn ở đây. M phải chọn đúng PDF ở từng hàng rồi mới có trong danh sách xuất thử. File xuất không tự cập nhật Payment.</p>
+<div id="status" class="neutral"></div><div class="tablewrap"><table><thead><tr><th>Hợp đồng</th><th>IPC</th><th>Đề xuất</th><th>Chọn PDF / Duyệt</th><th>Mở xem</th></tr></thead><tbody id="tbody"></tbody></table></div>
+</section>
+<p class="muted" style="font-size:12px">Giới hạn bản thử: chỉ duyệt tối đa 80 thư mục, 2.500 mục, 6 tầng để tránh quét lan rộng. Nếu file nằm sâu hơn, hãy chọn một thư mục gần bộ hồ sơ hơn. Không đọc nội dung PDF. Phải có quyền Drive để mở file sau khi gắn.</p>
+</main>
+<script type="module">
+const CLIENT_ID="217279768663-lkrs0o14b9kg1fi4rk1pt7cpgf7bq3sq.apps.googleusercontent.com";
+const SCOPE="https://www.googleapis.com/auth/drive.metadata.readonly";
+const byId=id=>document.getElementById(id);
+const status=(id,message,kind="neutral")=>{const el=byId(id);el.textContent=message;el.className=kind;};
+let allRows=[],driveFiles=[],scanRootName="",accessToken="",expiry=0,googleClient=null,lastPreview=[],approved=new Map(),partialScan=false;
+const escapeS=v=>String(v??"").trim();
+const normalized=v=>escapeS(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/Đ/g,"D").replace(/đ/g,"d").toUpperCase();
+const findIPC=v=>{
+ const results=[],re=/(?:^|[^A-Z0-9])(IPC|MEP)[\s._-]*0*(\d{1,5})(?!\d)/g;
+ const text=normalized(v);let m;
+ while((m=re.exec(text)))results.push(m[1]+String(Number(m[2])));
+ return [...new Set(results)];
+};
+const findContract=v=>{
+ const results=[],re=/(?:^|[^A-Z0-9])(SUBP|SUPL|LAB|ADM|MEP)[\s._-]*0*(\d{1,5})(?!\d)/g;
+ const text=normalized(v);let m;
+ while((m=re.exec(text)))results.push(m[1]+String(Number(m[2])));
+ return [...new Set(results)];
+};
+const fileUrl=f=>f.webViewLink||"https://drive.google.com/file/d/"+encodeURIComponent(f.id)+"/view";
+const textEl=(tag,value)=>{const el=document.createElement(tag);el.textContent=value;return el;};
+const moneyFreeRow=(row,i)=>({id:escapeS(row.paymentId)||"row-"+i,project:escapeS(row.project),contractNo:escapeS(row.contractNo),ipcNo:escapeS(row.ipcNo)});
+function setRows(rows,from){
+ allRows=rows.filter(r=>r.project&&r.contractNo&&r.ipcNo); driveFiles=[]; scanRootName="";
+ const projects=[...new Set(allRows.map(r=>r.project))].sort((a,b)=>a.localeCompare(b,"vi"));
+ const select=byId("project"),previous=select.value;
+ select.replaceChildren(new Option("Chọn dự án", ""));
+ projects.forEach(name=>select.add(new Option(name,name)));
+ select.value=projects.includes(previous)?previous:(projects.length===1?projects[0]:"");
+ approved.clear();lastPreview=[];byId("results").style.display="none";
+ status("archiveStatus",from+": "+allRows.length+" khoản đủ dự án, hợp đồng và IPC ("+projects.length+" dự án).","success");
+}
+byId("demo").addEventListener("click",()=>{
+ setRows(["IPC001","IPC002","IPC003"].map((ipc,i)=>moneyFreeRow({project:"OCEAN LINK",contractNo:"OCEANLINK-MEP-SUBP-002",ipcNo:ipc,paymentId:"EXAMPLE-"+i},i)),"Dữ liệu ví dụ");
+});
+byId("loadArchive").addEventListener("click",async()=>{
+ const file=byId("excelFile").files?.[0];
+ if(!file){status("archiveStatus","Chọn file Excel xuất từ Kho chứng từ hoặc Payment trước.","error");return;}
+ if(!window.XLSX){status("archiveStatus","Chưa tải được thư viện Excel. Kiểm tra mạng rồi thử lại.","error");return;}
+ byId("loadArchive").disabled=true;status("archiveStatus","Đang đọc file Excel ngay trên máy…");
+ try{
+  const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});
+  let extracted=[],selectedSheet="";
+  for(const name of wb.SheetNames){
+   const sheet=wb.Sheets[name],table=XLSX.utils.sheet_to_json(sheet,{header:1,defval:"",blankrows:false});
+   let header=-1,cols=[];
+   for(let i=0;i<Math.min(table.length,30);i++){
+    const arr=(table[i]||[]).map(x=>normalized(x).replace(/[\s._-]/g,""));
+    const project=arr.findIndex(x=>["DUAN","项目","PROJECT"].includes(x));
+    const contract=arr.findIndex(x=>["SOHOPDONG","合同编号","CONTRACTNO","CONTRACTNUMBER"].includes(x));
+    const ipc=arr.findIndex(x=>["IPC","SOIPC","IPCNO"].includes(x));
+    if(project>=0&&contract>=0&&ipc>=0){header=i;cols=[project,contract,ipc];break;}
+   }
+   if(header<0)continue;
+   const records=table.slice(header+1).map((row,i)=>moneyFreeRow({
+    project:row[cols[0]],contractNo:row[cols[1]],ipcNo:row[cols[2]],
+    paymentId:"EXCEL-"+name+"-"+String(i+header+2)
+   },i));
+   const valid=records.filter(x=>x.project&&x.contractNo&&x.ipcNo);
+   if(valid.length>extracted.length){extracted=valid;selectedSheet=name;}
+  }
+  if(!extracted.length)throw Error("Không thấy bảng có đủ 3 cột Dự án, Số hợp đồng, IPC. Hãy dùng file Excel chi tiết từ Kho/Payment.");
+  setRows(extracted,"Excel · sheet "+selectedSheet);
+ }catch(e){status("archiveStatus","Không đọc được Excel: "+e.message,"error");}
+ finally{byId("loadArchive").disabled=false;}
+});
+byId("connectGoogle").addEventListener("click",()=>{
+ if(!window.google?.accounts?.oauth2){status("driveStatus","Google Identity chưa tải xong. Bấm lại sau khi trang tải xong.","error");return;}
+ googleClient=google.accounts.oauth2.initTokenClient({
+  client_id:CLIENT_ID,scope:SCOPE,include_granted_scopes:false,
+  callback:r=>{
+   if(r.error){status("driveStatus","Google không cấp quyền: "+(r.error_description||r.error),"error");return;}
+   if(!String(r.scope||"").includes("drive.metadata.readonly")){status("driveStatus","Google chưa cấp quyền xem danh sách file (metadata.readonly).","error");return;}
+   accessToken=r.access_token;expiry=Date.now()+Math.max(0,Number(r.expires_in||3600)-60)*1000;
+   status("driveStatus","Đã kết nối Google để đọc thông tin file. Chưa quét Drive.","success");
+   byId("scan").disabled=false;
+  },
+  error_callback:e=>status("driveStatus","Kết nối Google chưa thành công: "+(e.message||e.type||"không rõ"),"error")
+ });
+ googleClient.requestAccessToken({prompt:"select_account"});
+});
+function folderId(url){
+ const s=escapeS(url);
+ const m=s.match(/drive\.google\.com\/drive\/(?:u\/\d+\/)?folders\/([A-Za-z0-9_-]+)/);
+ if(m)return m[1];
+ const n=s.match(/[?&]id=([A-Za-z0-9_-]+)/);
+ return n?n[1]:"";
+}
+async function googleGet(path){
+ if(!accessToken||Date.now()>=expiry)throw Error("Phiên Google đã hết hạn. Bấm Kết nối Google lại.");
+ const res=await fetch("https://www.googleapis.com/drive/v3/"+path,{headers:{Authorization:"Bearer "+accessToken},cache:"no-store"});
+ if(!res.ok){
+  const details=await res.json().catch(()=>({}));
+  throw Error("Google Drive báo "+res.status+": "+(details.error?.message||"Không có quyền đọc thư mục hoặc scope chưa được cấp."));
+ }
+ return res.json();
+}
+async function scanFolder(id){
+ const root=await googleGet("files/"+encodeURIComponent(id)+"?fields="+encodeURIComponent("id,name,mimeType")+"&supportsAllDrives=true");
+ if(root.mimeType!=="application/vnd.google-apps.folder")throw Error("Link này không phải thư mục Google Drive.");
+ scanRootName=root.name||"";
+ const queue=[{id,segments:[scanRootName],depth:0}],files=[];
+ let visited=0,total=0;
+ partialScan=false;
+ while(queue.length){
+  if(visited>=80){partialScan=true;break;}
+  const folder=queue.shift();visited++;
+  let pageToken="";
+  do{
+   const params=new URLSearchParams({
+    q:"'"+folder.id.replace(/'/g,"\\'")+"' in parents and trashed = false",
+    fields:"nextPageToken,incompleteSearch,files(id,name,mimeType,webViewLink)",
+    pageSize:"250",supportsAllDrives:"true",includeItemsFromAllDrives:"true"
+   });
+   if(pageToken)params.set("pageToken",pageToken);
+   const page=await googleGet("files?"+params.toString());
+   if(page.incompleteSearch)partialScan=true;
+   for(const f of page.files||[]){
+    total++;
+    if(total>2500){partialScan=true;break;}
+    if(f.mimeType==="application/vnd.google-apps.folder"){
+     if(folder.depth<6)queue.push({id:f.id,segments:[...folder.segments,f.name],depth:folder.depth+1});
+     else partialScan=true;
+    }else if(f.mimeType==="application/pdf"||/\.pdf$/i.test(f.name||"")){
+     files.push({...f,path:folder.segments.join("/")});
+    }
+   }
+   if(total>2500)break;
+   pageToken=page.nextPageToken||"";
+  }while(pageToken);
+  if(total>2500)break;
+ }
+ return {files,visited,total};
+}
+function matchRows(rows,files){
+ return rows.map(row=>{
+  const ipc=findIPC(row.ipcNo)[0]||"";
+  const contracts=findContract(row.contractNo);
+  const candidates=files.map(file=>{
+   const fileIpcs=findIPC(file.name);
+   if(!ipc||!fileIpcs.includes(ipc))return null;
+   const fileContracts=findContract(file.path+"/"+file.name);
+   const exact=contracts.length>0&&contracts.some(c=>fileContracts.includes(c));
+   return {...file,exact};
+  }).filter(Boolean).sort((a,b)=>Number(b.exact)-Number(a.exact)||a.name.localeCompare(b.name));
+  const strong=candidates.filter(c=>c.exact);
+  let label="Chưa tìm thấy",kind="none";
+  if(!ipc||!contracts.length){label="Thiếu mã đối chiếu";kind="none";}
+  else if(strong.length===1){label="1 ứng viên khớp hợp đồng + IPC";kind="good";}
+  else if(strong.length>1){label="Nhiều PDF cùng mã – cần chọn";kind="ambig";}
+  else if(candidates.length){label="Chỉ trùng IPC – cần kiểm tra";kind="ambig";}
+  return {row,candidates,label,kind};
+ });
+}
+function renderPreview(){
+ const project=byId("project").value;
+ const rows=allRows.filter(r=>r.project===project);
+ lastPreview=matchRows(rows,driveFiles);
+ approved.clear();
+ const tbody=byId("tbody");tbody.replaceChildren();
+ for(const entry of lastPreview){
+  const tr=document.createElement("tr");
+  tr.append(textEl("td",entry.row.contractNo),textEl("td",entry.row.ipcNo));
+  const labelCell=document.createElement("td"),tag=textEl("span",entry.label);
+  tag.className="tag "+entry.kind;labelCell.append(tag);tr.append(labelCell);
+  const selectCell=document.createElement("td"),sel=document.createElement("select");
+  sel.add(new Option("-- Chưa duyệt --",""));
+  for(const file of entry.candidates){
+   const prefix=file.exact?"[HĐ + IPC] ":"[Chỉ IPC] ";
+   sel.add(new Option(prefix+file.name+" · "+file.path,file.id));
+  }
+  sel.disabled=!entry.candidates.length;
+  sel.addEventListener("change",()=>{if(sel.value)approved.set(entry.row.id,sel.value);else approved.delete(entry.row.id);});
+  selectCell.append(sel);tr.append(selectCell);
+  const linkCell=document.createElement("td"),link=document.createElement("button");
+  link.className="secondary";link.textContent="Mở PDF";link.disabled=true;
+  sel.addEventListener("change",()=>{link.disabled=!sel.value;});
+  link.addEventListener("click",()=>{const f=entry.candidates.find(x=>x.id===sel.value);if(f)window.open(fileUrl(f),"_blank","noopener,noreferrer");});
+  linkCell.append(link);tr.append(linkCell);tbody.append(tr);
+ }
+ byId("results").style.display="block";
+ const good=lastPreview.filter(x=>x.kind==="good").length;
+ const ambiguous=lastPreview.filter(x=>x.kind==="ambig").length;
+ status("status",rows.length+" khoản · "+good+" khớp một file · "+ambiguous+" cần kiểm tra · "+(rows.length-good-ambiguous)+" chưa khớp."
+ +(partialScan?" CẢNH BÁO: Chưa quét hết thư mục, hãy chọn thư mục hẹp hơn.":""),partialScan?"error":"neutral");
+}
+byId("project").addEventListener("change",()=>{
+ const hadFiles=driveFiles.length>0;
+ approved.clear();lastPreview=[];driveFiles=[];scanRootName="";
+ byId("results").style.display="none";
+ if(hadFiles)status("driveStatus","Đã đổi dự án. Hãy chọn thư mục đúng dự án rồi quét lại, không dùng kết quả cũ.","neutral");
+});
+byId("folderUrl").addEventListener("input",()=>{
+ if(!driveFiles.length)return;
+ approved.clear();lastPreview=[];driveFiles=[];scanRootName="";
+ byId("results").style.display="none";
+ status("driveStatus","Đã đổi thư mục Drive. Cần quét lại để tránh nhầm link.","neutral");
+});
+byId("scan").addEventListener("click",async()=>{
+ const project=byId("project").value;
+ if(!project){status("driveStatus","Chọn một dự án từ danh sách ở bước 1.","error");return;}
+ const id=folderId(byId("folderUrl").value);
+ if(!id){status("driveStatus","Dán link thư mục Google Drive (không phải link file PDF).","error");return;}
+ byId("scan").disabled=true;
+ driveFiles=[];approved.clear();lastPreview=[];byId("results").style.display="none";
+ status("driveStatus","Đang đọc danh sách file trong thư mục được chọn…");
+ try{
+  const info=await scanFolder(id);
+  driveFiles=info.files;
+  status("driveStatus","Đã đọc "+info.visited+" thư mục, "+info.total+" mục; tìm thấy "+driveFiles.length+" PDF."+(partialScan?" Phạm vi quét chưa đầy đủ.":"") ,"success");
+  renderPreview();
+ }catch(e){status("driveStatus","Không quét được Drive: "+e.message,"error");}
+ finally{byId("scan").disabled=false;}
+});
+byId("export").addEventListener("click",()=>{
+ const headers=["paymentId","project","contractNo","ipcNo","driveFileId","driveUrl","fileName"];
+ const out=[headers.join("\t")];
+ for(const entry of lastPreview){
+  const selected=approved.get(entry.row.id);
+  if(!selected)continue;
+  const file=entry.candidates.find(f=>f.id===selected);
+  if(!file)continue;
+  const cells=[entry.row.id,entry.row.project,entry.row.contractNo,entry.row.ipcNo,file.id,fileUrl(file),file.name];
+  out.push(cells.map(v=>{const clean=String(v).replace(/[\t\r\n]/g," ");return /^[\s]*[=+@-]/.test(clean)?"\x27"+clean:clean;}).join("\t"));
+ }
+ if(out.length===1){status("status","M chưa duyệt PDF nào. Hãy chọn đúng file ở ít nhất một dòng.","error");return;}
+ const blob=new Blob(["\ufeff"+out.join("\r\n")],{type:"text/tab-separated-values;charset=utf-8"});
+ const url=URL.createObjectURL(blob),link=document.createElement("a");
+ link.href=url;link.download="Drive_IPC_DanhSachLinkDaDuyet.tsv";link.click();
+ setTimeout(()=>URL.revokeObjectURL(url),2000);
+ status("status","Đã tải "+(out.length-1)+" link được duyệt. Chưa có thay đổi nào trên Firebase hoặc Drive.","success");
+});
+</script>
+</body></html>
