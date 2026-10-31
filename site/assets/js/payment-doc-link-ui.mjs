@@ -2,6 +2,7 @@
 import {getApps,getApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {getFirestore,doc,getDoc,updateDoc,deleteField,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+const OWNER_ADMIN_UID="HTx2QuATHxh8zgAawwreg88w65M2";
 const $=(s,p=document)=>p.querySelector(s);
 const clean=s=>String(s??"").trim();
 const driveUrl=raw=>{
@@ -35,7 +36,7 @@ const role=async()=>{
   const uid=auth.currentUser.uid;
   rolePromise=getDoc(doc(db,"authUsers",uid)).then(s=>{
    const d=s.exists()?s.data():{};
-   return {admin:String(d.role||"").toLowerCase()==="admin"&&d.disabled!==true&&d.active!==false,uid};
+   return {admin:uid===OWNER_ADMIN_UID&&String(d.role||"").toLowerCase()==="admin"&&d.disabled!==true&&d.active!==false,uid};
   }).catch(e=>{rolePromise=null;throw e;});
  }
  return rolePromise;
