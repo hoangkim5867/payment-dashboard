@@ -216,7 +216,9 @@ function matchRows(rows,files){
   const contracts=findContract(row.contractNo);
   let crossProjectMatches=0;
   const candidates=files.map(file=>{
-   if(!ipc||!findIPC(file.name).includes(ipc))return null;
+   const nameIpcs=findIPC(file.name);
+   const pathIpcs=findIPC(file.path||"");
+   if(!ipc||!(nameIpcs.length?nameIpcs:pathIpcs).includes(ipc))return null;
    const pieces=(file.path||"").split("/").filter(Boolean);
    const pathParts=mixedRoot?pieces.slice(1):pieces;
    const hasProject=pathParts.some(part=>projectInFolder(row.project,part));
@@ -226,12 +228,14 @@ function matchRows(rows,files){
    if(!identified)return null; // Never match unknown or foreign project folders in all-project mode.
    const fileContracts=findContract(file.path+"/"+file.name);
    const exact=contracts.length>0&&contracts.some(c=>fileContracts.includes(c));
-   return {...file,exact};
+   return {...file,exact,inFileName:nameIpcs.includes(ipc)};
   }).filter(Boolean).sort((a,b)=>Number(b.exact)-Number(a.exact)||a.name.localeCompare(b.name));
   const strong=candidates.filter(c=>c.exact);
+  const strongNamed=strong.filter(c=>c.inFileName);
   let label="Chưa tìm thấy",kind="none";
   if(!ipc||!contracts.length){label="Thiếu mã đối chiếu";kind="none";}
-  else if(strong.length===1){label="1 ứng viên khớp dự án + HĐ + IPC";kind="good";}
+  else if(strongNamed.length===1&&strong.length===1){label="1 ứng viên khớp dự án + HĐ + IPC";kind="good";}
+  else if(strong.length===1){label="Khớp IPC theo thư mục – cần xác nhận";kind="ambig";}
   else if(strong.length>1){label="Nhiều PDF cùng mã – cần chọn";kind="ambig";}
   else if(candidates.length){label="Đúng dự án + IPC, khác HĐ – kiểm tra";kind="ambig";}
   else if(crossProjectMatches){label="IPC trùng ở dự án khác – bỏ qua";kind="none";}
@@ -253,7 +257,7 @@ function renderPreview(){
   const selectCell=document.createElement("td"),sel=document.createElement("select");
   sel.add(new Option("-- Chưa duyệt --",""));
   for(const file of entry.candidates){
-   const prefix=file.exact?"[HĐ + IPC] ":"[Chỉ IPC] ";
+   const prefix=file.exact?(file.inFileName?"[Dự án + HĐ + IPC] ":"[IPC từ thư mục] "):"[Chỉ IPC] ";
    sel.add(new Option(prefix+file.name+" · "+file.path,file.id));
   }
   sel.disabled=!entry.candidates.length;
