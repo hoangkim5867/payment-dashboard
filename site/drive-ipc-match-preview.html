@@ -58,7 +58,7 @@ code{background:#edf1f5;padding:2px 4px;border-radius:4px}
 <h2 style="margin:0">3. Xem kết quả và duyệt thủ công</h2>
 <button id="export" class="secondary">Tải danh sách link đã duyệt (.tsv)</button>
 </div>
-<p class="muted" style="font-size:12px">Không có link nào được lưu chỉ bằng việc chọn ở đây. M phải chọn đúng PDF ở từng hàng rồi mới có trong danh sách xuất thử. File xuất không tự cập nhật Payment.</p>
+<p class="muted" style="font-size:12px">Không có link nào được lưu chỉ bằng việc chọn ở đây. M phải mở kiểm tra rồi chọn đúng PDF hoặc thư mục IPC ở từng hàng. Thư mục IPC chung không xác nhận được số kỳ IPC. File xuất không tự cập nhật Payment.</p>
 <div id="status" class="neutral"></div><div class="tablewrap"><table><thead><tr><th>Dự án</th><th>Hợp đồng</th><th>IPC</th><th>Đề xuất</th><th>Chọn PDF / Duyệt</th><th>Mở xem</th></tr></thead><tbody id="tbody"></tbody></table></div>
 </section>
 <p class="muted" style="font-size:12px">Giới hạn bảo vệ bản thử: tối đa 400 thư mục, 15.000 mục, 9 tầng. Trang báo rõ nếu quét chưa hết. Chỉ đọc tên file/thư mục, không đọc nội dung PDF; không tự gắn kết quả và không mở rộng quyền chia sẻ Drive.</p>
@@ -68,7 +68,7 @@ const CLIENT_ID="217279768663-lkrs0o14b9kg1fi4rk1pt7cpgf7bq3sq.apps.googleuserco
 const SCOPE="https://www.googleapis.com/auth/drive.metadata.readonly";
 const byId=id=>document.getElementById(id);
 const status=(id,message,kind="neutral")=>{const el=byId(id);el.textContent=message;el.className=kind;};
-let allRows=[],driveFiles=[],scanRootName="",accessToken="",expiry=0,googleClient=null,lastPreview=[],approved=new Map(),partialScan=false;
+let allRows=[],driveFiles=[],driveFolders=[],scanRootName="",accessToken="",expiry=0,googleClient=null,lastPreview=[],approved=new Map(),partialScan=false;
 const escapeS=v=>String(v??"").trim();
 const normalized=v=>escapeS(v).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/Đ/g,"D").replace(/đ/g,"d").toUpperCase();
 const findIPC=v=>{
@@ -83,11 +83,11 @@ const findContract=v=>{
  while((m=re.exec(text)))results.push(m[1]+String(Number(m[2])));
  return [...new Set(results)];
 };
-const fileUrl=f=>f.webViewLink||"https://drive.google.com/file/d/"+encodeURIComponent(f.id)+"/view";
+const fileUrl=f=>f.webViewLink||(f.isFolder?"https://drive.google.com/drive/folders/":"https://drive.google.com/file/d/")+encodeURIComponent(f.id)+(f.isFolder?"":"/view");
 const textEl=(tag,value)=>{const el=document.createElement(tag);el.textContent=value;return el;};
 const moneyFreeRow=(row,i)=>({id:escapeS(row.paymentId)||"row-"+i,project:escapeS(row.project),contractNo:escapeS(row.contractNo),ipcNo:escapeS(row.ipcNo)});
 function setRows(rows,from){
- allRows=rows.filter(r=>r.project&&r.contractNo&&r.ipcNo); driveFiles=[]; scanRootName="";
+ allRows=rows.filter(r=>r.project&&r.contractNo&&r.ipcNo); driveFiles=[]; driveFolders=[]; scanRootName="";
  const projects=[...new Set(allRows.map(r=>r.project))].sort((a,b)=>a.localeCompare(b,"vi"));
  const select=byId("project"),previous=select.value;
  select.replaceChildren(new Option("Tất cả dự án ("+projects.length+")", ""));
@@ -165,7 +165,7 @@ async function scanFolder(id){
  const root=await googleGet("files/"+encodeURIComponent(id)+"?fields="+encodeURIComponent("id,name,mimeType")+"&supportsAllDrives=true");
  if(root.mimeType!=="application/vnd.google-apps.folder")throw Error("Link này không phải thư mục Google Drive.");
  scanRootName=root.name||"";
- const queue=[{id,segments:[scanRootName],depth:0}],files=[];
+ const queue=[{id,segments:[scanRootName],depth:0}],files=[],folders=[{id,name:scanRootName,path:"",isFolder:true}];
  let visited=0,total=0;
  partialScan=false;
  while(queue.length){
@@ -186,6 +186,7 @@ async function scanFolder(id){
     total++;
     if(total>15000){partialScan=true;break;}
     if(f.mimeType==="application/vnd.google-apps.folder"){
+     folders.push({...f,path:folder.segments.join("/"),isFolder:true});
      if(folder.depth<9)queue.push({id:f.id,segments:[...folder.segments,f.name],depth:folder.depth+1});
      else partialScan=true;
     }else if(f.mimeType==="application/pdf"||/\.pdf$/i.test(f.name||"")){
@@ -197,7 +198,7 @@ async function scanFolder(id){
   }while(pageToken);
   if(total>15000)break;
  }
- return {files,visited,total};
+ return {files,folders,visited,total};
 }
 const projectKey=name=>{
  const key=normalized(name).replace(/[^A-Z0-9\u4E00-\u9FFF]/g,"");
@@ -205,42 +206,68 @@ const projectKey=name=>{
  return aliases[key]||key;
 };
 const projectInFolder=(project,folder)=>Boolean(projectKey(project))&&projectKey(project)===projectKey(folder);
+const segmentsFor=entry=>(String(entry.path||"")+"/"+String(entry.name||"")).split("/").filter(Boolean);
+const contractTokens=text=>findContract(text).filter(x=>/^(SUBP|SUPL|LAB|ADM)\d+$/.test(x));
+const hasIpcSegment=f=>segmentsFor(f).some(x=>normalized(x)==="IPC");
 function matchRows(rows,files){
- // A root called SSIS can hold many projects: never identify SSIS solely from its parent/root name.
  const projectNames=[...new Set(allRows.map(x=>x.project))];
- const mixedRoot=files.some(file=>(file.path||"").split("/").slice(1).some(segment=>
-  projectNames.some(name=>projectInFolder(name,segment))
- ));
+ const scoped=byId("project").value;
+ const isOwnProject=(entry,row)=>{
+  const pieces=segmentsFor(entry);
+  const others=projectNames.some(name=>name!==row.project&&pieces.some(part=>projectInFolder(name,part)));
+  if(others)return false;
+  if(pieces.some(part=>projectInFolder(row.project,part)))return true;
+  // A subfolder named SUPL / SUPL-050 does not contain its ELYSIAN parent label.
+  if(scoped===row.project){
+   return !projectNames.some(name=>name!==row.project&&projectInFolder(name,scanRootName));
+  }
+  return false;
+ };
  return rows.map(row=>{
-  const ipc=findIPC(row.ipcNo)[0]||"";
-  const contracts=findContract(row.contractNo);
-  let crossProjectMatches=0;
-  const candidates=files.map(file=>{
-   const nameIpcs=findIPC(file.name);
-   const pathIpcs=findIPC(file.path||"");
-   if(!ipc||!(nameIpcs.length?nameIpcs:pathIpcs).includes(ipc))return null;
-   const pieces=(file.path||"").split("/").filter(Boolean);
-   const pathParts=mixedRoot?pieces.slice(1):pieces;
-   const hasProject=pathParts.some(part=>projectInFolder(row.project,part));
-   const otherProject=pathParts.some(part=>projectNames.some(name=>name!==row.project&&projectInFolder(name,part)));
-   if(otherProject&&!hasProject){crossProjectMatches++;return null;}
-   const identified=hasProject||(projectInFolder(row.project,scanRootName)&&!mixedRoot);
-   if(!identified)return null; // Never match unknown or foreign project folders in all-project mode.
-   const fileContracts=findContract(file.path+"/"+file.name);
-   const exact=contracts.length>0&&contracts.some(c=>fileContracts.includes(c));
-   return {...file,exact,inFileName:nameIpcs.includes(ipc)};
-  }).filter(Boolean).sort((a,b)=>Number(b.exact)-Number(a.exact)||a.name.localeCompare(b.name));
-  const strong=candidates.filter(c=>c.exact);
-  const strongNamed=strong.filter(c=>c.inFileName);
-  let label="Chưa tìm thấy",kind="none";
-  if(!ipc||!contracts.length){label="Thiếu mã đối chiếu";kind="none";}
-  else if(strongNamed.length===1&&strong.length===1){label="1 ứng viên khớp dự án + HĐ + IPC";kind="good";}
-  else if(strong.length===1){label="Khớp IPC theo thư mục – cần xác nhận";kind="ambig";}
-  else if(strong.length>1){label="Nhiều PDF cùng mã – cần chọn";kind="ambig";}
-  else if(candidates.length){label="Đúng dự án + IPC, khác HĐ – kiểm tra";kind="ambig";}
-  else if(crossProjectMatches){label="IPC trùng ở dự án khác – bỏ qua";kind="none";}
-  else {label="Không có PDF khớp dự án / hợp đồng";kind="none";}
-  return {row,candidates,label,kind};
+  const ipc=findIPC(row.ipcNo)[0]||"",contracts=contractTokens(row.contractNo);
+  const sameContract=f=>contracts.some(c=>contractTokens(String(f.path||"")+"/"+String(f.name||"")).includes(c));
+  const ownFiles=files.filter(f=>isOwnProject(f,row));
+  const ownFolders=driveFolders.filter(f=>isOwnProject(f,row));
+  const contractFiles=ownFiles.filter(sameContract);
+  const contractFolders=ownFolders.filter(sameContract);
+  const hasProject=ownFiles.length>0||ownFolders.length>0;
+  const hasContract=contractFiles.length>0||contractFolders.length>0;
+  const exactFiles=contractFiles.filter(f=>{
+   const nameIPC=findIPC(f.name),pathIPC=findIPC(f.path);
+   return ipc&&(nameIPC.length?nameIPC:pathIPC).includes(ipc);
+  });
+  const exactFolders=contractFolders.filter(f=>{
+   const nameIPC=findIPC(f.name),pathIPC=findIPC(f.path);
+   return ipc&&(nameIPC.length?nameIPC:pathIPC).includes(ipc)&&/IPC/i.test(f.name);
+  });
+  const genericFolders=contractFolders.filter(f=>normalized(f.name)==="IPC");
+  const genericFiles=contractFiles.filter(f=>hasIpcSegment(f)&&!findIPC(f.name).length&&!findIPC(f.path).length);
+  let candidates=exactFiles.map(f=>({...f,grade:"exactPdf"}));
+  if(!candidates.length)candidates=exactFolders.map(f=>({...f,grade:"numberedFolder"}));
+  if(!candidates.length)candidates=genericFolders.map(f=>({...f,grade:"sharedFolder"}));
+  if(!candidates.length)candidates=genericFiles.map(f=>({...f,grade:"unlabeledPdf"}));
+  candidates=candidates.filter((f,i,arr)=>arr.findIndex(x=>x.id===f.id)===i);
+  const contractPdf=contractFiles.some(f=>!hasIpcSegment(f)&&!findIPC(f.name).length);
+  let label="Chưa có hồ sơ IPC",kind="none",detail="";
+  if(!ipc||!contracts.length){label="Thiếu mã hợp đồng/IPC";detail="Kiểm tra cột hợp đồng và IPC trong Excel";}
+  else if(candidates.length&&candidates[0].grade==="exactPdf"){
+   label=candidates.length===1?"PDF khớp hợp đồng + IPC":"Nhiều PDF cùng IPC – kiểm tra";
+   kind=candidates.length===1?"good":"ambig";
+   detail="Khớp theo tên hoặc đường dẫn, chưa kiểm tra nội dung";
+  }else if(candidates.length){
+   label=candidates[0].grade==="numberedFolder"?"Thư mục có số IPC – kiểm tra":
+    candidates[0].grade==="sharedFolder"?"Có thư mục IPC chung của hợp đồng":"PDF trong IPC nhưng thiếu số kỳ";
+   kind="ambig";detail="Cần mở xem để xác định kỳ IPC, không tự ghép";
+  }else if(hasContract&&contractPdf){
+   label="Có PDF hợp đồng, chưa thấy IPC";detail="PDF hợp đồng không phải hồ sơ thanh toán";
+  }else if(hasContract){
+   label="Có hợp đồng, chưa thấy hồ sơ IPC";detail="Kiểm tra thư mục IPC hoặc quyền chia sẻ";
+  }else if(hasProject){
+   label="Chưa thấy hợp đồng khớp";detail="Có dữ liệu dự án nhưng chưa có đúng mã hợp đồng";
+  }else{
+   label="Chưa xác định thư mục dự án";detail="Nếu quét SUPL/SUBP riêng, chọn dự án ở ô bên trái";
+  }
+  return {row,candidates,label,kind,detail,hasProject,hasContract};
  });
 }
 function renderPreview(){
@@ -253,18 +280,18 @@ function renderPreview(){
   const tr=document.createElement("tr");
   tr.append(textEl("td",entry.row.project),textEl("td",entry.row.contractNo),textEl("td",entry.row.ipcNo));
   const labelCell=document.createElement("td"),tag=textEl("span",entry.label);
-  tag.className="tag "+entry.kind;labelCell.append(tag);tr.append(labelCell);
+  tag.className="tag "+entry.kind;tag.title=entry.detail;labelCell.append(tag);if(entry.detail)labelCell.append(textEl("small"," · "+entry.detail));tr.append(labelCell);
   const selectCell=document.createElement("td"),sel=document.createElement("select");
   sel.add(new Option("-- Chưa duyệt --",""));
   for(const file of entry.candidates){
-   const prefix=file.exact?(file.inFileName?"[Dự án + HĐ + IPC] ":"[IPC từ thư mục] "):"[Chỉ IPC] ";
+   const prefix=({exactPdf:"[Đúng số IPC] ",numberedFolder:"[Thư mục IPC có số] ",sharedFolder:"[Thư mục IPC chung – kiểm tra] ",unlabeledPdf:"[PDF IPC chưa có số – kiểm tra] "})[file.grade]||"[Kiểm tra] ";
    sel.add(new Option(prefix+file.name+" · "+file.path,file.id));
   }
   sel.disabled=!entry.candidates.length;
   sel.addEventListener("change",()=>{if(sel.value)approved.set(entry.row.id,sel.value);else approved.delete(entry.row.id);});
   selectCell.append(sel);tr.append(selectCell);
   const linkCell=document.createElement("td"),link=document.createElement("button");
-  link.className="secondary";link.textContent="Mở PDF";link.disabled=true;
+  link.className="secondary";link.textContent="Mở HS";link.disabled=true;
   sel.addEventListener("change",()=>{link.disabled=!sel.value;});
   link.addEventListener("click",()=>{const f=entry.candidates.find(x=>x.id===sel.value);if(f)window.open(fileUrl(f),"_blank","noopener,noreferrer");});
   linkCell.append(link);tr.append(linkCell);tbody.append(tr);
@@ -282,7 +309,7 @@ byId("project").addEventListener("change",()=>{
 });
 byId("folderUrl").addEventListener("input",()=>{
  if(!driveFiles.length)return;
- approved.clear();lastPreview=[];driveFiles=[];scanRootName="";
+ approved.clear();lastPreview=[];driveFiles=[];driveFolders=[];scanRootName="";
  byId("results").style.display="none";
  status("driveStatus","Đã đổi thư mục Drive. Cần quét lại để tránh nhầm link.","neutral");
 });
@@ -291,25 +318,25 @@ byId("scan").addEventListener("click",async()=>{
  const id=folderId(byId("folderUrl").value);
  if(!id){status("driveStatus","Dán link thư mục SSIS trên Google Drive (không phải link file PDF).","error");return;}
  byId("scan").disabled=true;
- driveFiles=[];approved.clear();lastPreview=[];byId("results").style.display="none";
+ driveFiles=[];driveFolders=[];approved.clear();lastPreview=[];byId("results").style.display="none";
  status("driveStatus","Đang đọc danh sách file trong thư mục được chọn…");
  try{
   const info=await scanFolder(id);
-  driveFiles=info.files;
+  driveFiles=info.files;driveFolders=info.folders;
   status("driveStatus","Đã đọc "+info.visited+" thư mục, "+info.total+" mục; tìm thấy "+driveFiles.length+" PDF."+(partialScan?" CHƯA QUÉT HẾT: hãy chọn thư mục hẹp hơn để tránh sót hồ sơ.":"") ,partialScan?"error":"success");
   renderPreview();
  }catch(e){status("driveStatus","Không quét được Drive: "+e.message,"error");}
  finally{byId("scan").disabled=false;}
 });
 byId("export").addEventListener("click",()=>{
- const headers=["paymentId","project","contractNo","ipcNo","driveFileId","driveUrl","fileName"];
+ const headers=["paymentId","project","contractNo","ipcNo","driveFileId","driveUrl","fileName","matchType"];
  const out=[headers.join("\t")];
  for(const entry of lastPreview){
   const selected=approved.get(entry.row.id);
   if(!selected)continue;
   const file=entry.candidates.find(f=>f.id===selected);
   if(!file)continue;
-  const cells=[entry.row.id,entry.row.project,entry.row.contractNo,entry.row.ipcNo,file.id,fileUrl(file),file.name];
+  const cells=[entry.row.id,entry.row.project,entry.row.contractNo,entry.row.ipcNo,file.id,fileUrl(file),file.name,file.grade];
   out.push(cells.map(v=>{const clean=String(v).replace(/[\t\r\n]/g," ");return /^[\s]*[=+@-]/.test(clean)?"\x27"+clean:clean;}).join("\t"));
  }
  if(out.length===1){status("status","M chưa duyệt PDF nào. Hãy chọn đúng file ở ít nhất một dòng.","error");return;}
