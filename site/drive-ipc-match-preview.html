@@ -41,14 +41,14 @@ code{background:#edf1f5;padding:2px 4px;border-radius:4px}
 <input type="file" id="excelFile" accept=".xlsx,.xls,.xlsm">
 <div class="controls"><button id="loadArchive">Đọc danh sách trong Excel</button><button class="secondary" id="demo">Nạp 3 IPC ví dụ</button></div>
 <div id="archiveStatus" class="neutral">File Excel chỉ được xử lý ngay trên trình duyệt của m, không tải lên máy chủ. Cần có cột Dự án, Số hợp đồng và IPC.</div>
-<label for="project">Chỉ đối chiếu dự án</label><select id="project"><option value="">Chọn dự án sau khi nạp dữ liệu</option></select>
-<p class="muted" style="font-size:12px">Chỉ quét Drive của <strong>một dự án</strong> để tránh nhầm hợp đồng có số giống nhau giữa các dự án.</p>
+<label for="project">Phạm vi đối chiếu</label><select id="project"><option value="">Tất cả dự án trong Excel</option></select>
+<p class="muted" style="font-size:12px">Mặc định dò <strong>tất cả dự án</strong> theo thư mục dự án + mã hợp đồng + IPC. Chỉ chọn một dự án khi muốn thu hẹp kết quả.</p>
 </section>
 <section class="card">
 <h2>2. Đọc thư mục Google Drive được chia sẻ</h2>
-<label for="folderUrl">Link thư mục dự án hoặc thư mục hợp đồng</label>
+<label for="folderUrl">Dán một link thư mục tổng SSIS được chia sẻ</label>
 <input id="folderUrl" placeholder="https://drive.google.com/drive/folders/...">
-<p class="muted" style="font-size:12px">Dùng thư mục được chia sẻ cho chính nick Google của m. Có thể dán link thư mục <code>SUBP-002</code> chứa các IPC. Không cần là chủ sở hữu.</p>
+<p class="muted" style="font-size:12px">Dán <strong>một link SSIS</strong> (chứa ELYSIAN, CR5-1B, OCEANLINK...). Trang sẽ tự đi vào các thư mục con và đọc tên PDF. Cần đăng nhập đúng nick được chia sẻ, không cần là chủ sở hữu.</p>
 <div class="controls"><button class="secondary" id="connectGoogle">Kết nối Google (chỉ đọc tên file)</button><button id="scan" disabled>Quét thư mục &amp; đối chiếu</button></div>
 <div id="driveStatus" class="neutral">Chưa kết nối Google. Google có thể yêu cầu cấp thêm quyền xem thông tin file.</div>
 </section>
@@ -59,9 +59,9 @@ code{background:#edf1f5;padding:2px 4px;border-radius:4px}
 <button id="export" class="secondary">Tải danh sách link đã duyệt (.tsv)</button>
 </div>
 <p class="muted" style="font-size:12px">Không có link nào được lưu chỉ bằng việc chọn ở đây. M phải chọn đúng PDF ở từng hàng rồi mới có trong danh sách xuất thử. File xuất không tự cập nhật Payment.</p>
-<div id="status" class="neutral"></div><div class="tablewrap"><table><thead><tr><th>Hợp đồng</th><th>IPC</th><th>Đề xuất</th><th>Chọn PDF / Duyệt</th><th>Mở xem</th></tr></thead><tbody id="tbody"></tbody></table></div>
+<div id="status" class="neutral"></div><div class="tablewrap"><table><thead><tr><th>Dự án</th><th>Hợp đồng</th><th>IPC</th><th>Đề xuất</th><th>Chọn PDF / Duyệt</th><th>Mở xem</th></tr></thead><tbody id="tbody"></tbody></table></div>
 </section>
-<p class="muted" style="font-size:12px">Giới hạn bản thử: chỉ duyệt tối đa 80 thư mục, 2.500 mục, 6 tầng để tránh quét lan rộng. Nếu file nằm sâu hơn, hãy chọn một thư mục gần bộ hồ sơ hơn. Không đọc nội dung PDF. Phải có quyền Drive để mở file sau khi gắn.</p>
+<p class="muted" style="font-size:12px">Giới hạn bảo vệ bản thử: tối đa 400 thư mục, 15.000 mục, 9 tầng. Trang báo rõ nếu quét chưa hết. Chỉ đọc tên file/thư mục, không đọc nội dung PDF; không tự gắn kết quả và không mở rộng quyền chia sẻ Drive.</p>
 </main>
 <script type="module">
 const CLIENT_ID="217279768663-lkrs0o14b9kg1fi4rk1pt7cpgf7bq3sq.apps.googleusercontent.com";
@@ -90,9 +90,9 @@ function setRows(rows,from){
  allRows=rows.filter(r=>r.project&&r.contractNo&&r.ipcNo); driveFiles=[]; scanRootName="";
  const projects=[...new Set(allRows.map(r=>r.project))].sort((a,b)=>a.localeCompare(b,"vi"));
  const select=byId("project"),previous=select.value;
- select.replaceChildren(new Option("Chọn dự án", ""));
+ select.replaceChildren(new Option("Tất cả dự án ("+projects.length+")", ""));
  projects.forEach(name=>select.add(new Option(name,name)));
- select.value=projects.includes(previous)?previous:(projects.length===1?projects[0]:"");
+ select.value=projects.includes(previous)?previous:"";
  approved.clear();lastPreview=[];byId("results").style.display="none";
  status("archiveStatus",from+": "+allRows.length+" khoản đủ dự án, hợp đồng và IPC ("+projects.length+" dự án).","success");
 }
@@ -169,8 +169,9 @@ async function scanFolder(id){
  let visited=0,total=0;
  partialScan=false;
  while(queue.length){
-  if(visited>=80){partialScan=true;break;}
+  if(visited>=400){partialScan=true;break;}
   const folder=queue.shift();visited++;
+  if(visited===1||visited%10===0)status("driveStatus","Đang quét "+visited+" thư mục, "+total+" mục. Đọc cả thư mục con trong "+scanRootName+"…","neutral");
   let pageToken="";
   do{
    const params=new URLSearchParams({
@@ -183,56 +184,80 @@ async function scanFolder(id){
    if(page.incompleteSearch)partialScan=true;
    for(const f of page.files||[]){
     total++;
-    if(total>2500){partialScan=true;break;}
+    if(total>15000){partialScan=true;break;}
     if(f.mimeType==="application/vnd.google-apps.folder"){
-     if(folder.depth<6)queue.push({id:f.id,segments:[...folder.segments,f.name],depth:folder.depth+1});
+     if(folder.depth<9)queue.push({id:f.id,segments:[...folder.segments,f.name],depth:folder.depth+1});
      else partialScan=true;
     }else if(f.mimeType==="application/pdf"||/\.pdf$/i.test(f.name||"")){
      files.push({...f,path:folder.segments.join("/")});
     }
    }
-   if(total>2500)break;
+   if(total>15000)break;
    pageToken=page.nextPageToken||"";
   }while(pageToken);
-  if(total>2500)break;
+  if(total>15000)break;
  }
  return {files,visited,total};
 }
+const projectKey=name=>{
+ const key=normalized(name).replace(/[^A-Z0-9\u4E00-\u9FFF]/g,"");
+ const aliases={"EATON":"EATONPARK","EATONP1":"EATONPARK","EATONPARKP1":"EATONPARK","OCEANLINKPROJECT":"OCEANLINK"};
+ return aliases[key]||key;
+};
+const projectInFolder=(project,folder)=>Boolean(projectKey(project))&&projectKey(project)===projectKey(folder);
 function matchRows(rows,files){
+ // A root called SSIS can hold many projects: never identify SSIS solely from its parent/root name.
+ const projectNames=[...new Set(allRows.map(x=>x.project))];
+ const mixedRoot=files.some(file=>(file.path||"").split("/").slice(1).some(segment=>
+  projectNames.some(name=>projectInFolder(name,segment))
+ ));
  return rows.map(row=>{
   const ipc=findIPC(row.ipcNo)[0]||"";
   const contracts=findContract(row.contractNo);
+  let crossProjectMatches=0;
   const candidates=files.map(file=>{
-   const fileIpcs=findIPC(file.name);
-   if(!ipc||!fileIpcs.includes(ipc))return null;
+   const nameIpcs=findIPC(file.name);
+   const pathIpcs=findIPC(file.path||"");
+   if(!ipc||!(nameIpcs.length?nameIpcs:pathIpcs).includes(ipc))return null;
+   const pieces=(file.path||"").split("/").filter(Boolean);
+   const pathParts=mixedRoot?pieces.slice(1):pieces;
+   const hasProject=pathParts.some(part=>projectInFolder(row.project,part));
+   const otherProject=pathParts.some(part=>projectNames.some(name=>name!==row.project&&projectInFolder(name,part)));
+   if(otherProject&&!hasProject){crossProjectMatches++;return null;}
+   const identified=hasProject||(projectInFolder(row.project,scanRootName)&&!mixedRoot);
+   if(!identified)return null; // Never match unknown or foreign project folders in all-project mode.
    const fileContracts=findContract(file.path+"/"+file.name);
    const exact=contracts.length>0&&contracts.some(c=>fileContracts.includes(c));
-   return {...file,exact};
+   return {...file,exact,inFileName:nameIpcs.includes(ipc)};
   }).filter(Boolean).sort((a,b)=>Number(b.exact)-Number(a.exact)||a.name.localeCompare(b.name));
   const strong=candidates.filter(c=>c.exact);
+  const strongNamed=strong.filter(c=>c.inFileName);
   let label="Chưa tìm thấy",kind="none";
   if(!ipc||!contracts.length){label="Thiếu mã đối chiếu";kind="none";}
-  else if(strong.length===1){label="1 ứng viên khớp hợp đồng + IPC";kind="good";}
+  else if(strongNamed.length===1&&strong.length===1){label="1 ứng viên khớp dự án + HĐ + IPC";kind="good";}
+  else if(strong.length===1){label="Khớp IPC theo thư mục – cần xác nhận";kind="ambig";}
   else if(strong.length>1){label="Nhiều PDF cùng mã – cần chọn";kind="ambig";}
-  else if(candidates.length){label="Chỉ trùng IPC – cần kiểm tra";kind="ambig";}
+  else if(candidates.length){label="Đúng dự án + IPC, khác HĐ – kiểm tra";kind="ambig";}
+  else if(crossProjectMatches){label="IPC trùng ở dự án khác – bỏ qua";kind="none";}
+  else {label="Không có PDF khớp dự án / hợp đồng";kind="none";}
   return {row,candidates,label,kind};
  });
 }
 function renderPreview(){
  const project=byId("project").value;
- const rows=allRows.filter(r=>r.project===project);
+ const rows=project?allRows.filter(r=>r.project===project):allRows;
  lastPreview=matchRows(rows,driveFiles);
  approved.clear();
  const tbody=byId("tbody");tbody.replaceChildren();
  for(const entry of lastPreview){
   const tr=document.createElement("tr");
-  tr.append(textEl("td",entry.row.contractNo),textEl("td",entry.row.ipcNo));
+  tr.append(textEl("td",entry.row.project),textEl("td",entry.row.contractNo),textEl("td",entry.row.ipcNo));
   const labelCell=document.createElement("td"),tag=textEl("span",entry.label);
   tag.className="tag "+entry.kind;labelCell.append(tag);tr.append(labelCell);
   const selectCell=document.createElement("td"),sel=document.createElement("select");
   sel.add(new Option("-- Chưa duyệt --",""));
   for(const file of entry.candidates){
-   const prefix=file.exact?"[HĐ + IPC] ":"[Chỉ IPC] ";
+   const prefix=file.exact?(file.inFileName?"[Dự án + HĐ + IPC] ":"[IPC từ thư mục] "):"[Chỉ IPC] ";
    sel.add(new Option(prefix+file.name+" · "+file.path,file.id));
   }
   sel.disabled=!entry.candidates.length;
@@ -251,10 +276,9 @@ function renderPreview(){
  +(partialScan?" CẢNH BÁO: Chưa quét hết thư mục, hãy chọn thư mục hẹp hơn.":""),partialScan?"error":"neutral");
 }
 byId("project").addEventListener("change",()=>{
- const hadFiles=driveFiles.length>0;
- approved.clear();lastPreview=[];driveFiles=[];scanRootName="";
+ approved.clear();lastPreview=[];
  byId("results").style.display="none";
- if(hadFiles)status("driveStatus","Đã đổi dự án. Hãy chọn thư mục đúng dự án rồi quét lại, không dùng kết quả cũ.","neutral");
+ if(driveFiles.length)renderPreview();
 });
 byId("folderUrl").addEventListener("input",()=>{
  if(!driveFiles.length)return;
@@ -263,17 +287,16 @@ byId("folderUrl").addEventListener("input",()=>{
  status("driveStatus","Đã đổi thư mục Drive. Cần quét lại để tránh nhầm link.","neutral");
 });
 byId("scan").addEventListener("click",async()=>{
- const project=byId("project").value;
- if(!project){status("driveStatus","Chọn một dự án từ danh sách ở bước 1.","error");return;}
+ if(!allRows.length){status("driveStatus","Hãy đọc Excel hoặc nạp dữ liệu ví dụ trước.","error");return;}
  const id=folderId(byId("folderUrl").value);
- if(!id){status("driveStatus","Dán link thư mục Google Drive (không phải link file PDF).","error");return;}
+ if(!id){status("driveStatus","Dán link thư mục SSIS trên Google Drive (không phải link file PDF).","error");return;}
  byId("scan").disabled=true;
  driveFiles=[];approved.clear();lastPreview=[];byId("results").style.display="none";
  status("driveStatus","Đang đọc danh sách file trong thư mục được chọn…");
  try{
   const info=await scanFolder(id);
   driveFiles=info.files;
-  status("driveStatus","Đã đọc "+info.visited+" thư mục, "+info.total+" mục; tìm thấy "+driveFiles.length+" PDF."+(partialScan?" Phạm vi quét chưa đầy đủ.":"") ,"success");
+  status("driveStatus","Đã đọc "+info.visited+" thư mục, "+info.total+" mục; tìm thấy "+driveFiles.length+" PDF."+(partialScan?" CHƯA QUÉT HẾT: hãy chọn thư mục hẹp hơn để tránh sót hồ sơ.":"") ,partialScan?"error":"success");
   renderPreview();
  }catch(e){status("driveStatus","Không quét được Drive: "+e.message,"error");}
  finally{byId("scan").disabled=false;}
