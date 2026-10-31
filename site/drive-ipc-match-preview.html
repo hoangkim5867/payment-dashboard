@@ -207,7 +207,7 @@ const projectKey=name=>{
 };
 const projectInFolder=(project,folder)=>Boolean(projectKey(project))&&projectKey(project)===projectKey(folder);
 const segmentsFor=entry=>(String(entry.path||"")+"/"+String(entry.name||"")).split("/").filter(Boolean);
-const contractTokens=text=>findContract(text).filter(x=>/^(SUBP|SUPL|LAB|ADM)\d+$/.test(x));
+const contractTokens=text=>findContract(text).filter(x=>/^(SUBP|SUPL|LAB|ADM|MEP)\d+$/.test(x));
 const hasIpcSegment=f=>segmentsFor(f).some(x=>normalized(x)==="IPC");
 function matchRows(rows,files){
  const projectNames=[...new Set(allRows.map(x=>x.project))];
@@ -219,7 +219,8 @@ function matchRows(rows,files){
   if(pieces.some(part=>projectInFolder(row.project,part)))return true;
   // A subfolder named SUPL / SUPL-050 does not contain its ELYSIAN parent label.
   if(scoped===row.project){
-   return !projectNames.some(name=>name!==row.project&&projectInFolder(name,scanRootName));
+   const narrowRoot=/^(SUPL|SUBP|LAB|ADM|MEP|IPC)([-_ ]*0*\d+)?$/i.test(scanRootName);
+   return narrowRoot&&!projectNames.some(name=>name!==row.project&&projectInFolder(name,scanRootName));
   }
   return false;
  };
@@ -228,7 +229,7 @@ function matchRows(rows,files){
   const sameContract=f=>contracts.some(c=>contractTokens(String(f.path||"")+"/"+String(f.name||"")).includes(c));
   const ownFiles=files.filter(f=>isOwnProject(f,row));
   const ownFolders=driveFolders.filter(f=>isOwnProject(f,row));
-  const contractFiles=ownFiles.filter(sameContract);
+  const contractFiles=ownFiles.filter(f=>sameContract(f)&&!contractTokens(f.name).some(c=>!contracts.includes(c)));
   const contractFolders=ownFolders.filter(sameContract);
   const hasProject=ownFiles.length>0||ownFolders.length>0;
   const hasContract=contractFiles.length>0||contractFolders.length>0;
@@ -251,8 +252,9 @@ function matchRows(rows,files){
   let label="Chưa có hồ sơ IPC",kind="none",detail="";
   if(!ipc||!contracts.length){label="Thiếu mã hợp đồng/IPC";detail="Kiểm tra cột hợp đồng và IPC trong Excel";}
   else if(candidates.length&&candidates[0].grade==="exactPdf"){
-   label=candidates.length===1?"PDF khớp hợp đồng + IPC":"Nhiều PDF cùng IPC – kiểm tra";
-   kind=candidates.length===1?"good":"ambig";
+   const ambiguousMep=ipc.startsWith("MEP")&&contracts.includes(ipc);
+   label=ambiguousMep?"Mã MEP có thể là HĐ hoặc IPC – kiểm tra":candidates.length===1?"PDF khớp hợp đồng + IPC":"Nhiều PDF cùng IPC – kiểm tra";
+   kind=candidates.length===1&&!ambiguousMep?"good":"ambig";
    detail="Khớp theo tên hoặc đường dẫn, chưa kiểm tra nội dung";
   }else if(candidates.length){
    label=candidates[0].grade==="numberedFolder"?"Thư mục có số IPC – kiểm tra":
@@ -299,7 +301,9 @@ function renderPreview(){
  byId("results").style.display="block";
  const good=lastPreview.filter(x=>x.kind==="good").length;
  const ambiguous=lastPreview.filter(x=>x.kind==="ambig").length;
- status("status",rows.length+" khoản · "+good+" khớp một file · "+ambiguous+" cần kiểm tra · "+(rows.length-good-ambiguous)+" chưa khớp."
+  const contractOnly=lastPreview.filter(x=>x.hasContract&&!x.candidates.length).length;
+  const noContract=lastPreview.filter(x=>x.hasProject&&!x.hasContract).length;
+ status("status",rows.length+" khoản · "+good+" khớp một file · "+ambiguous+" cần kiểm tra · "+(rows.length-good-ambiguous)+" chưa khớp. "+contractOnly+" có HĐ nhưng thiếu hồ sơ IPC; "+noContract+" chưa thấy mã HĐ."
  +(partialScan?" CẢNH BÁO: Chưa quét hết thư mục, hãy chọn thư mục hẹp hơn.":""),partialScan?"error":"neutral");
 }
 byId("project").addEventListener("change",()=>{
