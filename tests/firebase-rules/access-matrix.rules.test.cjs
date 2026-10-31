@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),fs=require('node:fs'),path=require('node:path');
 const {initializeTestEnvironment,assertSucceeds,assertFails}=require('@firebase/rules-unit-testing');
-const {doc,getDoc,setDoc,updateDoc,deleteDoc,serverTimestamp}=require('firebase/firestore');
+const {doc,getDoc,setDoc,updateDoc,deleteDoc,deleteField,serverTimestamp}=require('firebase/firestore');
 const ADMIN='HTx2QuATHxh8zgAawwreg88w65M2';
 let env;
 test.before(async()=>{
@@ -10,7 +10,7 @@ test.before(async()=>{
  await env.clearFirestore();
  await env.withSecurityRulesDisabled(async ctx=>{
   const db=ctx.firestore();
-  for(const [uid,data] of Object.entries({[ADMIN]:{role:'Admin'},staff:{role:'Staff'},disabled:{role:'Staff',disabled:true},inactive:{role:'Staff',active:false},invalid:{role:'Visitor'}}))await setDoc(doc(db,'authUsers',uid),data);
+  for(const [uid,data] of Object.entries({[ADMIN]:{role:'Admin'},otherAdmin:{role:'Admin'},staff:{role:'Staff'},disabled:{role:'Staff',disabled:true},inactive:{role:'Staff',active:false},invalid:{role:'Visitor'}}))await setDoc(doc(db,'authUsers',uid),data);
   for(const p of ['payments/seed','activityLogs/seed','cash_control_private/seed','paymentHistorySources2026/raw','systemConfig/paymentLookupV1'])await setDoc(doc(db,p),{amount:1});
  });
 });
@@ -52,4 +52,24 @@ test('Cash private requires approved owner UID and email, including unverified i
 test('trusted Admin profile management remains available',async()=>{
  await assertSucceeds(setDoc(doc(dbFor(ADMIN),'authUsers/new-staff'),{role:'Staff',displayName:'Test'}));
  await assertSucceeds(updateDoc(doc(dbFor(ADMIN),'authUsers/new-staff'),{disabled:true}));
+});
+
+test('only owner Admin can set/remove IPC dossier links, Staff may read',async()=>{
+ const paymentId='link-policy-test';
+ const month=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit'}).format(new Date());
+ await env.withSecurityRulesDisabled(async ctx=>{
+  await setDoc(doc(ctx.firestore(),'payments',paymentId),{paymentMonth:month,amount:100,project:'ELYSIAN',contractNo:'SUPL-050',ipcNo:'IPC001'});
+ });
+ const owner=doc(dbFor(ADMIN),'payments',paymentId);
+ const staff=doc(dbFor('staff'),'payments',paymentId);
+ const otherAdmin=doc(dbFor('otherAdmin'),'payments',paymentId);
+ const url='https://drive.google.com/drive/folders/1BX5qQN7nRqpCWoPD_evwCkeRtTV2Dzzn';
+ await assertSucceeds(updateDoc(owner,{ipcDocumentUrl:url,ipcDocumentUpdatedByUid:ADMIN,ipcDocumentUpdatedAt:serverTimestamp()}));
+ await assertSucceeds(getDoc(staff));
+ await assertFails(updateDoc(staff,{ipcDocumentUrl:'https://drive.google.com/file/d/1BX5qQN7nRqpCWoPD_evwCkeRtTV2Dzzn/view'}));
+ await assertFails(updateDoc(otherAdmin,{ipcDocumentUrl:url,ipcDocumentUpdatedByUid:'otherAdmin',ipcDocumentUpdatedAt:serverTimestamp()}));
+ await assertFails(updateDoc(owner,{ipcDocumentUrl:'https://example.org/invalid',ipcDocumentUpdatedByUid:ADMIN}));
+ await assertSucceeds(updateDoc(staff,{processPaper:'done'}));
+ await assertFails(setDoc(doc(dbFor('staff'),'payments','staff-forged-dossier'),{paymentMonth:month,amount:100,createdByUid:'staff',ipcDocumentUrl:url}));
+ await assertSucceeds(updateDoc(owner,{ipcDocumentUrl:deleteField(),ipcDocumentUpdatedByUid:deleteField(),ipcDocumentUpdatedAt:deleteField()}));
 });
