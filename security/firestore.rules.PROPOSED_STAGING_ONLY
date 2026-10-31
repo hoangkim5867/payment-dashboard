@@ -54,7 +54,10 @@ service cloud.firestore {
         || (trustedProfileAdmin() && adminUser()
           && optionalText(request.resource.data,'ipcDocumentUrl',2048)
           && optionalText(request.resource.data,'ipcDocumentUpdatedByUid',128)
-          && request.resource.data.get('ipcDocumentUpdatedByUid','') == request.auth.uid);
+          && (!request.resource.data.keys().hasAny(ipcDocumentLinkFields())
+              || (request.resource.data.get('ipcDocumentUrl','') is string
+                  && request.resource.data.get('ipcDocumentUrl','').matches('^https://(drive|docs)[.]google[.]com/.*')
+                  && request.resource.data.get('ipcDocumentUpdatedByUid','') == request.auth.uid)));
     }
     function paidPayment(data){
       let actual = data.get('processActualAmount', '');
