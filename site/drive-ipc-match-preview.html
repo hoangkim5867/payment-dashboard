@@ -27,19 +27,20 @@ code{background:#edf1f5;padding:2px 4px;border-radius:4px}
 @media(max-width:780px){.grid{grid-template-columns:1fr}main{padding:15px 10px}header{padding:13px}h1{font-size:20px}}
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js" defer></script>
 </head><body>
 <header><b>Payment MASTER · Thử tìm hồ sơ IPC</b><a href="./payment-archive.html">← Kho chứng từ</a></header>
 <main>
 <h1>Đối chiếu hồ sơ được chia sẻ trên Google Drive</h1>
-<p class="muted">Thử tìm PDF theo <strong>hợp đồng + số IPC</strong>, ngay cả khi tên dự án bị nhân viên gõ khác. Bản thử này chỉ đề xuất link, chưa tự gắn vào Payment.</p>
-<div id="testBanner" class="note warn"><strong>CHẾ ĐỘ THỬ AN TOÀN:</strong> Chỉ đọc dữ liệu khi m bấm nút. Không chỉnh sửa Google Drive, không ghi Firebase, không động tới UNC. Token Google chỉ nằm trong bộ nhớ tab, không gửi đến máy chủ của Payment.</div>
+<p class="muted">Thử tìm PDF theo <strong>hợp đồng + số IPC</strong>, ngay cả khi tên dự án bị nhân viên gõ khác. M dùng file Excel xuất từ Kho chứng từ, không cần nhập từng khoản hoặc đọc Firebase.</p>
+<div id="testBanner" class="note warn"><strong>CHẾ ĐỘ THỬ AN TOÀN:</strong> Chỉ đọc file Excel ngay trong trình duyệt và chỉ quét Drive khi m bấm nút. Không đọc/ghi Firebase, không chỉnh sửa Google Drive, không động tới UNC. Token Google chỉ nằm trong bộ nhớ tab, không gửi đến máy chủ Payment.</div>
 <div class="grid">
 <section class="card">
 <h2>1. Chọn các khoản cần tìm hồ sơ</h2>
-<label for="month">Tháng thanh toán (lấy từ Kho chứng từ)</label>
-<input type="month" id="month" value="2026-10">
-<div class="controls"><button id="loadArchive">Lấy khoản từ Kho chứng từ</button><button class="secondary" id="demo">Nạp 3 IPC ví dụ</button></div>
-<div id="archiveStatus" class="neutral">Nếu lấy từ Kho, chỉ đọc 1 chứng từ tổng hợp của đúng tháng khi bấm nút. Cần đăng nhập Payment trước.</div>
+<label for="excelFile">Chọn file Excel đã tải từ Kho chứng từ hoặc Payment</label>
+<input type="file" id="excelFile" accept=".xlsx,.xls,.xlsm">
+<div class="controls"><button id="loadArchive">Đọc danh sách trong Excel</button><button class="secondary" id="demo">Nạp 3 IPC ví dụ</button></div>
+<div id="archiveStatus" class="neutral">File Excel chỉ được xử lý ngay trên trình duyệt của m, không tải lên máy chủ. Cần có cột Dự án, Số hợp đồng và IPC.</div>
 <label for="project">Chỉ đối chiếu dự án</label><select id="project"><option value="">Chọn dự án sau khi nạp dữ liệu</option></select>
 <p class="muted" style="font-size:12px">Chỉ quét Drive của <strong>một dự án</strong> để tránh nhầm hợp đồng có số giống nhau giữa các dự án.</p>
 </section>
@@ -57,19 +58,14 @@ code{background:#edf1f5;padding:2px 4px;border-radius:4px}
 <h2 style="margin:0">3. Xem kết quả và duyệt thủ công</h2>
 <button id="export" class="secondary">Tải danh sách link đã duyệt (.tsv)</button>
 </div>
-<p class="muted" style="font-size:12px">Không có link nào được lưu chỉ bằng việc chọn ở đây. M phải chọn đúng PDF ở từng hàng rồi mới có trong danh sách xuất thử.</p>
+<p class="muted" style="font-size:12px">Không có link nào được lưu chỉ bằng việc chọn ở đây. M phải chọn đúng PDF ở từng hàng rồi mới có trong danh sách xuất thử. File xuất không tự cập nhật Payment.</p>
 <div id="status" class="neutral"></div><div class="tablewrap"><table><thead><tr><th>Hợp đồng</th><th>IPC</th><th>Đề xuất</th><th>Chọn PDF / Duyệt</th><th>Mở xem</th></tr></thead><tbody id="tbody"></tbody></table></div>
 </section>
 <p class="muted" style="font-size:12px">Giới hạn bản thử: chỉ duyệt tối đa 80 thư mục, 2.500 mục, 6 tầng để tránh quét lan rộng. Nếu file nằm sâu hơn, hãy chọn một thư mục gần bộ hồ sơ hơn. Không đọc nội dung PDF. Phải có quyền Drive để mở file sau khi gắn.</p>
 </main>
 <script type="module">
-import {initializeApp,getApps,getApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {getAuth} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,doc,getDoc} from "./assets/js/firestore-payment.mjs";
 const CLIENT_ID="217279768663-lkrs0o14b9kg1fi4rk1pt7cpgf7bq3sq.apps.googleusercontent.com";
 const SCOPE="https://www.googleapis.com/auth/drive.metadata.readonly";
-const db=getFirestore(getApps().length?getApp():initializeApp({apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",appId:"1:217279768663:web:ad6b423078aee5ca925b12"}));
-const auth=getAuth();
 const byId=id=>document.getElementById(id);
 const status=(id,message,kind="neutral")=>{const el=byId(id);el.textContent=message;el.className=kind;};
 let allRows=[],driveFiles=[],scanRootName="",accessToken="",expiry=0,googleClient=null,lastPreview=[],approved=new Map(),partialScan=false;
@@ -104,18 +100,34 @@ byId("demo").addEventListener("click",()=>{
  setRows(["IPC001","IPC002","IPC003"].map((ipc,i)=>moneyFreeRow({project:"OCEAN LINK",contractNo:"OCEANLINK-MEP-SUBP-002",ipcNo:ipc,paymentId:"EXAMPLE-"+i},i)),"Dữ liệu ví dụ");
 });
 byId("loadArchive").addEventListener("click",async()=>{
- const month=byId("month").value;
- if(!/^\d{4}-\d{2}$/.test(month)){status("archiveStatus","Chọn tháng hợp lệ.","error");return;}
- if(!auth.currentUser){status("archiveStatus","Chưa đăng nhập Payment. Mở Payment và đăng nhập rồi quay lại trang thử.","error");return;}
- byId("loadArchive").disabled=true;
- status("archiveStatus","Đang đọc đúng một bản ghi tổng hợp tháng "+month+"…");
+ const file=byId("excelFile").files?.[0];
+ if(!file){status("archiveStatus","Chọn file Excel xuất từ Kho chứng từ hoặc Payment trước.","error");return;}
+ if(!window.XLSX){status("archiveStatus","Chưa tải được thư viện Excel. Kiểm tra mạng rồi thử lại.","error");return;}
+ byId("loadArchive").disabled=true;status("archiveStatus","Đang đọc file Excel ngay trên máy…");
  try{
-  const snapshot=await getDoc(doc(db,"paymentArchiveDetails",month));
-  if(!snapshot.exists())throw Error("Tháng này chưa có dữ liệu đã chốt trong Kho.");
-  const rows=snapshot.data().rows;
-  if(!Array.isArray(rows))throw Error("Dữ liệu Kho tháng này không có danh sách khoản.");
-  setRows(rows.map(moneyFreeRow),"Đã đọc Kho tháng "+month);
- }catch(e){status("archiveStatus","Không đọc được Kho: "+e.message,"error");}
+  const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});
+  let extracted=[],selectedSheet="";
+  for(const name of wb.SheetNames){
+   const sheet=wb.Sheets[name],table=XLSX.utils.sheet_to_json(sheet,{header:1,defval:"",blankrows:false});
+   let header=-1,cols=[];
+   for(let i=0;i<Math.min(table.length,30);i++){
+    const arr=(table[i]||[]).map(x=>normalized(x).replace(/[\s._-]/g,""));
+    const project=arr.findIndex(x=>["DUAN","项目","PROJECT"].includes(x));
+    const contract=arr.findIndex(x=>["SOHOPDONG","合同编号","CONTRACTNO","CONTRACTNUMBER"].includes(x));
+    const ipc=arr.findIndex(x=>["IPC","SOIPC","IPCNO"].includes(x));
+    if(project>=0&&contract>=0&&ipc>=0){header=i;cols=[project,contract,ipc];break;}
+   }
+   if(header<0)continue;
+   const records=table.slice(header+1).map((row,i)=>moneyFreeRow({
+    project:row[cols[0]],contractNo:row[cols[1]],ipcNo:row[cols[2]],
+    paymentId:"EXCEL-"+name+"-"+String(i+header+2)
+   },i));
+   const valid=records.filter(x=>x.project&&x.contractNo&&x.ipcNo);
+   if(valid.length>extracted.length){extracted=valid;selectedSheet=name;}
+  }
+  if(!extracted.length)throw Error("Không thấy bảng có đủ 3 cột Dự án, Số hợp đồng, IPC. Hãy dùng file Excel chi tiết từ Kho/Payment.");
+  setRows(extracted,"Excel · sheet "+selectedSheet);
+ }catch(e){status("archiveStatus","Không đọc được Excel: "+e.message,"error");}
  finally{byId("loadArchive").disabled=false;}
 });
 byId("connectGoogle").addEventListener("click",()=>{
