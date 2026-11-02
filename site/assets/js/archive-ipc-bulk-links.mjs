@@ -2,7 +2,7 @@
 // Only metadata is read from Google Drive; no PDF files are uploaded/downloaded.
 import {getApps,getApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,doc,getDoc,runTransaction,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getFirestore,doc,getDoc,runTransaction,serverTimestamp,FieldPath} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {GOOGLE_DRIVE_CLIENT_ID,GOOGLE_DRIVE_SCOPE,folderId,scanDriveFolder,findPaymentPdfCandidates} from "./drive-ipc-lookup.mjs";
 
 const OWNER_UID="HTx2QuATHxh8zgAawwreg88w65M2";
@@ -193,7 +193,7 @@ if(view){
   if(pending.length>40){message("Tối đa 40 khoản mỗi lượt. Bỏ chọn bớt rồi lưu tiếp.",true);return;}
   const label="Lưu "+pending.length+" link PDF vào khoản thanh toán đã trả của tháng "+currentMonth+"? Chỉ cập nhật trường hồ sơ, KHÔNG ghi đè link cũ, tiền, UNC hay tiến trình.";
   if(!confirm(label))return;
-  saving=true;saveButton.disabled=true;let saved=0,skipped=0,failed=0;
+  saving=true;saveButton.disabled=true;let saved=0,skipped=0,failed=0;const savedLinks=[];
   try{
    const uid=await ownerGuard();
    for(const p of pending){
@@ -214,12 +214,13 @@ if(view){
       if(!isPaid(data,p.data))return "mismatch";
       if(data.ipcDocumentUrl)return "existing";
       transaction.update(ref,{ipcDocumentUrl:pdfUrl,ipcDocumentUpdatedAt:serverTimestamp(),ipcDocumentUpdatedByUid:uid});
+       transaction.update(doc(db,"paymentArchiveDetails",currentMonth),new FieldPath("ipcDocumentLinks",p.data.id),pdfUrl);
       return "saved";
      });
      if(outcome==="saved"){
       window.dispatchEvent(new CustomEvent("payment-ipc-link-status-changed",{detail:{paymentId:p.data.id,linked:true}}));
       p.saved=true;p.checked=false;p.checkbox.checked=false;p.checkbox.disabled=true;
-      p.row.classList.add("row-saved");p.result.textContent="✓ Đã lưu";p.result.className="status success";saved++;
+      p.row.classList.add("row-saved");p.result.textContent="✓ Đã lưu";p.result.className="status success";saved++;savedLinks.push([p.data.id,pdfUrl]);
      }else{
       p.checked=false;p.checkbox.checked=false;p.checkbox.disabled=true;
       p.result.textContent=outcome==="existing"?"Đã có link, không ghi đè":outcome==="missing"?"Không có khoản gốc trong Payment":"Dữ liệu khoản đã thay đổi hoặc không còn đã trả";
@@ -227,7 +228,8 @@ if(view){
      }
     }catch(e){p.result.textContent="Lưu lỗi: "+(e.message||e);p.result.className="status error";failed++;}
    }
-   message("Đã lưu "+saved+" link · bỏ qua "+skipped+" · lỗi "+failed+". Mọi khoản vẫn kiểm tra độc lập với dữ liệu thật.");
+   if(savedLinks.length)window.__archiveDossierUpdateLocal?.(currentMonth,Object.fromEntries(savedLinks));
+   message("Đã lưu "+saved+" link · bỏ qua "+skipped+" · lỗi "+failed+". Payment và Kho cập nhật cùng một giao dịch.");
   }catch(e){message("Không xác thực được Admin: "+(e.message||e),true);}
   finally{saving=false;syncSelected();}
  });

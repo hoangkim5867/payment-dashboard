@@ -37240,8 +37240,16 @@ function buildPaymentArchiveDetails(month,payments){
         0
     );
     const uncCount = rows.filter(row => !!row.uncFileId).length;
-
-    return {month,rows,rowCount:rows.length,totalActualAmount,uncCount};
+    // Link index is carried by the existing Archive month document.
+    // Staff do not need to re-read individual Payment records.
+    const ipcDocumentLinks=Object.create(null);
+    orderedPayments.forEach(payment=>{
+        const id=String(payment.id||"").trim();
+        const url=String(payment.ipcDocumentUrl||"").trim();
+        if(id && /^https:\/\/(drive|docs)\.google\.com\//i.test(url))ipcDocumentLinks[id]=url;
+    });
+    return {month,rows,rowCount:rows.length,totalActualAmount,uncCount,
+        ipcDocumentLinks,ipcDocumentLinksUnresolvedIds:[],ipcDocumentLinksComplete:true};
 }
 
 /* Compact lookup saved with the existing monthly archive metadata.
@@ -37664,6 +37672,7 @@ async function removePaymentsFromArchivesAfterPurge(deletedPayments=[]){
                 uncCount,
                 companyIndex:buildPaymentArchiveCompanyIndex(remainingPayments),
                 companyIndexVersion:1,
+                ipcDocumentLinksComplete:true,
                 updatedAt:serverTimestamp(),
                 updatedBy:currentOperatorName || "",
                 updatedByUid:currentAuthUser?.uid || ""
