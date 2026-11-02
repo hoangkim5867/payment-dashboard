@@ -47,3 +47,38 @@ test('Confirmed Admin manual and bulk link saves update Archive index, never ext
  assert.match(bulk,/__archiveDossierUpdateLocal/);
  assert.match(archive,/sessionDetailCache\.set\(String\(month\),currentDetails\)/);
 });
+
+test('One-time all-month scan reads only Archive detail snapshots on explicit Admin click',()=>{
+ assert.match(archive,/__archivePaidIpcAllPreview=/);
+ assert.match(archive,/__archivePaidIpcAllRows=async onProgress/);
+ assert.match(archive,/sessionDetailCache\.get\(month\)/);
+ assert.match(archive,/getDoc\(doc\(db,"paymentArchiveDetails",month\)\)/);
+ assert.match(archive,/if\(months\.length>60\)/);
+ assert.match(archive,/if\(all\.length>6000\)/);
+ assert.match(archive,/paidIpcRowsFromDetails\(details,month,true\)/);
+ assert.match(archive,/!skipIndexed/);
+ assert.match(archive,/duplicates\.add\(row\.id\)/);
+ assert.match(bulk,/allButton\.addEventListener\("click",openAllMonths\)/);
+ assert.match(bulk,/window\.__archivePaidIpcAllRows\?\.\(/);
+ assert.doesNotMatch(bulk,/getDocs\s*\(|onSnapshot\s*\(|collection\s*\(/);
+});
+test('One full Drive scan can propose across months; confirmed saves are limited to 40 and validate live paid payment',()=>{
+ assert.match(bulk,/const reused=lastScan&&lastFolderId===id&&!lastScan\.partial/);
+ assert.match(bulk,/scanScope==="all"/);
+ assert.match(bulk,/pending=pending\.slice\(0,40\)/);
+ assert.match(bulk,/const latest=await transaction\.get\(ref\)/);
+ assert.match(bulk,/if\(!isPaid\(data,p\.data\)\)return "mismatch"/);
+ assert.match(bulk,/if\(data\.ipcDocumentUrl\)return "existing"/);
+ assert.match(bulk,/new FieldPath\("ipcDocumentLinks",p\.data\.id\),pdfUrl/);
+ assert.match(bulk,/doc\(db,"paymentArchiveDetails",p\.data\.archiveMonth\)/);
+ assert.match(bulk,/fileUsage\.get\(candidates\[0\]\.id\)>1/);
+ assert.match(bulk,/!p\.shared&&p\.candidates\.length===1/);
+ assert.match(archive,/cached\.ipcDocumentLinks=Object\.assign/);
+ assert.doesNotMatch(bulk,/deleteDoc\s*\(|getDocs\s*\(/);
+});
+test('Monthly scanner stays available for next month without forcing all-month reads',()=>{
+ assert.match(bulk,/Quét & gắn hồ sơ hàng loạt/);
+ assert.match(bulk,/archiveRows=latest;currentMonth=String\(latest\[0\]\.archiveMonth\);scanScope="month"/);
+ assert.match(archive,/window\.__archivePaidIpcRows=/);
+ assert.match(archive,/return paidIpcRowsFromDetails\(currentDetails,currentDetails\.month\)/);
+});
