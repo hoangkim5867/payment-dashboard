@@ -128,8 +128,8 @@ if(viewer){
      if(latest.data().ipcDocumentLinksComplete===true)return;
      if(latest.updateTime?.toMillis()!==snap.updateTime?.toMillis())
       throw Error("Dữ liệu Kho thay đổi trong khi quét; cần đối chiếu lại tháng này.");
-     t.set(ref,{ipcDocumentLinks:{...links},ipcDocumentLinksUnresolvedIds:unresolved,
-       ipcDocumentLinksComplete:true,ipcDocumentLinksIndexedAt:serverTimestamp()},{merge:true});
+     t.update(ref,{ipcDocumentLinks:{...links},ipcDocumentLinksUnresolvedIds:unresolved,
+       ipcDocumentLinksComplete:true,ipcDocumentLinksIndexedAt:serverTimestamp()});
      if(summarySnap.exists())t.set(summary,{ipcDocumentLinksComplete:true},{merge:true});
     });
     ok++;
