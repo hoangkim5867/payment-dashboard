@@ -13324,10 +13324,15 @@ function canEditPaymentWorkflowSteps(payment){
         return false;
     }
     if(isAdmin()) return true;
-    // Temporary historical Staff access is always view-only.
+    // Historical months still lock all other edits. For a paid payment
+    // with unfinished Staff-owned steps, the authorized old-month view
+    // may complete those steps. No old-month money/date/UNC edits.
     return isStaff() &&
         canStaffViewPaymentMonth(payment.paymentMonth) &&
-        !isStaffTemporaryHistoryScope(payment.paymentMonth);
+        (
+            !isStaffTemporaryHistoryScope(payment.paymentMonth) ||
+            (isPaymentPaid(payment) && archiveWorkflowNeedsAttention(payment))
+        );
 }
 
 function canAdminSelectPaidForArchive(payment){
@@ -15933,6 +15938,9 @@ function renderPayments(){
                     ${
                         staffHistoricalReadOnly
                         ? `<span class="staff-history-readonly-badge">${
+                            workflowStepsEditable && isPaymentPaid(item)
+                                ? (currentLanguage === "zh" ? "可补流程" : currentLanguage === "en" ? "Complete steps" : "Bù tiến trình")
+                                : 
                             currentLanguage === "zh"
                                 ? "仅查看"
                                 : currentLanguage === "en"

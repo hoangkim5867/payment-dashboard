@@ -11,8 +11,8 @@ test.before(async()=>{
  env=await initializeTestEnvironment({projectId:'demo-payment-permission-policy',firestore:{host:'127.0.0.1',port:8080,rules:fs.readFileSync(path.join(__dirname,'../../security/firestore.rules.PROPOSED_STAGING_ONLY'),'utf8')}});
  await env.clearFirestore();await env.withSecurityRulesDisabled(async c=>{
   const db=c.firestore();
-  for(const [uid,role] of [['admin','Admin'],['staff','Staff'],['other','Staff']])await sdk.setDoc(sdk.doc(db,'authUsers',uid),{role,temporaryPaymentMonthAccess:previous});
-  for(const [id,row] of Object.entries({pending,old:{...pending,paymentMonth:previous},paid:{...pending,processActualAmount:1000,processPaymentDate:month+'-01'},cancelled:{...pending,monthOutcome:'cancelled'},carried:{...pending,monthOutcome:'carried_forward'},deleted:{...pending,deleted:true},ownImport:{...pending,source:'excel-paste',importBatchId:'own'},otherImport:{...pending,source:'excel-paste',importBatchId:'other',createdByUid:'other'}}))await sdk.setDoc(sdk.doc(db,'payments',id),row);
+  for(const [uid,role] of [['admin','Admin'],['staff','Staff'],['other','Staff'],['ungranted','Staff']])await sdk.setDoc(sdk.doc(db,'authUsers',uid),{role,...(uid==='ungranted'?{}:{temporaryPaymentMonthAccess:previous})});
+  for(const [id,row] of Object.entries({pending,old:{...pending,paymentMonth:previous},paidOld:{...pending,paymentMonth:previous,processActualAmount:1000,processPaymentDate:previous+'-01'},paid:{...pending,processActualAmount:1000,processPaymentDate:month+'-01'},cancelled:{...pending,monthOutcome:'cancelled'},carried:{...pending,monthOutcome:'carried_forward'},deleted:{...pending,deleted:true},ownImport:{...pending,source:'excel-paste',importBatchId:'own'},otherImport:{...pending,source:'excel-paste',importBatchId:'other',createdByUid:'other'}}))await sdk.setDoc(sdk.doc(db,'payments',id),row);
  });
 });
 test.after(async()=>{if(env)await env.cleanup()});
@@ -48,15 +48,26 @@ test('Staff can finish a paid current-month workflow without changing the paymen
   {remark:'Should remain locked'}
  ])await assertFails(sdk.updateDoc(ref,patch));
 });
-test('Staff cannot edit paid workflow in historical month, or cancelled/carried/deleted rows',async()=>{
+test('Staff with previous-month grant can finish PAID workflow in prior month but cannot change financial result',async()=>{
+ const ref=sdk.doc(as('staff'),'payments/paidOld');
+ await assertSucceeds(sdk.updateDoc(ref,{processPlatformPlan:'done',processPaper:'completed',processSettlement:'done'}));
+ const snap=await sdk.getDoc(ref);
+ assert.equal(snap.data().processActualAmount,1000);
+ assert.equal(snap.data().processPaymentDate,previous+'-01');
+ for(const patch of [
+  {amount:2000},{processActualAmount:2000},{processPaymentDate:month+'-01'},
+  {paymentMonth:month},{processApproval:'done'},{processBanking:'done'},
+  {uncDriveFileId:'forged'},{remark:'forged'},{deleted:true},
+  {processPlatformPayment:'done',amount:2500}
+ ])await assertFails(sdk.updateDoc(ref,patch));
+ await assertFails(sdk.updateDoc(sdk.doc(as('ungranted'),'payments/paidOld'),{processPlatformPayment:'done'}));
+});
+test('Staff previous-month grant never unlocks unpaid, cancelled, carried or deleted payments',async()=>{
  for(const id of ['old','cancelled','carried','deleted']) {
   await assertFails(sdk.updateDoc(sdk.doc(as('staff'),'payments',id),{processPlatformPlan:'done'}));
  }
- const ref=sdk.doc(as('admin'),'payments/old');
- await assertSucceeds(sdk.updateDoc(ref,{processActualAmount:1000,processPaymentDate:previous+'-01'}));
- await assertFails(sdk.updateDoc(sdk.doc(as('staff'),'payments/old'),{processPlatformPlan:'done'}));
 });
-for(const id of ['old','paid','cancelled','carried','deleted'])test('Staff cannot edit locked row '+id,async()=>{await assertFails(sdk.updateDoc(sdk.doc(as('staff'),'payments',id),{amount:1}))});
+for(const id of ['old','paid','paidOld','cancelled','carried','deleted'])test('Staff cannot edit locked row '+id,async()=>{await assertFails(sdk.updateDoc(sdk.doc(as('staff'),'payments',id),{amount:1}))});
 test('historic view grant remains read-only and duplicate lookup remains permitted',async()=>{
  await assertSucceeds(sdk.getDoc(sdk.doc(as('staff'),'payments/old')));
  await assertSucceeds(sdk.getDocs(sdk.collection(as('staff'),'payments')));

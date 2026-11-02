@@ -10,18 +10,19 @@ const end=s.indexOf('function canAdminSelectPaidForArchive(payment){',start);
 assert(start>=0 && end>start,'paid workflow permission functions exist');
 const functions=s.slice(start,end);
 const paid={id:'p1',paymentMonth:'2026-10',processActualAmount:100,processPaymentDate:'2026-10-29'};
-function check(role,payment,{signedIn=true,month='2026-10'}={}){
+function check(role,payment,{signedIn=true,month='2026-10',historyAccess=false}={}){
  const ctx={
   currentAuthUser:signedIn?{uid:'test-user'}:null,
   currentUserProfile:signedIn?{role}:null,
   isAdmin:()=>role==='Admin',
   isStaff:()=>role==='Staff',
   CURRENT_MONTH:month,
-  canStaffViewPaymentMonth:m=>m===month,
+  canStaffViewPaymentMonth:m=>m===month||(historyAccess&&m===payment.paymentMonth),
   isStaffTemporaryHistoryScope:m=>m!==month,
   isPaymentPaid:p=>!!(p.processPaymentDate && p.processActualAmount!=='' && p.processActualAmount!=null),
   isPaymentCancelled:p=>p?.monthOutcome==='cancelled',
-  isPaymentCarriedForward:p=>p?.monthOutcome==='carried_forward'
+  isPaymentCarriedForward:p=>p?.monthOutcome==='carried_forward',
+  archiveWorkflowNeedsAttention:p=>['processPlatformPlan','processPaper','processSettlement','processPlatformPayment'].some(k=>p[k]!=='done'&&p[k]!=='N/A')
  };
  return vm.runInNewContext(functions+'\n({canEditPaymentWorkflowSteps,isPaymentWorkflowLocked})',ctx);
 }
@@ -40,6 +41,19 @@ test('Staff cannot edit previous-month, cancelled, carried, deleted or unauthent
  ])assert.equal(check('Staff',payment).canEditPaymentWorkflowSteps(payment),false);
  assert.equal(check('Staff',paid,{signedIn:false}).canEditPaymentWorkflowSteps(paid),false);
 });
+test('Granted October remains Staff workflow-only in November for PAID unfinished payment',()=>{
+ const previous={...paid,processPaper:'',processPlatformPlan:'done',processSettlement:'done',processPlatformPayment:'done'};
+ const api=check('Staff',previous,{month:'2026-11',historyAccess:true});
+ assert.equal(api.canEditPaymentWorkflowSteps(previous),true,'may complete unfinished paid workflow');
+ assert.equal(api.isPaymentWorkflowLocked(previous),true,'main payment remains locked');
+ const completed={...previous,processPaper:'done'};
+ assert.equal(api.canEditPaymentWorkflowSteps(completed),false,'completed history stays view-only');
+ const unpaid={...previous,processActualAmount:''};
+ assert.equal(api.canEditPaymentWorkflowSteps(unpaid),false,'unpaid history stays view-only');
+ for(const state of [{...previous,deleted:true},{...previous,monthOutcome:'cancelled'},{...previous,monthOutcome:'carried_forward'}])
+   assert.equal(api.canEditPaymentWorkflowSteps(state),false);
+ assert.equal(check('Staff',previous,{month:'2026-11',historyAccess:false}).canEditPaymentWorkflowSteps(previous),false,'no grant means no old-month access');
+});
 test('Admin still owns paid payment results and can update workflow; cancelled/carried remain locked',()=>{
  assert.equal(check('Admin',{...paid,paymentMonth:'2026-09'}).canEditPaymentWorkflowSteps({...paid,paymentMonth:'2026-09'}),true);
  assert.equal(check('Admin',{...paid,monthOutcome:'cancelled'}).canEditPaymentWorkflowSteps({...paid,monthOutcome:'cancelled'}),false);
@@ -49,6 +63,7 @@ test('Table separates workflow editing from financial result and main record edi
  assert.ok((table.match(/!workflowStepsEditable/g)||[]).length>=6,'workflow fields use step permission');
  assert.ok((table.match(/workflowLocked \|\|\s*!isAdmin\(\)/g)||[]).length>=2,'amount and payment date retain original lock');
  assert.match(table,/workflowLocked[\s\S]*?payment-locked/,'paid action still locked');
+ assert.match(table,/staffHistoricalReadOnly[\s\S]*?Bù tiến trình/,'history badge identifies paid workflow-only access');
  const handler=s.slice(s.indexOf('".inline-process-toggle"'),s.indexOf('".inline-process-amount"'));
  assert.ok((handler.match(/!canEditPaymentWorkflowSteps\(payment\)/g)||[]).length>=2,'click and text have write guards');
  assert.match(s,/if\(!canEditPaymentWorkflowSteps\(payment\)\)\{\s*if\(status==="done"\)/,'paper rendering protected');
