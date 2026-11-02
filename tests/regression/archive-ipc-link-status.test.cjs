@@ -88,6 +88,7 @@ test('Monthly table renders dossier state directly from indexed snapshot, not a 
  assert.match(archive,/const dossierState=\(id,details\)=>/);
  assert.match(archive,/const dossierCell=\(id,details\)=>/);
  assert.match(archive,/data-ipc-doc-cell="1">\$\{dossierCell\(paymentId,details\)\}/);
+ assert.match(archive,/<th data-ipc-doc-head="1">/);
  assert.match(archive,/data-ipc-link-state="\$\{dossierState\(paymentId,details\)\.state\}"/);
  assert.match(archive,/if\(state==="no"&&!currentUserIsAdmin\)return "—"/);
  assert.match(archive,/state==="yes"&&!currentUserIsAdmin/);
