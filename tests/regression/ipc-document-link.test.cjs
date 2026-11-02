@@ -31,6 +31,15 @@ test('Only explicit click reads one payment, no automatic payment collection sca
  assert.match(code,/ipcDocumentUrl:deleteField\(\)/);
 });
 
+test('Legacy Staff Archive dossier opens a Drive tab directly without Admin editor or background reads',()=>{
+ assert.match(code,/async function openStaffArchiveDossier\(id\)/);
+ assert.match(code,/window\.open\("about:blank","_blank"\)/);
+ assert.match(code,/if\(state\?\.admin===false\)openStaffArchiveDossier\(b\.dataset\.paymentId\)/);
+ assert.match(code,/tab\.location\.replace\(url\)/);
+ assert.match(code,/else showLink\(b\.dataset\.paymentId\)/);
+ assert.doesNotMatch(code,/onSnapshot\s*\(|getDocs\s*\(|collection\s*\(/);
+});
+
 test('User-pasted Google link is validated before display or save',()=>{
  const first=code.indexOf('const clean=');
  const last=code.indexOf('const style=',first);
