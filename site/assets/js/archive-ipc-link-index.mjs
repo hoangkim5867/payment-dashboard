@@ -17,7 +17,7 @@ const norm=v=>String(v??"").trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"
 let syncing=false;
 if(viewer){
  const css=document.createElement("style");
- css.textContent=".archive-ipc-index-linked{display:inline-block;border:1px solid #a7d0b0;border-radius:6px;background:#eff8f1;color:#17653c;padding:5px 7px;text-decoration:none;font:600 11px system-ui}.archive-ipc-index-empty{color:#8996a4}.archive-ipc-index-admin{border:1px solid #c8d4e1;border-radius:6px;padding:5px 7px;background:white;color:#52677b;font:600 11px system-ui}.archive-ipc-index-admin.ipc-has-link{border-color:#b2d7bb;background:#f0f9f1;color:#176b42}.archive-ipc-index-tools{margin-left:8px;font:600 11px system-ui;padding:7px 9px;border:1px solid #c4d1dd;border-radius:7px;color:#28516d;background:#fff;cursor:pointer}.archive-ipc-index-tools:disabled{opacity:.6}.archive-ipc-index-note{font:11px system-ui;color:#6a7a8b;margin-left:8px}";
+ css.textContent=".archive-ipc-index-linked{display:inline-block;border:1px solid #a7d0b0;border-radius:6px;background:#eff8f1;color:#17653c;padding:5px 7px;text-decoration:none;font:600 11px system-ui}.archive-ipc-index-empty{color:#8996a4}.archive-ipc-index-admin{border:1px solid #c8d4e1;border-radius:6px;padding:5px 7px;background:white;color:#52677b;font:600 11px system-ui}.archive-ipc-index-admin.ipc-has-link{border-color:#b2d7bb;background:#f0f9f1;color:#176b42}.archive-ipc-index-tools{margin-left:8px;font:600 11px system-ui;padding:7px 9px;border:1px solid #c4d1dd;border-radius:7px;color:#28516d;background:#fff;cursor:pointer}.archive-ipc-index-tools:disabled{opacity:.6}.archive-ipc-index-repair{margin-left:8px;font:600 11px system-ui;padding:7px 9px;border:1px solid #9bb9ce;border-radius:7px;color:#174e71;background:#eff8fc;cursor:pointer}.archive-ipc-index-repair:disabled{opacity:.5}.archive-ipc-index-note{font:11px system-ui;color:#6a7a8b;margin-left:8px}";
  document.head.append(css);
  function refresh(){
   const active=view();
@@ -96,7 +96,104 @@ if(viewer){
    const summary=complete?"": "Chỉ Admin · một lần cho các tháng cũ";
    if(hint.textContent!==summary)hint.textContent=summary;
    hint.hidden=complete;
+   let inspect=heading.querySelector(".archive-ipc-index-repair");
+   if(!inspect){
+    inspect=document.createElement("button");inspect.type="button";
+    inspect.className="archive-ipc-index-repair";
+    inspect.addEventListener("click",repairVisibleMonth);
+    if(close)close.before(inspect);else heading.append(inspect);
+   }
+   inspect.hidden=counts.unknown===0;
+   inspect.disabled=syncing;
+   inspect.textContent="🔎 Đối chiếu riêng tháng này ("+counts.unknown+" chưa rõ)";
+   inspect.title="Kiểm tra thử đúng 1 khoản Payment trước. Nếu dữ liệu không khớp sẽ dừng, không đọc hàng loạt.";
   }
+ }
+ async function repairVisibleMonth(){
+  if(syncing||!owner())return;
+  const active=view();
+  if(!active?.admin||!active.month)return;
+  const month=String(active.month);
+  const oldLinks=active.links||{};
+  const oldUnknown=new Set(active.unresolvedIds||[]);
+  const targetMap=new Map();
+  for(const row of active.rows||[]){
+   const id=String(row?.paymentId||"").trim();
+   if(!id||!row.paymentDate||!(Number(row.actualAmount)>0))continue;
+   if(validUrl(oldLinks[id]))continue;
+   if(active.complete&&!oldUnknown.has(id))continue;
+   if(targetMap.has(id)){
+    alert("ID khoản Payment trùng trong tháng Kho. Dừng để tránh đối chiếu nhầm.");
+    return;
+   }
+   targetMap.set(id,{...row,paymentId:id});
+  }
+  const target=[...targetMap.values()];
+  if(!target.length){alert("Không có khoản có ID hợp lệ để đối chiếu. Kiểm tra dữ liệu Kho.");return;}
+  if(target.length>180){alert("Tháng này còn "+target.length+" khoản chưa rõ, vượt giới hạn an toàn 180 khoản. Không tự đọc.");return;}
+  if(!confirm("ĐỐI CHIẾU RIÊNG THÁNG "+month+"?\n\nCó "+target.length+
+    " khoản chưa xác minh. Đầu tiên chỉ đọc thử 1 khoản Payment. Nếu tháng, dự án, hợp đồng hoặc IPC không khớp, sẽ dừng ngay (không đọc hàng loạt).\n\nKhông sửa tiền, UNC, tiến trình hay PDF."))return;
+  syncing=true;refresh();
+  let readCount=0;
+  const db=getFirestore(getApp());
+  const checkRow=async row=>{
+   try{
+    const snap=await getDoc(doc(db,"payments",row.paymentId));readCount++;
+    if(!snap.exists())return {id:row.paymentId,reason:"Không tìm thấy ID khoản gốc trong payments"};
+    const data=snap.data();
+    if(String(data.paymentMonth||"")!==month)return {id:row.paymentId,reason:"Tháng trong Payment khác tháng Kho"};
+    if(norm(data.project)!==norm(row.project))return {id:row.paymentId,reason:"Tên dự án Payment khác dữ liệu Kho"};
+    if(norm(data.contractNo)!==norm(row.contractNo))return {id:row.paymentId,reason:"Số hợp đồng Payment khác dữ liệu Kho"};
+    if(norm(data.ipcNo)!==norm(row.ipcNo))return {id:row.paymentId,reason:"IPC Payment khác dữ liệu Kho"};
+    return {id:row.paymentId,verified:true,url:validUrl(data.ipcDocumentUrl)};
+   }catch(e){readCount++;return {id:row.paymentId,reason:"Không đọc được Payment: "+(e?.code||"lỗi quyền/mạng")};}
+  };
+  try{
+   const first=await checkRow(target[0]);
+   if(first.reason){
+    alert("ĐÃ DỪNG SAU "+readCount+" READ.\n\nMẫu tháng "+month+" chưa xác minh được: "+first.reason+
+      ".\n\nKhông quét thêm, không ghi bất kỳ dữ liệu nào. Đừng bấm đồng bộ toàn Kho để thử lại.");
+    return;
+   }
+   if(!confirm("MẪU ĐÃ KHỚP!\n\nĐã dùng "+readCount+
+      " read. Có thể tiếp tục kiểm tra tối đa "+(target.length-1)+
+      " khoản còn lại trong tháng "+month+" và cập nhật chỉ mục Kho một lần.\n\nChỉ tiếp tục nếu m đồng ý phát sinh reads này."))return;
+   const results=[first];
+   for(let i=1;i<target.length;i+=10){
+    if(!owner()||view()?.month!==month)throw Error("Đã đổi tài khoản/tháng Kho. Dừng không ghi.");
+    results.push(...await Promise.all(target.slice(i,i+10).map(checkRow)));
+    const b=$(".archive-ipc-index-repair",viewer);
+    if(b)b.textContent="Đã kiểm tra "+Math.min(i+10,target.length)+"/"+target.length+" khoản…";
+   }
+   if(!owner()||view()?.month!==month)throw Error("Đã đổi tài khoản/tháng Kho. Dừng không ghi.");
+   const links={...oldLinks},unresolved=new Set(active.complete?[...oldUnknown]:[]);
+   let linked=0,empty=0,failed=0;
+   for(const r of results){
+    if(!r.verified){unresolved.add(r.id);failed++;continue;}
+    unresolved.delete(r.id);
+    if(r.url){links[r.id]=r.url;linked++;}
+    else{delete links[r.id];empty++;}
+   }
+   // Avoid overwriting Admin edits saved while the audit was reading.
+   const ref=doc(db,"paymentArchiveDetails",month),summary=doc(db,"paymentArchives",month);
+   await runTransaction(db,async t=>{
+    const fresh=await t.get(ref),sum=await t.get(summary);
+    if(!fresh.exists())throw Error("Chi tiết Kho đã bị xóa.");
+    if(JSON.stringify(fresh.data().ipcDocumentLinks||{})!==JSON.stringify(oldLinks)||
+       fresh.data().ipcDocumentLinksComplete===true!==Boolean(active.complete)||
+       JSON.stringify(fresh.data().ipcDocumentLinksUnresolvedIds||[])!==JSON.stringify(active.unresolvedIds||[]))
+      throw Error("Chỉ mục Kho đã thay đổi. Không ghi đè; mở lại tháng để kiểm tra.");
+    t.update(ref,{ipcDocumentLinks:links,ipcDocumentLinksUnresolvedIds:[...unresolved],
+      ipcDocumentLinksComplete:true,ipcDocumentLinksIndexedAt:serverTimestamp()});
+    if(sum.exists())t.set(summary,{ipcDocumentLinksComplete:true},{merge:true});
+   });
+   window.__archiveDossierApplyBackfill?.(month,links,[...unresolved]);
+   window.__archiveDossierMarkMonthDone?.(month);
+   alert("Đối chiếu tháng "+month+": "+linked+" khoản có link, "+empty+
+     " khoản đã xác nhận không có, "+failed+" khoản chưa xác minh.\n"+readCount+
+     " reads Payment (ước tính, chưa tính đọc giao dịch). Không sửa tiền, UNC, tiến trình.");
+  }catch(e){alert("Đã dừng: "+(e.message||e)+". Có thể đã đọc "+readCount+" Payment; chưa cập nhật Kho.");}
+  finally{syncing=false;refresh();}
  }
  async function syncHistory(){
   if(syncing||!owner())return;
