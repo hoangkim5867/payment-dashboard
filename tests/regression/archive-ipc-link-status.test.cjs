@@ -21,8 +21,8 @@ test('Staff dossier status comes from already fetched archive snapshot, not extr
 });
 test('Legacy Archive without backfill never falsely calls unknown links missing',()=>{
  assert.match(index,/return \{url,state:url\?"yes":complete&&!unknown\.has\(id\)\?"no":"unknown"\}/);
- assert.match(index,/if\(b\.textContent!=="🔎 Kiểm tra"\)/);
- assert.match(index,/const label=url\?"📁 Đã có":known\?"📁 Chưa có":"🔎 Chưa rõ"/);
+ assert.match(index,/b\.textContent=labels\.check\|\|"🔎 Kiểm tra"/);
+ assert.match(index,/const label=url\?\(labels\.has\|\|"📁 Đã có"\)/);
  assert.match(archive,/return \{state:"unknown",url:""\}/);
 });
 test('Backfill is Admin-only click, capped reads, validates actual payment ID and does not write money or UNC',()=>{
@@ -95,6 +95,8 @@ test('Monthly table renders dossier state directly from indexed snapshot, not a 
  assert.match(archive,/data-dossier-count="yes"/);
  assert.match(archive,/data-dossier-count="no"/);
  assert.match(archive,/data-dossier-count="unknown"/);
+ assert.match(archive,/labels:\{dossier:t\("dossier"\)/);
+ assert.match(index,/const labels=active\.labels\|\|\{\}/);
  assert.match(index,/counts\[stateOf\(id\)\.state\]\+\+/);
  assert.doesNotMatch(index,/getDocs\s*\(|onSnapshot\s*\(|setInterval\s*\(/);
 });
