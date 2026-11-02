@@ -102,15 +102,37 @@ export async function scanDriveFolder({folderId:rootId,token,fetcher=fetch,onPro
  onProgress({readFolders,items,pdfs:files.length});
  return {files,folders,rootName:root.name||"",readFolders,items,partial};
 }
-export function findPaymentPdfCandidates(payment,scan){
+// Optional Admin-defined project aliases are only used for LOCAL matching.
+// Contract and IPC token checks remain mandatory; a conflicting known project
+// can never be overridden by an alias.
+const aliasPhraseIn=(source,phrase)=>{
+ const text=normalize(source),target=normalize(phrase);
+ if(!target||target.length<5)return false;
+ let from=0;
+ for(let at=text.indexOf(target,from);at>=0;at=text.indexOf(target,at+1)){
+  const before=at?text[at-1]:"",after=text[at+target.length]||"";
+  if(!/[A-Z0-9]/.test(before)&&!/[A-Z0-9]/.test(after))return true;
+  from=at+1;
+ }
+ return false;
+};
+export function findPaymentPdfCandidates(payment,scan,options={}){
  const contract=contractTokens(payment.contractNo);
  const ipc=ipcTokens(payment.ipcNo)[0];
  const wantedProject=normalizeProject(payment.project);
  if(!ipc||!contract.length)return [];
+ const approvedAliases=(Array.isArray(options?.projectAliases)?options.projectAliases:[])
+   .filter(pair=>pair&&normalizeProject(pair.archive)===wantedProject)
+   .map(pair=>String(pair.drive||"").trim())
+   .filter(name=>name.length>=5&&name.length<=100&&
+     (!projectWord(name)||projectWord(name)===wantedProject))
+   .slice(0,50);
+ const aliasFolder=source=>approvedAliases.some(name=>normalize(source)===normalize(name));
+ const aliasFile=source=>approvedAliases.some(name=>aliasPhraseIn(source,name));
  const projectRoot=normalizeProject(scan.rootName);
  const rootIsContract=contract.some(c=>contractTokens(scan.rootName).includes(c));
  const rootIsNarrow=/^(IPC|SUPL|SUBP|LAB|ADM|MEP)([-_ ]*0*\d+)?$/i.test(scan.rootName);
- const rootIsProject=projectRoot===wantedProject;
+ const rootIsProject=projectRoot===wantedProject||aliasFolder(scan.rootName);
  const rootIsMaster=compact(scan.rootName)==="SSIS"||compact(scan.rootName)==="ROOT";
  const scored=[];
  for(const file of scan.files||[]){
@@ -123,8 +145,8 @@ export function findPaymentPdfCandidates(payment,scan){
   if(otherFromFolders)continue;
   const filenameProject=projectWord(file.name);
   if(filenameProject&&filenameProject!==wantedProject)continue;
-  const folderMatches=relative.some(p=>normalizeProject(p)===wantedProject)||pathProject===wantedProject;
-  const nameProject=filenameProject===wantedProject;
+  const folderMatches=relative.some(p=>normalizeProject(p)===wantedProject||aliasFolder(p))||pathProject===wantedProject;
+  const nameProject=filenameProject===wantedProject||aliasFile(file.name);
   const recognizedProject=folderMatches||nameProject||rootIsProject;
   const keyFromName=contractTokens(file.name);
   // If the file explicitly names another contract, never suggest it for the selected payment.
