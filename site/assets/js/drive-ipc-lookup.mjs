@@ -17,8 +17,8 @@ export const contractTokens=value=>listTokens(value,"SUBP|SUPL|SUBP|LAB|ADM|MEP|
 const hongHacIdentity=value=>{
  const raw=normalize(value),key=compact(value);
  if(!/(?:红鹤别墅|紅鶴別墅)/.test(raw)&&!key.includes("HONGHAC"))return "";
- const zone=raw.match(/(?:ZONE|KHU|别墅|別墅)[\\s/_-]*(\\d{1,2})\\s*\\.\\s*(\\d{1,2})/i)
-   ||raw.match(/(\\d{1,2})\\s*\\.\\s*(\\d{1,2})\\s*(?:区|區)/);
+ const zone=raw.match(/(?:ZONE|KHU|别墅|別墅)[\s/_-]*(\d{1,2})\s*\.\s*(\d{1,2})/i)
+   ||raw.match(/(\d{1,2})\s*\.\s*(\d{1,2})\s*(?:区|區)/);
  return zone?"HONGHACZONE"+Number(zone[1])+"DOT"+Number(zone[2]):"HONGHAC";
 };
 const normalizeProject=value=>{
