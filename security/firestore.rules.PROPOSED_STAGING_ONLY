@@ -48,16 +48,25 @@ service cloud.firestore {
         && optionalText(data, 'remark', 131072);
     }
     function ipcDocumentLinkFields(){return ['ipcDocumentUrl','ipcDocumentUpdatedAt','ipcDocumentUpdatedByUid'];}
+    function validIpcDocumentLink(data){
+      return data.keys().hasAll(ipcDocumentLinkFields())
+        && data.get('ipcDocumentUrl','') is string
+        && data.get('ipcDocumentUrl','').size() > 0
+        && data.get('ipcDocumentUrl','').size() <= 2048
+        && data.get('ipcDocumentUrl','').matches('^https://(drive|docs)[.]google[.]com/.*')
+        && data.get('ipcDocumentUpdatedByUid','') == request.auth.uid
+        && data.get('ipcDocumentUpdatedAt',null) == request.time;
+    }
+    function safeIpcDocumentCreate(){
+      return !request.resource.data.keys().hasAny(ipcDocumentLinkFields())
+        || (trustedProfileAdmin() && adminUser() && validIpcDocumentLink(request.resource.data));
+    }
     function safeIpcDocumentUpdate(){
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       return !changed.hasAny(ipcDocumentLinkFields())
         || (trustedProfileAdmin() && adminUser()
-          && optionalText(request.resource.data,'ipcDocumentUrl',2048)
-          && optionalText(request.resource.data,'ipcDocumentUpdatedByUid',128)
           && (!request.resource.data.keys().hasAny(ipcDocumentLinkFields())
-              || (request.resource.data.get('ipcDocumentUrl','') is string
-                  && request.resource.data.get('ipcDocumentUrl','').matches('^https://(drive|docs)[.]google[.]com/.*')
-                  && request.resource.data.get('ipcDocumentUpdatedByUid','') == request.auth.uid)));
+              || validIpcDocumentLink(request.resource.data)));
     }
     function paidPayment(data){
       let actual = data.get('processActualAmount', '');
@@ -104,7 +113,7 @@ service cloud.firestore {
     }
     match /payments/{paymentId} {
       allow read: if approvedUser();
-      allow create: if approvedUser() && validPayment(request.resource.data)
+      allow create: if approvedUser() && validPayment(request.resource.data) && safeIpcDocumentCreate()
         && (adminUser() || (request.resource.data.get('createdByUid', '') == request.auth.uid
           && pendingPayment(request.resource.data) && blankAdminFields(request.resource.data)))
         && (!request.resource.data.keys().hasAny(planFields()) || reviewOwner());
