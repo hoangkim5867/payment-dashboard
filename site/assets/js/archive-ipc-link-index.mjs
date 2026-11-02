@@ -105,8 +105,10 @@ if(viewer){
    }
    inspect.hidden=counts.unknown===0;
    inspect.disabled=syncing;
-   inspect.textContent="🔎 Đối chiếu riêng tháng này ("+counts.unknown+" chưa rõ)";
-   inspect.title="Kiểm tra thử đúng 1 khoản Payment trước. Nếu dữ liệu không khớp sẽ dừng, không đọc hàng loạt.";
+   const inspectLabel="🔎 Đối chiếu riêng tháng này ("+counts.unknown+" chưa rõ)";
+   if(!syncing&&inspect.textContent!==inspectLabel)inspect.textContent=inspectLabel;
+   const inspectTitle="Kiểm tra thử đúng 1 khoản Payment trước. Nếu dữ liệu không khớp sẽ dừng, không đọc hàng loạt.";
+   if(inspect.title!==inspectTitle)inspect.title=inspectTitle;
   }
  }
  async function repairVisibleMonth(){
