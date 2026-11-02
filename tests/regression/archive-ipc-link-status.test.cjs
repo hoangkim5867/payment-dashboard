@@ -128,7 +128,7 @@ test('Admin can inspect a single current-month unknown before any more Payment r
  assert.match(index,/if\(target\.length>180\)/);
  assert.match(index,/const first=await checkRow\(target\[0\]\)/);
  assert.match(index,/if\(first\.reason\)\{/);
- assert.match(index,/return;\s*\}\s*if\(!confirm\("MẪU ĐÃ KHỚP!/);
+ assert.match(index,/return;\s*\}\s*if\(!confirm\("MẪU ĐÃ KHỚP VỀ THÔNG TIN!/);
  assert.match(index,/results\.push\(\.\.\.await Promise\.all\(target\.slice\(i,i\+10\)\.map\(checkRow\)\)\)/);
  assert.match(index,/!owner\(\)\|\|view\(\)\?\.month!==month/);
  assert.doesNotMatch(index,/getDocs\s*\(|onSnapshot\s*\(|setInterval\s*\(/);
