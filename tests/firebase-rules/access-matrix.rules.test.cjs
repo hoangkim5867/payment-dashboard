@@ -68,6 +68,9 @@ test('only owner Admin can set/remove IPC dossier links, Staff may read',async()
  await assertSucceeds(getDoc(staff));
  await assertFails(updateDoc(staff,{ipcDocumentUrl:'https://drive.google.com/file/d/1BX5qQN7nRqpCWoPD_evwCkeRtTV2Dzzn/view'}));
  await assertFails(updateDoc(otherAdmin,{ipcDocumentUrl:url,ipcDocumentUpdatedByUid:'otherAdmin',ipcDocumentUpdatedAt:serverTimestamp()}));
+ await assertFails(setDoc(doc(dbFor('otherAdmin'),'payments','other-admin-link-create'),{paymentMonth:month,amount:100,project:'ELYSIAN',contractNo:'SUPL-050',ipcNo:'IPC001',ipcDocumentUrl:url,ipcDocumentUpdatedByUid:'otherAdmin',ipcDocumentUpdatedAt:serverTimestamp()}));
+ await assertSucceeds(setDoc(doc(dbFor(ADMIN),'payments','owner-admin-link-create'),{paymentMonth:month,amount:100,project:'ELYSIAN',contractNo:'SUPL-050',ipcNo:'IPC001',ipcDocumentUrl:url,ipcDocumentUpdatedByUid:ADMIN,ipcDocumentUpdatedAt:serverTimestamp()}));
+ await assertFails(updateDoc(owner,{ipcDocumentUrl:url,ipcDocumentUpdatedByUid:ADMIN,ipcDocumentUpdatedAt:'forged-timestamp'}));
  await assertFails(updateDoc(owner,{ipcDocumentUrl:'https://example.org/invalid',ipcDocumentUpdatedByUid:ADMIN}));
  await assertSucceeds(updateDoc(staff,{processPaper:'done'}));
  await assertFails(setDoc(doc(dbFor('staff'),'payments','staff-forged-dossier'),{paymentMonth:month,amount:100,createdByUid:'staff',ipcDocumentUrl:url}));
