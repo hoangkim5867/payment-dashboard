@@ -2,7 +2,7 @@
 import {getApps,getApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {createIpcDrivePicker} from "./drive-ipc-picker-ui.mjs";
 import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,doc,getDoc,updateDoc,deleteField,serverTimestamp,FieldPath} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getFirestore,doc,getDoc,updateDoc,deleteField,serverTimestamp,FieldPath,writeBatch} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 const OWNER_ADMIN_UID="HTx2QuATHxh8zgAawwreg88w65M2";
 const $=(s,p=document)=>p.querySelector(s);
 const clean=s=>String(s??"").trim();
@@ -110,16 +110,16 @@ save.addEventListener("click",async()=>{
  try{
   const u=await role();
   if(!u.admin||u.uid!==auth.currentUser?.uid)throw Error("Chỉ Admin có quyền sửa.");
-  await updateDoc(doc(db,"payments",activeId),{ipcDocumentUrl:url,ipcDocumentUpdatedAt:serverTimestamp(),ipcDocumentUpdatedByUid:u.uid});
-  setLink(url);mark(activeId,true);
-   let archiveWarning="";
-   if(activeArchiveMonth){
-    try{
-     await updateDoc(doc(db,"paymentArchiveDetails",activeArchiveMonth),new FieldPath("ipcDocumentLinks",activeId),url);
-     window.__archiveDossierUpdateLocal?.(activeArchiveMonth,{[activeId]:url});
-    }catch(e){archiveWarning=" Link đã lưu trong Payment nhưng chưa cập nhật Kho: "+(e.message||e);}
-   }
-   notice("Đã lưu link trên đúng khoản."+archiveWarning,!!archiveWarning);
+  const paymentRef=doc(db,"payments",activeId);
+  const patch={ipcDocumentUrl:url,ipcDocumentUpdatedAt:serverTimestamp(),ipcDocumentUpdatedByUid:u.uid};
+  if(activeArchiveMonth){
+   const batch=writeBatch(db);
+   batch.update(paymentRef,patch);
+   batch.update(doc(db,"paymentArchiveDetails",activeArchiveMonth),new FieldPath("ipcDocumentLinks",activeId),url);
+   await batch.commit();
+   window.__archiveDossierUpdateLocal?.(activeArchiveMonth,{[activeId]:url});
+  }else await updateDoc(paymentRef,patch);
+  setLink(url);mark(activeId,true);notice("Đã lưu link trên đúng khoản.");
  }catch(e){notice("Không lưu được: "+(e?.message||e)+". Kiểm tra quyền Firebase.",true);}
  finally{setBusy(false);}
 });
@@ -130,16 +130,16 @@ remove.addEventListener("click",async()=>{
  try{
   const u=await role();
   if(!u.admin||u.uid!==auth.currentUser?.uid)throw Error("Chỉ Admin có quyền gỡ.");
-  await updateDoc(doc(db,"payments",activeId),{ipcDocumentUrl:deleteField(),ipcDocumentUpdatedAt:deleteField(),ipcDocumentUpdatedByUid:deleteField()});
-  setLink("");input.value="";mark(activeId,false);
-   let archiveWarning="";
-   if(activeArchiveMonth){
-    try{
-     await updateDoc(doc(db,"paymentArchiveDetails",activeArchiveMonth),new FieldPath("ipcDocumentLinks",activeId),deleteField());
-     window.__archiveDossierUpdateLocal?.(activeArchiveMonth,{[activeId]:null});
-    }catch(e){archiveWarning=" Link đã gỡ khỏi Payment nhưng chưa cập nhật Kho: "+(e.message||e);}
-   }
-   notice("Đã gỡ link. Không xóa bất kỳ file nào."+archiveWarning,!!archiveWarning);
+  const paymentRef=doc(db,"payments",activeId);
+  const patch={ipcDocumentUrl:deleteField(),ipcDocumentUpdatedAt:deleteField(),ipcDocumentUpdatedByUid:deleteField()};
+  if(activeArchiveMonth){
+   const batch=writeBatch(db);
+   batch.update(paymentRef,patch);
+   batch.update(doc(db,"paymentArchiveDetails",activeArchiveMonth),new FieldPath("ipcDocumentLinks",activeId),deleteField());
+   await batch.commit();
+   window.__archiveDossierUpdateLocal?.(activeArchiveMonth,{[activeId]:null});
+  }else await updateDoc(paymentRef,patch);
+  setLink("");input.value="";mark(activeId,false);notice("Đã gỡ link. Không xóa bất kỳ file nào.");
  }catch(e){notice("Không gỡ được: "+(e?.message||e),true);}
  finally{setBusy(false);}
 });
