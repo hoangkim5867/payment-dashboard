@@ -42,7 +42,7 @@
       <button type="button" data-lang="zh">中文</button>
       <button type="button" data-lang="en">EN</button>
     </div>
-    <div class="account-bar" id="accountBar" hidden><div class="account-copy"><strong id="accountName">—</strong><small id="accountRole">—</small></div><button class="logout-btn" id="logoutButton" type="button" data-i18n="logout">Đăng xuất</button></div>
+    <div class="account-bar" id="accountBar" hidden><div class="account-copy"><strong id="accountName">—</strong></div><button class="logout-btn" id="logoutButton" type="button" data-i18n="logout">Đăng xuất</button></div>
   </header>
   <main>
     <section class="workspace">
@@ -181,7 +181,6 @@
     const loginError=document.getElementById("loginError");
     const accountBar=document.getElementById("accountBar");
     const accountName=document.getElementById("accountName");
-    const accountRole=document.getElementById("accountRole");
     const logoutButton=document.getElementById("logoutButton");
     const normalizeUsername=value=>String(value||"").trim().toLowerCase().replace(/\s+/g,"").replace(/[^a-z0-9]/g,"");
     const usernameToEmail=value=>{const username=normalizeUsername(value);return username?`${username}@cscecmep.internal`:""};
@@ -218,7 +217,6 @@
           showLoginError(t('noProfile'));return;
         }
         accountName.textContent=String(profile.displayName?profile.displayName:user.email||'User');
-        accountRole.textContent=role==='admin'?t('adminRole'):t('staffRole');
         accountBar.hidden=false;authGate.hidden=true;loginError.style.display='none';
         const privateAccess=isPrivateOwner(user,profile);
         document.querySelectorAll('[data-private-card]').forEach(card=>card.hidden=!privateAccess);
