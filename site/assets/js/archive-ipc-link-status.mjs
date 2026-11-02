@@ -108,9 +108,10 @@ if(viewer){
    if(button.textContent!==label)button.textContent=label;
   }
   button.classList.toggle("active",onlyMissing);
-  summary.textContent=state.complete?
+  const summaryText=state.complete?
    counts.yes+" đã có · "+counts.no+" chưa có"+(counts.unavailable?" · "+counts.unavailable+" chưa xác minh":""):
    "Kiểm tra khi bấm · không tự đọc Firebase";
+  if(summary.textContent!==summaryText)summary.textContent=summaryText;
   button.title=state.complete?"Bấm để bật/tắt bộ lọc chưa có hồ sơ":
    "Kiểm tra một lần cho "+rows.length+" khoản (khoảng "+rows.length+" Firestore reads, cộng kiểm tra Rules nếu có)";
  }
