@@ -126,7 +126,7 @@ if(payment){
 const archive=$("#archiveViewer");
 if(archive){
  const decorate=()=>{
-  const table=$(".viewer-table",archive);if(!table)return;
+  const table=$(".viewer-table:not(.global-search-table)",archive);if(!table)return;
   const head=$("thead tr",table);
   if(head&&!$("th[data-ipc-doc-head]",head)){
    const th=document.createElement("th");th.dataset.ipcDocHead="1";th.textContent="Hồ sơ";head.append(th);
