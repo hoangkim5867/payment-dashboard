@@ -217,6 +217,7 @@ if(view){
       return "saved";
      });
      if(outcome==="saved"){
+      window.dispatchEvent(new CustomEvent("payment-ipc-link-status-changed",{detail:{paymentId:p.data.id,linked:true}}));
       p.saved=true;p.checked=false;p.checkbox.checked=false;p.checkbox.disabled=true;
       p.row.classList.add("row-saved");p.result.textContent="✓ Đã lưu";p.result.className="status success";saved++;
      }else{

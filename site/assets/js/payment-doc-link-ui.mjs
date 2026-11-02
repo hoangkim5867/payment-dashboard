@@ -72,6 +72,7 @@ const setLink=value=>{
 };
 const setBusy=value=>{busy=value;save.disabled=input.disabled=value;remove.disabled=value||!activeUrl;};
 const mark=(id,linked)=>{
+ window.dispatchEvent(new CustomEvent("payment-ipc-link-status-changed",{detail:{paymentId:id,linked}}));
  for(const b of document.querySelectorAll(".payment-doc-link-btn")){
   if(b.dataset.paymentId===id){b.classList.toggle("has-linked",linked);b.title=linked?"Mở hồ sơ thanh toán":"Hồ sơ thanh toán";}
  }
