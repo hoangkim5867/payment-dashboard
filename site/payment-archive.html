@@ -137,6 +137,25 @@
       viewerMessageKey=key;
       showViewerMessage(t(key));
     };
+    // The Archive has already loaded these PAID rows for the selected month.
+    // Admin's explicit IPC dossier scanner reuses this in-memory snapshot only.
+    // EXCEL row numbers / company-search index are never used as payment IDs.
+    window.__archivePaidIpcRows=()=>{
+      if(!currentUserIsAdmin||viewerMode!=="details"||
+         String(currentDetails?.month||"")!==String(monthSelect.value||""))return [];
+      return (Array.isArray(currentDetails?.rows)?currentDetails.rows:[])
+        .filter(row=>String(row.paymentId||"").trim()&&
+          String(row.paymentDate||"").trim()&&Number(row.actualAmount)>0)
+        .map(row=>({
+          id:String(row.paymentId).trim(),
+          archiveMonth:String(currentDetails.month),
+          project:String(row.project||"").trim(),
+          contractNo:String(row.contractNo||"").trim(),
+          ipcNo:String(row.ipcNo||"").trim(),
+          actualAmount:Number(row.actualAmount),
+          paymentDate:String(row.paymentDate)
+        }));
+    };
     const renderDetails=details=>{
       currentDetails=details;
       viewerMode="details";
@@ -765,5 +784,6 @@
     });
   </script>
 <script type="module" src="./assets/js/payment-doc-link-ui.mjs"></script>
+<script type="module" src="./assets/js/archive-ipc-bulk-links.mjs"></script>
 </body>
 </html>
