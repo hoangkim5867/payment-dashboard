@@ -27,6 +27,7 @@ if(viewer){
   const unknown=new Set(active.unresolvedIds||[]);
   const complete=active.complete===true;
   const stateOf=id=>{
+    if(!id)return {url:"",state:"unknown"};
     const url=validUrl(links[id]);
     return {url,state:url?"yes":complete&&!unknown.has(id)?"no":"unknown"};
   };
