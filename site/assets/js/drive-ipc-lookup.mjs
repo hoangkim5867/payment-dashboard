@@ -12,7 +12,18 @@ const listTokens=(v,types)=>{
 };
 export const ipcTokens=value=>listTokens(value,"IPC|MEP");
 export const contractTokens=value=>listTokens(value,"SUBP|SUPL|SUBP|LAB|ADM|MEP|SUP");
+// Known project aliases only: do not guess other Chinese/Vietnamese names.
+// Keep the zone decimals distinct: 1.1 must never match 1.2 or 11.
+const hongHacIdentity=value=>{
+ const raw=normalize(value),key=compact(value);
+ if(!/(?:红鹤别墅|紅鶴別墅)/.test(raw)&&!key.includes("HONGHAC"))return "";
+ const zone=raw.match(/(?:ZONE|KHU|别墅|別墅)[\\s/_-]*(\\d{1,2})\\s*\\.\\s*(\\d{1,2})/i)
+   ||raw.match(/(\\d{1,2})\\s*\\.\\s*(\\d{1,2})\\s*(?:区|區)/);
+ return zone?"HONGHACZONE"+Number(zone[1])+"DOT"+Number(zone[2]):"HONGHAC";
+};
 const normalizeProject=value=>{
+ const known=hongHacIdentity(value);
+ if(known)return known;
  const s=compact(value);
  if(/^EATON(PARK)?(P1)?$/.test(s)||s==="EATONPARKP1")return "EATONPARK";
  if(s==="OCEANLINKPROJECT"||s==="OCEANLINK")return "OCEANLINK";
@@ -20,6 +31,9 @@ const normalizeProject=value=>{
 };
 const knownProjects=["EATON","ELYSIAN","PHUHUNG","OCEANLINK","FOXCONN","ADVANCE","H143","C13B","CN82","CR51B","SSIS","FSCPCB","ORKIDE","ZJ","S61","CHAOMED"];
 const projectWord=value=>{
+ const known=hongHacIdentity(value);
+ // A bare HONGHAC folder is not enough to assert which zone was paid.
+ if(known&&known!=="HONGHAC")return known;
  const s=compact(value);
  if(s.includes("EATON"))return "EATONPARK";
  if(s.includes("ELYSIAN"))return "ELYSIAN";
@@ -103,11 +117,13 @@ export function findPaymentPdfCandidates(payment,scan){
   const segments=String(file.path||"").split("/").filter(Boolean);
   const relative=segments.slice(1);
   const fromFolders=relative.map(projectWord).filter(Boolean);
-  const otherFromFolders=fromFolders.some(p=>p!==wantedProject);
+  // Also recognize project + zone split across adjacent Drive folders.
+  const pathProject=projectWord(relative.join("/"));
+  const otherFromFolders=fromFolders.some(p=>p!==wantedProject)||Boolean(pathProject&&pathProject!==wantedProject);
   if(otherFromFolders)continue;
   const filenameProject=projectWord(file.name);
   if(filenameProject&&filenameProject!==wantedProject)continue;
-  const folderMatches=relative.some(p=>normalizeProject(p)===wantedProject);
+  const folderMatches=relative.some(p=>normalizeProject(p)===wantedProject)||pathProject===wantedProject;
   const nameProject=filenameProject===wantedProject;
   const recognizedProject=folderMatches||nameProject||rootIsProject;
   const keyFromName=contractTokens(file.name);
