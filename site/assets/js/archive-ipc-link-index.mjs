@@ -159,7 +159,7 @@ if(viewer){
    }
    if(!confirm("MẪU ĐÃ KHỚP!\n\nĐã dùng "+readCount+
       " read. Có thể tiếp tục kiểm tra tối đa "+(target.length-1)+
-      " khoản còn lại trong tháng "+month+" và cập nhật chỉ mục Kho một lần.\n\nChỉ tiếp tục nếu m đồng ý phát sinh reads này."))return;
+      " khoản còn lại trong tháng "+month+" và cập nhật chỉ mục Kho một lần.\n\nChỉ tiếp tục khi Admin xác nhận phát sinh các lượt đọc này."))return;
    const results=[first];
    for(let i=1;i<target.length;i+=10){
     if(!owner()||view()?.month!==month)throw Error("Đã đổi tài khoản/tháng Kho. Dừng không ghi.");
