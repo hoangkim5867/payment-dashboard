@@ -216,7 +216,9 @@
         links:currentDetails.ipcDocumentLinks||{},
         unresolvedIds:currentDetails.ipcDocumentLinksUnresolvedIds||[],
         complete:currentDetails.ipcDocumentLinksComplete===true,
-        admin:currentUserIsAdmin
+        admin:currentUserIsAdmin,
+        labels:{dossier:t("dossier"),has:t("dossierHas"),missing:t("dossierNo"),
+          unknown:t("dossierUnsure"),check:t("dossierCheck")}
       };
     };
     window.__archiveDossierMonths=()=>currentUserIsAdmin
