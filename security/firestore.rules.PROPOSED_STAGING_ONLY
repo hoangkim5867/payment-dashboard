@@ -47,6 +47,27 @@ service cloud.firestore {
         && optionalText(data, 'bankAccount', 4096) && optionalText(data, 'contractName', 16384)
         && optionalText(data, 'remark', 131072);
     }
+    function ipcDocumentLinkFields(){return ['ipcDocumentUrl','ipcDocumentUpdatedAt','ipcDocumentUpdatedByUid'];}
+    function validIpcDocumentLink(data){
+      return data.keys().hasAll(ipcDocumentLinkFields())
+        && data.get('ipcDocumentUrl','') is string
+        && data.get('ipcDocumentUrl','').size() > 0
+        && data.get('ipcDocumentUrl','').size() <= 2048
+        && data.get('ipcDocumentUrl','').matches('^https://(drive|docs)[.]google[.]com/.*')
+        && data.get('ipcDocumentUpdatedByUid','') == request.auth.uid
+        && data.get('ipcDocumentUpdatedAt',null) == request.time;
+    }
+    function safeIpcDocumentCreate(){
+      return !request.resource.data.keys().hasAny(ipcDocumentLinkFields())
+        || (trustedProfileAdmin() && adminUser() && validIpcDocumentLink(request.resource.data));
+    }
+    function safeIpcDocumentUpdate(){
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return !changed.hasAny(ipcDocumentLinkFields())
+        || (trustedProfileAdmin() && adminUser()
+          && (!request.resource.data.keys().hasAny(ipcDocumentLinkFields())
+              || validIpcDocumentLink(request.resource.data)));
+    }
     function paidPayment(data){
       let actual = data.get('processActualAmount', '');
       return data.get('processPaymentDate', '') != '' && actual != null && actual != ''
@@ -63,7 +84,8 @@ service cloud.firestore {
         && data.get('monthOutcome', '') == '' && data.get('archived', false) == false
         && data.get('archiveState', '') == ''
         && !data.keys().hasAny(['uncFileId','uncDriveFileId','uncUrl','uncViewUrl','uncDownloadUrl','uncName','uncSize','uncUploadedAt','uncUploadedBy','uncStorageProvider','uncPath','uncUploadedByUid','uncUploadedByEmail'])
-        && !data.keys().hasAny(planFields());
+        && !data.keys().hasAny(planFields())
+        && !data.keys().hasAny(ipcDocumentLinkFields());
     }
     function staffEditableFields(){
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -91,11 +113,11 @@ service cloud.firestore {
     }
     match /payments/{paymentId} {
       allow read: if approvedUser();
-      allow create: if approvedUser() && validPayment(request.resource.data)
+      allow create: if approvedUser() && validPayment(request.resource.data) && safeIpcDocumentCreate()
         && (adminUser() || (request.resource.data.get('createdByUid', '') == request.auth.uid
           && pendingPayment(request.resource.data) && blankAdminFields(request.resource.data)))
         && (!request.resource.data.keys().hasAny(planFields()) || reviewOwner());
-      allow update: if approvedUser() && validPayment(request.resource.data)
+      allow update: if approvedUser() && validPayment(request.resource.data) && safeIpcDocumentUpdate()
         && (adminUser()
           || (resource.data.paymentMonth == currentPaymentMonth()
               && pendingPayment(resource.data) && staffEditableFields())
