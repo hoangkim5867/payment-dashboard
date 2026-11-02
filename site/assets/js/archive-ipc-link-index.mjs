@@ -26,32 +26,58 @@ if(viewer){
   const links=active.links||{};
   const unknown=new Set(active.unresolvedIds||[]);
   const complete=active.complete===true;
+  const labels=active.labels||{};
+  const stateOf=id=>{
+    if(!id)return {url:"",state:"unknown"};
+    const url=validUrl(links[id]);
+    return {url,state:url?"yes":complete&&!unknown.has(id)?"no":"unknown"};
+  };
+  // The entire month snapshot is already in memory. Updating these counters
+  // on manual save/backfill is zero Firestore reads.
+  const counts={yes:0,no:0,unknown:0};
+  for(const p of active.rows||[]){
+    const id=String(p.paymentId||"").trim();
+    counts[stateOf(id).state]++;
+  }
+  for(const kind of ["yes","no","unknown"]){
+    const counter=heading.parentNode?.querySelector('[data-dossier-count="'+kind+'"] b');
+    if(counter&&counter.textContent!==String(counts[kind].toLocaleString("vi-VN")))
+      counter.textContent=counts[kind].toLocaleString("vi-VN");
+  }
   for(const row of table.querySelectorAll(".project-detail-row[data-payment-id]")){
    const id=String(row.dataset.paymentId||"");
    const cell=row.querySelector("td[data-ipc-doc-cell]");
    if(!id||!cell)continue;
-   const url=validUrl(Object.prototype.hasOwnProperty.call(links,id)?links[id]:"");
-   const known=complete&&!unknown.has(id);
-   const state=url?"yes":known?"no":"unknown";
+   const {url,state}=stateOf(id);
+   const known=state==="no";
    if(row.dataset.ipcLinkState!==state)row.dataset.ipcLinkState=state;
    if(!active.admin){
     if(url){
      let a=cell.querySelector("a.archive-ipc-index-linked");
-     if(!a){a=document.createElement("a");a.className="archive-ipc-index-linked";a.textContent="📁 Hồ sơ";a.target="_blank";a.rel="noopener noreferrer";cell.replaceChildren(a);}
+     if(!a){a=document.createElement("a");a.className="archive-ipc-index-linked";a.textContent="📁 "+(labels.dossier||"Hồ sơ");a.target="_blank";a.rel="noopener noreferrer";cell.replaceChildren(a);}
      if(a.getAttribute("href")!==url)a.href=url;
     }else if(known){
      if(cell.textContent!=="—")cell.textContent="—";
+    }else{
+     // Unknown is not equivalent to a linked document. Allow one explicit
+     // on-click legacy lookup without showing a misleading dossier folder.
+     let b=cell.querySelector("button.payment-doc-archive-btn");
+     if(!b){
+      b=document.createElement("button");b.type="button";
+      b.className="payment-doc-link-btn payment-doc-archive-btn";
+      b.dataset.paymentId=id;cell.replaceChildren(b);
+     }
+     if(b.textContent!==(labels.check||"🔎 Kiểm tra"))b.textContent=labels.check||"🔎 Kiểm tra";
+     b.title="Chưa xác minh link hồ sơ – bấm để kiểm tra";
     }
-    // Unmigrated historical months remain "unknown": keep existing on-click lookup,
-    // never falsely report an old linked payment as missing.
    }else{
     const b=$(".payment-doc-archive-btn",cell);
     if(!b)continue;
-    const label=url?"📁 Đã có":known?"📁 Chưa có":"📁 Hồ sơ";
+    const label=url?(labels.has||"📁 Đã có"):known?(labels.missing||"📁 Chưa có"):(labels.unknown||"🔎 Chưa rõ");
     if(b.textContent!==label)b.textContent=label;
     b.classList.toggle("ipc-has-link",!!url);
-    if(b.title!==(url?"Đã có link":known?"Chưa có link — bấm để dán":"Chưa đồng bộ link cũ"))
-     b.title=url?"Đã có link":known?"Chưa có link — bấm để dán":"Chưa đồng bộ link cũ";
+    if(b.title!==(url?"Đã có link":known?"Chưa có link — bấm để dán":"Chưa xác minh link cũ — bấm để kiểm tra"))
+     b.title=url?"Đã có link":known?"Chưa có link — bấm để dán":"Chưa xác minh link cũ — bấm để kiểm tra";
    }
   }
   // One owner-only maintenance control, never visible to Staff.
@@ -101,6 +127,10 @@ if(viewer){
     const rows=Array.isArray(snap.data()?.rows)?snap.data().rows:[];
     if(readCount+rows.length>budget){alert("Đã dùng khoảng "+readCount+" reads để đối chiếu; còn tháng "+month+" và các tháng sau. Có thể bấm lại để tiếp tục, không tự đọc vượt "+budget+".");break;}
     const links=Object.create(null),unresolved=[];
+    // Preserve already confirmed Archive links when the old Payment record
+    // is unavailable: historical backfill must never erase existing evidence.
+    for(const [id,url] of Object.entries(snap.data()?.ipcDocumentLinks||{}))
+      if(validUrl(url))links[id]=validUrl(url);
     for(let i=0;i<rows.length;i+=10){
      const batch=rows.slice(i,i+10);
      const values=await Promise.all(batch.map(async row=>{
@@ -119,8 +149,9 @@ if(viewer){
      }));
      readCount+=batch.filter(x=>String(x?.paymentId||"").trim()).length;
      for(const item of values){
-      if(!item.verified){if(item.id)unresolved.push(item.id);}
+      if(!item.verified){if(item.id&&!links[item.id])unresolved.push(item.id);}
       else if(item.url)links[item.id]=item.url;
+      else if(item.id)delete links[item.id];
      }
     }
     // Re-read both metadata docs inside transaction, so concurrent updates do not
