@@ -43,7 +43,7 @@ test('Confirmed Admin manual and bulk link saves update Archive index, never ext
  assert.match(links,/new FieldPath\("ipcDocumentLinks",activeId\),url/);
  assert.match(links,/new FieldPath\("ipcDocumentLinks",activeId\),deleteField\(\)/);
  assert.match(bulk,/savedLinks\.push\(\[p\.data\.id,pdfUrl\]\)/);
- assert.match(bulk,/new FieldPath\("ipcDocumentLinks",id\),url/);
+ assert.match(bulk,/new FieldPath\("ipcDocumentLinks",p\.data\.id\),pdfUrl/);
  assert.match(bulk,/__archiveDossierUpdateLocal/);
  assert.match(archive,/sessionDetailCache\.set\(String\(month\),currentDetails\)/);
 });
