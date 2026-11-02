@@ -156,6 +156,27 @@
           paymentDate:String(row.paymentDate)
         }));
     };
+    // Existing archive month snapshot already costs one read. Share its dossier
+    // index with the display modules; Staff never queries payments collection.
+    window.__archiveDossierView=()=>{
+      if(viewerMode!=="details"||!currentDetails)return null;
+      return {
+        month:String(currentDetails.month||""),
+        rows:Array.isArray(currentDetails.rows)?currentDetails.rows:[],
+        links:currentDetails.ipcDocumentLinks||{},
+        unresolvedIds:currentDetails.ipcDocumentLinksUnresolvedIds||[],
+        complete:currentDetails.ipcDocumentLinksComplete===true,
+        admin:currentUserIsAdmin
+      };
+    };
+    window.__archiveDossierMonths=()=>currentUserIsAdmin
+      ?archiveItems.map(item=>String(item.month||"")).filter(Boolean):[];
+    window.__archiveDossierUpdateLocal=(month,patch)=>{
+      if(String(currentDetails?.month||"")!==String(month))return;
+      currentDetails.ipcDocumentLinks=Object.assign({},currentDetails.ipcDocumentLinks||{},patch);
+      if(sessionDetailCache.has(month))sessionDetailCache.set(month,currentDetails);
+      window.dispatchEvent(new Event("archive-dossier-index-refresh"));
+    };
     const renderDetails=details=>{
       currentDetails=details;
       viewerMode="details";
@@ -784,7 +805,7 @@
     });
   </script>
 <script type="module" src="./assets/js/payment-doc-link-ui.mjs"></script>
-<script type="module" src="./assets/js/archive-ipc-link-status.mjs"></script>
+<script type="module" src="./assets/js/archive-ipc-link-index.mjs"></script>
 <script type="module" src="./assets/js/archive-ipc-bulk-links.mjs"></script>
 </body>
 </html>
