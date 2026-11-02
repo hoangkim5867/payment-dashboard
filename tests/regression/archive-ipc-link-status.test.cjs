@@ -121,3 +121,27 @@ test('Historical index backfill preserves valid prior links if legacy Payment re
  assert.match(index,/else if\(item\.id\)delete links\[item\.id\]/);
  assert.doesNotMatch(index,/deleteDoc\s*\(|getDocs\s*\(/);
 });
+
+test('Admin can inspect a single current-month unknown before any more Payment reads',()=>{
+ assert.match(index,/inspect\.addEventListener\("click",repairVisibleMonth\)/);
+ assert.match(index,/inspect\.hidden=counts\.unknown===0/);
+ assert.match(index,/if\(target\.length>180\)/);
+ assert.match(index,/const first=await checkRow\(target\[0\]\)/);
+ assert.match(index,/if\(first\.reason\)\{/);
+ assert.match(index,/return;\s*\}\s*if\(!confirm\("MẪU ĐÃ KHỚP!/);
+ assert.match(index,/results\.push\(\.\.\.await Promise\.all\(target\.slice\(i,i\+10\)\.map\(checkRow\)\)\)/);
+ assert.match(index,/!owner\(\)\|\|view\(\)\?\.month!==month/);
+ assert.doesNotMatch(index,/getDocs\s*\(|onSnapshot\s*\(|setInterval\s*\(/);
+});
+test('Targeted Admin reconciliation preserves existing index and never modifies UNC or money',()=>{
+ assert.match(index,/if\(validUrl\(oldLinks\[id\]\)\)continue/);
+ assert.match(index,/if\(active\.complete&&!oldUnknown\.has\(id\)\)continue/);
+ assert.match(index,/if\(String\(data\.paymentMonth\|\|""\)!==month\)/);
+ assert.match(index,/norm\(data\.project\)!==norm\(row\.project\)/);
+ assert.match(index,/norm\(data\.contractNo\)!==norm\(row\.contractNo\)/);
+ assert.match(index,/norm\(data\.ipcNo\)!==norm\(row\.ipcNo\)/);
+ assert.match(index,/JSON\.stringify\(fresh\.data\(\)\.ipcDocumentLinks\|\|\{\}\)!==JSON\.stringify\(oldLinks\)/);
+ assert.match(index,/t\.update\(ref,\{ipcDocumentLinks:links,ipcDocumentLinksUnresolvedIds:/);
+ assert.match(index,/__archiveDossierApplyBackfill\?\.\(month,links,\[\.\.\.unresolved\]\)/);
+ assert.doesNotMatch(index,/collection\s*\(|deleteDoc\s*\(|writeBatch\s*\(/);
+});
