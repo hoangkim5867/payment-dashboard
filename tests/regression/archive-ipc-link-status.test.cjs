@@ -20,9 +20,10 @@ test('Staff dossier status comes from already fetched archive snapshot, not extr
  assert.doesNotMatch(index,/getDocs\(|onSnapshot\(|setInterval\(/);
 });
 test('Legacy Archive without backfill never falsely calls unknown links missing',()=>{
- assert.match(index,/const known=complete&&!unknown\.has\(id\)/);
- assert.match(index,/const state=url\?"yes":known\?"no":"unknown"/);
- assert.match(index,/Unmigrated historical months remain "unknown"/);
+ assert.match(index,/return \{url,state:url\?"yes":complete&&!unknown\.has\(id\)\?"no":"unknown"\}/);
+ assert.match(index,/if\(b\.textContent!=="🔎 Kiểm tra"\)/);
+ assert.match(index,/const label=url\?"📁 Đã có":known\?"📁 Chưa có":"🔎 Chưa rõ"/);
+ assert.match(archive,/return \{state:"unknown",url:""\}/);
 });
 test('Backfill is Admin-only click, capped reads, validates actual payment ID and does not write money or UNC',()=>{
  assert.match(index,/getAuth\(getApp\(\)\)\.currentUser\?\.uid===OWNER_UID/);
@@ -81,4 +82,39 @@ test('Monthly scanner stays available for next month without forcing all-month r
  assert.match(bulk,/archiveRows=latest;currentMonth=String\(latest\[0\]\.archiveMonth\);scanScope="month"/);
  assert.match(archive,/window\.__archivePaidIpcRows=/);
  assert.match(archive,/return paidIpcRowsFromDetails\(currentDetails,currentDetails\.month\)/);
+});
+
+test('Monthly table renders dossier state directly from indexed snapshot, not a default folder',()=>{
+ assert.match(archive,/const dossierState=\(id,details\)=>/);
+ assert.match(archive,/const dossierCell=\(id,details\)=>/);
+ assert.match(archive,/data-ipc-doc-cell="1">\$\{dossierCell\(paymentId,details\)\}/);
+ assert.match(archive,/data-ipc-link-state="\$\{dossierState\(paymentId,details\)\.state\}"/);
+ assert.match(archive,/if\(state==="no"&&!currentUserIsAdmin\)return "—"/);
+ assert.match(archive,/state==="yes"&&!currentUserIsAdmin/);
+ assert.match(archive,/dossierCheck:"🔎 Kiểm tra"/);
+ assert.match(archive,/data-dossier-count="yes"/);
+ assert.match(archive,/data-dossier-count="no"/);
+ assert.match(archive,/data-dossier-count="unknown"/);
+ assert.match(index,/counts\[stateOf\(id\)\.state\]\+\+/);
+ assert.doesNotMatch(index,/getDocs\s*\(|onSnapshot\s*\(|setInterval\s*\(/);
+});
+test('Index completeness differentiates linked / missing / unresolved without reading Payment',()=>{
+ const vm=require('node:vm');
+ const start=archive.indexOf('    const indexedDossierLink=raw=>');
+ const end=archive.indexOf('    const dossierCell=(id,details)=>',start);
+ assert.ok(start>0&&end>start);
+ const fn=vm.runInNewContext(archive.slice(start,end)+'\n dossierState',{URL});
+ const link='https://drive.google.com/file/d/12345678abcdefgh/view';
+ assert.equal(fn('p1',{ipcDocumentLinks:{p1:link},ipcDocumentLinksComplete:false}).state,'yes');
+ assert.equal(fn('p1',{ipcDocumentLinks:{},ipcDocumentLinksComplete:true}).state,'no');
+ assert.equal(fn('p1',{ipcDocumentLinks:{},ipcDocumentLinksComplete:true,ipcDocumentLinksUnresolvedIds:['p1']}).state,'unknown');
+ assert.equal(fn('p1',{ipcDocumentLinks:{},ipcDocumentLinksComplete:false}).state,'unknown');
+ assert.equal(fn('p1',{ipcDocumentLinks:{p1:'https://evil.com/file'},ipcDocumentLinksComplete:false}).state,'unknown');
+});
+test('Historical index backfill preserves valid prior links if legacy Payment read is unresolved',()=>{
+ assert.match(index,/snap\.data\(\)\?\.ipcDocumentLinks\|\|\{\}/);
+ assert.match(index,/if\(validUrl\(url\)\)links\[id\]=validUrl\(url\)/);
+ assert.match(index,/if\(!item\.verified\)\{if\(item\.id&&!links\[item\.id\]\)unresolved\.push\(item\.id\);\}/);
+ assert.match(index,/else if\(item\.id\)delete links\[item\.id\]/);
+ assert.doesNotMatch(index,/deleteDoc\s*\(|getDocs\s*\(/);
 });
