@@ -30,6 +30,8 @@ if(view){
  const panel=$("#archiveIpcPanel"),root=$("#archiveIpcFolder"),status=$("#archiveIpcStatus"),review=$("#archiveIpcReview");
  const rowsTarget=$("#archiveIpcRows"),saveButton=$("#archiveIpcSave"),selectedInfo=$("#archiveIpcSelected");
  let db=null,auth=null,googleClient=null,googleToken="",expiry=0,currentMonth="",archiveRows=[],proposals=[],scanning=false,saving=false,scanPartial=false;
+ let scanScope="month",lastScan=null,lastFolderId="";
+ const toolbar=$("#archiveToolbar");let allButton=null;
  const message=(s,error=false)=>{status.textContent=s;status.className=error?"alert":"info";};
  function init(){
   if(!getApps().length)throw Error("Firebase chưa khởi tạo. Mở lại Kho chứng từ.");
@@ -53,6 +55,15 @@ if(view){
   saveButton.disabled=saving||!checked.length;
  };
  function decorate(){
+  // Always place the one-time, all-month option beside the month selector.
+  // Neither rendering nor showing the button queries Firebase.
+  if(toolbar&&!allButton){
+   allButton=el("button","📁 Quét hồ sơ toàn Kho (một lần)");
+   allButton.type="button";allButton.className="archive-ipc-bulk-launch archive-ipc-all-launch";
+   allButton.hidden=true;toolbar.append(allButton);
+   allButton.addEventListener("click",openAllMonths);
+  }
+  if(allButton)allButton.hidden=!(allowed()&&Number(window.__archivePaidIpcAllPreview?.()?.months||0)>0);
   if(!allowed())return;
   const heading=$(".viewer-heading",view),table=$(".viewer-table:not(.global-search-table)",view);
   if(!heading||!table||$(".archive-ipc-bulk-launch",heading))return;
@@ -66,7 +77,8 @@ if(view){
     await ownerGuard();
     const latest=rowsForCurrentMonth();
     if(!latest.length)throw Error("Hãy mở một tháng đã thanh toán trong Kho.");
-    archiveRows=latest;currentMonth=String(latest[0].archiveMonth);
+    archiveRows=latest;currentMonth=String(latest[0].archiveMonth);scanScope="month";
+    $("#archiveIpcHeading").textContent="📁 Đối chiếu Hồ sơ IPC đã thanh toán";
     $("#archiveIpcMonth").textContent="Tháng "+currentMonth+" · "+archiveRows.length+" khoản đã trả có ID để đối chiếu. Không quét các khoản tháng hiện tại chưa thanh toán.";
     review.hidden=true;rowsTarget.replaceChildren();proposals=[];
     overlay.hidden=false;message("Dán link SSIS tổng và kết nối tài khoản Google được chia sẻ để quét.");
@@ -74,8 +86,45 @@ if(view){
   });
  }
  new MutationObserver(decorate).observe(view,{childList:true,subtree:true});
- // The on-auth Archive rendering creates the table; no extra database calls needed to detect it.
+ const monthSelector=$("#archiveMonthSelect");
+ if(monthSelector)new MutationObserver(decorate).observe(monthSelector,{childList:true});
+ // The Archive updates its month dropdown on login; no additional reads for button rendering.
  decorate();
+ async function openAllMonths(){
+  if(scanning||saving||!allowed())return;
+  const preview=window.__archivePaidIpcAllPreview?.();
+  if(!preview?.months){alert("Kho chưa có tháng để đối chiếu.");return;}
+  if(preview.months>60){alert("Kho có trên 60 tháng; không quét để tránh tải vượt mức an toàn.");return;}
+  const estimated=Math.max(0,preview.months-preview.cached);
+  if(!confirm("QUÉT HỒ SƠ TOÀN BỘ CÁC THÁNG ĐÃ CHỐT?\\n\\n"+
+   "• "+preview.months+" tháng Kho; tối đa khoảng "+estimated+" lượt đọc chi tiết Kho chưa lưu trong phiên này.\\n"+
+   "• Quét thư mục Google Drive tổng đúng MỘT lần; không tải PDF về máy.\\n"+
+   "• Chỉ đọc khoản Payment đã được chọn khi bấm Lưu (tối đa 40 mỗi lần).\\n"+
+   "• Không tự ghi link, không ghi đè link có sẵn, không đổi tiền/UNC/tiến trình.\\n\\n"+
+   "Sau đợt này, các tháng sau vẫn có thể quét riêng từng tháng."))return;
+  scanning=true;allButton.disabled=true;$("#archiveIpcScan").disabled=true;
+  review.hidden=true;rowsTarget.replaceChildren();proposals=[];archiveRows=[];
+  scanScope="all";currentMonth="";
+  $("#archiveIpcHeading").textContent="📁 Quét & gắn hồ sơ toàn Kho";
+  $("#archiveIpcMonth").textContent="Đang tập hợp các tháng đã thanh toán…";
+  overlay.hidden=false;
+  try{
+   const uid=await ownerGuard();
+   const result=await window.__archivePaidIpcAllRows?.(p=>
+    message("Đang lấy dữ liệu Kho "+p.loaded+"/"+p.total+" tháng · "+p.reads+
+      " reads chi tiết Kho · "+p.rows+" khoản chưa gắn link chỉ mục"));
+   if(!result||auth.currentUser?.uid!==uid)throw Error("Không tải được danh sách hoặc phiên Admin đã đổi.");
+   archiveRows=result.rows;
+   const info=result.months+" tháng · "+result.rows.length+
+    " khoản chưa có link trong chỉ mục · "+result.reads+" reads chi tiết Kho"+
+    (result.skippedLinked?" · "+result.skippedLinked+" khoản đã có link được bỏ qua":"")+
+    (result.duplicates?" · "+result.duplicates+" ID trùng được loại để kiểm tra riêng":"");
+   $("#archiveIpcMonth").textContent=info;
+   message(archiveRows.length?"Đã lấy dữ liệu tháng. Dán thư mục Drive tổng, kết nối Google rồi bấm Quét thư mục & đối chiếu. Chưa đọc khoản Payment nào.":
+    "Không có khoản cần đối chiếu trong dữ liệu Kho đã tải.");
+  }catch(e){archiveRows=[];message("Không thể quét toàn Kho: "+(e.message||e),true);}
+  finally{scanning=false;allButton.disabled=false;$("#archiveIpcScan").disabled=false;}
+ }
  const close=()=>{if(saving||scanning)return;overlay.hidden=true;proposals=[];rowsTarget.replaceChildren();};
  $("#archiveIpcClose").addEventListener("click",close);
  overlay.addEventListener("click",event=>{if(event.target===overlay)close();});
@@ -131,21 +180,40 @@ if(view){
   update();proposal.selectedId=input.value;
   return {input,open};
  }
- function render(scan){
+ async function render(scan){
   proposals=[];rowsTarget.replaceChildren();
-  let noCandidates=0,ambiguous=0,strong=0;
-  for(const data of archiveRows){
-   if(!data.id||!data.contractNo||!data.ipcNo){noCandidates++;continue;}
-   const candidates=findPaymentPdfCandidates(data,scan);
+  let noCandidates=0,ambiguous=0,strong=0,shared=0;
+  // Match metadata locally. A Drive file that maps to multiple payments is
+  // never bulk-selected automatically across historical months.
+  const matched=[];const fileUsage=new Map();
+  for(let i=0;i<archiveRows.length;i++){
+   const data=archiveRows[i];
+   let candidates=[];
+   if(data.id&&data.contractNo&&data.ipcNo)candidates=findPaymentPdfCandidates(data,scan);
+   matched.push({data,candidates});
+   if(scanScope==="all"&&candidates.length===1&&candidates[0].confidence==="strong"){
+    const id=candidates[0].id;fileUsage.set(id,(fileUsage.get(id)||0)+1);
+   }
+   if(i%30===29){
+    message("Đang đối chiếu "+(i+1)+"/"+archiveRows.length+" khoản với PDF đã quét (không đọc Firebase)…");
+    await new Promise(resolve=>setTimeout(resolve,0));
+   }
+  }
+  for(const {data,candidates} of matched){
    if(!candidates.length){noCandidates++;continue;}
-   const unique=candidates.length===1&&candidates[0].confidence==="strong";
+   const repeated=scanScope==="all"&&candidates.length===1&&fileUsage.get(candidates[0].id)>1;
+   const unique=candidates.length===1&&candidates[0].confidence==="strong"&&!repeated;
    if(unique)strong++;else ambiguous++;
-   const tr=el("tr");const selectCell=el("td"),description=el("td");
-   const selector=el("input");selector.type="checkbox";selector.setAttribute("aria-label","Chọn hồ sơ "+data.project+" "+data.ipcNo);
-   const proposal={data,candidates,checked:false,saved:false,selectedId:"",checkbox:selector};
+   if(repeated)shared++;
+   const tr=el("tr"),selectCell=el("td"),description=el("td");
+   const selector=el("input");selector.type="checkbox";
+   selector.setAttribute("aria-label","Chọn hồ sơ "+data.project+" "+data.ipcNo);
+   const proposal={data,candidates,checked:false,saved:false,selectedId:"",checkbox:selector,shared:repeated};
    selector.addEventListener("change",()=>{proposal.checked=selector.checked;syncSelected();});
    selectCell.append(selector);
-   description.append(el("b",data.project+" · "+data.ipcNo),el("div",data.contractNo));
+   description.append(el("b",(scanScope==="all"?"["+data.archiveMonth+"] ":"")+data.project+" · "+data.ipcNo),
+    el("div",data.contractNo));
+   if(repeated)description.append(el("div","PDF này khớp nhiều khoản; cần mở kiểm tra trước khi chọn."));
    const cells=makeOptions(data,proposal);
    const selectTd=el("td");selectTd.append(cells.input);
    const openTd=el("td");openTd.append(cells.open);
@@ -154,8 +222,13 @@ if(view){
    proposals.push(proposal);
   }
   review.hidden=false;
-  $("#archiveIpcSummary").textContent=strong+" khớp chắc · "+ambiguous+" cần chọn · "+noCandidates+" chưa tìm thấy (trong "+archiveRows.length+" khoản)";
-  if(!proposals.length){const tr=el("tr"),td=el("td","Không có PDF khớp. Kiểm tra tên hợp đồng/IPC hoặc thư mục Drive.");td.colSpan=5;tr.append(td);rowsTarget.append(tr);}
+  $("#archiveIpcSummary").textContent=strong+" khớp chắc · "+ambiguous+" cần chọn · "+
+   noCandidates+" chưa tìm thấy (trong "+archiveRows.length+" khoản)"+
+   (shared?" · "+shared+" khoản có PDF trùng cần xem riêng":"");
+  if(!proposals.length){
+   const tr=el("tr"),td=el("td","Không có PDF khớp. Kiểm tra tên hợp đồng/IPC hoặc thư mục Drive.");
+   td.colSpan=5;tr.append(td);rowsTarget.append(tr);
+  }
   syncSelected();
  }
  $("#archiveIpcScan").addEventListener("click",async()=>{
@@ -166,18 +239,24 @@ if(view){
   if(!archiveRows.length){message("Không tìm thấy khoản đã trả trong tháng được chọn.",true);return;}
   scanning=true;$("#archiveIpcScan").disabled=true;review.hidden=true;rowsTarget.replaceChildren();proposals=[];
   try{
-   const result=await scanDriveFolder({folderId:id,token:googleToken,onProgress:p=>message("Đang quét "+p.readFolders+" thư mục · "+p.items+" mục · "+p.pdfs+" PDF")});
+   const reused=lastScan&&lastFolderId===id&&!lastScan.partial;
+   const result=reused?lastScan:await scanDriveFolder({folderId:id,token:googleToken,onProgress:p=>
+    message("Đang quét "+p.readFolders+" thư mục · "+p.items+" mục · "+p.pdfs+" PDF")});
+   lastScan=result;lastFolderId=id;
    scanPartial=!!result.partial;
    if(result.partial)message("CẢNH BÁO: Quét chưa hết thư mục Drive. Chọn thư mục nhỏ hơn rồi quét lại trước khi lưu để không gắn nhầm.",true);
-   else message("Quét xong "+result.readFolders+" thư mục · "+result.files.length+" PDF. Chỉ duyệt/lưu sau khi kiểm tra.");
-   render(result);
+   else message((reused?"Dùng lại kết quả quét Drive trong tab. ":"Quét xong ")+
+    result.readFolders+" thư mục · "+result.files.length+" PDF. Đang đối chiếu các khoản.");
+   await render(result);
+   if(!scanPartial)message("Đã đối chiếu "+archiveRows.length+" khoản · "+result.files.length+
+    " PDF. Chỉ duyệt/lưu sau khi kiểm tra.");
   }catch(e){message("Không quét được: "+(e.message||e),true);}
   finally{scanning=false;$("#archiveIpcScan").disabled=false;}
  });
  $("#archiveIpcAllStrong").addEventListener("click",()=>{
   if(scanPartial){message("Chưa thể chọn hàng loạt: thư mục Drive chưa được quét hết. Hãy chọn thư mục nhỏ hơn.",true);return;}
   for(const p of proposals){
-   if(!p.saved&&p.candidates.length===1&&p.candidates[0].confidence==="strong"){p.checked=true;p.checkbox.checked=true;}
+   if(!p.saved&&!p.shared&&p.candidates.length===1&&p.candidates[0].confidence==="strong"){p.checked=true;p.checkbox.checked=true;}
   }
   syncSelected();
  });
@@ -190,10 +269,14 @@ if(view){
   let pending=proposals.filter(p=>p.checked&&!p.saved);
   if(!pending.length)return;
   if(scanPartial){message("Chưa thể lưu: kết quả quét Drive chưa đầy đủ. Hãy quét thư mục hẹp hơn.",true);return;}
-  if(pending.length>40){message("Tối đa 40 khoản mỗi lượt. Bỏ chọn bớt rồi lưu tiếp.",true);return;}
-  const label="Lưu "+pending.length+" link PDF vào khoản thanh toán đã trả của tháng "+currentMonth+"? Chỉ cập nhật trường hồ sơ, KHÔNG ghi đè link cũ, tiền, UNC hay tiến trình.";
+  const remaining=pending.length>40?pending.length-40:0;
+  if(remaining&&scanScope!=="all"){message("Tối đa 40 khoản mỗi lượt. Bỏ chọn bớt rồi lưu tiếp.",true);return;}
+  if(remaining)pending=pending.slice(0,40);
+  const label="Lưu "+pending.length+" link PDF vào khoản đã trả "+(scanScope==="all"?"trong toàn Kho":"của tháng "+currentMonth)+
+   "?"+(remaining?" Còn "+remaining+" khoản đã chọn để lưu ở lượt tiếp theo.":"")+
+   " Chỉ cập nhật trường hồ sơ, KHÔNG ghi đè link cũ, tiền, UNC hay tiến trình.";
   if(!confirm(label))return;
-  saving=true;saveButton.disabled=true;let saved=0,skipped=0,failed=0;const savedLinks=[];
+  saving=true;saveButton.disabled=true;let saved=0,skipped=0,failed=0;const savedLinks=[],savedByMonth=new Map();
   try{
    const uid=await ownerGuard();
    for(const p of pending){
@@ -201,7 +284,7 @@ if(view){
     if(!file||!/^[A-Za-z0-9_-]{8,}$/.test(String(file.id||""))||!(file.mimeType==="application/pdf"||/\.pdf$/i.test(file.name||""))){
      p.result.textContent="Không chọn được PDF chuẩn";p.result.className="status error";failed++;continue;
     }
-    if(auth.currentUser?.uid!==uid||currentMonth!==p.data.archiveMonth){
+    if(auth.currentUser?.uid!==uid||(scanScope!=="all"&&currentMonth!==p.data.archiveMonth)){
      p.result.textContent="Quyền hoặc tháng đã thay đổi";p.result.className="status error";failed++;continue;
     }
     try{
@@ -214,13 +297,15 @@ if(view){
       if(!isPaid(data,p.data))return "mismatch";
       if(data.ipcDocumentUrl)return "existing";
       transaction.update(ref,{ipcDocumentUrl:pdfUrl,ipcDocumentUpdatedAt:serverTimestamp(),ipcDocumentUpdatedByUid:uid});
-       transaction.update(doc(db,"paymentArchiveDetails",currentMonth),new FieldPath("ipcDocumentLinks",p.data.id),pdfUrl);
+       transaction.update(doc(db,"paymentArchiveDetails",p.data.archiveMonth),new FieldPath("ipcDocumentLinks",p.data.id),pdfUrl);
       return "saved";
      });
      if(outcome==="saved"){
       window.dispatchEvent(new CustomEvent("payment-ipc-link-status-changed",{detail:{paymentId:p.data.id,linked:true}}));
       p.saved=true;p.checked=false;p.checkbox.checked=false;p.checkbox.disabled=true;
       p.row.classList.add("row-saved");p.result.textContent="✓ Đã lưu";p.result.className="status success";saved++;savedLinks.push([p.data.id,pdfUrl]);
+      if(!savedByMonth.has(p.data.archiveMonth))savedByMonth.set(p.data.archiveMonth,[]);
+      savedByMonth.get(p.data.archiveMonth).push([p.data.id,pdfUrl]);
      }else{
       p.checked=false;p.checkbox.checked=false;p.checkbox.disabled=true;
       p.result.textContent=outcome==="existing"?"Đã có link, không ghi đè":outcome==="missing"?"Không có khoản gốc trong Payment":"Dữ liệu khoản đã thay đổi hoặc không còn đã trả";
@@ -228,7 +313,8 @@ if(view){
      }
     }catch(e){p.result.textContent="Lưu lỗi: "+(e.message||e);p.result.className="status error";failed++;}
    }
-   if(savedLinks.length)window.__archiveDossierUpdateLocal?.(currentMonth,Object.fromEntries(savedLinks));
+   for(const [month,links] of savedByMonth)
+    window.__archiveDossierUpdateLocal?.(month,Object.fromEntries(links));
    message("Đã lưu "+saved+" link · bỏ qua "+skipped+" · lỗi "+failed+". Payment và Kho cập nhật cùng một giao dịch.");
   }catch(e){message("Không xác thực được Admin: "+(e.message||e),true);}
   finally{saving=false;syncSelected();}
