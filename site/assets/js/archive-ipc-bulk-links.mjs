@@ -2,7 +2,7 @@
 // Only metadata is read from Google Drive; no PDF files are uploaded/downloaded.
 import {getApps,getApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,doc,getDoc,runTransaction,serverTimestamp,updateDoc,FieldPath} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getFirestore,doc,getDoc,runTransaction,serverTimestamp,FieldPath} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {GOOGLE_DRIVE_CLIENT_ID,GOOGLE_DRIVE_SCOPE,folderId,scanDriveFolder,findPaymentPdfCandidates} from "./drive-ipc-lookup.mjs";
 
 const OWNER_UID="HTx2QuATHxh8zgAawwreg88w65M2";
@@ -214,6 +214,7 @@ if(view){
       if(!isPaid(data,p.data))return "mismatch";
       if(data.ipcDocumentUrl)return "existing";
       transaction.update(ref,{ipcDocumentUrl:pdfUrl,ipcDocumentUpdatedAt:serverTimestamp(),ipcDocumentUpdatedByUid:uid});
+       transaction.update(doc(db,"paymentArchiveDetails",currentMonth),new FieldPath("ipcDocumentLinks",p.data.id),pdfUrl);
       return "saved";
      });
      if(outcome==="saved"){
@@ -227,17 +228,8 @@ if(view){
      }
     }catch(e){p.result.textContent="Lưu lỗi: "+(e.message||e);p.result.className="status error";failed++;}
    }
-   let syncWarning="";
-   if(savedLinks.length){
-    try{
-     const updates=[];
-     for(const [id,url] of savedLinks)updates.push(new FieldPath("ipcDocumentLinks",id),url);
-     await updateDoc(doc(db,"paymentArchiveDetails",currentMonth),...updates);
-     const patch=Object.fromEntries(savedLinks);
-     window.__archiveDossierUpdateLocal?.(currentMonth,patch);
-    }catch(e){syncWarning=" Đã lưu các link trong Payment nhưng cập nhật Kho chưa thành công: "+(e.message||e);}
-   }
-   message("Đã lưu "+saved+" link · bỏ qua "+skipped+" · lỗi "+failed+"."+syncWarning,!!syncWarning);
+   if(savedLinks.length)window.__archiveDossierUpdateLocal?.(currentMonth,Object.fromEntries(savedLinks));
+   message("Đã lưu "+saved+" link · bỏ qua "+skipped+" · lỗi "+failed+". Payment và Kho cập nhật cùng một giao dịch.");
   }catch(e){message("Không xác thực được Admin: "+(e.message||e),true);}
   finally{saving=false;syncSelected();}
  });
