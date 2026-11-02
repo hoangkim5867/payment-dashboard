@@ -140,21 +140,71 @@
     // The Archive has already loaded these PAID rows for the selected month.
     // Admin's explicit IPC dossier scanner reuses this in-memory snapshot only.
     // EXCEL row numbers / company-search index are never used as payment IDs.
-    window.__archivePaidIpcRows=()=>{
-      if(!currentUserIsAdmin||viewerMode!=="details"||
-         String(currentDetails?.month||"")!==String(monthSelect.value||""))return [];
-      return (Array.isArray(currentDetails?.rows)?currentDetails.rows:[])
+    const paidIpcRowsFromDetails=(details,month)=>{
+      const links=details?.ipcDocumentLinks||{};
+      return (Array.isArray(details?.rows)?details.rows:[])
         .filter(row=>String(row.paymentId||"").trim()&&
-          String(row.paymentDate||"").trim()&&Number(row.actualAmount)>0)
+          String(row.paymentDate||"").trim()&&Number(row.actualAmount)>0&&
+          !String(links[String(row.paymentId).trim()]||"").trim())
         .map(row=>({
           id:String(row.paymentId).trim(),
-          archiveMonth:String(currentDetails.month),
+          archiveMonth:String(month),
           project:String(row.project||"").trim(),
           contractNo:String(row.contractNo||"").trim(),
           ipcNo:String(row.ipcNo||"").trim(),
           actualAmount:Number(row.actualAmount),
           paymentDate:String(row.paymentDate)
         }));
+    };
+    window.__archivePaidIpcRows=()=>{
+      if(!currentUserIsAdmin||viewerMode!=="details"||
+         String(currentDetails?.month||"")!==String(monthSelect.value||""))return [];
+      return paidIpcRowsFromDetails(currentDetails,currentDetails.month);
+    };
+    // Admin-only, click-triggered one-off sweep: one Archive detail read per
+    // uncached month. NEVER queries the payments collection while previewing.
+    window.__archivePaidIpcAllPreview=()=>{
+      if(!currentUserIsAdmin)return null;
+      const months=[...new Set(archiveItems.map(item=>String(item.month||"").trim()))];
+      return {months:months.length,cached:months.filter(m=>sessionDetailCache.has(m)).length};
+    };
+    window.__archivePaidIpcAllRows=async onProgress=>{
+      if(!currentUserIsAdmin||!auth.currentUser)throw Error("Chỉ Admin mới được quét toàn Kho.");
+      const uid=auth.currentUser.uid;
+      const months=[...new Set(archiveItems.map(item=>String(item.month||"").trim()))];
+      if(!months.length)throw Error("Kho chưa có tháng đã chốt.");
+      if(months.length>60)throw Error("Có trên 60 tháng. Không quét hàng loạt để tránh đọc vượt mức an toàn.");
+      if(months.some(month=>!/^\\d{4}-(0[1-9]|1[0-2])$/.test(month)))
+        throw Error("Kho có tháng không đúng định dạng; dừng để tránh đối chiếu nhầm.");
+      let reads=0,skippedLinked=0;
+      const all=[],seen=new Set(),duplicates=new Set();
+      for(const month of months){
+        if(!currentUserIsAdmin||auth.currentUser?.uid!==uid)
+          throw Error("Phiên Admin đã thay đổi. Dừng quét.");
+        let details=sessionDetailCache.get(month);
+        if(!details){
+          const snapshot=await getDoc(doc(db,"paymentArchiveDetails",month));
+          reads++;
+          if(!snapshot.exists())throw Error("Thiếu dữ liệu Kho tháng "+month+". Dừng quét để tránh bỏ sót.");
+          details=snapshot.data();
+          if(String(details.month||month)!==month)throw Error("Tháng trong chi tiết Kho không khớp: "+month);
+          sessionDetailCache.set(month,details);
+        }
+        const paid=paidIpcRowsFromDetails(details,month);
+        skippedLinked+=Array.isArray(details?.rows)?details.rows.filter(row=>
+          String(row.paymentId||"").trim()&&
+          String(details.ipcDocumentLinks?.[String(row.paymentId).trim()]||"").trim()).length:0;
+        for(const row of paid){
+          if(seen.has(row.id))duplicates.add(row.id);
+          else seen.add(row.id);
+          all.push(row);
+        }
+        if(all.length>6000)throw Error("Vượt 6.000 khoản. Dừng để không tải quá nhiều dữ liệu.");
+        onProgress?.({loaded:months.indexOf(month)+1,total:months.length,reads,rows:all.length});
+      }
+      // Repeated payment IDs across months are ambiguous. Do not propose them.
+      return {rows:all.filter(row=>!duplicates.has(row.id)),months:months.length,
+        reads,skippedLinked,duplicates:duplicates.size};
     };
     // Existing archive month snapshot already costs one read. Share its dossier
     // index with the display modules; Staff never queries payments collection.
