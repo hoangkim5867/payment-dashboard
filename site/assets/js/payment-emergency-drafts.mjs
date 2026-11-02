@@ -225,7 +225,7 @@ export function createPaymentEmergencyDrafts({modal,saveButton,getContext,setEnt
         active=null;
       }
       if(!savedSession){
-        if(!active)say('✅ Firestore đã xác nhận thanh toán (không có nháp đang mở).');
+        if(!active)say('');
         return;
       }
       // A failed earlier put must not prevent a best-effort local cleanup.
@@ -238,7 +238,7 @@ export function createPaymentEmergencyDrafts({modal,saveButton,getContext,setEnt
         if(!active)say('⚠ Firestore đã xác nhận thanh toán nhưng CHƯA xóa được nháp. Hãy xóa nháp thủ công.');
       });
       cleanup.then(()=>{
-        if(!active)say('✅ Firestore đã xác nhận thanh toán; nháp cùng phiên đã được xóa.');
+        if(!active)say('');
       },()=>{});
     },
     resetSession(){

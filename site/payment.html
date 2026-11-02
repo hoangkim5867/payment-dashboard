@@ -39869,7 +39869,16 @@ document.addEventListener("keydown",event=>{
         }
     }
 });
-</script>
+// Read-only in-memory batch candidates. Reuse the rows already rendered on Payment;
+ // never query Firestore just to prepare the Google Drive review list.
+ window.__ipcDriveBatchRows=()=>{
+   if(!isAdmin()||!currentAuthUser)return [];
+   const visible=new Set([...paymentBody.querySelectorAll(".timeline-detail-btn[data-id]")].map(el=>String(el.dataset.id||"")));
+   return getFilteredPayments()
+     .filter(p=>p.deleted!==true&&visible.has(String(p.id)))
+     .map(p=>({id:String(p.id),project:String(p.project||""),contractNo:String(p.contractNo||""),ipcNo:String(p.ipcNo||"")}));
+ };
+ </script>
 
 <!-- Toolbar position only: preserve every original radius and surface style. -->
 <style id="toolbar-left-original-style">

@@ -1,5 +1,6 @@
 // IPC document hyperlinks. Explicit user click only; never auto-query Firestore.
 import {getApps,getApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {createIpcDrivePicker} from "./drive-ipc-picker-ui.mjs";
 import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {getFirestore,doc,getDoc,updateDoc,deleteField,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 const OWNER_ADMIN_UID="HTx2QuATHxh8zgAawwreg88w65M2";
@@ -22,6 +23,25 @@ wrapper.innerHTML='<div id="docLinkDialog" role="dialog" aria-modal="true" aria-
 document.body.appendChild(wrapper);
 const input=$("#docLinkInput"),openBtn=$("#docLinkOpen"),save=$("#docLinkSave"),remove=$("#docLinkRemove"),msg=$("#docLinkMessage");
 const notice=(v,error=false)=>{msg.textContent=v;msg.className="msg"+(error?" error":"");};
+const picker=createIpcDrivePicker({
+ editor:$("#docLinkEditor"),linkInput:input,
+ getBatchRows:$("#paymentBody") ? ()=>window.__ipcDriveBatchRows?.()||[] : null,
+ saveBatchLink:async(row,url)=>{
+  const valid=driveUrl(url);
+  if(!valid)throw Error("Link PDF không hợp lệ.");
+  const u=await role();
+  if(!u.admin||u.uid!==auth.currentUser?.uid)throw Error("Chỉ Admin được lưu link.");
+  const ref=doc(db,"payments",row.id);
+  const snap=await getDoc(ref);
+  if(!snap.exists())throw Error("Khoản đã bị xóa.");
+  const fresh=snap.data();
+  if([fresh.project,fresh.contractNo,fresh.ipcNo].some((v,i)=>String(v??"").trim()!==String([row.project,row.contractNo,row.ipcNo][i]??"").trim()))
+   throw Error("Thông tin khoản đã đổi. Tải lại danh sách trước khi gắn link.");
+  await updateDoc(ref,{ipcDocumentUrl:valid,ipcDocumentUpdatedAt:serverTimestamp(),ipcDocumentUpdatedByUid:u.uid});
+  mark(row.id,true);
+ }
+});
+
 let auth,db,rolePromise=null,activeId="",activeUrl="",busy=false,generation=0,canWrite=false;
 const init=()=>{
  if(db)return true;
@@ -60,7 +80,7 @@ async function showLink(id){
  if(!id||!init())return;
  if(!auth.currentUser){alert("Cần đăng nhập Payment trước.");return;}
  activeId=id;const token=++generation;
- setEditor(false);setBusy(false);setLink("");input.value="";
+ picker.hide();setEditor(false);setBusy(false);setLink("");input.value="";
  $("#docLinkItem").textContent="Mã khoản: "+id;
  wrapper.hidden=false;notice("Đang đọc liên kết của khoản này…");
  try{
@@ -69,12 +89,12 @@ async function showLink(id){
   if(!paymentSnap.exists()){notice("Không tìm thấy khoản này trong Firebase. Không thể gắn link.",true);return;}
   const p=paymentSnap.data();
   $("#docLinkItem").textContent=[p.project,p.contractNo,p.ipcNo].filter(Boolean).join(" · ")||"Mã khoản: "+id;
-  setLink(p.ipcDocumentUrl);input.value=activeUrl;setEditor(user.admin);
+  setLink(p.ipcDocumentUrl);input.value=activeUrl;setEditor(user.admin);picker.onOpen({...p,id},user.admin);
   notice(activeUrl?"Đã có link hồ sơ. Chỉ Admin có thể sửa.":"Chưa gắn hồ sơ cho khoản này.");
   mark(id,!!activeUrl);
  }catch(e){if(token===generation)notice("Không đọc được hồ sơ: "+(e?.message||e),true);}
 }
-const close=()=>{if(busy)return;generation++;wrapper.hidden=true;activeId="";setLink("");};
+const close=()=>{if(busy)return;generation++;wrapper.hidden=true;activeId="";setLink("");picker.onClose();};
 $("#docLinkClose").addEventListener("click",close);
 wrapper.addEventListener("click",e=>{if(e.target===wrapper)close();});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!wrapper.hidden)close();});
