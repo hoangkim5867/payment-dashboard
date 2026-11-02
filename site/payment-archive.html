@@ -170,7 +170,23 @@
       };
     };
     window.__archiveDossierMonths=()=>currentUserIsAdmin
-      ?archiveItems.map(item=>String(item.month||"")).filter(Boolean):[];
+      ?archiveItems.map(item=>({
+         month:String(item.month||""),
+         complete:item.ipcDocumentLinksComplete===true,
+         rowCount:Number(item.rowCount||0)
+       })).filter(item=>item.month):[];
+    window.__archiveDossierMarkMonthDone=month=>{
+      const item=archivesByMonth.get(String(month));
+      if(item)item.ipcDocumentLinksComplete=true;
+    };
+    window.__archiveDossierApplyBackfill=(month,links,unresolved)=>{
+      if(String(currentDetails?.month||"")!==String(month))return;
+      currentDetails.ipcDocumentLinks={...links};
+      currentDetails.ipcDocumentLinksUnresolvedIds=[...unresolved];
+      currentDetails.ipcDocumentLinksComplete=true;
+      sessionDetailCache.set(String(month),currentDetails);
+      window.dispatchEvent(new Event("archive-dossier-index-refresh"));
+    };
     window.__archiveDossierUpdateLocal=(month,patch)=>{
       if(String(currentDetails?.month||"")!==String(month))return;
       currentDetails.ipcDocumentLinks=Object.assign({},currentDetails.ipcDocumentLinks||{},patch);
