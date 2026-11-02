@@ -80,3 +80,41 @@ test('Picker is restricted to Admin modal and save remains user-triggered',()=>{
  assert.doesNotMatch(drafts,/✅ Firestore đã xác nhận thanh toán/);
  assert.match(drafts,/CHƯA xóa được nháp/);
 });
+
+test('Historical Chinese 红鹤别墅1.1区 maps only to HONGHAC ZONE1.1; contract and IPC still must match',()=>{
+ const row={project:'红鹤别墅1.1区',contractNo:'CSCECVN-S.E.A-HONGHAC-MEP-SUBP-001',ipcNo:'IPC007'};
+ const scan={rootName:'SSIS',files:[
+  {id:'ok',name:'HONGHAC ZONE1.1-MEP-SUBP-001-IPC007.pdf',path:'SSIS/HONGHAC ZONE1.1/SUBP-001/IPC'},
+  {id:'split-folder',name:'MEP-SUBP-001-IPC007.pdf',path:'SSIS/HONGHAC/ZONE1.1/SUBP-001/IPC'},
+  {id:'zone-12',name:'HONGHAC ZONE1.2-MEP-SUBP-001-IPC007.pdf',path:'SSIS/HONGHAC ZONE1.2/SUBP-001/IPC'},
+  {id:'wrong-ipc',name:'HONGHAC ZONE1.1-MEP-SUBP-001-IPC008.pdf',path:'SSIS/HONGHAC ZONE1.1/SUBP-001/IPC'},
+  {id:'wrong-contract',name:'HONGHAC ZONE1.1-MEP-SUBP-002-IPC007.pdf',path:'SSIS/HONGHAC ZONE1.1/SUBP-002/IPC'}
+ ]};
+ assert.deepEqual(api.findPaymentPdfCandidates(row,scan).map(f=>f.id),['ok','split-folder']);
+ assert.deepEqual(api.findPaymentPdfCandidates({...row,project:'紅鶴別墅1.1區'},scan).map(f=>f.id),['ok','split-folder']);
+ assert.deepEqual(api.findPaymentPdfCandidates({...row,project:'红鹤别墅1.2区'},scan).map(f=>f.id),['zone-12']);
+});
+test('Admin aliases permit other differently named Drive projects, never overwrite known other project or bypass contract/IPC',()=>{
+ const row={project:'中健仓房',contractNo:'CSCECVN-S.E.A-MEP-SUPL-024',ipcNo:'IPC004'};
+ const scan={rootName:'SSIS',files:[
+  {id:'custom',name:'MEP-SUPL-024-IPC004.pdf',path:'SSIS/ZHONGJIAN WAREHOUSE/SUPL-024/IPC'},
+  {id:'other-project',name:'MEP-SUPL-024-IPC004.pdf',path:'SSIS/ELYSIAN/SUPL-024/IPC'},
+  {id:'other-ipc',name:'MEP-SUPL-024-IPC003.pdf',path:'SSIS/ZHONGJIAN WAREHOUSE/SUPL-024/IPC'},
+  {id:'other-contract',name:'MEP-SUPL-025-IPC004.pdf',path:'SSIS/ZHONGJIAN WAREHOUSE/SUPL-025/IPC'}
+ ]};
+ assert.deepEqual(api.findPaymentPdfCandidates(row,scan),[]);
+ const aliases=[{archive:'中健仓房',drive:'ZHONGJIAN WAREHOUSE'}];
+ const found=api.findPaymentPdfCandidates(row,scan,{projectAliases:aliases});
+ assert.deepEqual(found.map(f=>f.id),['custom']);
+ assert.equal(found[0].confidence,'strong');
+ assert.deepEqual(api.findPaymentPdfCandidates(row,scan,{projectAliases:[{archive:'中健仓房',drive:'ELYSIAN'}]}),[]);
+});
+test('Alias editor is Admin-only, browser-local and never triggers extra Firebase requests',()=>{
+ const bulk=fs.readFileSync(path.join(root,'site/assets/js/archive-ipc-bulk-links.mjs'),'utf8');
+ assert.match(bulk,/id="archiveIpcAliasInput"/);
+ assert.match(bulk,/localStorage\.setItem\(aliasStorageKey/);
+ assert.match(bulk,/findPaymentPdfCandidates\(data,scan,\{projectAliases\}\)/);
+ assert.match(bulk,/parseProjectAliases\(aliasInput\.value\)/);
+ assert.match(bulk,/await render\(result,parseProjectAliases\(aliasInput\.value\)\)/);
+ assert.doesNotMatch(bulk,/getDocs\s*\(|onSnapshot\s*\(/);
+});

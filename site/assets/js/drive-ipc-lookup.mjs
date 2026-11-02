@@ -12,7 +12,18 @@ const listTokens=(v,types)=>{
 };
 export const ipcTokens=value=>listTokens(value,"IPC|MEP");
 export const contractTokens=value=>listTokens(value,"SUBP|SUPL|SUBP|LAB|ADM|MEP|SUP");
+// Known project aliases only: do not guess other Chinese/Vietnamese names.
+// Keep the zone decimals distinct: 1.1 must never match 1.2 or 11.
+const hongHacIdentity=value=>{
+ const raw=normalize(value),key=compact(value);
+ if(!/(?:红鹤别墅|紅鶴別墅)/.test(raw)&&!key.includes("HONGHAC"))return "";
+ const zone=raw.match(/(?:ZONE|KHU|别墅|別墅)[\s/_-]*(\d{1,2})\s*\.\s*(\d{1,2})/i)
+   ||raw.match(/(\d{1,2})\s*\.\s*(\d{1,2})\s*(?:区|區)/);
+ return zone?"HONGHACZONE"+Number(zone[1])+"DOT"+Number(zone[2]):"HONGHAC";
+};
 const normalizeProject=value=>{
+ const known=hongHacIdentity(value);
+ if(known)return known;
  const s=compact(value);
  if(/^EATON(PARK)?(P1)?$/.test(s)||s==="EATONPARKP1")return "EATONPARK";
  if(s==="OCEANLINKPROJECT"||s==="OCEANLINK")return "OCEANLINK";
@@ -20,6 +31,9 @@ const normalizeProject=value=>{
 };
 const knownProjects=["EATON","ELYSIAN","PHUHUNG","OCEANLINK","FOXCONN","ADVANCE","H143","C13B","CN82","CR51B","SSIS","FSCPCB","ORKIDE","ZJ","S61","CHAOMED"];
 const projectWord=value=>{
+ const known=hongHacIdentity(value);
+ // A bare HONGHAC folder is not enough to assert which zone was paid.
+ if(known&&known!=="HONGHAC")return known;
  const s=compact(value);
  if(s.includes("EATON"))return "EATONPARK";
  if(s.includes("ELYSIAN"))return "ELYSIAN";
@@ -88,27 +102,51 @@ export async function scanDriveFolder({folderId:rootId,token,fetcher=fetch,onPro
  onProgress({readFolders,items,pdfs:files.length});
  return {files,folders,rootName:root.name||"",readFolders,items,partial};
 }
-export function findPaymentPdfCandidates(payment,scan){
+// Optional Admin-defined project aliases are only used for LOCAL matching.
+// Contract and IPC token checks remain mandatory; a conflicting known project
+// can never be overridden by an alias.
+const aliasPhraseIn=(source,phrase)=>{
+ const text=normalize(source),target=normalize(phrase);
+ if(!target||target.length<5)return false;
+ let from=0;
+ for(let at=text.indexOf(target,from);at>=0;at=text.indexOf(target,at+1)){
+  const before=at?text[at-1]:"",after=text[at+target.length]||"";
+  if(!/[A-Z0-9]/.test(before)&&!/[A-Z0-9]/.test(after))return true;
+  from=at+1;
+ }
+ return false;
+};
+export function findPaymentPdfCandidates(payment,scan,options={}){
  const contract=contractTokens(payment.contractNo);
  const ipc=ipcTokens(payment.ipcNo)[0];
  const wantedProject=normalizeProject(payment.project);
  if(!ipc||!contract.length)return [];
+ const approvedAliases=(Array.isArray(options?.projectAliases)?options.projectAliases:[])
+   .filter(pair=>pair&&normalizeProject(pair.archive)===wantedProject)
+   .map(pair=>String(pair.drive||"").trim())
+   .filter(name=>name.length>=5&&name.length<=100&&
+     (!projectWord(name)||projectWord(name)===wantedProject))
+   .slice(0,50);
+ const aliasFolder=source=>approvedAliases.some(name=>normalize(source)===normalize(name));
+ const aliasFile=source=>approvedAliases.some(name=>aliasPhraseIn(source,name));
  const projectRoot=normalizeProject(scan.rootName);
  const rootIsContract=contract.some(c=>contractTokens(scan.rootName).includes(c));
  const rootIsNarrow=/^(IPC|SUPL|SUBP|LAB|ADM|MEP)([-_ ]*0*\d+)?$/i.test(scan.rootName);
- const rootIsProject=projectRoot===wantedProject;
+ const rootIsProject=projectRoot===wantedProject||aliasFolder(scan.rootName);
  const rootIsMaster=compact(scan.rootName)==="SSIS"||compact(scan.rootName)==="ROOT";
  const scored=[];
  for(const file of scan.files||[]){
   const segments=String(file.path||"").split("/").filter(Boolean);
   const relative=segments.slice(1);
   const fromFolders=relative.map(projectWord).filter(Boolean);
-  const otherFromFolders=fromFolders.some(p=>p!==wantedProject);
+  // Also recognize project + zone split across adjacent Drive folders.
+  const pathProject=projectWord(relative.join("/"));
+  const otherFromFolders=fromFolders.some(p=>p!==wantedProject)||Boolean(pathProject&&pathProject!==wantedProject);
   if(otherFromFolders)continue;
   const filenameProject=projectWord(file.name);
   if(filenameProject&&filenameProject!==wantedProject)continue;
-  const folderMatches=relative.some(p=>normalizeProject(p)===wantedProject);
-  const nameProject=filenameProject===wantedProject;
+  const folderMatches=relative.some(p=>normalizeProject(p)===wantedProject||aliasFolder(p))||pathProject===wantedProject;
+  const nameProject=filenameProject===wantedProject||aliasFile(file.name);
   const recognizedProject=folderMatches||nameProject||rootIsProject;
   const keyFromName=contractTokens(file.name);
   // If the file explicitly names another contract, never suggest it for the selected payment.

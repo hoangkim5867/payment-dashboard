@@ -22,16 +22,45 @@ const isPaid=(data,source)=>{
 const view=$("#archiveViewer");
 if(view){
  const styles=el("style");
- styles.textContent=".archive-ipc-bulk-launch{margin-left:8px;padding:8px 12px;border:1px solid #7896b4;border-radius:8px;color:#154675;background:#e8f3fe;cursor:pointer;font:600 12px system-ui}#archiveIpcOverlay[hidden],#archiveIpcOverlay [hidden]{display:none!important}#archiveIpcOverlay{position:fixed;z-index:179999;inset:0;background:#10293a9e;display:flex;align-items:center;justify-content:center;padding:15px}#archiveIpcPanel{width:min(1050px,98vw);max-height:94vh;overflow:auto;border:1px solid #cbd8e5;background:white;border-radius:14px;box-shadow:0 20px 55px #0005;padding:19px;color:#173650;font:13px system-ui}#archiveIpcPanel h2{margin:0;font-size:19px}#archiveIpcPanel p{line-height:1.5}#archiveIpcPanel label{font-weight:600;display:block;margin:8px 0 5px}#archiveIpcPanel input,#archiveIpcPanel select{box-sizing:border-box;width:100%;border:1px solid #b9c9d9;border-radius:8px;padding:10px;font:inherit;color:#193650;background:white}#archiveIpcPanel button,#archiveIpcPanel .archive-ipc-open{border:1px solid #aebecb;border-radius:8px;padding:8px 11px;background:#fff;color:#17466a;font:600 12px system-ui;cursor:pointer;text-decoration:none}#archiveIpcPanel button.primary{background:#18537d;color:#fff;border-color:#18537d}#archiveIpcPanel button:disabled{opacity:.45;cursor:not-allowed}#archiveIpcPanel .actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0}#archiveIpcPanel .info{color:#597085;font-size:12px;white-space:pre-line}#archiveIpcPanel .alert{color:#ad2424;font-size:12px}#archiveIpcPanel .scroll{overflow:auto;max-height:48vh;border:1px solid #dce5ee;border-radius:8px}#archiveIpcPanel table{border-collapse:collapse;width:100%;min-width:720px}#archiveIpcPanel th,#archiveIpcPanel td{padding:8px;border-bottom:1px solid #e1e8f0;text-align:left;font-size:12px;vertical-align:middle}#archiveIpcPanel th{background:#e9f2f9;color:#254b6a;position:sticky;top:0}#archiveIpcPanel tr:nth-child(even){background:#f9fbfe}#archiveIpcPanel td select{min-width:220px;padding:7px}#archiveIpcPanel td input[type=checkbox]{width:17px;height:17px}#archiveIpcPanel .status{font-size:11px;color:#5d7184}#archiveIpcPanel .status.error{color:#ae2424}#archiveIpcPanel .status.success{color:#087444}#archiveIpcPanel a{color:#235982}#archiveIpcPanel .row-saved{opacity:.66}";
+ styles.textContent=".archive-ipc-aliases{margin-top:10px;border:1px solid #d4e1ec;border-radius:8px;padding:10px;background:#f7faff}.archive-ipc-aliases summary{font-weight:650;cursor:pointer}.archive-ipc-aliases textarea{min-height:80px;margin-top:8px}.archive-ipc-aliases .info{margin:5px 0}.archive-ipc-bulk-launch{margin-left:8px;padding:8px 12px;border:1px solid #7896b4;border-radius:8px;color:#154675;background:#e8f3fe;cursor:pointer;font:600 12px system-ui}#archiveIpcOverlay[hidden],#archiveIpcOverlay [hidden]{display:none!important}#archiveIpcOverlay{position:fixed;z-index:179999;inset:0;background:#10293a9e;display:flex;align-items:center;justify-content:center;padding:15px}#archiveIpcPanel{width:min(1050px,98vw);max-height:94vh;overflow:auto;border:1px solid #cbd8e5;background:white;border-radius:14px;box-shadow:0 20px 55px #0005;padding:19px;color:#173650;font:13px system-ui}#archiveIpcPanel h2{margin:0;font-size:19px}#archiveIpcPanel p{line-height:1.5}#archiveIpcPanel label{font-weight:600;display:block;margin:8px 0 5px}#archiveIpcPanel input,#archiveIpcPanel select{box-sizing:border-box;width:100%;border:1px solid #b9c9d9;border-radius:8px;padding:10px;font:inherit;color:#193650;background:white}#archiveIpcPanel button,#archiveIpcPanel .archive-ipc-open{border:1px solid #aebecb;border-radius:8px;padding:8px 11px;background:#fff;color:#17466a;font:600 12px system-ui;cursor:pointer;text-decoration:none}#archiveIpcPanel button.primary{background:#18537d;color:#fff;border-color:#18537d}#archiveIpcPanel button:disabled{opacity:.45;cursor:not-allowed}#archiveIpcPanel .actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0}#archiveIpcPanel .info{color:#597085;font-size:12px;white-space:pre-line}#archiveIpcPanel .alert{color:#ad2424;font-size:12px}#archiveIpcPanel .scroll{overflow:auto;max-height:48vh;border:1px solid #dce5ee;border-radius:8px}#archiveIpcPanel table{border-collapse:collapse;width:100%;min-width:720px}#archiveIpcPanel th,#archiveIpcPanel td{padding:8px;border-bottom:1px solid #e1e8f0;text-align:left;font-size:12px;vertical-align:middle}#archiveIpcPanel th{background:#e9f2f9;color:#254b6a;position:sticky;top:0}#archiveIpcPanel tr:nth-child(even){background:#f9fbfe}#archiveIpcPanel td select{min-width:220px;padding:7px}#archiveIpcPanel td input[type=checkbox]{width:17px;height:17px}#archiveIpcPanel .status{font-size:11px;color:#5d7184}#archiveIpcPanel .status.error{color:#ae2424}#archiveIpcPanel .status.success{color:#087444}#archiveIpcPanel a{color:#235982}#archiveIpcPanel .row-saved{opacity:.66}";
  document.head.append(styles);
  const overlay=el("div");overlay.id="archiveIpcOverlay";overlay.hidden=true;
- overlay.innerHTML='<section id="archiveIpcPanel" role="dialog" aria-modal="true" aria-labelledby="archiveIpcHeading"><div class="actions" style="justify-content:space-between;margin-top:0"><h2 id="archiveIpcHeading">📁 Đối chiếu Hồ sơ IPC đã thanh toán</h2><button type="button" id="archiveIpcClose">Đóng</button></div><p id="archiveIpcMonth" class="info"></p><label for="archiveIpcFolder">Một link thư mục Google Drive tổng SSIS hoặc thư mục dự án</label><input id="archiveIpcFolder" type="url" placeholder="https://drive.google.com/drive/folders/..." spellcheck="false"><div class="actions"><button type="button" id="archiveIpcConnect">Kết nối Google (chỉ đọc)</button><button class="primary" type="button" id="archiveIpcScan">Quét thư mục & đối chiếu</button></div><p id="archiveIpcStatus" class="info" role="status">Chỉ tìm hồ sơ cho những khoản đã thanh toán trong tháng Kho đang mở. Quét không ghi Firebase.</p><div id="archiveIpcReview" hidden><div class="actions"><b id="archiveIpcSummary"></b><button type="button" id="archiveIpcAllStrong">Chọn các khoản khớp chắc</button><button type="button" id="archiveIpcClear">Bỏ chọn</button></div><p class="info">Kiểm tra PDF trước khi lưu. Khoản có nhiều PDF hoặc thiếu căn cứ sẽ không được chọn tự động. Link đã lưu trước đó không bị ghi đè.</p><div class="scroll"><table><thead><tr><th>Chọn</th><th>Dự án / Hợp đồng / IPC</th><th>PDF được tìm thấy</th><th>Xem</th><th>Kết quả lưu</th></tr></thead><tbody id="archiveIpcRows"></tbody></table></div><div class="actions"><button type="button" class="primary" id="archiveIpcSave">Lưu các link đã duyệt</button><span class="info" id="archiveIpcSelected">Chưa chọn link nào</span></div><p class="info">Mỗi khoản sẽ được kiểm tra lại trên Firebase theo ID thật, tháng, số tiền thực tế, hợp đồng và IPC trước khi ghi. Tối đa 40 link mỗi lần bấm. Không cập nhật UNC, tiền hay tiến trình.</p></div></section>';
+ overlay.innerHTML='<section id="archiveIpcPanel" role="dialog" aria-modal="true" aria-labelledby="archiveIpcHeading"><div class="actions" style="justify-content:space-between;margin-top:0"><h2 id="archiveIpcHeading">📁 Đối chiếu Hồ sơ IPC đã thanh toán</h2><button type="button" id="archiveIpcClose">Đóng</button></div><p id="archiveIpcMonth" class="info"></p><label for="archiveIpcFolder">Một link thư mục Google Drive tổng SSIS hoặc thư mục dự án</label><input id="archiveIpcFolder" type="url" placeholder="https://drive.google.com/drive/folders/..." spellcheck="false"><details class="archive-ipc-aliases"><summary>↔ Tên dự án trong Kho khác tên thư mục Drive?</summary><p class="info">Mỗi dòng khai báo một lần theo mẫu: tên trong Kho = tên trên Drive. Ví dụ: 红鹤别墅1.1区 = HONGHAC ZONE1.1 (cặp này đã nhận tự động). Chỉ dùng để dò, vẫn bắt buộc đúng HĐ và IPC.</p><textarea id="archiveIpcAliasInput" spellcheck="false" rows="3" placeholder="Tên dự án trong Kho = Tên thư mục trên Drive"></textarea><div class="actions"><button type="button" id="archiveIpcAliasSave">Lưu bí danh trên máy</button><span id="archiveIpcAliasInfo" class="info">Không lưu Firebase, không quét hoặc thay đổi hồ sơ.</span></div></details><div class="actions"><button type="button" id="archiveIpcConnect">Kết nối Google (chỉ đọc)</button><button class="primary" type="button" id="archiveIpcScan">Quét thư mục & đối chiếu</button></div><p id="archiveIpcStatus" class="info" role="status">Chỉ tìm hồ sơ cho những khoản đã thanh toán trong tháng Kho đang mở. Quét không ghi Firebase.</p><div id="archiveIpcReview" hidden><div class="actions"><b id="archiveIpcSummary"></b><button type="button" id="archiveIpcAllStrong">Chọn các khoản khớp chắc</button><button type="button" id="archiveIpcClear">Bỏ chọn</button></div><p class="info">Kiểm tra PDF trước khi lưu. Khoản có nhiều PDF hoặc thiếu căn cứ sẽ không được chọn tự động. Link đã lưu trước đó không bị ghi đè.</p><div class="scroll"><table><thead><tr><th>Chọn</th><th>Dự án / Hợp đồng / IPC</th><th>PDF được tìm thấy</th><th>Xem</th><th>Kết quả lưu</th></tr></thead><tbody id="archiveIpcRows"></tbody></table></div><div class="actions"><button type="button" class="primary" id="archiveIpcSave">Lưu các link đã duyệt</button><span class="info" id="archiveIpcSelected">Chưa chọn link nào</span></div><p class="info">Mỗi khoản sẽ được kiểm tra lại trên Firebase theo ID thật, tháng, số tiền thực tế, hợp đồng và IPC trước khi ghi. Tối đa 40 link mỗi lần bấm. Không cập nhật UNC, tiền hay tiến trình.</p></div></section>';
  document.body.append(overlay);
  const panel=$("#archiveIpcPanel"),root=$("#archiveIpcFolder"),status=$("#archiveIpcStatus"),review=$("#archiveIpcReview");
  const rowsTarget=$("#archiveIpcRows"),saveButton=$("#archiveIpcSave"),selectedInfo=$("#archiveIpcSelected");
  let db=null,auth=null,googleClient=null,googleToken="",expiry=0,currentMonth="",archiveRows=[],proposals=[],scanning=false,saving=false,scanPartial=false;
  let scanScope="month",lastScan=null,lastFolderId="";
  const toolbar=$("#archiveToolbar");let allButton=null;
+ const aliasInput=$("#archiveIpcAliasInput"),aliasInfo=$("#archiveIpcAliasInfo");
+ const aliasStorageKey="cscecmep-ipc-drive-project-aliases-v1";
+ const parseProjectAliases=raw=>{
+  const entries=[],seen=new Set();
+  for(const [i,line] of String(raw||"").split(/\r?\n/).entries()){
+   const item=line.trim();if(!item)continue;
+   const parts=item.split("=");
+   if(parts.length!==2)throw Error("Bí danh dòng "+(i+1)+" phải có dạng: tên Kho = tên Drive.");
+   const archive=parts[0].trim(),drive=parts[1].trim();
+   if(archive.length<3||drive.length<5||archive.length>100||drive.length>100)
+    throw Error("Tên ở dòng "+(i+1)+" quá ngắn hoặc dài (giới hạn 100 ký tự).");
+   const key=archive.toUpperCase()+"="+drive.toUpperCase();
+   if(seen.has(key))continue;
+   seen.add(key);entries.push({archive,drive});
+   if(entries.length>50)throw Error("Tối đa 50 cặp bí danh; bỏ bớt cặp không dùng.");
+  }
+  return entries;
+ };
+ try{
+  const raw=localStorage.getItem(aliasStorageKey),pairs=raw?JSON.parse(raw):[];
+  if(Array.isArray(pairs))aliasInput.value=pairs.map(p=>p.archive+" = "+p.drive).join("\n");
+ }catch{}
+ $("#archiveIpcAliasSave").addEventListener("click",()=>{
+  try{
+   const pairs=parseProjectAliases(aliasInput.value);
+   localStorage.setItem(aliasStorageKey,JSON.stringify(pairs));
+   aliasInfo.textContent="✓ Đã lưu "+pairs.length+" cặp trên trình duyệt này. Quét lại để áp dụng (Drive dùng cache nếu cùng thư mục).";
+  }catch(e){aliasInfo.textContent="Không lưu được bí danh: "+(e.message||e);}
+ });
  const message=(s,error=false)=>{status.textContent=s;status.className=error?"alert":"info";};
  function init(){
   if(!getApps().length)throw Error("Firebase chưa khởi tạo. Mở lại Kho chứng từ.");
@@ -180,7 +209,7 @@ if(view){
   update();proposal.selectedId=input.value;
   return {input,open};
  }
- async function render(scan){
+ async function render(scan,projectAliases=[]){
   proposals=[];rowsTarget.replaceChildren();
   let noCandidates=0,ambiguous=0,strong=0,shared=0;
   // Match metadata locally. A Drive file that maps to multiple payments is
@@ -189,7 +218,7 @@ if(view){
   for(let i=0;i<archiveRows.length;i++){
    const data=archiveRows[i];
    let candidates=[];
-   if(data.id&&data.contractNo&&data.ipcNo)candidates=findPaymentPdfCandidates(data,scan);
+   if(data.id&&data.contractNo&&data.ipcNo)candidates=findPaymentPdfCandidates(data,scan,{projectAliases});
    matched.push({data,candidates});
    if(scanScope==="all"&&candidates.length===1&&candidates[0].confidence==="strong"){
     const id=candidates[0].id;fileUsage.set(id,(fileUsage.get(id)||0)+1);
@@ -247,7 +276,7 @@ if(view){
    if(result.partial)message("CẢNH BÁO: Quét chưa hết thư mục Drive. Chọn thư mục nhỏ hơn rồi quét lại trước khi lưu để không gắn nhầm.",true);
    else message((reused?"Dùng lại kết quả quét Drive trong tab. ":"Quét xong ")+
     result.readFolders+" thư mục · "+result.files.length+" PDF. Đang đối chiếu các khoản.");
-   await render(result);
+   await render(result,parseProjectAliases(aliasInput.value));
    if(!scanPartial)message("Đã đối chiếu "+archiveRows.length+" khoản · "+result.files.length+
     " PDF. Chỉ duyệt/lưu sau khi kiểm tra.");
   }catch(e){message("Không quét được: "+(e.message||e),true);}
