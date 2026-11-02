@@ -3,7 +3,7 @@
 // Historical months: a deliberate owner-Admin one-time backfill, capped by read budget.
 import {getApps,getApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,doc,getDoc,runTransaction,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getFirestore,doc,getDoc,updateDoc,runTransaction,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 const OWNER_UID="HTx2QuATHxh8zgAawwreg88w65M2";
 const viewer=document.getElementById("archiveViewer");
 const $=(s,p=document)=>p.querySelector(s);
@@ -94,7 +94,10 @@ if(viewer){
    try{
     const ref=doc(db,"paymentArchiveDetails",month),summary=doc(db,"paymentArchives",month);
     const snap=await getDoc(ref);if(!snap.exists())continue;
-    if(snap.data()?.ipcDocumentLinksComplete===true){ok++;continue;}
+    if(snap.data()?.ipcDocumentLinksComplete===true){
+      try{await updateDoc(summary,{ipcDocumentLinksComplete:true});}catch{}
+      window.__archiveDossierMarkMonthDone?.(month);ok++;continue;
+    }
     const rows=Array.isArray(snap.data()?.rows)?snap.data().rows:[];
     if(readCount+rows.length>budget){alert("Đã dùng khoảng "+readCount+" reads để đối chiếu; còn tháng "+month+" và các tháng sau. Có thể bấm lại để tiếp tục, không tự đọc vượt "+budget+".");break;}
     const links=Object.create(null),unresolved=[];
@@ -126,8 +129,8 @@ if(viewer){
      const latest=await t.get(ref),summarySnap=await t.get(summary);
      if(!latest.exists())throw Error("Tháng Kho đã bị xóa.");
      if(latest.data().ipcDocumentLinksComplete===true)return;
-     if(latest.updateTime?.toMillis()!==snap.updateTime?.toMillis())
-      throw Error("Dữ liệu Kho thay đổi trong khi quét; cần đối chiếu lại tháng này.");
+     if(JSON.stringify(latest.data().ipcDocumentLinks||{})!==JSON.stringify(snap.data().ipcDocumentLinks||{}))
+      throw Error("Link trong Kho thay đổi trong khi quét; cần đối chiếu lại tháng này.");
      t.update(ref,{ipcDocumentLinks:{...links},ipcDocumentLinksUnresolvedIds:unresolved,
        ipcDocumentLinksComplete:true,ipcDocumentLinksIndexedAt:serverTimestamp()});
      if(summarySnap.exists())t.set(summary,{ipcDocumentLinksComplete:true},{merge:true});
