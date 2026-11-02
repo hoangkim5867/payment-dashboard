@@ -238,10 +238,18 @@
       window.dispatchEvent(new Event("archive-dossier-index-refresh"));
     };
     window.__archiveDossierUpdateLocal=(month,patch)=>{
-      if(String(currentDetails?.month||"")!==String(month))return;
-      currentDetails.ipcDocumentLinks=Object.assign({},currentDetails.ipcDocumentLinks||{},patch);
-      if(sessionDetailCache.has(month))sessionDetailCache.set(month,currentDetails);
-      window.dispatchEvent(new Event("archive-dossier-index-refresh"));
+      const key=String(month||"");
+      // Update all cached months locally after approved cross-month saves.
+      // No additional Firestore reads and no changes to payment/UNC data.
+      const cached=sessionDetailCache.get(key);
+      if(cached){
+        cached.ipcDocumentLinks=Object.assign({},cached.ipcDocumentLinks||{},patch);
+        sessionDetailCache.set(key,cached);
+      }
+      if(String(currentDetails?.month||"")===key){
+        currentDetails.ipcDocumentLinks=Object.assign({},currentDetails.ipcDocumentLinks||{},patch);
+        window.dispatchEvent(new Event("archive-dossier-index-refresh"));
+      }
     };
     const renderDetails=details=>{
       currentDetails=details;
