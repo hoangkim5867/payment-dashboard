@@ -32,7 +32,7 @@ test('Only explicit click reads one payment, no automatic payment collection sca
 });
 
 test('User-pasted Google link is validated before display or save',()=>{
- const first=code.indexOf('const driveUrl=raw=>');
+ const first=code.indexOf('const clean=');
  const last=code.indexOf('const style=',first);
  assert.ok(first>=0&&last>first);
  const evaluate=vm.runInNewContext(code.slice(first,last)+'\ndriveUrl',{URL});
