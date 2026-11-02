@@ -77,6 +77,35 @@ const mark=(id,linked)=>{
   if(b.dataset.paymentId===id){b.classList.toggle("has-linked",linked);b.title=linked?"Mở hồ sơ thanh toán":"Hồ sơ thanh toán";}
  }
 };
+// Legacy Archive months have no indexed link yet. Open on the Staff click,
+ // reading just the selected payment once (never scan or read on render).
+async function openStaffArchiveDossier(id){
+ if(!id||!init())return;
+ if(!auth.currentUser){alert("Cần đăng nhập Payment trước.");return;}
+ // Reserve the tab synchronously so a Firestore await does not trigger popup blocking.
+ const tab=window.open("about:blank","_blank");
+ if(tab){
+  try{
+   tab.opener=null;
+   tab.document.title="Đang mở hồ sơ…";
+   tab.document.body.textContent="Đang mở hồ sơ…";
+  }catch{}
+ }
+ try{
+  const snap=await getDoc(doc(db,"payments",id));
+  const url=snap.exists()?driveUrl(snap.data().ipcDocumentUrl):"";
+  if(!url){
+   tab?.close();
+   alert("Khoản này chưa có link hồ sơ.");
+   return;
+  }
+  if(tab&&!tab.closed)tab.location.replace(url);
+  else window.location.assign(url);
+ }catch(e){
+  tab?.close();
+  alert("Không mở được hồ sơ: "+(e?.message||e));
+ }
+}
 async function showLink(id){
  if(!id||!init())return;
  if(!auth.currentUser){alert("Cần đăng nhập Payment trước.");return;}
@@ -184,6 +213,12 @@ if(archive){
  new MutationObserver(decorate).observe(archive,{childList:true,subtree:true});decorate();
  archive.addEventListener("click",e=>{
   const b=e.target.closest(".payment-doc-link-btn");
-  if(b&&archive.contains(b)){e.preventDefault();showLink(b.dataset.paymentId);}
+  if(b&&archive.contains(b)){
+   e.preventDefault();
+   // Staff: no extra dialog, direct link; Admin: keep edit/remove controls.
+   const state=window.__archiveDossierView?.();
+   if(state?.admin===false)openStaffArchiveDossier(b.dataset.paymentId);
+   else showLink(b.dataset.paymentId);
+  }
  });
 }
