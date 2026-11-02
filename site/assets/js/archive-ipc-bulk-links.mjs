@@ -29,7 +29,7 @@ if(view){
  document.body.append(overlay);
  const panel=$("#archiveIpcPanel"),root=$("#archiveIpcFolder"),status=$("#archiveIpcStatus"),review=$("#archiveIpcReview");
  const rowsTarget=$("#archiveIpcRows"),saveButton=$("#archiveIpcSave"),selectedInfo=$("#archiveIpcSelected");
- let db=null,auth=null,googleClient=null,googleToken="",expiry=0,currentMonth="",archiveRows=[],proposals=[],scanning=false,saving=false;
+ let db=null,auth=null,googleClient=null,googleToken="",expiry=0,currentMonth="",archiveRows=[],proposals=[],scanning=false,saving=false,scanPartial=false;
  const message=(s,error=false)=>{status.textContent=s;status.className=error?"alert":"info";};
  function init(){
   if(!getApps().length)throw Error("Firebase chưa khởi tạo. Mở lại Kho chứng từ.");
@@ -155,7 +155,7 @@ if(view){
   }
   review.hidden=false;
   $("#archiveIpcSummary").textContent=strong+" khớp chắc · "+ambiguous+" cần chọn · "+noCandidates+" chưa tìm thấy (trong "+archiveRows.length+" khoản)";
-  if(!proposals.length)rowsTarget.append(el("tr")).append(el("td","Không có PDF khớp. Kiểm tra tên hợp đồng/IPC hoặc thư mục Drive."));
+  if(!proposals.length){const tr=el("tr"),td=el("td","Không có PDF khớp. Kiểm tra tên hợp đồng/IPC hoặc thư mục Drive.");td.colSpan=5;tr.append(td);rowsTarget.append(tr);}
   syncSelected();
  }
  $("#archiveIpcScan").addEventListener("click",async()=>{
@@ -167,13 +167,15 @@ if(view){
   scanning=true;$("#archiveIpcScan").disabled=true;review.hidden=true;rowsTarget.replaceChildren();proposals=[];
   try{
    const result=await scanDriveFolder({folderId:id,token:googleToken,onProgress:p=>message("Đang quét "+p.readFolders+" thư mục · "+p.items+" mục · "+p.pdfs+" PDF")});
-   if(result.partial)message("CẢNH BÁO: Quét chưa hết thư mục Drive. Giới hạn 400 thư mục / 15.000 mục / 9 tầng; chọn thư mục hẹp hơn để tránh sót.",true);
+   scanPartial=!!result.partial;
+   if(result.partial)message("CẢNH BÁO: Quét chưa hết thư mục Drive. Chọn thư mục nhỏ hơn rồi quét lại trước khi lưu để không gắn nhầm.",true);
    else message("Quét xong "+result.readFolders+" thư mục · "+result.files.length+" PDF. Chỉ duyệt/lưu sau khi kiểm tra.");
    render(result);
   }catch(e){message("Không quét được: "+(e.message||e),true);}
   finally{scanning=false;$("#archiveIpcScan").disabled=false;}
  });
  $("#archiveIpcAllStrong").addEventListener("click",()=>{
+  if(scanPartial){message("Chưa thể chọn hàng loạt: thư mục Drive chưa được quét hết. Hãy chọn thư mục nhỏ hơn.",true);return;}
   for(const p of proposals){
    if(!p.saved&&p.candidates.length===1&&p.candidates[0].confidence==="strong"){p.checked=true;p.checkbox.checked=true;}
   }
@@ -187,6 +189,7 @@ if(view){
   if(saving)return;
   let pending=proposals.filter(p=>p.checked&&!p.saved);
   if(!pending.length)return;
+  if(scanPartial){message("Chưa thể lưu: kết quả quét Drive chưa đầy đủ. Hãy quét thư mục hẹp hơn.",true);return;}
   if(pending.length>40){message("Tối đa 40 khoản mỗi lượt. Bỏ chọn bớt rồi lưu tiếp.",true);return;}
   const label="Lưu "+pending.length+" link PDF vào khoản thanh toán đã trả của tháng "+currentMonth+"? Chỉ cập nhật trường hồ sơ, KHÔNG ghi đè link cũ, tiền, UNC hay tiến trình.";
   if(!confirm(label))return;
@@ -195,13 +198,14 @@ if(view){
    const uid=await ownerGuard();
    for(const p of pending){
     const file=p.candidates.find(f=>f.id===p.selectedId);
-    if(!file||!/^https:\/\/drive\.google\.com\/file\/d\/[A-Za-z0-9_-]+\/view$/.test(file.url)){
+    if(!file||!/^[A-Za-z0-9_-]{8,}$/.test(String(file.id||""))||!(file.mimeType==="application/pdf"||/\.pdf$/i.test(file.name||""))){
      p.result.textContent="Không chọn được PDF chuẩn";p.result.className="status error";failed++;continue;
     }
     if(auth.currentUser?.uid!==uid||currentMonth!==p.data.archiveMonth){
      p.result.textContent="Quyền hoặc tháng đã thay đổi";p.result.className="status error";failed++;continue;
     }
     try{
+     const pdfUrl="https://drive.google.com/file/d/"+encodeURIComponent(file.id)+"/view";
      const outcome=await runTransaction(db,async transaction=>{
       const ref=doc(db,"payments",p.data.id);
       const latest=await transaction.get(ref);
@@ -209,7 +213,7 @@ if(view){
       const data=latest.data();
       if(!isPaid(data,p.data))return "mismatch";
       if(data.ipcDocumentUrl)return "existing";
-      transaction.update(ref,{ipcDocumentUrl:file.url,ipcDocumentUpdatedAt:serverTimestamp(),ipcDocumentUpdatedByUid:uid});
+      transaction.update(ref,{ipcDocumentUrl:pdfUrl,ipcDocumentUpdatedAt:serverTimestamp(),ipcDocumentUpdatedByUid:uid});
       return "saved";
      });
      if(outcome==="saved"){
