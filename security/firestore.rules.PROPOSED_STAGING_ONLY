@@ -96,8 +96,12 @@ service cloud.firestore {
           && pendingPayment(request.resource.data) && blankAdminFields(request.resource.data)))
         && (!request.resource.data.keys().hasAny(planFields()) || reviewOwner());
       allow update: if approvedUser() && validPayment(request.resource.data)
-        && (adminUser() || (resource.data.paymentMonth == currentPaymentMonth()
-          && ((pendingPayment(resource.data) && staffEditableFields()) || staffPaidWorkflowOnly())))
+        && (adminUser()
+          || (resource.data.paymentMonth == currentPaymentMonth()
+              && pendingPayment(resource.data) && staffEditableFields())
+          || (staffPaidWorkflowOnly()
+              && (resource.data.paymentMonth == currentPaymentMonth()
+                  || resource.data.paymentMonth == get(/databases/$(database)/documents/authUsers/$(request.auth.uid)).data.get('temporaryPaymentMonthAccess', ''))))
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(planFields()) || reviewOwner());
       allow delete: if approvedUser() && (adminUser() || (
         resource.data.get('source', '') == 'excel-paste'
