@@ -140,12 +140,12 @@
     // The Archive has already loaded these PAID rows for the selected month.
     // Admin's explicit IPC dossier scanner reuses this in-memory snapshot only.
     // EXCEL row numbers / company-search index are never used as payment IDs.
-    const paidIpcRowsFromDetails=(details,month)=>{
+    const paidIpcRowsFromDetails=(details,month,skipIndexed=false)=>{
       const links=details?.ipcDocumentLinks||{};
       return (Array.isArray(details?.rows)?details.rows:[])
         .filter(row=>String(row.paymentId||"").trim()&&
           String(row.paymentDate||"").trim()&&Number(row.actualAmount)>0&&
-          !String(links[String(row.paymentId).trim()]||"").trim())
+          (!skipIndexed||!String(links[String(row.paymentId).trim()]||"").trim()))
         .map(row=>({
           id:String(row.paymentId).trim(),
           archiveMonth:String(month),
@@ -174,7 +174,7 @@
       const months=[...new Set(archiveItems.map(item=>String(item.month||"").trim()))];
       if(!months.length)throw Error("Kho chưa có tháng đã chốt.");
       if(months.length>60)throw Error("Có trên 60 tháng. Không quét hàng loạt để tránh đọc vượt mức an toàn.");
-      if(months.some(month=>!/^\\d{4}-(0[1-9]|1[0-2])$/.test(month)))
+      if(months.some(month=>!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)))
         throw Error("Kho có tháng không đúng định dạng; dừng để tránh đối chiếu nhầm.");
       let reads=0,skippedLinked=0;
       const all=[],seen=new Set(),duplicates=new Set();
@@ -190,7 +190,7 @@
           if(String(details.month||month)!==month)throw Error("Tháng trong chi tiết Kho không khớp: "+month);
           sessionDetailCache.set(month,details);
         }
-        const paid=paidIpcRowsFromDetails(details,month);
+        const paid=paidIpcRowsFromDetails(details,month,true);
         skippedLinked+=Array.isArray(details?.rows)?details.rows.filter(row=>
           String(row.paymentId||"").trim()&&
           String(details.ipcDocumentLinks?.[String(row.paymentId).trim()]||"").trim()).length:0;
