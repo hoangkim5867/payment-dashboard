@@ -2,7 +2,7 @@
 import {getApps,getApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {createIpcDrivePicker} from "./drive-ipc-picker-ui.mjs";
 import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,doc,getDoc,updateDoc,deleteField,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getFirestore,doc,getDoc,updateDoc,deleteField,serverTimestamp,FieldPath} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 const OWNER_ADMIN_UID="HTx2QuATHxh8zgAawwreg88w65M2";
 const $=(s,p=document)=>p.querySelector(s);
 const clean=s=>String(s??"").trim();
@@ -42,7 +42,7 @@ const picker=createIpcDrivePicker({
  }
 });
 
-let auth,db,rolePromise=null,activeId="",activeUrl="",busy=false,generation=0,canWrite=false;
+let auth,db,rolePromise=null,activeId="",activeUrl="",busy=false,generation=0,canWrite=false,activeArchiveMonth="";
 const init=()=>{
  if(db)return true;
  if(!getApps().length)return false;
@@ -89,13 +89,16 @@ async function showLink(id){
   if(token!==generation||wrapper.hidden)return;
   if(!paymentSnap.exists()){notice("Không tìm thấy khoản này trong Firebase. Không thể gắn link.",true);return;}
   const p=paymentSnap.data();
+  const av=window.__archiveDossierView?.();
+  activeArchiveMonth=(p.archived===true||p.archiveState==="archived"||av?.rows?.some(row=>String(row.paymentId||"")===id))
+    ?String(p.archiveMonth||p.paymentMonth||""):"";
   $("#docLinkItem").textContent=[p.project,p.contractNo,p.ipcNo].filter(Boolean).join(" · ")||"Mã khoản: "+id;
   setLink(p.ipcDocumentUrl);input.value=activeUrl;setEditor(user.admin);picker.onOpen({...p,id},user.admin);
   notice(activeUrl?"Đã có link hồ sơ. Chỉ Admin có thể sửa.":"Chưa gắn hồ sơ cho khoản này.");
   mark(id,!!activeUrl);
  }catch(e){if(token===generation)notice("Không đọc được hồ sơ: "+(e?.message||e),true);}
 }
-const close=()=>{if(busy)return;generation++;wrapper.hidden=true;activeId="";setLink("");picker.onClose();};
+const close=()=>{if(busy)return;generation++;wrapper.hidden=true;activeId="";activeArchiveMonth="";setLink("");picker.onClose();};
 $("#docLinkClose").addEventListener("click",close);
 wrapper.addEventListener("click",e=>{if(e.target===wrapper)close();});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!wrapper.hidden)close();});
@@ -108,7 +111,15 @@ save.addEventListener("click",async()=>{
   const u=await role();
   if(!u.admin||u.uid!==auth.currentUser?.uid)throw Error("Chỉ Admin có quyền sửa.");
   await updateDoc(doc(db,"payments",activeId),{ipcDocumentUrl:url,ipcDocumentUpdatedAt:serverTimestamp(),ipcDocumentUpdatedByUid:u.uid});
-  setLink(url);mark(activeId,true);notice("Đã lưu link trên đúng khoản. Payment và Kho cùng sử dụng liên kết này.");
+  setLink(url);mark(activeId,true);
+   let archiveWarning="";
+   if(activeArchiveMonth){
+    try{
+     await updateDoc(doc(db,"paymentArchiveDetails",activeArchiveMonth),new FieldPath("ipcDocumentLinks",activeId),url);
+     window.__archiveDossierUpdateLocal?.(activeArchiveMonth,{[activeId]:url});
+    }catch(e){archiveWarning=" Link đã lưu trong Payment nhưng chưa cập nhật Kho: "+(e.message||e);}
+   }
+   notice("Đã lưu link trên đúng khoản."+archiveWarning,!!archiveWarning);
  }catch(e){notice("Không lưu được: "+(e?.message||e)+". Kiểm tra quyền Firebase.",true);}
  finally{setBusy(false);}
 });
@@ -120,7 +131,15 @@ remove.addEventListener("click",async()=>{
   const u=await role();
   if(!u.admin||u.uid!==auth.currentUser?.uid)throw Error("Chỉ Admin có quyền gỡ.");
   await updateDoc(doc(db,"payments",activeId),{ipcDocumentUrl:deleteField(),ipcDocumentUpdatedAt:deleteField(),ipcDocumentUpdatedByUid:deleteField()});
-  setLink("");input.value="";mark(activeId,false);notice("Đã gỡ link. Không xóa bất kỳ file nào.");
+  setLink("");input.value="";mark(activeId,false);
+   let archiveWarning="";
+   if(activeArchiveMonth){
+    try{
+     await updateDoc(doc(db,"paymentArchiveDetails",activeArchiveMonth),new FieldPath("ipcDocumentLinks",activeId),deleteField());
+     window.__archiveDossierUpdateLocal?.(activeArchiveMonth,{[activeId]:null});
+    }catch(e){archiveWarning=" Link đã gỡ khỏi Payment nhưng chưa cập nhật Kho: "+(e.message||e);}
+   }
+   notice("Đã gỡ link. Không xóa bất kỳ file nào."+archiveWarning,!!archiveWarning);
  }catch(e){notice("Không gỡ được: "+(e?.message||e),true);}
  finally{setBusy(false);}
 });
