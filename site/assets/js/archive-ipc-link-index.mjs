@@ -157,7 +157,7 @@ if(viewer){
       ".\n\nKhông quét thêm, không ghi bất kỳ dữ liệu nào. Đừng bấm đồng bộ toàn Kho để thử lại.");
     return;
    }
-   if(!confirm("MẪU ĐÃ KHỚP!\n\nĐã dùng "+readCount+
+   if(!confirm("MẪU ĐÃ KHỚP VỀ THÔNG TIN!\n"+(first.url?"Mẫu có link PDF trong Payment.":"Mẫu KHÔNG có link PDF trong Payment.")+"\n\nĐã dùng "+readCount+
       " read. Có thể tiếp tục kiểm tra tối đa "+(target.length-1)+
       " khoản còn lại trong tháng "+month+" và cập nhật chỉ mục Kho một lần.\n\nChỉ tiếp tục khi Admin xác nhận phát sinh các lượt đọc này."))return;
    const results=[first];
