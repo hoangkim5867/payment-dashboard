@@ -26,6 +26,7 @@ if(viewer){
   const links=active.links||{};
   const unknown=new Set(active.unresolvedIds||[]);
   const complete=active.complete===true;
+  const labels=active.labels||{};
   const stateOf=id=>{
     if(!id)return {url:"",state:"unknown"};
     const url=validUrl(links[id]);
@@ -53,7 +54,7 @@ if(viewer){
    if(!active.admin){
     if(url){
      let a=cell.querySelector("a.archive-ipc-index-linked");
-     if(!a){a=document.createElement("a");a.className="archive-ipc-index-linked";a.textContent="📁 Hồ sơ";a.target="_blank";a.rel="noopener noreferrer";cell.replaceChildren(a);}
+     if(!a){a=document.createElement("a");a.className="archive-ipc-index-linked";a.textContent="📁 "+(labels.dossier||"Hồ sơ");a.target="_blank";a.rel="noopener noreferrer";cell.replaceChildren(a);}
      if(a.getAttribute("href")!==url)a.href=url;
     }else if(known){
      if(cell.textContent!=="—")cell.textContent="—";
@@ -66,13 +67,13 @@ if(viewer){
       b.className="payment-doc-link-btn payment-doc-archive-btn";
       b.dataset.paymentId=id;cell.replaceChildren(b);
      }
-     if(b.textContent!=="🔎 Kiểm tra")b.textContent="🔎 Kiểm tra";
+     if(b.textContent!==(labels.check||"🔎 Kiểm tra"))b.textContent=labels.check||"🔎 Kiểm tra";
      b.title="Chưa xác minh link hồ sơ – bấm để kiểm tra";
     }
    }else{
     const b=$(".payment-doc-archive-btn",cell);
     if(!b)continue;
-    const label=url?"📁 Đã có":known?"📁 Chưa có":"🔎 Chưa rõ";
+    const label=url?(labels.has||"📁 Đã có"):known?(labels.missing||"📁 Chưa có"):(labels.unknown||"🔎 Chưa rõ");
     if(b.textContent!==label)b.textContent=label;
     b.classList.toggle("ipc-has-link",!!url);
     if(b.title!==(url?"Đã có link":known?"Chưa có link — bấm để dán":"Chưa xác minh link cũ — bấm để kiểm tra"))
