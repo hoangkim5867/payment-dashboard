@@ -16,12 +16,14 @@ test('verified production index activation requires separate explicit build opt-
    assert.match(text,/const PAYMENT_INDEX_QUERY_CODE_ENABLED = true;/);
    assert.match(text,/state\.ready===true && state\.schemaVersion===1/);
    assert.match(text,/state\.synchronousWritersVerified===true/);
+   assert.match(text,/state\.activationVersion===2/);
    assert.match(text,/where\("duplicateKeyV1","in",keys\.slice/);
  }
  const contract=fs.readFileSync(path.join(out,'contract-master.html'),'utf8');
- assert.match(contract,/const MEP_INDEX_QUERY_CODE_ENABLED = true;/);
+ assert.match(contract,/const MEP_INDEX_QUERY_CODE_ENABLED = false;/);
  const release=JSON.parse(fs.readFileSync(path.join(out,'release-environment.json'),'utf8'));
  assert.equal(release.indexOptimizationEnabledByDefault,true);
+ assert.equal(release.contractMasterMEPIndexEnabledByDefault,false);
  assert.throws(()=>buildSite({
   source:path.resolve(__dirname,'../../site'),
   output:path.join(fs.mkdtempSync(path.join(os.tmpdir(),'payment-index-stage-reject-')),'site'),
