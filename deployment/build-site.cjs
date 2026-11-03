@@ -11,6 +11,9 @@ function validateStagingConfig(config){
 function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}){
  // Never enable against staging; production needs an explicit audited release gate.
  if(enableIndexQueries && target!=='production')throw Error('Indexed Payment reads may only be enabled after production audit');
+ // Security hold: V1 client-derived keys are not validated by production Rules.
+ // Three environment approvals cannot substitute for server-side enforcement.
+ if(enableIndexQueries)throw Error('Payment index V1 release blocked: untrusted client keys are not validated by production Rules');
  if(!['staging','production'].includes(target))throw Error('Unknown deployment target');
  if(target==='staging')validateStagingConfig(stagingConfig);
  const src=path.resolve(source),out=path.resolve(output);if(out===src||out.startsWith(src+path.sep))throw Error('Output cannot overwrite or nest within source');

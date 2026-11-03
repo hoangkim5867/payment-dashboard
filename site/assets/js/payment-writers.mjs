@@ -4,13 +4,19 @@ export function createPaymentWriters(sdk, computeIndex) {
   const isPayment = ref => ref?.parent?.path === 'payments';
   const indexFields = ['duplicateKeyV1', 'mepLookupV1', 'paymentLookupSchemaV1'];
   const sourceFields = ['project','contractNo','ipcNo','budgetNo','paymentType','contractId','noMEPException','internalExpenseCode','deleted'];
+  function topLevelField(field, candidates=[...sourceFields,...indexFields]) {
+    if(typeof field === 'string') return field;
+    if(typeof sdk.FieldPath === 'function' && typeof field?.isEqual === 'function') {
+      for(const key of candidates) if(field.isEqual(new sdk.FieldPath(key))) return key;
+    }
+    throw new Error('Payment indexed writes require a supported top-level field path');
+  }
   function patchFields(args) {
     if(args.length === 1) return args[0];
     const out = {};
     for(let i=0;i<args.length;i+=2) {
       const field=args[i];
-      if(typeof field === 'string') out[field]=args[i+1];
-      else throw new Error('Payment indexed writes require string field paths');
+      out[topLevelField(field)]=args[i+1];
     }
     return out;
   }
@@ -25,8 +31,8 @@ export function createPaymentWriters(sdk, computeIndex) {
     }
     return out;
   }
-  function setOptions(options) {
-    return options?.mergeFields ? {...options,mergeFields:[...options.mergeFields,...indexFields]} : options;
+  function setOptions(options, fields) {
+    return options?.mergeFields ? {...options,mergeFields:[...options.mergeFields,...Object.keys(fields)]} : options;
   }
   async function flush(tx, operations, priorReads) {
     // All reads precede writes; the SDK retries against a fresh document on conflict.
@@ -42,15 +48,22 @@ export function createPaymentWriters(sdk, computeIndex) {
       const merge=op.kind==='update'||options?.merge===true||Array.isArray(options?.mergeFields);
       let effective=data;
       if(op.kind==='set' && Array.isArray(options?.mergeFields)) {
-        effective=Object.fromEntries(sourceFields.filter(k=>options.mergeFields.includes(k)&&Object.hasOwn(data,k)).map(k=>[k,data[k]]));
+        const selected=options.mergeFields.map(field=>topLevelField(field,Object.keys(data)));
+        effective=Object.fromEntries(sourceFields.filter(k=>selected.includes(k)&&Object.hasOwn(data,k)).map(k=>[k,data[k]]));
       }
-      const next={...(merge?states.get(op.ref.path):{}),...sourcePatch(effective)};
+      const statesBefore=states.get(op.ref.path);
+      const next={...(merge?statesBefore:{}),...sourcePatch(effective)};
       states.set(op.ref.path,next);
-      const fields=computeIndex(next);
+      // Workflow-only Staff updates may not repair protected lookup fields on
+      // legacy PAID rows. Preserve those fields unless a lookup source changes
+      // or the caller explicitly requests an index repair.
+      const previous=merge?statesBefore:{};
+      const sourceChanged=sourceFields.some(key=>!Object.is(previous?.[key],next[key]));
+      const fields=!merge||sourceChanged||indexFields.some(key=>Object.hasOwn(data,key))?computeIndex(next):{};
       if(op.kind==='update') tx.update(op.ref,...(op.args.length===1?[{...data,...fields}]:[...op.args,...Object.entries(fields).flat()]));
       else {
         const payload={...data,...fields};
-        if(options)tx.set(op.ref,payload,setOptions(options));else tx.set(op.ref,payload);
+        if(options)tx.set(op.ref,payload,setOptions(options,fields));else tx.set(op.ref,payload);
       }
     }
   }
@@ -110,7 +123,10 @@ export function createPaymentWriters(sdk, computeIndex) {
   }
   async function setDoc(ref,data,options) {
     if(!isPayment(ref))return options?sdk.setDoc(ref,data,options):sdk.setDoc(ref,data);
-    if(!options?.merge&&!options?.mergeFields)return sdk.setDoc(ref,{...data,...computeIndex(data)});
+    if(!options?.merge&&!options?.mergeFields) {
+      sourcePatch(data); // Reject unsupported transforms just as the transaction path does.
+      return sdk.setDoc(ref,{...data,...computeIndex(data)});
+    }
     return sdk.runTransaction(ref.firestore,tx=>flush(tx,[{kind:'set',ref,args:[data,options]}]));
   }
   async function updateDoc(ref,...args) {
@@ -119,6 +135,7 @@ export function createPaymentWriters(sdk, computeIndex) {
   }
   async function addDoc(collection,data) {
     if(collection.path!=='payments')return sdk.addDoc(collection,data);
+    sourcePatch(data);
     return sdk.addDoc(collection,{...data,...computeIndex(data)});
   }
   return {addDoc,setDoc,updateDoc,writeBatch,runTransaction};

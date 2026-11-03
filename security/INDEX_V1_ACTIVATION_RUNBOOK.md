@@ -2,6 +2,10 @@
 
 **Status: NOT ACTIVATED by repository deployment.** The Payment site already implements key-scoped Excel duplicate checks, gated by `systemConfig/paymentLookupV1`. This tool only prepares the previously unindexed payment documents. It never touches invoice amounts, documents, UNC, payment progress, or the index readiness marker.
 
+## Security hold (2026-11-03)
+
+**Do not activate V1.** The production Rules supplied for review permit Staff to forge lookup metadata. Builds now refuse indexed V1 even with all three YES approvals. See [audit and remaining blockers](INDEX_V1_SECURITY_HOLD_20261103.md). The activation instructions below are historical prerequisites, not permission to remove this hold.
+
 ## Preconditions (production)
 
 1. Confirm the **exact deployed Firestore Rules** (not just `security/firestore.rules.PROPOSED_STAGING_ONLY`). Staff must NOT be able to create/update/delete `systemConfig/paymentLookupV1`. Firestore allow rules are OR-composed, so a broad catch-all can defeat the dedicated marker rule. Validate with local Emulator tests using exact deployed rules.
