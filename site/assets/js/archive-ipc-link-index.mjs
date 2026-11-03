@@ -31,6 +31,35 @@ const archivePaidMismatch=(data,row,month)=>{
  if(norm(data?.ipcNo)!==norm(row?.ipcNo))return "IPC Payment khác dữ liệu Kho";
  return "";
 };
+// Preserve *all* existing Kho links. A missing Payment URL must never remove
+// a PDF already indexed by an Admin in Kho, including concurrent link edits.
+const mergeDossierIndex=(fresh,results,notChecked=[])=>{
+ const links={...(fresh.ipcDocumentLinks||{})};
+ const unresolved=new Set(Array.isArray(fresh.ipcDocumentLinksUnresolvedIds)?
+   fresh.ipcDocumentLinksUnresolvedIds:[]);
+ let linked=0,missing=0,failed=0,conflicts=0;
+ for(const id of notChecked)if(id&&!validUrl(links[id]))unresolved.add(id);
+ for(const r of results){
+  const id=String(r.id||"").trim();if(!id)continue;
+  const indexed=validUrl(links[id]);
+  if(indexed){unresolved.delete(id);linked++;continue;}
+  if(!r.verified){unresolved.add(id);failed++;continue;}
+  const fromPayment=validUrl(r.url);
+  if(fromPayment){
+   // Preserve an existing unusual/invalid raw field for manual review, rather
+   // than silently overwriting data whose origin cannot be established.
+   if(Object.prototype.hasOwnProperty.call(links,id)&&links[id]){
+    unresolved.add(id);conflicts++;continue;
+   }
+   links[id]=fromPayment;unresolved.delete(id);linked++;
+  }else if(Object.prototype.hasOwnProperty.call(links,id)&&links[id]){
+   unresolved.add(id);conflicts++;
+  }else{
+   unresolved.delete(id);missing++;
+  }
+ }
+ return {links,unresolved:[...unresolved],linked,missing,failed,conflicts};
+};
 let syncing=false;
 if(viewer){
  const css=document.createElement("style");
@@ -228,32 +257,37 @@ if(viewer){
     if(b)b.textContent="Đã kiểm tra "+(Math.min(i+10,remaining.length)+1)+"/"+target.length+" khoản…";
    }
    if(!owner()||view()?.month!==month)throw Error("Đã đổi tài khoản/tháng Kho. Dừng không ghi.");
-   const links={...oldLinks},unresolved=new Set(active.complete?[...oldUnknown]:[]);
-   let linked=0,empty=0,failed=0;
-   for(const r of results){
-    if(!r.verified){unresolved.add(r.id);failed++;continue;}
-    unresolved.delete(r.id);
-    if(r.url){links[r.id]=r.url;linked++;}
-    else{delete links[r.id];empty++;}
-   }
-   // Avoid overwriting Admin edits saved while the audit was reading.
+   // Only the rows the Admin agreed to inspect were read. Other unverified
+   // rows remain "unknown", never incorrectly classified as missing.
+   const notChecked=(active.rows||[])
+    .filter(row=>{const id=String(row.paymentId||"").trim();
+      return id&&!targetMap.has(id)&&(!active.complete||oldUnknown.has(id));})
+    .map(row=>String(row.paymentId).trim());
    const ref=doc(db,"paymentArchiveDetails",month),summary=doc(db,"paymentArchives",month);
-   await runTransaction(db,async t=>{
+   const merged=await runTransaction(db,async t=>{
     const fresh=await t.get(ref),sum=await t.get(summary);
-    if(!fresh.exists())throw Error("Chi tiết Kho đã bị xóa.");
-    if(JSON.stringify(fresh.data().ipcDocumentLinks||{})!==JSON.stringify(oldLinks)||
-       fresh.data().ipcDocumentLinksComplete===true!==Boolean(active.complete)||
-       JSON.stringify(fresh.data().ipcDocumentLinksUnresolvedIds||[])!==JSON.stringify(active.unresolvedIds||[]))
-      throw Error("Chỉ mục Kho đã thay đổi. Không ghi đè; mở lại tháng để kiểm tra.");
-    t.update(ref,{ipcDocumentLinks:links,ipcDocumentLinksUnresolvedIds:[...unresolved],
+    if(!fresh.exists()||String(fresh.data().month||"")!==month)
+      throw Error("Chi tiết Kho không tồn tại hoặc sai tháng.");
+    const freshRows=Array.isArray(fresh.data().rows)?fresh.data().rows:[];
+    const expectedIds=(active.rows||[]).map(row=>String(row.paymentId||"")).sort().join("|");
+    const actualIds=freshRows.map(row=>String(row.paymentId||"")).sort().join("|");
+    if(actualIds!==expectedIds)
+      throw Error("Danh sách khoản Kho đã thay đổi. Không ghi đè dữ liệu mới.");
+    // Merge from the FRESH Firestore snapshot, not stale cached links.
+    const result=mergeDossierIndex(fresh.data(),results,notChecked);
+    t.update(ref,{ipcDocumentLinks:result.links,
+      ipcDocumentLinksUnresolvedIds:result.unresolved,
       ipcDocumentLinksComplete:true,ipcDocumentLinksIndexedAt:serverTimestamp()});
     if(sum.exists())t.set(summary,{ipcDocumentLinksComplete:true},{merge:true});
+    return result;
    });
-   window.__archiveDossierApplyBackfill?.(month,links,[...unresolved]);
+   window.__archiveDossierApplyBackfill?.(month,merged.links,merged.unresolved);
    window.__archiveDossierMarkMonthDone?.(month);
-   alert("Đối chiếu tháng "+month+": "+linked+" khoản có link, "+empty+
-     " khoản đã xác nhận không có, "+failed+" khoản chưa xác minh.\n"+readCount+
-     " reads Payment (ước tính, chưa tính đọc giao dịch). Không sửa tiền, UNC, tiến trình.");
+   alert("Đã cập nhật chỉ mục Kho tháng "+month+
+     ": "+merged.linked+" đã có link · "+merged.missing+
+     " xác nhận chưa có · "+merged.failed+" chưa xác minh"+
+     (merged.conflicts?" · "+merged.conflicts+" link cần xem lại":"")+
+     ".\nĐã đọc "+readCount+" khoản Payment; không thay tiền, UNC hoặc file PDF.");
   }catch(e){alert("Đã dừng: "+(e.message||e)+". Có thể đã đọc "+readCount+" Payment; chưa cập nhật Kho.");}
   finally{syncing=false;refresh();}
  }
