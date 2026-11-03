@@ -4,7 +4,7 @@ for(const page of ['payment.html','payment-mobile-renderer.html'])for(const fail
  const html=fs.readFileSync(path.join(__dirname,'../../site',page),'utf8'),start=html.indexOf('confirmExcelImportBtn.addEventListener('),end=html.indexOf('\n);',start)+4;
  assert(start>0&&end>start);let handler,chunk=0,committed=[],logs=[],alerts=[],refresh=0,undo=0;
  const stored=new Map(),button={textContent:'Import',disabled:false,addEventListener:(event,fn)=>handler=fn};
- const ctx={confirmExcelImportBtn:button,ensureOperator:()=>true,excelImportRows:Array.from({length:850},(_,i)=>({errors:[],warnings:[],data:{amount:i,paymentMonth:'2026-10'}})),
+ const ctx={confirmExcelImportBtn:button,ensureOperator:()=>true,excelPreviewReusedDuplicateHistory:false,excelImportRows:Array.from({length:850},(_,i)=>({errors:[],warnings:[],data:{amount:i,paymentMonth:'2026-10'}})),
  requestCrossMonthImportDecision:async()=>true,markCrossMonthImportsAsSupplemental:()=>{},t:k=>k,currentLanguage:'en',currentAuthUser:{uid:'test-staff',email:'test@example.invalid'},
  db:{},paymentsRef:{},doc:()=>({id:'test-'+Math.random()}),serverTimestamp:()=>({serverTime:true}),lastImportBatchId:'',localStorage:{setItem:(k,v)=>stored.set(k,v)},updateUndoImportButton:()=>undo++,
  writeBatch:()=>{const staged=[];return {set:(ref,data)=>staged.push(data),commit:async()=>{chunk++;if(chunk===failChunk)throw Error('Injected chunk failure');committed.push(...staged)}}},
