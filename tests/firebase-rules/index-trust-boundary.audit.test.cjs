@@ -1,7 +1,6 @@
 'use strict';
-// Diagnostic: passes only while the known Rules vulnerability is reproduced AND
-// the production build refuses indexed reads. Replace with assertFails tests when
-// authoritative synchronous validation is implemented; never treat this as Rules certification.
+// Candidate Rules security regression. Run on local Emulator before any deploy.
+// Indexed V1 remains disabled; no server-authenticated index writer is activated.
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {initializeTestEnvironment,assertSucceeds,assertFails}=require('@firebase/rules-unit-testing');
 const sdk=require('firebase/firestore');
@@ -35,8 +34,21 @@ test('DENIED: Staff forges index alone or alongside permitted source edit',async
 test('Staff cannot authorize index activation; privileged business fields stay protected',async()=>{
  await assertFails(sdk.updateDoc(sdk.doc(db,'systemConfig/paymentLookupV1'),{ready:true}));
  await assertFails(sdk.deleteDoc(sdk.doc(db,'systemConfig/paymentLookupV1')));
- const ref=sdk.doc(db,'payments/protected');await sdk.setDoc(ref,{...base,...computeIndexV1(base)});
+ const ref=sdk.doc(db,'payments/protected');await sdk.setDoc(ref,base);
  for(const patch of [{processApproval:'done'},{processBanking:'done'},{processActualAmount:1000,processPaymentDate:month+'-01'},{createdByUid:'other'}])await assertFails(sdk.updateDoc(ref,patch));
+});
+test('merge, batch and transaction cannot modify lookup metadata',async()=>{
+ const ref=sdk.doc(db,'payments/metadata-variants');
+ await assertSucceeds(sdk.setDoc(ref,base));
+ await assertFails(sdk.setDoc(ref,{mepLookupV1:true},{merge:true}));
+ const batch=sdk.writeBatch(db);
+ batch.update(ref,{duplicateKeyV1:'invalid'});
+ await assertFails(batch.commit());
+ await assertFails(sdk.runTransaction(db,async tx=>{
+  await tx.get(ref);
+  tx.update(ref,{paymentLookupSchemaV1:1});
+ }));
+ await assertSucceeds(sdk.updateDoc(ref,{ipcNo:'IPC-VALID'}));
 });
 test('release hold refuses unsafe V1 before producing deployment output',()=>{
  assert.throws(()=>buildSite({source:path.join(__dirname,'../../site'),output:path.join(__dirname,'../../build/blocked-index'),target:'production',enableIndexQueries:true}),/release blocked/);
