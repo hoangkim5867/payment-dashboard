@@ -34,6 +34,16 @@ The trusted Admin must first deploy/test Rules that prevent Staff from writing t
 }
 ```
 
+**Vercel release gate:** The deployment builder deliberately compiles both Payment desktop/mobile and Contract Master to legacy-safe mode unless **all three** production build environment variables are exactly `YES`:
+
+```
+PAYMENT_INDEX_PROD_OPTIMIZATION_APPROVED=YES
+PAYMENT_INDEX_PROD_RULES_VERIFIED=YES
+PAYMENT_INDEX_PROD_BACKFILL_VERIFIED=YES
+```
+
+Only set these after (1) validating a restorable backup and the exact production Rules, (2) full one-time index repair plus two clean full audits, (3) verifying every source writer preserves index keys atomically, and (4) protecting the readiness marker from Staff writes. Redeploy production after the environment gate is applied, then set the server-side readiness marker to true; **both gates must be enabled**. Never assume setting only the marker will activate queries. For rollback, set marker `ready:false` first, and/or unset any of the three build environment approvals then redeploy.
+
 Observe an isolated emulator-equivalent test and a low-volume real import: same-month warnings, cross-month warnings, mixed projects, aliases, concurrent Staff imports, and add/edit/delete. The client re-reads the marker each lookup; when enabled the first Excel preview uses targeted `duplicateKeyV1 in [...]` (groups of 20) and fetches matching Payments only. **It still costs a small number of reads; not zero.**
 
 **Rollback:** trusted Admin changes marker `ready:false`. This immediately returns to complete-history checking in the next preview (expensive but avoids silent false negatives). Never delete Payment rows or older lookup fields to roll back. Do not use a stale cache to authorize an import.
