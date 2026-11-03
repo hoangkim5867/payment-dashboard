@@ -126,10 +126,10 @@ test('Admin can inspect a single current-month unknown before any more Payment r
  assert.match(index,/inspect\.addEventListener\("click",repairVisibleMonth\)/);
  assert.match(index,/inspect\.hidden=counts\.unknown===0/);
  assert.match(index,/if\(target\.length>180\)/);
- assert.match(index,/const first=await checkRow\(target\[0\]\)/);
+ assert.match(index,/const first=await checkRow\(chosen\)/);
  assert.match(index,/if\(first\.reason\)\{/);
  assert.match(index,/return;\s*\}\s*if\(!confirm\("MẪU ĐÃ KHỚP VỀ THÔNG TIN!/);
- assert.match(index,/results\.push\(\.\.\.await Promise\.all\(target\.slice\(i,i\+10\)\.map\(checkRow\)\)\)/);
+ assert.match(index,/results\.push\(\.\.\.await Promise\.all\(remaining\.slice\(i,i\+10\)\.map\(checkRow\)\)\)/);
  assert.match(index,/!owner\(\)\|\|view\(\)\?\.month!==month/);
  assert.doesNotMatch(index,/getDocs\s*\(|onSnapshot\s*\(|setInterval\s*\(/);
 });
@@ -204,5 +204,20 @@ test('Admin monthly reconciliation button is visible: close anchor is in shared 
  assert.match(index,/inspect\.hidden=counts\.unknown===0/);
  assert.match(index,/if\(close\)close\.before\(inspect\);else heading\.append\(inspect\)/);
  assert.equal((index.match(/const close=heading\.querySelector\("\.viewer-close"\)/g)||[]).length,1);
+ assert.doesNotMatch(index,/getDocs\s*\(|onSnapshot\s*\(|setInterval\s*\(/);
+});
+
+test('Admin selects a known linked Archive sample from local rows; no auto-read or wrong first item',()=>{
+ assert.match(index,/function chooseReconciliationSample\(target,month\)/);
+ assert.match(index,/modal\.showModal\(\)/);
+ assert.match(index,/const chosen=await chooseReconciliationSample\(target,month\)/);
+ assert.match(index,/if\(!chosen\)return/);
+ assert.match(index,/if\(!owner\(\)\|\|view\(\)\?\.month!==month\)/);
+ assert.match(index,/if\(!confirm\("CHỈ ĐỌC THỬ MỘT KHOẢN\?/);
+ assert.match(index,/const first=await checkRow\(chosen\)/);
+ assert.match(index,/target\.filter\(row=>row\.paymentId!==chosen\.paymentId\)/);
+ assert.match(index,/select\.selectedIndex=-1/);
+ assert.match(index,/select\.replaceChildren\(\)/);
+ assert.match(index,/row=target\.find\(r=>r\.paymentId===select\.value\)/);
  assert.doesNotMatch(index,/getDocs\s*\(|onSnapshot\s*\(|setInterval\s*\(/);
 });
