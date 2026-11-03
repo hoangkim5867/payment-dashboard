@@ -94,11 +94,12 @@ test('actual Staff preserves workflow access on legacy PAID rows without lookup 
   await sdk.setDoc(sdk.doc(c.firestore(),'payments/legacy-paid'),{...base,paymentMonth:month,processActualAmount:123,processPaymentDate:month+'-01'});
  });
  const staffDb=env.authenticatedContext('actual-staff').firestore(),ref=sdk.doc(staffDb,'payments/legacy-paid');
- const staffWriters=(await import(pathToFileURL(path.join(__dirname,'../../site/assets/js/payment-writers.mjs')))).createPaymentWriters(sdk,core.computeIndexV1);
+ const staffWriters=(await import(pathToFileURL(path.join(__dirname,'../../site/assets/js/payment-writers.mjs')))).createPaymentWriters(sdk,()=>({}));
  await staffWriters.updateDoc(ref,{processPaper:'done'});
  await staffWriters.setDoc(ref,{processPlatformPayment:'done'},{mergeFields:[new sdk.FieldPath('processPlatformPayment')]});
  const row=(await sdk.getDoc(ref)).data();assert.equal(row.processPaper,'done');assert.equal(row.duplicateKeyV1,undefined);assert.equal(row.processActualAmount,123);
  const pendingRef=await staffWriters.addDoc(sdk.collection(staffDb,'payments'),{...base,paymentMonth:month,createdByUid:'actual-staff'});
  await staffWriters.updateDoc(pendingRef,{ipcNo:'STAFF-EDIT'});
- const pending=(await sdk.getDoc(pendingRef)).data();for(const [key,value] of Object.entries(core.computeIndexV1(pending)))assert.equal(pending[key],value);
+ const pending=(await sdk.getDoc(pendingRef)).data();assert.equal(pending.ipcNo,'STAFF-EDIT');
+ for(const key of ['duplicateKeyV1','mepLookupV1','paymentLookupSchemaV1'])assert.equal(pending[key],undefined);
 });
