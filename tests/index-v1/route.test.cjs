@@ -51,3 +51,46 @@ for(const html of htmls){
     assert.equal(out[0],'fallback');
   });
 }
+
+
+for(const page of htmls){
+  test('Excel repeat preview saves reads but refreshes before import commit: '+page,()=>{
+    const src=fs.readFileSync(path.resolve(__dirname,'../../site',page),'utf8');
+    const begin=src.indexOf('const EXCEL_PREVIEW_HISTORY_REUSE_MS');
+    const end=src.indexOf('function cancelPendingImportPersonPreview()',begin);
+    assert.ok(begin>0&&end>begin,'reuse helper must exist');
+    const sandbox={
+      JSON,Date,importPaymentLookupKey:data=>
+        [data.project,data.contractNo,data.ipcNo].join('||')
+    };
+    vm.createContext(sandbox);
+    vm.runInContext(src.slice(begin,end),sandbox);
+    const calc=vm.runInContext('excelPreviewDuplicateKey',sandbox);
+    const row=data=>[{data}];
+    const orig={project:'EATON',contractNo:'C-001',ipcNo:'IPC001',
+      paymentMonth:'2026-10',personInCharge:'A'};
+    assert.equal(calc(row(orig)),calc(row({...orig,personInCharge:'B'})),
+      'Changing only the default person must reuse this IPC snapshot');
+    assert.notEqual(calc(row(orig)),calc(row({...orig,ipcNo:'IPC002'})),
+      'A different IPC may not reuse this snapshot');
+    assert.notEqual(calc(row(orig)),calc(row({...orig,paymentMonth:'2026-11'})),
+      'A different payment month may not reuse this snapshot');
+    assert.match(src,/const canReuse=!forceFreshHistory && importDuplicateHistoryLoaded===true/);
+    assert.match(src,/Date\.now\(\)<excelPreviewHistoryCacheExpiresAt/);
+    assert.match(src,/await ensureImportDuplicateHistoryForRows\(localRows\)/);
+    const confirm=src.indexOf('confirmExcelImportBtn.addEventListener(');
+    const freshness=src.indexOf('if(excelPreviewReusedDuplicateHistory){',confirm);
+    const recheck=src.indexOf('await renderExcelImportPreview({forceFreshHistory:true})',freshness);
+    const valid=src.indexOf('const validRows =',confirm);
+    const write=src.indexOf('await batch.commit();',confirm);
+    assert.ok(confirm>0&&freshness>confirm&&recheck>freshness&&
+      valid>recheck&&write>valid,
+      'A reused preview must recheck and compare warnings before a batch can write');
+    assert.match(src,/beforeWarnings!==afterWarnings/);
+    assert.match(src,/if\(confirmExcelImportBtn.disabled\|\|beforeWarnings!==afterWarnings\)/);
+    assert.match(src,/clearExcelPreviewHistoryCache\(\)/);
+    assert.match(src,/importDuplicateHistoryLoaded===true/);
+    assert.match(src,/if\(importDuplicateHistoryLoaded===true\)/);
+    assert.match(src,/excelPreviewReusedDuplicateHistory=false/);
+  });
+}
