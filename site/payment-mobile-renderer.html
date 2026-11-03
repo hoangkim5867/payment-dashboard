@@ -22638,13 +22638,31 @@ function importPreviewContainsPaymentCandidate(rows){
 let excelImportPreviewGeneration = 0;
 let importPersonPreviewTimer = null;
 
+// Reuse ONLY the last fully verified legacy history snapshot for repeated
+// previews of the same IPC keys. No disk/shared cache and no persisted data.
+// A reused snapshot ALWAYS requires a fresh duplicate check before committing.
+const EXCEL_PREVIEW_HISTORY_REUSE_MS = 60 * 1000;
+let excelPreviewHistoryCacheKey = "";
+let excelPreviewHistoryCacheExpiresAt = 0;
+let excelPreviewReusedDuplicateHistory = false;
+function excelPreviewDuplicateKey(rows){
+    return JSON.stringify((rows||[]).filter(row=>!!row?.data).map(row=>[
+        importPaymentLookupKey(row.data),String(row.data.paymentMonth||"")
+    ]));
+}
+function clearExcelPreviewHistoryCache(){
+    excelPreviewHistoryCacheKey = "";
+    excelPreviewHistoryCacheExpiresAt = 0;
+    excelPreviewReusedDuplicateHistory = false;
+}
+
 function cancelPendingImportPersonPreview(){
     clearTimeout(importPersonPreviewTimer);
     importPersonPreviewTimer = null;
     excelImportPreviewGeneration++;
 }
 
-async function renderExcelImportPreview(){
+async function renderExcelImportPreview({forceFreshHistory=false}={}){
     cancelPendingImportPersonPreview();
     const previewGeneration = excelImportPreviewGeneration;
     confirmExcelImportBtn.disabled = true;
@@ -22663,7 +22681,28 @@ async function renderExcelImportPreview(){
                 excelImportStatus.innerHTML = `
                     <span class="import-badge ok">⏳ Đang kiểm tra lịch sử thanh toán các tháng trước…</span>
                 `;
-                await ensureImportDuplicateHistoryForRows(localRows);
+                const duplicateKey=excelPreviewDuplicateKey(localRows);
+                const canReuse=!forceFreshHistory && importDuplicateHistoryLoaded===true &&
+                    !importDuplicateHistoryPromise &&
+                    duplicateKey===excelPreviewHistoryCacheKey &&
+                    Date.now()<excelPreviewHistoryCacheExpiresAt;
+                if(canReuse){
+                    // Only the operator's local preview reuses this snapshot.
+                    // On Confirm, run a fresh server check before ANY write.
+                    excelPreviewReusedDuplicateHistory=true;
+                }else{
+                    await ensureImportDuplicateHistoryForRows(localRows);
+                    // Indexed lookups are already small. Cache only the
+                    // complete legacy snapshot, never a partial indexed result.
+                    if(importDuplicateHistoryLoaded===true){
+                        excelPreviewHistoryCacheKey=duplicateKey;
+                        excelPreviewHistoryCacheExpiresAt=Date.now()+EXCEL_PREVIEW_HISTORY_REUSE_MS;
+                    }else{
+                        excelPreviewHistoryCacheKey="";
+                        excelPreviewHistoryCacheExpiresAt=0;
+                    }
+                    excelPreviewReusedDuplicateHistory=false;
+                }
                 if(previewGeneration !== excelImportPreviewGeneration) return;
                 // Pass 2: original warnings and cross-month IPC comparisons,
                 // now backed by the complete cached payment history.
@@ -22864,6 +22903,7 @@ async function renderExcelImportPreview(){
 
 
 async function openExcelPasteModal(){
+    clearExcelPreviewHistoryCache();
 
     importDefaultMonth.value =
         importDefaultMonth.value ||
@@ -22934,6 +22974,7 @@ async function openExcelPasteModal(){
 
 function closeExcelPasteImportModal(){
     cancelPendingImportPersonPreview();
+    clearExcelPreviewHistoryCache();
 
     pasteExcelModal.classList.remove(
         "show"
@@ -23005,6 +23046,7 @@ clearExcelPasteBtn.addEventListener(
         excelPasteArea.value = "";
         excelImportRows = [];
         excelManualMapping = [];
+        clearExcelPreviewHistoryCache();
         setExcelImportMode("auto");
         excelImportStatus.innerHTML = "";
         excelImportPreview.innerHTML = "";
@@ -24054,6 +24096,20 @@ confirmExcelImportBtn.addEventListener(
     async () => {
 
         if(!ensureOperator()){
+            return;
+        }
+
+        if(excelPreviewReusedDuplicateHistory){
+            // A cached preview can never authorize a real import. Recheck
+            // Payment on the server and show fresh warnings before saving.
+            // This happens only after one or more repeated previews reused
+            // an earlier complete history snapshot.
+            await renderExcelImportPreview({forceFreshHistory:true});
+            alert(currentLanguage==="zh"
+                ? "已重新检查最新的重复 IPC。请核对预览后再次确认导入。"
+                : currentLanguage==="en"
+                    ? "Duplicate IPCs were checked again. Review the refreshed preview and confirm import once more."
+                    : "Đã kiểm tra lại IPC trùng bằng dữ liệu mới nhất. Xem kết quả mới rồi bấm Xác nhận nhập lần nữa.");
             return;
         }
 
