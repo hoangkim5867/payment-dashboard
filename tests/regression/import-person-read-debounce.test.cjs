@@ -4,7 +4,7 @@ const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 for(const page of ['payment.html','payment-mobile-renderer.html']){
  const source=fs.readFileSync(path.resolve(__dirname,'../../site',page),'utf8');
  const slice=(a,b)=>source.slice(source.indexOf(a),source.indexOf(b,source.indexOf(a)));
- const setup=slice('let excelImportPreviewGeneration = 0;','async function renderExcelImportPreview(){');
+ const setup=slice('let excelImportPreviewGeneration = 0;','async function renderExcelImportPreview({forceFreshHistory=false}={}){');
  function harness(){
   const timers=new Map();let next=0,input,reads=0;
   const ctx={clearTimeout:id=>timers.delete(id),setTimeout:fn=>{timers.set(++next,fn);return next;},
@@ -19,7 +19,7 @@ for(const page of ['payment.html','payment-mobile-renderer.html']){
   const h=harness();for(let i=0;i<10;i++)h.input();
   assert.equal(h.reads(),0);assert.equal(h.timers.size,1);assert.equal(h.ctx.confirmExcelImportBtn.disabled,true);
   h.flush();assert.equal(h.reads(),1);
-  h.input();h.flush();assert.equal(h.reads(),2,'Later edits must still recheck fresh history');
+  h.input();h.flush();assert.equal(h.reads(),2,'Later edits still trigger a local preview');
  });
  test(page+': explicit preview, clear and close cancel queued automatic preview',()=>{
   const h=harness();h.input();h.ctx.renderExcelImportPreview();h.flush();assert.equal(h.reads(),1);
@@ -34,8 +34,9 @@ for(const page of ['payment.html','payment-mobile-renderer.html']){
    importPreviewContainsPaymentCandidate:()=>true,
    buildExcelImportRows:()=>{builds++;return [{data:{contractNo:'FAKE'},errors:[]}];},
    previewExcelPasteBtn:{disabled:false},excelImportStatus:{innerHTML:''},
-   ensureImportDuplicateHistoryForRows:()=>history});
-  const start=source.indexOf('async function renderExcelImportPreview(){');
+   ensureImportDuplicateHistoryForRows:()=>history,importPaymentLookupKey:d=>String(d.contractNo||''),
+   importDuplicateHistoryLoaded:false,importDuplicateHistoryPromise:null});
+  const start=source.indexOf('async function renderExcelImportPreview({forceFreshHistory=false}={}){');
   const end=source.indexOf('    }catch(error){',start);
   vm.runInContext(source.slice(start,end)+'}catch(error){throw error;}}',h.ctx);
   const pending=h.ctx.renderExcelImportPreview();h.input();release();await pending;
