@@ -31,7 +31,7 @@ test('Backfill is Admin-only click, capped reads, validates actual payment ID an
  assert.match(index,/const budget=1200/);
  assert.match(index,/readCount\+rows\.length>budget/);
  assert.match(index,/getDoc\(doc\(db,"payments",id\)\)/);
- assert.match(index,/norm\(data\.contractNo\)!==norm\(row\.contractNo\)/);
+ assert.match(index,/norm\(data\?\.contractNo\)!==norm\(row\?\.contractNo\)/);
  assert.match(index,/ipcDocumentLinksComplete:true/);
  assert.doesNotMatch(index,/deleteDoc\(|writeBatch\(/);
 });
@@ -43,7 +43,7 @@ test('Future closed months embed links from already loaded payments',()=>{
 test('Confirmed Admin manual and bulk link saves update Archive index, never extra reads',()=>{
  assert.match(links,/new FieldPath\("ipcDocumentLinks",activeId\),url/);
  assert.match(links,/new FieldPath\("ipcDocumentLinks",activeId\),deleteField\(\)/);
- assert.match(bulk,/savedLinks\.push\(\[p\.data\.id,pdfUrl\]\)/);
+ assert.match(bulk,/savedLinks\.push\(\[p\.data\.id,outcome\.url\]\)/);
  assert.match(bulk,/new FieldPath\("ipcDocumentLinks",p\.data\.id\),pdfUrl/);
  assert.match(bulk,/__archiveDossierUpdateLocal/);
  assert.match(archive,/sessionDetailCache\.set\(String\(month\),currentDetails\)/);
@@ -68,8 +68,8 @@ test('One full Drive scan can propose across months; confirmed saves are limited
  assert.match(bulk,/scanScope==="all"/);
  assert.match(bulk,/pending=pending\.slice\(0,40\)/);
  assert.match(bulk,/const latest=await transaction\.get\(ref\)/);
- assert.match(bulk,/if\(!isPaid\(data,p\.data\)\)return "mismatch"/);
- assert.match(bulk,/if\(data\.ipcDocumentUrl\)return "existing"/);
+ assert.match(bulk,/if\(!isPaid\(data,p\.data\)\)return \{status:"mismatch"\}/);
+ assert.match(bulk,/if\(data\.ipcDocumentUrl\)\{/);
  assert.match(bulk,/new FieldPath\("ipcDocumentLinks",p\.data\.id\),pdfUrl/);
  assert.match(bulk,/doc\(db,"paymentArchiveDetails",p\.data\.archiveMonth\)/);
  assert.match(bulk,/fileUsage\.get\(candidates\[0\]\.id\)>1/);
@@ -136,12 +136,59 @@ test('Admin can inspect a single current-month unknown before any more Payment r
 test('Targeted Admin reconciliation preserves existing index and never modifies UNC or money',()=>{
  assert.match(index,/if\(validUrl\(oldLinks\[id\]\)\)continue/);
  assert.match(index,/if\(active\.complete&&!oldUnknown\.has\(id\)\)continue/);
- assert.match(index,/if\(String\(data\.paymentMonth\|\|""\)!==month\)/);
- assert.match(index,/norm\(data\.project\)!==norm\(row\.project\)/);
- assert.match(index,/norm\(data\.contractNo\)!==norm\(row\.contractNo\)/);
- assert.match(index,/norm\(data\.ipcNo\)!==norm\(row\.ipcNo\)/);
+ assert.match(index,/const reason=archivePaidMismatch\(data,row,month\)/);
+ assert.match(index,/norm\(data\?\.project\)!==norm\(row\?\.project\)/);
+ assert.match(index,/norm\(data\?\.contractNo\)!==norm\(row\?\.contractNo\)/);
+ assert.match(index,/norm\(data\?\.ipcNo\)!==norm\(row\?\.ipcNo\)/);
  assert.match(index,/JSON\.stringify\(fresh\.data\(\)\.ipcDocumentLinks\|\|\{\}\)!==JSON\.stringify\(oldLinks\)/);
  assert.match(index,/t\.update\(ref,\{ipcDocumentLinks:links,ipcDocumentLinksUnresolvedIds:/);
  assert.match(index,/__archiveDossierApplyBackfill\?\.\(month,links,\[\.\.\.unresolved\]\)/);
  assert.doesNotMatch(index,/collection\s*\(|deleteDoc\s*\(|writeBatch\s*\(/);
+});
+
+test('Archive confirms actual payment period, not the original planned month; prevents wrong IPC links',()=>{
+ const vm=require('node:vm');
+ const start=index.indexOf('const norm='),end=index.indexOf('let syncing=false;',start);
+ assert.ok(start>=0&&end>start);
+ const checker=vm.runInNewContext(index.slice(start,end)+'\n archivePaidMismatch');
+ const row={project:'EATON PARK',contractNo:'CSCECVN-S.E.A-EATON-MEP-SUPL-004',ipcNo:'IPC011',actualAmount:6787282,paymentDate:'2026-10-29'};
+ const paid={project:row.project,contractNo:row.contractNo,ipcNo:row.ipcNo,
+   paymentMonth:'2026-09',processPaymentDate:'2026-10-29',processActualAmount:6787282};
+ assert.equal(checker(paid,row,'2026-10'),'');
+ assert.match(checker({...paid,processPaymentDate:'2026-09-29'},row,'2026-10'),/Ngày thanh toán/);
+ assert.match(checker({...paid,processActualAmount:6787283},row,'2026-10'),/Số tiền/);
+ assert.match(checker({...paid,contractNo:'WRONG'},row,'2026-10'),/hợp đồng/);
+ assert.match(checker({...paid,ipcNo:'IPC010'},row,'2026-10'),/IPC/);
+ assert.match(checker({...paid,deleted:true},row,'2026-10'),/xóa/);
+});
+test('Bulk paid identity uses real payment date even for older planned month',()=>{
+ const vm=require('node:vm');
+ const start=bulk.indexOf('const normalize='),end=bulk.indexOf('const view=',start);
+ assert.ok(start>=0&&end>start);
+ const api=vm.runInNewContext(bulk.slice(start,end)+'\n({isPaid,existingDriveUrl})',{URL});
+ const row={project:'EATON PARK',contractNo:'C-MEP-SUPL-001',ipcNo:'IPC011',archiveMonth:'2026-10',
+   paymentDate:'2026-10-29',actualAmount:100};
+ const paid={project:row.project,contractNo:row.contractNo,ipcNo:row.ipcNo,
+   paymentMonth:'2026-09',processActualAmount:100,processPaymentDate:'2026-10-29',monthOutcome:'carried_forward'};
+ assert.equal(api.isPaid(paid,row),true);
+ assert.equal(api.isPaid({...paid,processPaymentDate:'2026-09-29'},row),false);
+ assert.equal(api.isPaid({...paid,processActualAmount:101},row),false);
+ assert.equal(api.isPaid({...paid,ipcNo:'IPC010'},row),false);
+ assert.equal(api.isPaid({...paid,deleted:true},row),false);
+ const drive='https://drive.google.com/file/d/1M67gD4b8PRw_ABC123/view';
+ assert.equal(api.existingDriveUrl(drive),drive);
+ assert.equal(api.existingDriveUrl('https://drive.google.com.evil.test/file/d/1M67gD4b8PRw_ABC123/view'),'');
+ assert.equal(api.existingDriveUrl('https://evil.example/doc'),'');
+});
+test('Existing bulk Payment link repairs only missing Archive index, never overwrites old link or rival indexed URL',()=>{
+ assert.match(bulk,/const existing=existingDriveUrl\(data\.ipcDocumentUrl\)/);
+ assert.match(bulk,/const archiveSnap=await transaction\.get\(archiveRef\)/);
+ assert.match(bulk,/if\(indexed\)return \{status:indexed===existing\?"already_indexed":"index_conflict"\}/);
+ assert.match(bulk,/transaction\.update\(archiveRef,new FieldPath\("ipcDocumentLinks",p\.data\.id\),existing\)/);
+ assert.match(bulk,/return \{status:"reindexed",url:existing\}/);
+ assert.match(bulk,/if\(outcome\.status==="saved"\|\|outcome\.status==="reindexed"\)/);
+ assert.match(bulk,/p\.result\.textContent=outcome\.status==="reindexed"\?"✓ Khôi phục chỉ mục link cũ"/);
+ assert.match(bulk,/if\(outcome\.status==="reindexed"\)reindexed\+\+/);
+ assert.match(bulk,/window\.__archiveDossierUpdateLocal/);
+ assert.doesNotMatch(bulk,/onSnapshot\s*\(|getDocs\s*\(/);
 });

@@ -21,10 +21,10 @@ test('Admin-only direct Archive bulk writes require explicit approval and indepe
  assert.match(bulk,/const OWNER_UID=/);
  assert.match(bulk,/uid!==OWNER_UID/);
  assert.match(bulk,/getDoc\(doc\(db,"authUsers",uid\)\)/);
- assert.match(bulk,/if\(data\.ipcDocumentUrl\)return "existing"/);
+ assert.match(bulk,/if\(data\.ipcDocumentUrl\)\{/);
  assert.match(bulk,/transaction\.update\(ref,\{ipcDocumentUrl:pdfUrl,ipcDocumentUpdatedAt:serverTimestamp\(\),ipcDocumentUpdatedByUid:uid\}\)/);
  assert.match(bulk,/Math\.abs\(rawPaid-Number\(source\.actualAmount\)\)<0\.01/);
- assert.match(bulk,/String\(data\.paymentMonth\|\|""\)===source\.archiveMonth/);
+ assert.match(bulk,/date\.slice\(0,7\)===source\.archiveMonth/);
  assert.match(bulk,/data\.deleted!==true/);
  assert.match(bulk,/scanPartial\)\{message/);
  assert.match(bulk,/pending\.length>40/);
