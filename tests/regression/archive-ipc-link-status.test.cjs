@@ -68,7 +68,7 @@ test('One full Drive scan can propose across months; confirmed saves are limited
  assert.match(bulk,/scanScope==="all"/);
  assert.match(bulk,/pending=pending\.slice\(0,40\)/);
  assert.match(bulk,/const latest=await transaction\.get\(ref\)/);
- assert.match(bulk,/if\(!isPaid\(data,p\.data\)\)return "mismatch"/);
+ assert.match(bulk,/if\(!isPaid\(data,p\.data\)\)return \{status:"mismatch"\}/);
  assert.match(bulk,/if\(data\.ipcDocumentUrl\)\{/);
  assert.match(bulk,/new FieldPath\("ipcDocumentLinks",p\.data\.id\),pdfUrl/);
  assert.match(bulk,/doc\(db,"paymentArchiveDetails",p\.data\.archiveMonth\)/);
