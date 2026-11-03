@@ -14,6 +14,23 @@ const validUrl=value=>{
  try{const u=new URL(String(value||"").trim());return u.protocol==="https:"&&["drive.google.com","docs.google.com"].includes(u.hostname)?u.href:"";}catch{return "";}
 };
 const norm=v=>String(v??"").trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/gi,"d").toUpperCase().replace(/\s+/g,"");
+// The Archive stores ACTUAL payment dates; a planned paymentMonth may differ.
+// Validate by actual date + actual paid amount + the original contract / IPC.
+const archivePaidMismatch=(data,row,month)=>{
+ const actualDate=String(data?.processPaymentDate||data?.actualPaymentDate||data?.paymentDate||"").slice(0,10);
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(actualDate)||
+   actualDate!==String(row?.paymentDate||"").slice(0,10)||actualDate.slice(0,7)!==month)
+  return "Ngày thanh toán thực tế trong Payment khác Kho";
+ const paid=Number(data?.processActualAmount??data?.actualAmount??0);
+ if(!(paid>0&&Math.abs(paid-Number(row?.actualAmount))<0.01))
+  return "Số tiền thực trả trong Payment khác Kho";
+ if(data?.deleted===true||data?.monthOutcome==="cancelled")
+  return "Khoản Payment đã bị xóa hoặc hủy";
+ if(norm(data?.project)!==norm(row?.project))return "Tên dự án Payment khác dữ liệu Kho";
+ if(norm(data?.contractNo)!==norm(row?.contractNo))return "Số hợp đồng Payment khác dữ liệu Kho";
+ if(norm(data?.ipcNo)!==norm(row?.ipcNo))return "IPC Payment khác dữ liệu Kho";
+ return "";
+};
 let syncing=false;
 if(viewer){
  const css=document.createElement("style");
@@ -143,10 +160,8 @@ if(viewer){
     const snap=await getDoc(doc(db,"payments",row.paymentId));readCount++;
     if(!snap.exists())return {id:row.paymentId,reason:"Không tìm thấy ID khoản gốc trong payments"};
     const data=snap.data();
-    if(String(data.paymentMonth||"")!==month)return {id:row.paymentId,reason:"Tháng trong Payment khác tháng Kho"};
-    if(norm(data.project)!==norm(row.project))return {id:row.paymentId,reason:"Tên dự án Payment khác dữ liệu Kho"};
-    if(norm(data.contractNo)!==norm(row.contractNo))return {id:row.paymentId,reason:"Số hợp đồng Payment khác dữ liệu Kho"};
-    if(norm(data.ipcNo)!==norm(row.ipcNo))return {id:row.paymentId,reason:"IPC Payment khác dữ liệu Kho"};
+    const reason=archivePaidMismatch(data,row,month);
+    if(reason)return {id:row.paymentId,reason};
     return {id:row.paymentId,verified:true,url:validUrl(data.ipcDocumentUrl)};
    }catch(e){readCount++;return {id:row.paymentId,reason:"Không đọc được Payment: "+(e?.code||"lỗi quyền/mạng")};}
   };
@@ -239,10 +254,7 @@ if(viewer){
        const docSnap=await getDoc(doc(db,"payments",id));
        if(!docSnap.exists())return {id,verified:false};
        const data=docSnap.data();
-       if(String(data.paymentMonth||"")!==month
-         ||norm(data.project)!==norm(row.project)
-         ||norm(data.contractNo)!==norm(row.contractNo)
-         ||norm(data.ipcNo)!==norm(row.ipcNo))return {id,verified:false};
+       if(archivePaidMismatch(data,row,month))return {id,verified:false};
        return {id,verified:true,url:validUrl(data.ipcDocumentUrl)};
       }catch{return {id,verified:false};}
      }));
