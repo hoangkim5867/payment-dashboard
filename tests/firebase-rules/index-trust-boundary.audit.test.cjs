@@ -20,17 +20,16 @@ test.before(async()=>{
  });db=env.authenticatedContext('staff').firestore();
 });
 test.after(async()=>{if(env)await env.cleanup()});
-test('KNOWN UNSAFE: Staff creates arbitrary lookup metadata and removes it',async()=>{
+test('DENIED: Staff creates arbitrary lookup metadata and removes it',async()=>{
  const ref=sdk.doc(db,'payments/create-forgery');
- await assertSucceeds(sdk.setDoc(ref,{...base,duplicateKeyV1:'forged',mepLookupV1:false,paymentLookupSchemaV1:1}));
- assert.notEqual((await sdk.getDoc(ref)).data().duplicateKeyV1,computeIndexV1(base).duplicateKeyV1);
- await assertSucceeds(sdk.updateDoc(ref,{duplicateKeyV1:sdk.deleteField(),paymentLookupSchemaV1:sdk.deleteField()}));
+ await assertFails(sdk.setDoc(ref,{...base,duplicateKeyV1:'forged',mepLookupV1:false,paymentLookupSchemaV1:1}));
+ await assertSucceeds(sdk.setDoc(ref,base));
+ await assertFails(sdk.updateDoc(ref,{duplicateKeyV1:sdk.deleteField(),paymentLookupSchemaV1:sdk.deleteField()}));
 });
-test('KNOWN UNSAFE: Staff forges index alone or alongside permitted source edit',async()=>{
+test('DENIED: Staff forges index alone or alongside permitted source edit',async()=>{
  for(const [id,patch] of [['index-only',{duplicateKeyV1:'forged',mepLookupV1:true,paymentLookupSchemaV1:99}],['source-and-index',{ipcNo:'IPC2',duplicateKeyV1:'stale',mepLookupV1:false,paymentLookupSchemaV1:1}]]){
-  const ref=sdk.doc(db,'payments/'+id);await sdk.setDoc(ref,{...base,...computeIndexV1(base)});
-  await assertSucceeds(sdk.updateDoc(ref,patch));const row=(await sdk.getDoc(ref)).data();
-  assert.notEqual(row.duplicateKeyV1,computeIndexV1(row).duplicateKeyV1);
+  const ref=sdk.doc(db,'payments/'+id);await env.withSecurityRulesDisabled(c=>sdk.setDoc(sdk.doc(c.firestore(),'payments',id),{...base,...computeIndexV1(base)}));
+  await assertFails(sdk.updateDoc(ref,patch));
  }
 });
 test('Staff cannot authorize index activation; privileged business fields stay protected',async()=>{
