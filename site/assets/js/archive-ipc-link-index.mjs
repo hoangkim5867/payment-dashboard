@@ -130,6 +130,46 @@ if(viewer){
    if(inspect.title!==inspectTitle)inspect.title=inspectTitle;
   }
  }
+ // Choose a known linked sample locally; zero reads before confirmation.
+ function chooseReconciliationSample(target,month){
+  return new Promise(resolve=>{
+   const modal=document.createElement("dialog");
+   modal.style.cssText="width:min(650px,calc(100vw - 28px));border:1px solid #b6c6d6;border-radius:12px;padding:18px;color:#173852;background:#fff";
+   const title=document.createElement("h3");title.textContent="Chọn khoản kiểm tra – "+month;
+   const hint=document.createElement("p");hint.textContent="Chọn khoản m biết có PDF. Danh sách lấy từ Kho đã tải, chưa đọc thêm Firebase.";
+   const search=document.createElement("input");search.type="search";search.placeholder="Tìm dự án / hợp đồng / IPC";
+   search.style.cssText="width:100%;box-sizing:border-box;margin:8px 0;padding:8px";
+   const select=document.createElement("select");select.size=8;
+   select.style.cssText="width:100%;box-sizing:border-box;min-height:190px";
+   const count=document.createElement("p");count.style.cssText="font:12px system-ui;color:#536d80";
+   const description=row=>[row.project,row.contractNo,row.ipcNo,row.paymentDate].filter(Boolean).join(" · ");
+   const update=()=>{
+    const query=search.value.trim().toUpperCase(),found=target.filter(r=>description(r).toUpperCase().includes(query));
+    select.replaceChildren();
+    for(const row of found){
+     const option=document.createElement("option");option.value=row.paymentId;
+     option.textContent=description(row);select.append(option);
+    }
+    select.selectedIndex=-1;count.textContent=found.length+"/"+target.length+" khoản • 0 reads";
+   };
+   search.addEventListener("input",update);update();
+   const actions=document.createElement("div");
+   actions.style.cssText="display:flex;gap:8px;justify-content:flex-end";
+   const cancel=document.createElement("button");cancel.type="button";cancel.textContent="Hủy";
+   const choose=document.createElement("button");choose.type="button";choose.textContent="Đọc thử 1 khoản";
+   actions.append(cancel,choose);modal.append(title,hint,search,select,count,actions);
+   document.body.append(modal);let done=false;
+   const finish=row=>{if(done)return;done=true;modal.close();modal.remove();resolve(row||null);};
+   cancel.addEventListener("click",()=>finish(null));
+   choose.addEventListener("click",()=>{
+    const row=target.find(r=>r.paymentId===select.value);
+    if(!row){alert("Chọn một khoản từ danh sách trước nha.");return;}
+    finish(row);
+   });
+   modal.addEventListener("close",()=>{if(!done){done=true;modal.remove();resolve(null);}});
+   modal.showModal();
+  });
+ }
  async function repairVisibleMonth(){
   if(syncing||!owner())return;
   const active=view();
@@ -152,8 +192,11 @@ if(viewer){
   const target=[...targetMap.values()];
   if(!target.length){alert("Không có khoản có ID hợp lệ để đối chiếu. Kiểm tra dữ liệu Kho.");return;}
   if(target.length>180){alert("Tháng này còn "+target.length+" khoản chưa rõ, vượt giới hạn an toàn 180 khoản. Không tự đọc.");return;}
-  if(!confirm("ĐỐI CHIẾU RIÊNG THÁNG "+month+"?\n\nCó "+target.length+
-    " khoản chưa xác minh. Đầu tiên chỉ đọc thử 1 khoản Payment. Nếu tháng, dự án, hợp đồng hoặc IPC không khớp, sẽ dừng ngay (không đọc hàng loạt).\n\nKhông sửa tiền, UNC, tiến trình hay PDF."))return;
+  const chosen=await chooseReconciliationSample(target,month);
+  if(!chosen)return;
+  if(!owner()||view()?.month!==month){alert("Phiên Admin hoặc tháng đã đổi. Không đọc Payment.");return;}
+  if(!confirm("CHỈ ĐỌC THỬ MỘT KHOẢN?\n\n"+[chosen.project,chosen.contractNo,chosen.ipcNo].filter(Boolean).join(" · ")+
+    "\n\nHệ thống chỉ đọc 1 khoản trước, chưa đọc các khoản còn lại. Không sửa tiền, UNC, tiến trình hay PDF."))return;
   syncing=true;refresh();
   let readCount=0;
   const db=getFirestore(getApp());
@@ -168,7 +211,7 @@ if(viewer){
    }catch(e){readCount++;return {id:row.paymentId,reason:"Không đọc được Payment: "+(e?.code||"lỗi quyền/mạng")};}
   };
   try{
-   const first=await checkRow(target[0]);
+   const first=await checkRow(chosen);
    if(first.reason){
     alert("ĐÃ DỪNG SAU "+readCount+" READ.\n\nMẫu tháng "+month+" chưa xác minh được: "+first.reason+
       ".\n\nKhông quét thêm, không ghi bất kỳ dữ liệu nào. Đừng bấm đồng bộ toàn Kho để thử lại.");
@@ -177,12 +220,12 @@ if(viewer){
    if(!confirm("MẪU ĐÃ KHỚP VỀ THÔNG TIN!\n"+(first.url?"Mẫu có link PDF trong Payment.":"Mẫu KHÔNG có link PDF trong Payment.")+"\n\nĐã dùng "+readCount+
       " read. Có thể tiếp tục kiểm tra tối đa "+(target.length-1)+
       " khoản còn lại trong tháng "+month+" và cập nhật chỉ mục Kho một lần.\n\nChỉ tiếp tục khi Admin xác nhận phát sinh các lượt đọc này."))return;
-   const results=[first];
-   for(let i=1;i<target.length;i+=10){
+   const results=[first],remaining=target.filter(row=>row.paymentId!==chosen.paymentId);
+   for(let i=0;i<remaining.length;i+=10){
     if(!owner()||view()?.month!==month)throw Error("Đã đổi tài khoản/tháng Kho. Dừng không ghi.");
-    results.push(...await Promise.all(target.slice(i,i+10).map(checkRow)));
+    results.push(...await Promise.all(remaining.slice(i,i+10).map(checkRow)));
     const b=$(".archive-ipc-index-repair",viewer);
-    if(b)b.textContent="Đã kiểm tra "+Math.min(i+10,target.length)+"/"+target.length+" khoản…";
+    if(b)b.textContent="Đã kiểm tra "+(Math.min(i+10,remaining.length)+1)+"/"+target.length+" khoản…";
    }
    if(!owner()||view()?.month!==month)throw Error("Đã đổi tài khoản/tháng Kho. Dừng không ghi.");
    const links={...oldLinks},unresolved=new Set(active.complete?[...oldUnknown]:[]);
