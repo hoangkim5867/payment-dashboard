@@ -611,6 +611,39 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
   color:#df443c !important;
 }
 </style>
+<style id="payroll-project-overview-20261103">
+#payrollView .salary-view-switch{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin:11px 0 9px}
+#payrollView .salary-view-switch .salary-tabs{display:inline-flex;gap:3px;padding:3px;border:1px solid #dce5ee;background:#f3f6fa;border-radius:9px}
+#payrollView .salary-tabs button{border:0;border-radius:7px;background:transparent;color:#64748b;font-size:11px;font-weight:750;padding:8px 15px;cursor:pointer}
+#payrollView .salary-tabs button.active{background:#fff;color:#173756;box-shadow:0 1px 4px rgba(20,48,83,.12)}
+#payrollView .salary-view-hint{font-size:10px;color:#7a899b}
+#payrollView .salary-advanced-toggle{font-size:10px;padding:7px 10px;border:1px solid #dce5ee;border-radius:7px;background:#fff;color:#3f5570;cursor:pointer}
+#payrollView .mep-filter-row{grid-template-columns:minmax(220px,1fr) 155px 135px!important;gap:8px!important}
+#payrollView .mep-filter-row #salarySearch{grid-column:1}
+#payrollView .mep-filter-row #salaryProject{grid-column:2}
+#payrollView .mep-filter-row #salaryStatus{grid-column:3}
+#payrollView .mep-filter-row #salaryStaffGroup,#payrollView .mep-filter-row #salaryPeriod,#payrollView .mep-filter-row #salaryQuarter,#payrollView .mep-filter-row #salaryType{display:none!important}
+#payrollView.salary-advanced-open .mep-filter-row{grid-template-columns:minmax(190px,1fr) repeat(3,minmax(115px,145px))!important}
+#payrollView.salary-advanced-open .mep-filter-row #salarySearch,#payrollView.salary-advanced-open .mep-filter-row #salaryProject,#payrollView.salary-advanced-open .mep-filter-row #salaryStatus{grid-column:auto}
+#payrollView.salary-advanced-open .mep-filter-row #salaryStaffGroup,#payrollView.salary-advanced-open .mep-filter-row #salaryPeriod,#payrollView.salary-advanced-open .mep-filter-row #salaryQuarter,#payrollView.salary-advanced-open .mep-filter-row #salaryType{display:block!important}
+#payrollView .salary-overview-card{border:1px solid #dfe7ef;border-radius:11px;overflow:hidden;background:white;margin:9px 0 14px}
+#payrollView .salary-overview-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid #e7edf4}
+#payrollView .salary-overview-head b{font-size:13px;color:#1b3654}#payrollView .salary-overview-head span{font-size:10px;color:#8592a3}
+#payrollView .salary-overview-scroll{overflow:auto;max-height:600px}
+#payrollView .salary-overview-table{width:100%;border-collapse:collapse;min-width:920px;font-variant-numeric:tabular-nums}
+#payrollView .salary-overview-table th{position:sticky;top:0;z-index:1;background:#f5f8fc;text-align:right;color:#64748b;font-size:10px;font-weight:800;padding:12px 12px;border-bottom:1px solid #e5ebf2;white-space:nowrap}
+#payrollView .salary-overview-table th:first-child{text-align:left}
+#payrollView .salary-overview-table td{padding:12px;border-bottom:1px solid #edf1f5;font-size:11px;color:#34465c;text-align:right;white-space:nowrap}
+#payrollView .salary-overview-table td:first-child{text-align:left}#payrollView .salary-overview-table tbody tr:hover td{background:#f7faff}
+#payrollView .salary-overview-table .salary-project-open{border:0;background:none;color:#235da0;font-size:11px;font-weight:800;cursor:pointer;padding:0;text-align:left}
+#payrollView .salary-overview-table .salary-project-open:hover{text-decoration:underline}
+#payrollView .salary-overview-table .salary-outstanding{color:#b45309;font-weight:800}#payrollView .salary-overview-table .salary-overview-total{font-weight:850;color:#18395c}
+#payrollView .salary-overview-table tfoot td{position:sticky;bottom:0;background:#eaf1f9;font-weight:900;color:#163a5f;border-top:1px solid #d2dfec}
+#payrollView.salary-mode-summary #salaryDetailCard,#payrollView.salary-mode-summary .salary-batch-bar{display:none!important}
+#payrollView.salary-mode-detail #salaryProjectOverview{display:none!important}
+#payrollView .salary-overview-empty{padding:35px 15px;text-align:center;color:#8996a6;font-size:11px}
+@media(max-width:900px){#payrollView .mep-filter-row,#payrollView.salary-advanced-open .mep-filter-row{display:flex!important;flex-wrap:wrap!important}#payrollView .mep-filter-row #salarySearch{flex:1 1 100%}#payrollView .mep-filter-row select{flex:1 1 130px!important}#payrollView .salary-overview-head{flex-wrap:wrap}}
+</style>
 </head><body class="auth-checking">
 <div class="app"><header class="top" aria-label="Tiện ích hệ thống">
   <div class="brand" aria-hidden="true"><div class="mark">₫</div><div><h1>MEP CASH CONTROL</h1><small>Điều hành dòng tiền · Công nợ · Thanh toán · Tín dụng dự án</small></div></div>
@@ -957,6 +990,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
     <div class="salary-summary-item rows"><span>Số dòng</span><b id="salaryRows">0</b></div>
   </div>
 
+  <div class="salary-view-switch"><div class="salary-tabs" role="group" aria-label="Cách xem chi phí nhân sự"><button type="button" id="salaryModeSummary" class="active" aria-pressed="true">▦ Tổng hợp dự án</button><button type="button" id="salaryModeDetail" aria-pressed="false">≡ Chi tiết khoản chi</button></div><button type="button" class="salary-advanced-toggle" id="salaryAdvancedToggle" aria-expanded="false">⚙ Lọc nâng cao ▾</button></div>
   <div class="mep-toolbar"><div class="mep-filter-row" style="flex:1">
     <input id="salarySearch" class="mep-search" placeholder="Tìm dự án, khoản mục, file nguồn...">
     <select id="salaryProject"><option value="">Tất cả dự án</option></select>
@@ -967,6 +1001,8 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
     <select id="salaryStatus"><option value="">Tất cả trạng thái</option><option value="pending">Chưa chi</option><option value="paid">Đã thực chi</option></select>
   </div></div>
 
+  <section class="salary-overview-card" id="salaryProjectOverview" aria-label="Tổng hợp chi phí nhân sự theo dự án"><div class="salary-overview-head"><b>Tổng hợp nghĩa vụ theo dự án</b><span id="salaryOverviewHint">Bấm tên dự án để xem các khoản chi tiết</span></div><div class="salary-overview-scroll"><table class="salary-overview-table"><thead><tr><th>Dự án</th><th>Lương</th><th>Bảo hiểm & CĐ</th><th>Thưởng</th><th>Tiền ăn / khác</th><th>Thuế TNCN</th><th>Tổng nghĩa vụ</th><th>Chưa chi / nộp</th></tr></thead><tbody id="salaryOverviewBody"></tbody><tfoot id="salaryOverviewFoot"></tfoot></table></div></section>
+
   <div class="salary-batch-bar">
     <span class="selection-count" id="salarySelectionCount">Chưa chọn khoản nào</span>
     <input type="date" id="salaryBatchDate" class="mep-select" title="Ngày tiền thực sự đi khỏi tài khoản">
@@ -975,7 +1011,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
     <button class="btn danger" id="salaryDeleteSelected">Xóa khoản đã chọn</button>
   </div>
 
-  <div class="mep-card"><div class="mep-card-head"><div><div class="mep-card-title">Chi tiết lương · BH · thuế cần theo dõi</div><div class="mep-card-sub">Dòng hiện tại và các khoản lịch sử còn treo. Ngày thực chi / nộp quyết định tháng dòng tiền.</div></div></div><div class="mep-table-wrap"><table class="mep-table"><thead><tr><th><input type="checkbox" id="salarySelectAll" title="Chọn toàn bộ kết quả đang hiển thị"></th><th>Dự án</th><th>Nhóm nhân sự</th><th>Khoản mục</th><th>Kỳ lương / nguồn</th><th>Kỳ thuế / dự kiến nộp</th><th>Số tiền VND</th><th>Ngày thực chi</th><th>Tháng dòng tiền</th><th>Nguồn nhập</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody id="salaryBody"></tbody><tfoot id="salaryFoot"></tfoot></table></div></div>
+  <div class="mep-card" id="salaryDetailCard"><div class="mep-card-head"><div><div class="mep-card-title">Chi tiết lương · BH · thuế cần theo dõi</div><div class="mep-card-sub">Dòng hiện tại và các khoản lịch sử còn treo. Ngày thực chi / nộp quyết định tháng dòng tiền.</div></div></div><div class="mep-table-wrap"><table class="mep-table"><thead><tr><th><input type="checkbox" id="salarySelectAll" title="Chọn toàn bộ kết quả đang hiển thị"></th><th>Dự án</th><th>Nhóm nhân sự</th><th>Khoản mục</th><th>Kỳ lương / nguồn</th><th>Kỳ thuế / dự kiến nộp</th><th>Số tiền VND</th><th>Ngày thực chi</th><th>Tháng dòng tiền</th><th>Nguồn nhập</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody id="salaryBody"></tbody><tfoot id="salaryFoot"></tfoot></table></div></div>
 
   <div class="mep-card"><div class="mep-card-head"><div><div class="mep-card-title">Lịch sử & nghĩa vụ thuế</div><div class="mep-card-sub">Giữ cả kỳ đã nộp xong và kỳ còn treo để đối chiếu lịch sử thuế theo dự án.</div></div></div><div class="mep-table-wrap"><table class="mep-table compact"><thead><tr><th>Dự án</th><th>Kỳ</th><th>Tháng lương liên quan</th><th>Tổng nghĩa vụ</th><th>Đã nộp</th><th>Còn chưa nộp</th><th>Dự kiến nộp</th><th>Lần nộp gần nhất</th><th>Trạng thái</th></tr></thead><tbody id="salaryQuarterSummary"></tbody><tfoot id="salaryQuarterFoot"></tfoot></table></div></div>
 </section>
@@ -8033,6 +8069,51 @@ function updateSalarySelectionControls(rows=salaryFilteredRows()){
     }
 }
 
+// Presentation only: computes the overview from rows already held by Cash Control.
+// No network queries, no writes and no change to the tax/payment calculation paths.
+let salaryPresentationMode='summary';
+function setSalaryPresentationMode(mode){
+    salaryPresentationMode=mode==='detail'?'detail':'summary';
+    const root=$('payrollView');
+    if(root){root.classList.toggle('salary-mode-summary',salaryPresentationMode==='summary');root.classList.toggle('salary-mode-detail',salaryPresentationMode==='detail');}
+    ['Summary','Detail'].forEach(name=>{
+        const button=$('salaryMode'+name);
+        if(button){const active=(name==='Summary')===(salaryPresentationMode==='summary');button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));}
+    });
+}
+function renderSalaryProjectOverview(rows){
+    const body=$('salaryOverviewBody'),foot=$('salaryOverviewFoot');
+    if(!body||!foot)return;
+    const records=new Map();
+    const fresh=()=>({salary:0,insurance:0,bonus:0,other:0,tax:0,total:0,pending:0});
+    const all=fresh();
+    rows.forEach(x=>{
+        const project=normProject(x.project)||String(x.project||'—');
+        if(!records.has(project))records.set(project,fresh());
+        const slot=(x.type==='salary')?'salary':(x.type==='bonus')?'bonus':(x.type==='tax')?'tax':(['insurance','insurance_vn','insurance_cn','union'].includes(x.type))?'insurance':'other';
+        const amount=num(x.amountVnd)||0;
+        [records.get(project),all].forEach(t=>{t[slot]+=amount;t.total+=amount;if(!x.actualDate)t.pending+=amount});
+    });
+    const col=x=>money(x);
+    const sorted=[...records.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
+    body.innerHTML=sorted.map(([project,t])=>`<tr><td><button type="button" class="salary-project-open" data-salary-project-open="${esc(project)}" title="Xem chi tiết ${esc(project)}">${esc(project)} ↗</button></td><td>${col(t.salary)}</td><td>${col(t.insurance)}</td><td>${col(t.bonus)}</td><td>${col(t.other)}</td><td>${col(t.tax)}</td><td class="salary-overview-total">${col(t.total)}</td><td class="salary-outstanding">${col(t.pending)}</td></tr>`).join('')||'<tr><td colspan="8" class="salary-overview-empty">Không có khoản nào phù hợp bộ lọc.</td></tr>';
+    foot.innerHTML=sorted.length?`<tr><td>TỔNG · ${sorted.length} dự án</td><td>${col(all.salary)}</td><td>${col(all.insurance)}</td><td>${col(all.bonus)}</td><td>${col(all.other)}</td><td>${col(all.tax)}</td><td>${col(all.total)}</td><td>${col(all.pending)}</td></tr>`:'';
+    body.querySelectorAll('[data-salary-project-open]').forEach(button=>button.onclick=()=>{
+        const filter=$('salaryProject');
+        const key=button.getAttribute('data-salary-project-open');
+        if(filter){const match=[...filter.options].find(opt=>normProject(opt.value)===key);filter.value=match?match.value:key;}
+        salarySelectedIds.clear();setSalaryPresentationMode('detail');renderPayroll();
+    });
+}
+if($('salaryModeSummary'))$('salaryModeSummary').onclick=()=>setSalaryPresentationMode('summary');
+if($('salaryModeDetail'))$('salaryModeDetail').onclick=()=>setSalaryPresentationMode('detail');
+if($('salaryAdvancedToggle'))$('salaryAdvancedToggle').onclick=()=>{
+    const root=$('payrollView'),button=$('salaryAdvancedToggle');
+    const opened=root.classList.toggle('salary-advanced-open');
+    button.setAttribute('aria-expanded',String(opened));button.textContent=opened?'⚙ Thu gọn bộ lọc ▴':'⚙ Lọc nâng cao ▾';
+};
+setSalaryPresentationMode('summary');
+
 function renderPayroll(){
     syncSalaryHistoryLabels();
     const rows=salaryFilteredRows(),
@@ -8047,6 +8128,7 @@ function renderPayroll(){
     $('salaryPaid').textContent=money(paid.reduce((s,x)=>s+num(x.amountVnd),0));
     $('salaryTaxPending').textContent=money(taxPending.reduce((s,x)=>s+num(x.amountVnd),0));
     $('salaryRows').textContent=rows.length.toLocaleString('vi-VN');
+    renderSalaryProjectOverview(rows);
 
     const validIds=new Set((cashCloudState.salaryRecords||[]).map(x=>x.id));
     [...salarySelectedIds].forEach(id=>{if(!validIds.has(id))salarySelectedIds.delete(id)});
