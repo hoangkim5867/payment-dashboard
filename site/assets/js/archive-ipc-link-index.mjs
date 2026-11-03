@@ -228,11 +228,6 @@ if(viewer){
     if(b)b.textContent="Đã kiểm tra "+(Math.min(i+10,remaining.length)+1)+"/"+target.length+" khoản…";
    }
    if(!owner()||view()?.month!==month)throw Error("Đã đổi tài khoản/tháng Kho. Dừng không ghi.");
-    results.push(...await Promise.all(target.slice(i,i+10).map(checkRow)));
-    const b=$(".archive-ipc-index-repair",viewer);
-    if(b)b.textContent="Đã kiểm tra "+Math.min(i+10,target.length)+"/"+target.length+" khoản…";
-   }
-   if(!owner()||view()?.month!==month)throw Error("Đã đổi tài khoản/tháng Kho. Dừng không ghi.");
    const links={...oldLinks},unresolved=new Set(active.complete?[...oldUnknown]:[]);
    let linked=0,empty=0,failed=0;
    for(const r of results){
