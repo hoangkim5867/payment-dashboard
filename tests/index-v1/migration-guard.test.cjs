@@ -35,7 +35,9 @@ test('derived fields are identical to source index, preserve every business fiel
 });
 test('migration is resumable, operates under a strict page cap, and never flips readiness or bulk-overwrites payment business fields',()=>{
  const src=fs.readFileSync(path.join(__dirname,'../../backend/backfill-index.cjs'),'utf8');
- assert.match(src,/orderBy\(FieldPath\.documentId\(\)\)\.limit\(Math\.min\(50,cfg\.maxDocs-inspected\)\)/);
+ assert.match(src,/const requested=Math\.min\(50,cfg\.maxDocs-inspected\)/);
+ assert.match(src,/orderBy\(FieldPath\.documentId\(\)\)\.limit\(requested\)/);
+ assert.match(src,/if\(snap\.size<requested\)\{report\(true\);return;\}/);
  assert.match(src,/if\(cursor\)q=q\.startAfter\(cursor\)/);
  assert.match(src,/const fresh=await tx\.get\(doc\.ref\)/);
  assert.match(src,/const now=inspectPayment\(fresh\.data\(\)\)/);
