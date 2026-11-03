@@ -216,7 +216,8 @@ async function downloadPaymentBackup(){
     const file=JSON.stringify(envelope);
     if(new TextEncoder().encode(file).length>BACKUP_MAX_BYTES)
       throw Error("Bản sao lưu vượt giới hạn kích thước an toàn.");
-    checkBackupFreshness(envelope);
+    // An auditable backup must still be downloadable if Staff added a row
+    // since the last audit. Only the later VERIFY step gates index writes.
     const blob=new Blob([file],{type:"application/json"});
     const url=URL.createObjectURL(blob),a=document.createElement("a");
     a.href=url;
