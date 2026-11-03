@@ -9,11 +9,25 @@ const OWNER_UID="HTx2QuATHxh8zgAawwreg88w65M2";
 const $=(selector,parent=document)=>parent.querySelector(selector);
 const el=(tag,text)=>{const result=document.createElement(tag);if(text!==undefined)result.textContent=text;return result;};
 const normalize=value=>String(value??"").trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/gi,"d").toUpperCase().replace(/\s+/g,"");
+// The Archive month follows the actual payment date; paymentMonth can be
+// an earlier planned month. Verify the actual paid date, amount and identity.
+const actualPaidDate=data=>String(data?.processPaymentDate||data?.actualPaymentDate||data?.paymentDate||"").slice(0,10);
+const existingDriveUrl=raw=>{
+ try{
+  const u=new URL(String(raw??"").trim());
+  if(u.protocol!=="https:"||u.username||u.password||
+    !["drive.google.com","docs.google.com"].includes(u.hostname)||u.href.length>2048)return "";
+  const id=u.pathname.match(/\/(?:folders|file\/d|document\/d|spreadsheets\/d|presentation\/d|forms\/d)\/([A-Za-z0-9_-]{8,})(?:\/|$)/)?.[1]||
+    (u.pathname==="/open"?u.searchParams.get("id"):"");
+  return id&&/^[A-Za-z0-9_-]{8,}$/.test(id)?u.href:"";
+ }catch{return "";}
+};
 const isPaid=(data,source)=>{
  const rawPaid=Number(data.processActualAmount??data.actualAmount??0);
+ const date=actualPaidDate(data),archivedDate=String(source.paymentDate||"").slice(0,10);
  return rawPaid>0 && Math.abs(rawPaid-Number(source.actualAmount))<0.01 &&
-  String(data.paymentMonth||"")===source.archiveMonth &&
-  Boolean(data.processPaymentDate||data.actualPaymentDate||data.paymentDate) &&
+  /^\d{4}-\d{2}-\d{2}$/.test(date) && date===archivedDate &&
+  date.slice(0,7)===source.archiveMonth &&
   normalize(data.project)===normalize(source.project) &&
   normalize(data.contractNo)===normalize(source.contractNo) &&
   normalize(data.ipcNo)===normalize(source.ipcNo) &&
@@ -305,7 +319,7 @@ if(view){
    "?"+(remaining?" Còn "+remaining+" khoản đã chọn để lưu ở lượt tiếp theo.":"")+
    " Chỉ cập nhật trường hồ sơ, KHÔNG ghi đè link cũ, tiền, UNC hay tiến trình.";
   if(!confirm(label))return;
-  saving=true;saveButton.disabled=true;let saved=0,skipped=0,failed=0;const savedLinks=[],savedByMonth=new Map();
+  saving=true;saveButton.disabled=true;let saved=0,reindexed=0,skipped=0,failed=0;const savedLinks=[],savedByMonth=new Map();
   try{
    const uid=await ownerGuard();
    for(const p of pending){
@@ -323,28 +337,51 @@ if(view){
       const latest=await transaction.get(ref);
       if(!latest.exists())return "missing";
       const data=latest.data();
-      if(!isPaid(data,p.data))return "mismatch";
-      if(data.ipcDocumentUrl)return "existing";
+      if(!isPaid(data,p.data))return {status:"mismatch"};
+      const archiveRef=doc(db,"paymentArchiveDetails",p.data.archiveMonth);
+      // Old Payment links existed before the Archive index. Never overwrite
+      // Payment; reconcile the existing URL into the index, only when empty.
+      if(data.ipcDocumentUrl){
+       const existing=existingDriveUrl(data.ipcDocumentUrl);
+       if(!existing)return {status:"existing_invalid"};
+       const archiveSnap=await transaction.get(archiveRef);
+       if(!archiveSnap.exists())return {status:"archive_missing"};
+       const indexed=existingDriveUrl(archiveSnap.data().ipcDocumentLinks?.[p.data.id]);
+       if(indexed)return {status:indexed===existing?"already_indexed":"index_conflict"};
+       transaction.update(archiveRef,new FieldPath("ipcDocumentLinks",p.data.id),existing);
+       return {status:"reindexed",url:existing};
+      }
       transaction.update(ref,{ipcDocumentUrl:pdfUrl,ipcDocumentUpdatedAt:serverTimestamp(),ipcDocumentUpdatedByUid:uid});
-       transaction.update(doc(db,"paymentArchiveDetails",p.data.archiveMonth),new FieldPath("ipcDocumentLinks",p.data.id),pdfUrl);
-      return "saved";
+      transaction.update(archiveRef,new FieldPath("ipcDocumentLinks",p.data.id),pdfUrl);
+      return {status:"saved",url:pdfUrl};
      });
-     if(outcome==="saved"){
+     if(outcome.status==="saved"||outcome.status==="reindexed"){
       window.dispatchEvent(new CustomEvent("payment-ipc-link-status-changed",{detail:{paymentId:p.data.id,linked:true}}));
       p.saved=true;p.checked=false;p.checkbox.checked=false;p.checkbox.disabled=true;
-      p.row.classList.add("row-saved");p.result.textContent="✓ Đã lưu";p.result.className="status success";saved++;savedLinks.push([p.data.id,pdfUrl]);
+      p.row.classList.add("row-saved");
+      p.result.textContent=outcome.status==="reindexed"?"✓ Khôi phục chỉ mục link cũ":"✓ Đã lưu";
+      p.result.className="status success";
+      if(outcome.status==="reindexed")reindexed++;else saved++;
+      savedLinks.push([p.data.id,outcome.url]);
       if(!savedByMonth.has(p.data.archiveMonth))savedByMonth.set(p.data.archiveMonth,[]);
-      savedByMonth.get(p.data.archiveMonth).push([p.data.id,pdfUrl]);
+      savedByMonth.get(p.data.archiveMonth).push([p.data.id,outcome.url]);
      }else{
       p.checked=false;p.checkbox.checked=false;p.checkbox.disabled=true;
-      p.result.textContent=outcome==="existing"?"Đã có link, không ghi đè":outcome==="missing"?"Không có khoản gốc trong Payment":"Dữ liệu khoản đã thay đổi hoặc không còn đã trả";
+      p.result.textContent={
+       already_indexed:"Kho đã có đúng link này",
+       index_conflict:"Kho có link khác – không ghi đè",
+       existing_invalid:"Link cũ trong Payment không hợp lệ – không sửa",
+       archive_missing:"Không tìm thấy tháng trong Kho",
+       missing:"Không có khoản gốc trong Payment",
+       mismatch:"Dữ liệu khoản khác Kho hoặc chưa thanh toán"
+      }[outcome.status]||"Bỏ qua – chưa xác minh được";
       p.result.className="status error";skipped++;
      }
     }catch(e){p.result.textContent="Lưu lỗi: "+(e.message||e);p.result.className="status error";failed++;}
    }
    for(const [month,links] of savedByMonth)
     window.__archiveDossierUpdateLocal?.(month,Object.fromEntries(links));
-   message("Đã lưu "+saved+" link · bỏ qua "+skipped+" · lỗi "+failed+". Payment và Kho cập nhật cùng một giao dịch.");
+   message("Đã gắn mới "+saved+" link · khôi phục "+reindexed+" link cũ vào chỉ mục Kho · bỏ qua "+skipped+" · lỗi "+failed+". Link Payment cũ không bị thay đổi.");
   }catch(e){message("Không xác thực được Admin: "+(e.message||e),true);}
   finally{saving=false;syncSelected();}
  });
