@@ -19997,6 +19997,7 @@ async function paymentIndexV1Ready(){
         const marker=await getDocFromServer(doc(db,"systemConfig","paymentLookupV1"));
         const state=marker.exists()?marker.data():{};
         return state.ready===true && state.schemaVersion===1 &&
+            state.activationVersion===2 &&
             state.continuousMaintenance===true && state.verified===true &&
             state.synchronousWritersVerified===true && state.historySourceSeparated===true;
     }catch(error){
