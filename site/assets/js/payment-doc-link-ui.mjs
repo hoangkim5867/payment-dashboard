@@ -99,6 +99,15 @@ async function openStaffArchiveDossier(id){
    alert("Khoản này chưa có link hồ sơ.");
    return;
   }
+  // An explicit successful legacy lookup confirms this one link for the open
+  // Archive tab only. Reuse the existing month snapshot: zero extra reads.
+  // Staff cannot write the shared Archive index; owner reconciliation
+  // persists older links after separately verifying the original payment.
+  const archive=window.__archiveDossierView?.();
+  if(archive?.admin===false&&Array.isArray(archive.rows)&&
+     archive.rows.some(row=>String(row.paymentId||"").trim()===String(id))){
+    window.__archiveDossierUpdateLocal?.(String(archive.month||""),{[id]:url});
+  }
   if(tab&&!tab.closed)tab.location.replace(url);
   else window.location.assign(url);
  }catch(e){
