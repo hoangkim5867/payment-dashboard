@@ -65,9 +65,10 @@
         allProxy.type = "button";
         allProxy.textContent = "📁 Quét hồ sơ toàn Kho (một lần)";
         allProxy.addEventListener("click", () => {
-          if(!original || original.hidden || original.disabled)return;
+          const liveButton = toolbar.querySelector(".archive-ipc-all-launch");
+          if(!liveButton || liveButton.hidden || liveButton.disabled)return;
           menu.open = false;
-          original.click();
+          liveButton.click();
         });
         items.append(allProxy);
       }
