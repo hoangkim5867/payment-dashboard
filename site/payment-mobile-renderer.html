@@ -24100,17 +24100,27 @@ confirmExcelImportBtn.addEventListener(
         }
 
         if(excelPreviewReusedDuplicateHistory){
-            // A cached preview can never authorize a real import. Recheck
-            // Payment on the server and show fresh warnings before saving.
-            // This happens only after one or more repeated previews reused
-            // an earlier complete history snapshot.
+            // Refresh all warnings using current Firestore results BEFORE
+            // the original validation and any write. Keep one-click import
+            // when nothing changed, but require review if new conflicts
+            // appear or the server request fails.
+            const beforeWarnings=JSON.stringify(excelImportRows.map(row=>({
+                rowNumber:row.rowNumber,errors:row.errors,warnings:row.warnings,
+                notices:row.notices,crossMonthDuplicate:row.crossMonthDuplicate
+            })));
             await renderExcelImportPreview({forceFreshHistory:true});
-            alert(currentLanguage==="zh"
-                ? "已重新检查最新的重复 IPC。请核对预览后再次确认导入。"
-                : currentLanguage==="en"
-                    ? "Duplicate IPCs were checked again. Review the refreshed preview and confirm import once more."
-                    : "Đã kiểm tra lại IPC trùng bằng dữ liệu mới nhất. Xem kết quả mới rồi bấm Xác nhận nhập lần nữa.");
-            return;
+            const afterWarnings=JSON.stringify(excelImportRows.map(row=>({
+                rowNumber:row.rowNumber,errors:row.errors,warnings:row.warnings,
+                notices:row.notices,crossMonthDuplicate:row.crossMonthDuplicate
+            })));
+            if(confirmExcelImportBtn.disabled||beforeWarnings!==afterWarnings){
+                alert(currentLanguage==="zh"
+                    ? "已重新核对 IPC。请检查最新预览和提示后再确认导入。"
+                    : currentLanguage==="en"
+                        ? "IPCs were checked again. Review the refreshed preview and warnings before confirming."
+                        : "Đã kiểm tra lại IPC trùng. Xem kết quả và cảnh báo mới trước khi xác nhận nhập.");
+                return;
+            }
         }
 
         const validRows =
