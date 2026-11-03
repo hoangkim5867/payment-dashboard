@@ -43,8 +43,8 @@ function expectedIndex(row){
   const fields=computeIndexV1(row);
   if(Buffer.byteLength(fields.duplicateKeyV1,'utf8')>MAX_KEY_BYTES)
     return {ok:false,reason:'key_too_long',fields:null};
-  if(!fields.duplicateKeyV1||fields.duplicateKeyV1==='||||')
-    return {ok:false,reason:'invalid_key',fields:null};
+  // Even legacy records without IPC/project need a derived key: the
+  // existing duplicate matcher can compare empty values too.
   return {ok:true,reason:'',fields};
 }
 function inspectPayment(row){
