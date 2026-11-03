@@ -140,9 +140,9 @@ test('Targeted Admin reconciliation preserves existing index and never modifies 
  assert.match(index,/norm\(data\?\.project\)!==norm\(row\?\.project\)/);
  assert.match(index,/norm\(data\?\.contractNo\)!==norm\(row\?\.contractNo\)/);
  assert.match(index,/norm\(data\?\.ipcNo\)!==norm\(row\?\.ipcNo\)/);
- assert.match(index,/JSON\.stringify\(fresh\.data\(\)\.ipcDocumentLinks\|\|\{\}\)!==JSON\.stringify\(oldLinks\)/);
- assert.match(index,/t\.update\(ref,\{ipcDocumentLinks:links,ipcDocumentLinksUnresolvedIds:/);
- assert.match(index,/__archiveDossierApplyBackfill\?\.\(month,links,\[\.\.\.unresolved\]\)/);
+ assert.match(index,/const result=mergeDossierIndex\(fresh\.data\(\),results,notChecked\)/);
+ assert.match(index,/t\.update\(ref,\{ipcDocumentLinks:result\.links,/);
+ assert.match(index,/__archiveDossierApplyBackfill\?\.\(month,merged\.links,merged\.unresolved\)/);
  assert.doesNotMatch(index,/collection\s*\(|deleteDoc\s*\(|writeBatch\s*\(/);
 });
 
@@ -220,4 +220,50 @@ test('Admin selects a known linked Archive sample from local rows; no auto-read 
  assert.match(index,/select\.replaceChildren\(\)/);
  assert.match(index,/row=target\.find\(r=>r\.paymentId===select\.value\)/);
  assert.doesNotMatch(index,/getDocs\s*\(|onSnapshot\s*\(|setInterval\s*\(/);
+});
+
+test('Kho dossier index merge keeps every prior link and updates only missing entries',()=>{
+ const vm=require('node:vm');
+ const begin=index.indexOf('const mergeDossierIndex=');
+ const end=index.indexOf('let syncing=false;',begin);
+ assert.ok(begin>0&&end>begin);
+ const start=index.indexOf('const validUrl=');
+ const validEnd=index.indexOf('const norm=',start);
+ const calc=vm.runInNewContext(index.slice(start,validEnd)+index.slice(begin,end)+'\nmergeDossierIndex',{URL});
+ const a='https://drive.google.com/file/d/12345678abcdefgh/view';
+ const b='https://drive.google.com/file/d/87654321abcdefgh/view';
+ const fresh={ipcDocumentLinks:{a},ipcDocumentLinksUnresolvedIds:['b','c','d']};
+ const out=calc(fresh,[
+  {id:'a',verified:true,url:''},
+  {id:'b',verified:true,url:b},
+  {id:'c',verified:true,url:''},
+  {id:'d',verified:false},
+ ],['e']);
+ assert.equal(out.links.a,a);
+ assert.equal(out.links.b,b);
+ assert.equal(out.links.c,undefined);
+ assert.ok(!out.unresolved.includes('a'));
+ assert.ok(!out.unresolved.includes('b'));
+ assert.ok(!out.unresolved.includes('c'));
+ assert.ok(out.unresolved.includes('d'));
+ assert.ok(out.unresolved.includes('e'));
+ assert.equal(fresh.ipcDocumentLinks.b,undefined);
+ const conflicting=calc({ipcDocumentLinks:{a},ipcDocumentLinksUnresolvedIds:[]},[{id:'a',verified:true,url:b}]);
+ assert.equal(conflicting.links.a,a,'never overwrite a confirmed Kho link');
+});
+test('Kho editor uses month in opened Archive rather than planned Payment month',()=>{
+ assert.match(links,/const foundInKho=Boolean\(av\?\.rows\?\.some/);
+ assert.match(links,/activeArchiveMonth=foundInKho\?String\(av\.month\|\|""\)/);
+ assert.match(links,/const indexedUrl=foundInKho\?driveUrl\(av\?\.links\?\.\[id\]\):""/);
+ assert.match(links,/setLink\(indexedUrl\|\|paymentUrl\)/);
+ assert.match(links,/batch\.update\(doc\(db,"paymentArchiveDetails",activeArchiveMonth\),new FieldPath\("ipcDocumentLinks",activeId\),url\)/);
+});
+test('Reconcile does not mistake an updated Archive index for missing PDF',()=>{
+ assert.match(index,/mergeDossierIndex\(fresh\.data\(\),results,notChecked\)/);
+ assert.match(index,/if\(indexed\)\{unresolved\.delete\(id\);linked\+\+;continue;\}/);
+ assert.match(index,/if\(actualIds!==expectedIds\)/);
+ assert.match(index,/return result;/);
+ assert.match(index,/const merged=await runTransaction\(db,async t=>/);
+ assert.match(index,/window\.__archiveDossierApplyBackfill\?\.\(month,merged\.links,merged\.unresolved\)/);
+ assert.doesNotMatch(index,/t\.delete\(|deleteDoc\(/);
 });

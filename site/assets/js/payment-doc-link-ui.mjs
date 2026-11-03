@@ -119,11 +119,20 @@ async function showLink(id){
   if(!paymentSnap.exists()){notice("Không tìm thấy khoản này trong Firebase. Không thể gắn link.",true);return;}
   const p=paymentSnap.data();
   const av=window.__archiveDossierView?.();
-  activeArchiveMonth=(p.archived===true||p.archiveState==="archived"||av?.rows?.some(row=>String(row.paymentId||"")===id))
-    ?String(p.archiveMonth||p.paymentMonth||""):"";
+  const foundInKho=Boolean(av?.rows?.some(row=>String(row.paymentId||"")===id));
+  // The Kho's month is the actual payment month, not the payment plan month.
+  const actualPaidMonth=String(p.processPaymentDate||p.actualPaymentDate||p.paymentDate||"").slice(0,7);
+  activeArchiveMonth=foundInKho?String(av.month||""):
+   (p.archived===true||p.archiveState==="archived")
+     ?String(p.archiveMonth||actualPaidMonth||p.paymentMonth||""):"";
+  if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(activeArchiveMonth))activeArchiveMonth="";
+  // A dossier added in Kho may exist in its index even when Payment is blank.
+  const indexedUrl=foundInKho?driveUrl(av?.links?.[id]):"";
+  const paymentUrl=driveUrl(p.ipcDocumentUrl);
   $("#docLinkItem").textContent=[p.project,p.contractNo,p.ipcNo].filter(Boolean).join(" · ")||"Mã khoản: "+id;
-  setLink(p.ipcDocumentUrl);input.value=activeUrl;setEditor(user.admin);picker.onOpen({...p,id},user.admin);
-  notice(activeUrl?"Đã có link hồ sơ. Chỉ Admin có thể sửa.":"Chưa gắn hồ sơ cho khoản này.");
+  setLink(indexedUrl||paymentUrl);input.value=activeUrl;setEditor(user.admin);picker.onOpen({...p,id},user.admin);
+  notice(indexedUrl&&!paymentUrl?"Kho đã có link hồ sơ; Admin có thể lưu lại để đồng bộ sang Payment.":
+   activeUrl?"Đã có link hồ sơ. Chỉ Admin có thể sửa.":"Chưa tìm thấy link trong Kho hoặc Payment.");
   mark(id,!!activeUrl);
  }catch(e){if(token===generation)notice("Không đọc được hồ sơ: "+(e?.message||e),true);}
 }
