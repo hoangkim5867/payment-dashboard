@@ -192,3 +192,17 @@ test('Existing bulk Payment link repairs only missing Archive index, never overw
  assert.match(bulk,/window\.__archiveDossierUpdateLocal/);
  assert.doesNotMatch(bulk,/onSnapshot\s*\(|getDocs\s*\(/);
 });
+
+test('Admin monthly reconciliation button is visible: close anchor is in shared owner scope',()=>{
+ const start=index.indexOf('if(active.admin&&owner()){');
+ const button=index.indexOf('let button=heading.querySelector(".archive-ipc-index-tools")',start);
+ const close=index.indexOf('const close=heading.querySelector(".viewer-close")',start);
+ const inspect=index.indexOf('let inspect=heading.querySelector(".archive-ipc-index-repair")',start);
+ assert.ok(start>=0&&close>start&&button>close&&inspect>button,
+   'close must be declared in owner scope BEFORE both button creation branches');
+ assert.match(index,/inspect\.addEventListener\("click",repairVisibleMonth\)/);
+ assert.match(index,/inspect\.hidden=counts\.unknown===0/);
+ assert.match(index,/if\(close\)close\.before\(inspect\);else heading\.append\(inspect\)/);
+ assert.equal((index.match(/const close=heading\.querySelector\("\.viewer-close"\)/g)||[]).length,1);
+ assert.doesNotMatch(index,/getDocs\s*\(|onSnapshot\s*\(|setInterval\s*\(/);
+});
