@@ -11,19 +11,21 @@ initializeApp(cfg.emulator?{projectId:cfg.projectId}:{credential:applicationDefa
   const db=getFirestore(),col=db.collection('payments');
   let inspected=0,mismatch=0,updated=0,alreadyFixed=0,invalid=0,errors=0;
   let cursor=cfg.startAfter;
+  const report=reachedEnd=>{
+    console.log(JSON.stringify({projectId:cfg.projectId,mode:cfg.write?'WRITE':'AUDIT',
+      inspected,mismatch,updated,alreadyFixed,invalid,errors,
+      reachedEnd,nextAfter:reachedEnd?null:cursor,markerActivated:false},null,2));
+    if(invalid||errors)process.exitCode=2;
+  };
   // A page of IDs is read only once. Every WRITE re-reads the *current*
   // document in a transaction, preventing stale derived keys when people
   // update Payment at the same time. Only index fields can be modified.
   while(inspected<cfg.maxDocs){
-    let q=col.orderBy(FieldPath.documentId()).limit(Math.min(50,cfg.maxDocs-inspected));
+    const requested=Math.min(50,cfg.maxDocs-inspected);
+    let q=col.orderBy(FieldPath.documentId()).limit(requested);
     if(cursor)q=q.startAfter(cursor);
     const snap=await q.get();
-    if(snap.empty){
-      const result={projectId:cfg.projectId,mode:cfg.write?'WRITE':'AUDIT',
-        inspected,mismatch,updated,alreadyFixed,invalid,errors,
-        reachedEnd:true,nextAfter:null,markerActivated:false};
-      console.log(JSON.stringify(result,null,2));return;
-    }
+    if(snap.empty){report(true);return;}
     for(const doc of snap.docs){
       const current=inspectPayment(doc.data());
       inspected++;
@@ -56,12 +58,9 @@ initializeApp(cfg.emulator?{projectId:cfg.projectId}:{credential:applicationDefa
       if(cfg.write && updated>=cfg.maxWrites)break;
     }
     if(cfg.write && updated>=cfg.maxWrites)break;
-    if(snap.size<Math.min(50,cfg.maxDocs-inspected+snap.size))break;
+    if(snap.size<requested){report(true);return;}
   }
-  // A cursor is emitted even if this was the last page. The next bounded
-  // invocation will confirm an empty final page. No unbounded reads.
-  console.log(JSON.stringify({projectId:cfg.projectId,mode:cfg.write?'WRITE':'AUDIT',
-    inspected,mismatch,updated,alreadyFixed,invalid,errors,
-    reachedEnd:false,nextAfter:cursor,markerActivated:false},null,2));
-  if(invalid||errors)process.exitCode=2;
+  // A full final page cannot prove the cursor is at the end. Continue
+  // with --start-after until the next bounded run reaches an empty page.
+  report(false);
 })().catch(e=>{console.error('INDEX_MIGRATION_STOPPED',e.message);process.exitCode=1;});
