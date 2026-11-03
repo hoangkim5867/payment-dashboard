@@ -31,7 +31,7 @@ const isPaid=(data,source)=>{
   normalize(data.project)===normalize(source.project) &&
   normalize(data.contractNo)===normalize(source.contractNo) &&
   normalize(data.ipcNo)===normalize(source.ipcNo) &&
-  data.deleted!==true && data.monthOutcome!=="cancelled" && data.monthOutcome!=="carried_forward";
+  data.deleted!==true && data.monthOutcome!=="cancelled";
 };
 const view=$("#archiveViewer");
 if(view){
