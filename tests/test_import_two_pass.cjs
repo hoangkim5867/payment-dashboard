@@ -3,7 +3,7 @@
 // No Firebase SDK calls, network, company data, or UI renderer required.
 const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('assert');
 const root=path.resolve(__dirname,'../site');
-const begin='async function renderExcelImportPreview(){';
+const begin='async function renderExcelImportPreview({forceFreshHistory=false}={}){';
 const endMarker='    }catch(error){';
 const helper='function importPreviewContainsPaymentCandidate(rows){';
 function extractFunction(src,signature){
@@ -45,6 +45,8 @@ function extractFunction(src,signature){
        },
        ensureImportDuplicateHistory:async()=>{reads++},
        ensureImportDuplicateHistoryForRows:async()=>{reads++},
+       importPaymentLookupKey:r=>String(r.contractNo||''),
+       importDuplicateHistoryLoaded:false,importDuplicateHistoryPromise:null,
      };
      vm.createContext(sandbox);vm.runInContext(helperSource+'\n'+source.slice(source.indexOf('let excelImportPreviewGeneration = 0;'),p)+'\n'+head,sandbox);
      assert.strictEqual(sandbox.importPreviewContainsPaymentCandidate(scenario.rows),scenario.rows.some(x=>!!x.data));checks++;
