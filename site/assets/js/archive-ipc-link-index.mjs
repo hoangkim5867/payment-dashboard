@@ -99,11 +99,13 @@ if(viewer){
   }
   // One owner-only maintenance control, never visible to Staff.
   if(active.admin&&owner()){
+   // Both Admin controls share the same anchor. Keep it in their common scope.
+   const close=heading.querySelector(".viewer-close");
    let button=heading.querySelector(".archive-ipc-index-tools");
    if(!button){
     button=document.createElement("button");button.type="button";
     button.className="archive-ipc-index-tools";button.textContent="↻ Đồng bộ link hồ sơ cũ";
-    const close=heading.querySelector(".viewer-close");if(close)close.before(button);else heading.append(button);
+    if(close)close.before(button);else heading.append(button);
     button.addEventListener("click",syncHistory);
    }
    button.hidden=complete;
