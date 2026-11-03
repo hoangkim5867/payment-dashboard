@@ -33,7 +33,7 @@ test('Admin browser computeIndex matches backend including accent and alias norm
  const start=script.indexOf('function inspect(row){'),end=script.indexOf('async function step(',start);
  assert.ok(start>0&&end>start);
  const inspect=vm.runInNewContext(script.slice(start,end)+'\ninspect',{
-  computeIndexV1,TextEncoder,Error
+  computeIndexV1,TextEncoder,Error,MAX_KEY_BYTES:1000
  });
  const input={project:'PHU HUNG',contractNo:'PH-MEP1',ipcNo:'IPC01',amount:123,uncDriveFileId:'abc'};
  const expected=computeIndexV1(input);
