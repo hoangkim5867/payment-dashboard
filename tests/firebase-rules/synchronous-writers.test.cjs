@@ -9,7 +9,7 @@ const base={project:'PH',contractNo:'PH-MEP001',ipcNo:'IPC1',paymentMonth:'2026-
 test.before(async()=>{
  if(process.env.FIRESTORE_EMULATOR_HOST!=='127.0.0.1:8080')throw Error('Local Emulator required');
  const {createPaymentWriters}=await import(pathToFileURL(path.join(__dirname,'../../site/assets/js/payment-writers.mjs')));
- env=await initializeTestEnvironment({projectId:'demo-payment-synchronous',firestore:{host:'127.0.0.1',port:8080,rules:fs.readFileSync(path.join(__dirname,'../../security/firestore.rules.PROPOSED_STAGING_ONLY'),'utf8')}});
+ env=await initializeTestEnvironment({projectId:'demo-payment-synchronous',firestore:{host:'127.0.0.1',port:8080,rules:fs.readFileSync(process.env.PAYMENT_RULES_AUDIT_FILE||path.join(__dirname,'../../security/firestore.rules.PROPOSED_STAGING_ONLY'),'utf8')}});
  await env.clearFirestore();await env.withSecurityRulesDisabled(c=>sdk.setDoc(sdk.doc(c.firestore(),'authUsers/staff'),{role:'Admin'}));
  db=env.authenticatedContext('staff').firestore();writers=createPaymentWriters(sdk,core.computeIndexV1);
 });
@@ -73,4 +73,32 @@ test('non-payment-only batch and multiple writes to one payment retain semantics
  const ref=sdk.doc(db,'payments/multiple');await writers.setDoc(ref,base);
  const mixed=writers.writeBatch(db);mixed.update(ref,{project:'Eaton Park'});mixed.update(ref,{ipcNo:'MULTI'});await mixed.commit();
  const row=await verify(ref);assert.equal(row.project,'Eaton Park');assert.equal(row.ipcNo,'MULTI');
+});
+
+// Public FieldPath arguments must select the same source values as string paths.
+test('FieldPath mergeFields and updates recompute lookup from selected source fields',async()=>{
+ const ref=sdk.doc(db,'payments/field-path');await writers.setDoc(ref,base);
+ await writers.setDoc(ref,{ipcNo:'FIELD-PATH',project:'IGNORED',remark:'kept'},{mergeFields:[new sdk.FieldPath('ipcNo'),new sdk.FieldPath('remark')]});
+ let row=await verify(ref);assert.equal(row.ipcNo,'FIELD-PATH');assert.equal(row.project,base.project);assert.equal(row.remark,'kept');
+ await writers.updateDoc(ref,new sdk.FieldPath('ipcNo'),'FIELD-PATH-UPDATE');
+ assert.equal((await verify(ref)).ipcNo,'FIELD-PATH-UPDATE');
+});
+test('add and full set reject unsupported lookup source transforms consistently',async()=>{
+ for(const write of [()=>writers.addDoc(sdk.collection(db,'payments'),{...base,contractId:sdk.serverTimestamp()}),()=>writers.setDoc(sdk.doc(db,'payments/invalid-transform'),{...base,contractId:sdk.serverTimestamp()})])await assert.rejects(write(),/Unsupported transform/);
+});
+
+test('actual Staff preserves workflow access on legacy PAID rows without lookup metadata',async()=>{
+ const month=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit'}).format(new Date());
+ await env.withSecurityRulesDisabled(async c=>{
+  await sdk.setDoc(sdk.doc(c.firestore(),'authUsers/actual-staff'),{role:'Staff'});
+  await sdk.setDoc(sdk.doc(c.firestore(),'payments/legacy-paid'),{...base,paymentMonth:month,processActualAmount:123,processPaymentDate:month+'-01'});
+ });
+ const staffDb=env.authenticatedContext('actual-staff').firestore(),ref=sdk.doc(staffDb,'payments/legacy-paid');
+ const staffWriters=(await import(pathToFileURL(path.join(__dirname,'../../site/assets/js/payment-writers.mjs')))).createPaymentWriters(sdk,core.computeIndexV1);
+ await staffWriters.updateDoc(ref,{processPaper:'done'});
+ await staffWriters.setDoc(ref,{processPlatformPayment:'done'},{mergeFields:[new sdk.FieldPath('processPlatformPayment')]});
+ const row=(await sdk.getDoc(ref)).data();assert.equal(row.processPaper,'done');assert.equal(row.duplicateKeyV1,undefined);assert.equal(row.processActualAmount,123);
+ const pendingRef=await staffWriters.addDoc(sdk.collection(staffDb,'payments'),{...base,paymentMonth:month,createdByUid:'actual-staff'});
+ await staffWriters.updateDoc(pendingRef,{ipcNo:'STAFF-EDIT'});
+ const pending=(await sdk.getDoc(pendingRef)).data();for(const [key,value] of Object.entries(core.computeIndexV1(pending)))assert.equal(pending[key],value);
 });

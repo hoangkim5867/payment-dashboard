@@ -8,7 +8,7 @@ const pending={paymentMonth:month,amount:1000,project:'EATON PARK',contractNo:'C
 const as=uid=>env.authenticatedContext(uid).firestore();
 test.before(async()=>{
  if(process.env.FIRESTORE_EMULATOR_HOST!=='127.0.0.1:8080')throw Error('Local Emulator required');
- env=await initializeTestEnvironment({projectId:'demo-payment-permission-policy',firestore:{host:'127.0.0.1',port:8080,rules:fs.readFileSync(path.join(__dirname,'../../security/firestore.rules.PROPOSED_STAGING_ONLY'),'utf8')}});
+ env=await initializeTestEnvironment({projectId:'demo-payment-permission-policy',firestore:{host:'127.0.0.1',port:8080,rules:fs.readFileSync(process.env.PAYMENT_RULES_AUDIT_FILE||path.join(__dirname,'../../security/firestore.rules.PROPOSED_STAGING_ONLY'),'utf8')}});
  await env.clearFirestore();await env.withSecurityRulesDisabled(async c=>{
   const db=c.firestore();
   for(const [uid,role] of [['admin','Admin'],['staff','Staff'],['other','Staff'],['ungranted','Staff']])await sdk.setDoc(sdk.doc(db,'authUsers',uid),{role,...(uid==='ungranted'?{}:{temporaryPaymentMonthAccess:previous})});
