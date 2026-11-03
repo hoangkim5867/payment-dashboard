@@ -94,7 +94,7 @@ test('actual Staff preserves workflow access on legacy PAID rows without lookup 
   await sdk.setDoc(sdk.doc(c.firestore(),'payments/legacy-paid'),{...base,paymentMonth:month,processActualAmount:123,processPaymentDate:month+'-01'});
  });
  const staffDb=env.authenticatedContext('actual-staff').firestore(),ref=sdk.doc(staffDb,'payments/legacy-paid');
- const staffWriters=(await import(pathToFileURL(path.join(__dirname,'../../site/assets/js/payment-writers.mjs')))).createPaymentWriters(sdk,()=>({}));
+ const staffWriters=sdk; // Production hold exports the native SDK writers.
  await staffWriters.updateDoc(ref,{processPaper:'done'});
  await staffWriters.setDoc(ref,{processPlatformPayment:'done'},{mergeFields:[new sdk.FieldPath('processPlatformPayment')]});
  const row=(await sdk.getDoc(ref)).data();assert.equal(row.processPaper,'done');assert.equal(row.duplicateKeyV1,undefined);assert.equal(row.processActualAmount,123);

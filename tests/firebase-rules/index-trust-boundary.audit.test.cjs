@@ -23,12 +23,27 @@ test('DENIED: Staff creates arbitrary lookup metadata and removes it',async()=>{
  const ref=sdk.doc(db,'payments/create-forgery');
  await assertFails(sdk.setDoc(ref,{...base,duplicateKeyV1:'forged',mepLookupV1:false,paymentLookupSchemaV1:1}));
  await assertSucceeds(sdk.setDoc(ref,base));
- await assertFails(sdk.updateDoc(ref,{duplicateKeyV1:sdk.deleteField(),paymentLookupSchemaV1:sdk.deleteField()}));
+ // Deleting a missing field is a no-op, not a metadata mutation.
+ await assertSucceeds(sdk.updateDoc(ref,{duplicateKeyV1:sdk.deleteField(),paymentLookupSchemaV1:sdk.deleteField()}));
+ await env.withSecurityRulesDisabled(c=>sdk.updateDoc(sdk.doc(c.firestore(),ref.path),computeIndexV1(base)));
+ for(const key of ['duplicateKeyV1','mepLookupV1','paymentLookupSchemaV1'])
+  await assertFails(sdk.updateDoc(ref,{[key]:sdk.deleteField()}));
 });
 test('DENIED: Staff forges index alone or alongside permitted source edit',async()=>{
  for(const [id,patch] of [['index-only',{duplicateKeyV1:'forged',mepLookupV1:true,paymentLookupSchemaV1:99}],['source-and-index',{ipcNo:'IPC2',duplicateKeyV1:'stale',mepLookupV1:false,paymentLookupSchemaV1:1}]]){
   const ref=sdk.doc(db,'payments/'+id);await env.withSecurityRulesDisabled(c=>sdk.setDoc(sdk.doc(c.firestore(),'payments',id),{...base,...computeIndexV1(base)}));
   await assertFails(sdk.updateDoc(ref,patch));
+ }
+});
+test('each protected field denies create, null, replacement and mergeFields mutations',async()=>{
+ for(const [key,value] of Object.entries(computeIndexV1(base))){
+  const ref=sdk.doc(db,'payments/individual-'+key);
+  for(const v of [value,null])await assertFails(sdk.setDoc(ref,{...base,[key]:v}));
+  await env.withSecurityRulesDisabled(c=>sdk.setDoc(sdk.doc(c.firestore(),ref.path),{...base,...computeIndexV1(base)}));
+  await assertFails(sdk.setDoc(ref,base)); // Replacement must not delete metadata.
+  await assertFails(sdk.setDoc(ref,{[key]:null},{mergeFields:[new sdk.FieldPath(key)]}));
+  await assertFails(sdk.updateDoc(ref,new sdk.FieldPath(key),null));
+  await assertSucceeds(sdk.updateDoc(ref,{ipcNo:'VALID-'+key}));
  }
 });
 test('Staff cannot authorize index activation; privileged business fields stay protected',async()=>{
