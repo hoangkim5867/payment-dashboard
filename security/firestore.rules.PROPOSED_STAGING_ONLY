@@ -87,14 +87,16 @@ service cloud.firestore {
         && !data.keys().hasAny(planFields())
         && !data.keys().hasAny(ipcDocumentLinkFields());
     }
+    // Lookup V1 stays disabled. Staff cannot supply client-derived lookup values.
+    function lookupMetadataFields(){return ['duplicateKeyV1','mepLookupV1','paymentLookupSchemaV1'];}
+    function safeStaffLookupCreate(){return !request.resource.data.keys().hasAny(lookupMetadataFields());}
     function staffEditableFields(){
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
         'paymentMonth','paymentType','noMEPException','internalExpenseCode','contractKey','contractId',
         'personInCharge','project','company','bankAccount','contractNo','contractName','ipcNo','budgetNo',
         'costType','contractType','amount','remark','processPlatformPlan','processPaper',
         'processSettlement','processPaymentNo','processPlatformPayment',
-        'updatedAt','updatedBy','updatedByUid','updatedByEmail',
-        'duplicateKeyV1','mepLookupV1','paymentLookupSchemaV1'
+        'updatedAt','updatedBy','updatedByUid','updatedByEmail'
       ]);
     }
     // Only workflow progress may change after a payment is paid.
@@ -115,7 +117,8 @@ service cloud.firestore {
       allow read: if approvedUser();
       allow create: if approvedUser() && validPayment(request.resource.data) && safeIpcDocumentCreate()
         && (adminUser() || (request.resource.data.get('createdByUid', '') == request.auth.uid
-          && pendingPayment(request.resource.data) && blankAdminFields(request.resource.data)))
+          && pendingPayment(request.resource.data) && blankAdminFields(request.resource.data)
+          && safeStaffLookupCreate()))
         && (!request.resource.data.keys().hasAny(planFields()) || reviewOwner());
       allow update: if approvedUser() && validPayment(request.resource.data) && safeIpcDocumentUpdate()
         && (adminUser()

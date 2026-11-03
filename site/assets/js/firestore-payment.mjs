@@ -1,8 +1,10 @@
 export * from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import * as sdk from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-import {computeIndexV1} from './payment-index-core.mjs';
-import {createPaymentWriters} from './payment-writers.mjs';
-export const {addDoc,setDoc,updateDoc,writeBatch,runTransaction}=createPaymentWriters(sdk,computeIndexV1);
+// V1 indexed reads are under security hold. Do not let any browser user
+// write unverified lookup metadata. Legacy duplicate checking stays active.
+// Use native writes while held: no extra reads, transaction limits, transform
+// restrictions or FieldPath interpretation from the inactive index adapter.
+export const {addDoc,setDoc,updateDoc,writeBatch,runTransaction}=sdk;
 
 /*
  * Opt-in, read-only instrumentation for diagnosing Firestore reads.
