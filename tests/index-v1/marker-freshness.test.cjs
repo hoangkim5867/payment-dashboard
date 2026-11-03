@@ -20,7 +20,7 @@ function srcFor(file,name){
 }
 for(const [file,name] of cases){
  test(`${file}: permission marker refreshed every lookup; revoke takes effect without F5`,async()=>{
-  let marker={ready:true,schemaVersion:1,continuousMaintenance:true,verified:true,synchronousWritersVerified:true,historySourceSeparated:true},reads=0;
+  let marker={ready:true,schemaVersion:1,activationVersion:2,continuousMaintenance:true,verified:true,synchronousWritersVerified:true,historySourceSeparated:true},reads=0;
   const sandbox={db:{},console:{warn(){},info(){}},doc:(_,c,d)=>`${c}/${d}`,
     getDocFromServer:async()=>{reads++;return {exists:()=>true,data:()=>marker}}};
   vm.createContext(sandbox);vm.runInContext(srcFor(file,name),sandbox);

@@ -26,7 +26,11 @@ test('bounded manual operation always takes snapshots from server and writes onl
  assert.match(script,/if\(auth\.currentUser\?\.uid!==uid\)throw/);
  assert.match(src,/Không tự chạy khi mở trang/);
  assert.match(src,/Chưa tự kích hoạt/);
- assert.doesNotMatch(script,/doc\(db,"systemConfig"|setDoc\(|updateDoc\(|writeBatch\(|deleteDoc\(|deleteField\(/);
+ assert.match(script,/INDEX_MARKER=doc\(db,"systemConfig","paymentLookupV1"\)/);
+ assert.match(script,/await finalIndexAuditForActivation\(uid\)/);
+ assert.match(script,/activationVersion:2/);
+ assert.match(script,/await setDoc\(INDEX_MARKER,\{ready:false/);
+ assert.doesNotMatch(script,/updateDoc\(|writeBatch\(|deleteDoc\(|deleteField\(/);
  assert.doesNotMatch(src,/localStorage/);
 });
 test('Admin browser computeIndex matches backend including accent and alias normalization',()=>{

@@ -59,5 +59,7 @@ test('admin-only button backup is explicit and all Payment reads are bounded, no
  assert.match(body,/checkBackupFreshness\(checked\)/);
  assert.match(body,/backupChecked=false/);
  assert.match(body,/!backupChecked\|\|!loadState\("audit"\)\.finished/);
- assert.doesNotMatch(body,/fetch\(|XMLHttpRequest|sendBeacon|localStorage/);
+ assert.match(body,/fetch\("\.\/release-environment\.json"/);
+ assert.equal((body.match(/\bfetch\(/g)||[]).length,1,'only the static Vercel release manifest may be fetched');
+ assert.doesNotMatch(body,/XMLHttpRequest|sendBeacon|localStorage/);
 });

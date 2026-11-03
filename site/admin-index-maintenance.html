@@ -70,13 +70,25 @@ button.secondary{background:#eaf0f6;color:#1b4263}button:disabled{cursor:not-all
 <div class="metric"><small>Trạng thái</small><b id="finished">—</b></div>
 </div>
 <pre id="detail" aria-live="polite">Chưa chạy; không phát sinh đọc Payment.</pre>
+<div class="note" style="margin-top:20px">
+<h2>Bước 4 · Bật kiểm tra trùng nhanh (chỉ Admin)</h2>
+<p>Chỉ thực hiện sau hai lần đối chiếu đủ và sạch. Khi bấm Bật, hệ thống sẽ <strong>kiểm tra toàn bộ chỉ mục Payment một lần cuối</strong> bằng dữ liệu từ máy chủ (tốn khoảng số reads bằng số Payment), rồi mới cập nhật duy nhất công tắc tìm kiếm. Không ghi lại hoặc sửa khoản thanh toán nào.</p>
+<p>Vercel phải phát hành bản đã được duyệt. Chỉ mục của Contract Master vẫn ở chế độ cũ; bước này chỉ áp dụng cho <strong>Nhập Excel Payment</strong>.</p>
+<label><input type="checkbox" id="activationConsent"> Tôi xác nhận đã giữ file sao lưu mã hóa an toàn, hai lượt đối chiếu hoàn chỉnh đều 0 thiếu/sai và 0 lỗi, không có ai đang nhập/sửa Payment trong lúc kích hoạt.</label>
+<div>
+<button type="button" class="secondary" id="activationCheck">Xem trạng thái công tắc</button>
+<button type="button" id="activationEnable" disabled>Bật tìm trùng nhanh</button>
+<button type="button" class="secondary" id="activationDisable">Tắt tìm trùng nhanh (khẩn cấp)</button>
+</div>
+<p id="activationStatus" role="status">Chưa kiểm tra công tắc. Không tự đọc Firebase khi mở trang.</p>
+</div>
 </section>
 </main>
 <script type="module">
 import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {getFirestore,collection,query,orderBy,documentId,startAfter,limit,doc,
-  getDocFromServer,getDocsFromServer,runTransaction} from "./assets/js/firestore-payment.mjs";
+  getDocFromServer,getDocsFromServer,runTransaction,setDoc,serverTimestamp} from "./assets/js/firestore-payment.mjs";
 import {computeIndexV1} from "./assets/js/payment-index-core.mjs";
 import {sealPaymentBackup,openPaymentBackup} from "./assets/js/payment-backup-codec.mjs";
 const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
@@ -84,7 +96,7 @@ const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
 const $=id=>document.getElementById(id);
 const MAX_READ=200,MAX_WRITE=80,PAGE=40,MAX_KEY_BYTES=1000;
 let adminUid="",busy=false,authGeneration=0,activeMode="",backupChecked=false;
-const buttons=["auditStart","auditNext","writeStart","writeNext","backupRun","backupVerify"];
+const buttons=["auditStart","auditNext","writeStart","writeNext","backupRun","backupVerify","activationCheck","activationEnable","activationDisable"];
 const freshState=()=>({cursor:null,seen:0,mismatch:0,updated:0,errors:0,finished:false});
 const key=mode=>"cscec-index-v1-"+adminUid+"-"+mode;
 function loadState(mode){
@@ -108,6 +120,7 @@ function setButtons(){
     $("auditNext").disabled=loadState("audit").finished||loadState("audit").seen===0;
     $("writeNext").disabled=!backupChecked||loadState("write").finished||loadState("write").seen===0;
     $("writeStart").disabled=!backupChecked||!loadState("audit").finished||loadState("audit").errors!==0;
+    $("activationEnable").disabled=!$("activationConsent").checked;
   }
 }
 function inspect(row){
@@ -255,6 +268,115 @@ async function verifyPaymentBackup(){
 }
 $("backupRun").addEventListener("click",downloadPaymentBackup);
 $("backupVerify").addEventListener("click",verifyPaymentBackup);
+
+// Production-only activation gate: reads entire current Payment index once,
+// then writes ONLY systemConfig/paymentLookupV1. Never modifies Payment rows.
+const INDEX_MARKER=doc(db,"systemConfig","paymentLookupV1");
+const ACTIVATION_SCAN_PAGE=80,ACTIVATION_SCAN_LIMIT=50000;
+async function checkIndexReleaseBuild(){
+  const response=await fetch("./release-environment.json",{cache:"no-store"});
+  if(!response.ok)throw Error("Không thể kiểm tra bản phát hành Vercel.");
+  const release=await response.json();
+  if(release.target!=="production"||release.firebaseProject!=="cscecmep-payment"||
+    release.indexOptimizationEnabledByDefault!==true)
+    throw Error("Vercel chưa kích hoạt bản code tra cứu nhanh. Không ghi công tắc Firebase.");
+  return release;
+}
+async function inspectIndexActivationStatus(){
+  if(!adminUid||busy)return;
+  busy=true;setButtons();
+  try{
+    const release=await checkIndexReleaseBuild();
+    const snapshot=await getDocFromServer(INDEX_MARKER);
+    const state=snapshot.exists()?snapshot.data():{};
+    const active=state.ready===true&&state.activationVersion===2&&
+      state.schemaVersion===1&&state.verified===true&&
+      state.continuousMaintenance===true&&state.synchronousWritersVerified===true&&
+      state.historySourceSeparated===true;
+    $("activationStatus").textContent=(active?
+      "ĐÃ BẬT: Nhập Excel được phép tra cứu theo chỉ mục.":"CHƯA BẬT: Nhập Excel vẫn kiểm tra theo cách cũ.")+
+      " Vercel production đã bật code tra cứu Payment. Contract Master vẫn ở chế độ cũ.";
+  }catch(error){
+    $("activationStatus").textContent="CHƯA SẴN SÀNG: "+String(error?.message||error);
+  }finally{busy=false;setButtons();}
+}
+async function finalIndexAuditForActivation(uid){
+  let cursor=null,total=0,wrong=0;
+  while(true){
+    if(auth.currentUser?.uid!==uid)throw Error("Phiên đăng nhập đã thay đổi.");
+    const parts=[orderBy(documentId())];
+    if(cursor)parts.push(startAfter(cursor));
+    parts.push(limit(ACTIVATION_SCAN_PAGE));
+    const snap=await getDocsFromServer(query(collection(db,"payments"),...parts));
+    if(snap.empty)break;
+    for(const item of snap.docs){
+      if(inspect(item.data()).wrong)wrong++;
+      total++;
+      if(total>ACTIVATION_SCAN_LIMIT)throw Error("Vượt giới hạn an toàn, không kích hoạt.");
+    }
+    cursor=snap.docs[snap.docs.length-1].id;
+    $("activationStatus").textContent="Đang kiểm tra chỉ mục lần cuối: "+total+
+      " khoản; "+wrong+" thiếu/sai. Chưa thay đổi công tắc.";
+    if(wrong)throw Error("Có chỉ mục thiếu/sai. Không kích hoạt. Chạy Bước 2 rồi đối chiếu lại.");
+    if(snap.size<ACTIVATION_SCAN_PAGE)break;
+  }
+  if(!total)throw Error("Không thể xác minh một kho Payment rỗng.");
+  const previous=loadState("audit");
+  if(!previous.finished||previous.errors!==0||previous.mismatch!==0||
+      previous.seen!==total)
+    throw Error("Số lượng hoặc kết quả đối chiếu cũ không khớp. Chạy lại Bước 1 trước khi bật.");
+  return total;
+}
+async function activateIndexedExcel(){
+  if(!adminUid||busy)return;
+  if(!$("activationConsent").checked){
+    $("activationStatus").textContent="Hãy xác nhận các điều kiện an toàn trước khi bật.";return;
+  }
+  const uid=adminUid;
+  if(!confirm("Kích hoạt tìm trùng nhanh cho toàn bộ Staff? Hệ thống sẽ đọc lại chỉ mục của tất cả Payment MỘT lần cuối và chỉ ghi công tắc nếu 0 khoản thiếu/sai. Đảm bảo không ai đang nhập/sửa Payment lúc này."))return;
+  busy=true;setButtons();
+  try{
+    await checkIndexReleaseBuild();
+    const count=await finalIndexAuditForActivation(uid);
+    if(auth.currentUser?.uid!==uid)throw Error("Phiên đăng nhập đã thay đổi.");
+    // This precise activationVersion prevents an old/stale ready marker from
+    // turning on the index simply because a new Vercel build was released.
+    await setDoc(INDEX_MARKER,{
+      ready:true,schemaVersion:1,activationVersion:2,
+      verified:true,continuousMaintenance:true,synchronousWritersVerified:true,
+      historySourceSeparated:true,activatedAt:serverTimestamp(),
+      activatedByUid:uid,verifiedPaymentCount:count
+    },{merge:true});
+    const applied=await getDocFromServer(INDEX_MARKER);
+    if(!applied.exists()||applied.data().ready!==true||applied.data().activationVersion!==2)
+      throw Error("Chưa xác minh được công tắc sau khi ghi. Kiểm tra lại trước khi sử dụng.");
+    $("activationStatus").textContent="ĐÃ KÍCH HOẠT: "+count+
+      " Payment đã đối chiếu sạch; công tắc Firebase xác nhận v2. "+
+      "Staff có thể xem trước Excel bằng truy vấn chính xác theo hợp đồng + IPC. "+
+      "Nếu phát sinh lỗi, bấm Tắt tìm trùng nhanh.";
+  }catch(error){
+    $("activationStatus").textContent="KHÔNG KÍCH HOẠT ĐƯỢC: "+String(error?.code||error?.message||error);
+  }finally{busy=false;setButtons();}
+}
+async function disableIndexedExcel(){
+  if(!adminUid||busy)return;
+  if(!confirm("TẮT tra cứu nhanh cho tất cả Staff? Chức năng xem trước sẽ quay về kiểm tra đầy đủ lịch sử (tốn reads hơn nhưng tránh bỏ sót)."))return;
+  busy=true;setButtons();
+  try{
+    await setDoc(INDEX_MARKER,{ready:false,deactivatedAt:serverTimestamp(),
+      deactivatedByUid:adminUid},{merge:true});
+    const applied=await getDocFromServer(INDEX_MARKER);
+    if(!applied.exists()||applied.data().ready!==false)
+      throw Error("Chưa xác nhận trạng thái tắt. Vui lòng kiểm tra Console.");
+    $("activationStatus").textContent="ĐÃ TẮT: tất cả Staff dùng lại kiểm tra trùng đầy đủ. Không sửa Payment.";
+  }catch(error){
+    $("activationStatus").textContent="KHÔNG XÁC NHẬN ĐƯỢC VIỆC TẮT: "+String(error?.code||error?.message||error);
+  }finally{busy=false;setButtons();}
+}
+$("activationConsent").addEventListener("change",setButtons);
+$("activationCheck").addEventListener("click",inspectIndexActivationStatus);
+$("activationEnable").addEventListener("click",activateIndexedExcel);
+$("activationDisable").addEventListener("click",disableIndexedExcel);
 
 for(const [id,mode,restart]of[
   ["auditStart","audit",true],["auditNext","audit",false],
