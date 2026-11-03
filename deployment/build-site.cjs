@@ -8,7 +8,9 @@ function validateStagingConfig(config){
  if(![config.projectId+'.firebasestorage.app',config.projectId+'.appspot.com'].includes(config.storageBucket))throw Error('Storage must belong to staging project');
  return config;
 }
-function buildSite({source,output,target,stagingConfig}){
+function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}){
+ // Never enable against staging; production needs an explicit audited release gate.
+ if(enableIndexQueries && target!=='production')throw Error('Indexed Payment reads may only be enabled after production audit');
  if(!['staging','production'].includes(target))throw Error('Unknown deployment target');
  if(target==='staging')validateStagingConfig(stagingConfig);
  const src=path.resolve(source),out=path.resolve(output);if(out===src||out.startsWith(src+path.sep))throw Error('Output cannot overwrite or nest within source');
@@ -16,14 +18,15 @@ function buildSite({source,output,target,stagingConfig}){
  for(const name of fs.readdirSync(out).filter(n=>n.endsWith('.html'))){const file=path.join(out,name);let text=fs.readFileSync(file,'utf8');const pattern=/const firebaseConfig\s*=\s*\{[\s\S]*?\};/g;
  text=text.replace(pattern,original=>{configs++;return target==='staging'?'const firebaseConfig='+JSON.stringify(stagingConfig)+';':original});
  if(target==='staging'&&text.includes('cscecmep-payment.firebaseapp.com'))throw Error('Production Auth endpoint left in staging output');
- // This RC retains index writers but uses complete reads until external writers
- // are certified. A server marker alone cannot enable unsafe indexed reads.
- text=text.replace(/const (PAYMENT|MEP)_INDEX_QUERY_CODE_ENABLED = true;/g,(_,name)=>{indexReadGuards++;return 'const '+name+'_INDEX_QUERY_CODE_ENABLED = false;'});
+ // The server marker is a runtime safety gate, but a marker alone is not
+ // authority to enable queries. A separate explicit *build* release gate is
+ // required after a clean full backfill + production Rules verification.
+ text=text.replace(/const (PAYMENT|MEP)_INDEX_QUERY_CODE_ENABLED = true;/g,(_,name)=>{indexReadGuards++;return 'const '+name+'_INDEX_QUERY_CODE_ENABLED = '+(enableIndexQueries?'true':'false')+';'});
  fs.writeFileSync(file,text);
  }
  if(indexReadGuards!==3)throw Error('Expected three safe-read guards');
  if(configs!==8)throw Error('Expected eight Firebase app configurations, got '+configs);
- fs.writeFileSync(path.join(out,'release-environment.json'),JSON.stringify({target,firebaseProject:target==='staging'?stagingConfig.projectId:PRODUCTION_PROJECT,indexOptimizationEnabledByDefault:false},null,2));
+ fs.writeFileSync(path.join(out,'release-environment.json'),JSON.stringify({target,firebaseProject:target==='staging'?stagingConfig.projectId:PRODUCTION_PROJECT,indexOptimizationEnabledByDefault:Boolean(enableIndexQueries)},null,2));
  return {target,configs,indexReadGuards,firebaseProject:target==='staging'?stagingConfig.projectId:PRODUCTION_PROJECT};
 }
 module.exports={buildSite,validateStagingConfig};
@@ -31,5 +34,7 @@ if(require.main===module){
  require('../tests/deployment-gate.cjs');
  const target=process.env.VERCEL_ENV==='production'?'production':'staging';
  const stagingConfig=target==='staging'?JSON.parse(process.env.PAYMENT_FIREBASE_STAGING_CONFIG||'null'):null;
- console.log(JSON.stringify(buildSite({source:path.join(__dirname,'../site'),output:path.join(__dirname,'../build/site'),target,stagingConfig})));
+ const enableIndexQueries=target==='production' && process.env.PAYMENT_INDEX_PROD_OPTIMIZATION_APPROVED==='YES' &&
+   process.env.PAYMENT_INDEX_PROD_RULES_VERIFIED==='YES' && process.env.PAYMENT_INDEX_PROD_BACKFILL_VERIFIED==='YES';
+ console.log(JSON.stringify(buildSite({source:path.join(__dirname,'../site'),output:path.join(__dirname,'../build/site'),target,stagingConfig,enableIndexQueries})));
 }
