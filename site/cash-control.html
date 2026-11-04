@@ -5500,10 +5500,11 @@ const ccGoogleSyncMoneyKey=n=>{
 const ccGoogleSyncNormalizeLabel=value=>
   String(value??'').normalize('NFKC').trim().toUpperCase()
     .replace(/\s+/g,'').replace(/[‐‑‒–—−]/g,'-');
-const ccGoogleSyncFingerprint=(date,amounts,contractNo,ipc)=>
+const ccGoogleSyncFingerprint=(date,amounts,contractNo,ipc,company)=>
   date+'|'+amounts.map(ccGoogleSyncMoneyKey).join('|')+
   '|'+ccGoogleSyncNormalizeLabel(contractNo)+
-  '|'+ccGoogleSyncNormalizeLabel(ipc);
+  '|'+ccGoogleSyncNormalizeLabel(ipc)+
+  '|'+ccGoogleSyncNormalizeLabel(company);
 async function ccGoogleSyncAuditLegacy(month,source){
   const read=await ccGoogleSyncApi('/values/'+encodeURIComponent("'PHU HUNG'!A1:N")+
     '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER');
@@ -5514,7 +5515,7 @@ async function ccGoogleSyncAuditLegacy(month,source){
     if(!date.startsWith(month+'-'))return;
     if(row[0]!=='' && !date)badDates.push(index+1);
     const values=row.slice(6,13);
-    const signature=ccGoogleSyncFingerprint(date,values,row[2],row[4]);
+    const signature=ccGoogleSyncFingerprint(date,values,row[2],row[4],row[1]);
     if(signature.includes('INVALID'))invalidAmounts.push(index+1);
     counts.set(signature,(counts.get(signature)||0)+1);
     ledgerCount++;
@@ -5523,7 +5524,7 @@ async function ccGoogleSyncAuditLegacy(month,source){
   for(const entry of source){
     const signature=ccGoogleSyncFingerprint(
       ccGoogleSyncNormDate(entry.values[0]),entry.values.slice(6,13),
-      entry.values[2],entry.values[4]);
+      entry.values[2],entry.values[4],entry.values[1]);
     const count=counts.get(signature)||0;
     if(count){
       counts.set(signature,count-1);
@@ -5539,7 +5540,7 @@ async function ccGoogleSyncAuditLegacy(month,source){
     unmatchedSource:missingSourceIds.length,unmatchedLedger,
     invalidAmounts:invalidAmounts.length,
     exact:missingSourceIds.length===0&&unmatchedLedger===0&&invalidAmounts.length===0,
-    scope:'Date, seven money columns, contract number and IPC'
+    scope:'Date, seven money columns, contract number, IPC and company'
   };
 }
 
