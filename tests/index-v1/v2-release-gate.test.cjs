@@ -22,3 +22,14 @@ test('Only Admin confirmation and a final source audit can toggle V2',()=>{
  assert.match(html,/await setDoc\(V2_MARKER/);
  assert.doesNotMatch(html,/activateIndexedExcel|systemConfig\/paymentLookupV1/);
 });
+
+test('strict Rules release candidate equals tested staging Rules except header comment',()=>{
+ const fs=require('node:fs'),path=require('node:path');
+ const root=path.resolve(__dirname,'../..');
+ const stage=fs.readFileSync(path.join(root,'security/firestore.rules.V2_STAGING_ONLY'),'utf8');
+ const strict=fs.readFileSync(path.join(root,'security/firestore.rules.V2_STRICT_REVIEW_ONLY'),'utf8');
+ const strip=text=>text.slice(text.indexOf("rules_version = '2';"));
+ assert.equal(strip(stage),strip(strict),'Strict Rules must match the Emulator-tested rules exactly');
+ assert.match(strict,/function validContractDigitsV2/);
+ assert.match(strict,/match \/systemConfig\/paymentLookupV2/);
+});
