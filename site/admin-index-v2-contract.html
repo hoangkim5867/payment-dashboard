@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>CSCEC MEP · Chỉ mục hợp đồng V2 · Admin</title>
+<style>
+:root{font-family:Arial,Helvetica,sans-serif;color:#183651;background:#f3f6fa}
+*{box-sizing:border-box}body{margin:0;padding:28px 16px}
+main{max-width:780px;margin:auto;background:white;border:1px solid #d9e2ed;border-radius:18px;padding:25px;box-shadow:0 8px 35px #17375612}
+h1{font-size:24px;margin:8px 0}h2{font-size:17px;margin:24px 0 9px}
+p{line-height:1.65;color:#43576b}small{font-size:12px;color:#667889}
+a{color:#175d95}button{background:#164d78;color:white;border:0;border-radius:9px;padding:12px 16px;cursor:pointer;font-weight:700;margin:5px 6px 5px 0}
+button.secondary{background:#eaf0f6;color:#1b4263}button:disabled{cursor:not-allowed;opacity:.48}
+.note{border:1px solid #dbe5ec;background:#f8fbfe;border-radius:12px;padding:13px 15px}
+.warning{border-color:#efc487;background:#fffaf1}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.metric{padding:13px;border:1px solid #dde7ef;border-radius:11px;background:#fafcff}.metric b{display:block;font-size:21px;margin-top:6px}.metric small{display:block}
+#status{font-weight:700}#backupStatus{font-size:13px;white-space:pre-wrap}
+.backup-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:620px}
+.backup-fields input{width:100%;border:1px solid #c9d7e4;border-radius:9px;padding:11px;min-width:0}
+.backup-fields label{display:block;font-size:12px;font-weight:700}
+.backup-fields label input{margin-top:6px}
+@media(max-width:520px){.backup-fields{grid-template-columns:1fr}}#detail{white-space:pre-wrap;overflow-wrap:anywhere;font-family:ui-monospace,Consolas,monospace;font-size:12px;background:#f4f7fb;padding:12px;border-radius:10px}
+@media(max-width:550px){main{padding:18px}.grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body><main>
+<a href="./">← Trang chủ</a>
+<h1>Đồng bộ chỉ mục hợp đồng V2</h1>
+<p>Trang Admin để đối chiếu và bổ sung <strong>chỉ mục số hợp đồng</strong> cho các khoản cũ. Khi hệ thống V2 được phát hành và kích hoạt riêng, Excel vẫn so trùng chính xác Dự án + Hợp đồng + IPC nhưng chỉ tải ứng viên theo hợp đồng.</p>
+<div class="note warning">
+<strong>An toàn dữ liệu:</strong> Không tự chạy khi mở trang. Mỗi lần bấm xử lý tối đa <strong>200 Payment</strong>, trong đó tối đa <strong>80 cập nhật chỉ mục</strong>. Khi bổ sung chỉ ghi đúng <strong>1 trường</strong>: <code>contractDigitsV2</code>. Không sửa số tiền, IPC, UNC hay trạng thái.
+<p><strong>Không tự kích hoạt:</strong> Trang này không bật Rules hoặc công tắc V2. Nên thực hiện lúc quota còn đủ, vì mỗi lượt đối chiếu / sao lưu đọc dữ liệu Payment có phát sinh reads.</p>
+</div>
+<p id="status" aria-live="polite">Đang xác thực quyền Admin…</p>
+<section id="controls" hidden>
+<h2>Bước 0 · Sao lưu có mã hóa (không ghi Firebase)</h2>
+<div class="note">
+<p>Firebase Spark không có sao lưu định kỳ miễn phí. Nút này tải bản sao toàn bộ collection <code>payments</code> về máy, có mã hóa AES-GCM. Chỉ đọc dữ liệu một lần khi bấm. Không gửi nội dung file lên Vercel, GitHub hay máy chủ khác. Nên thực hiện lúc không ai đang nhập/sửa Payment; đây không phải snapshot tại một thời điểm duy nhất.</p>
+<p><strong>Giữ mật khẩu riêng, tuyệt đối không gửi tệp hoặc mật khẩu vào nhóm chat.</strong> Nếu mất mật khẩu thì không giải mã được. Tệp này hỗ trợ khôi phục nhưng chưa phải bản sao lưu do Google quản lý; trước khi dùng để phục hồi thật phải diễn tập phục hồi an toàn.</p>
+<div class="backup-fields">
+<label>Mật khẩu mã hóa (tối thiểu 14 ký tự)
+<input type="password" id="backupPassword" autocomplete="new-password" minlength="14" placeholder="Nhập mật khẩu riêng"></label>
+<label>Nhập lại mật khẩu
+<input type="password" id="backupPasswordConfirm" autocomplete="new-password" minlength="14" placeholder="Nhập lại mật khẩu"></label>
+</div>
+<button type="button" id="backupRun">Sao lưu Payment về máy</button>
+<p>Kiểm tra tệp đã tải: chọn tệp <code>.json</code> và nhập lại mật khẩu phía trên. Kiểm tra hoàn toàn trên máy, không ghi Firebase.</p>
+<input id="backupFile" type="file" accept=".json,application/json" aria-label="Chọn tệp sao lưu Payment đã mã hóa">
+<button type="button" class="secondary" id="backupVerify">Kiểm tra tệp sao lưu</button>
+<p id="backupStatus" role="status">Chưa có bản sao lưu đã kiểm chứng trong phiên này.</p>
+</div>
+<h2>Bước 1 · Kiểm tra dữ liệu cũ (không ghi)</h2>
+<p>Đọc từng đợt để đếm các Payment còn thiếu hoặc sai chỉ mục. Đọc trang kế tiếp bằng nút Tiếp tục; chỉ số được giữ trong phiên trình duyệt.</p>
+<button type="button" id="auditStart">Bắt đầu kiểm tra từ đầu</button>
+<button type="button" id="auditNext" class="secondary" disabled>Tiếp tục kiểm tra</button>
+<h2>Bước 2 · Bổ sung khóa hợp đồng cho các Payment cũ (Admin)</h2>
+<p>Chỉ thực hiện sau khi đã có bản sao lưu có thể khôi phục, xác nhận Firebase Rules và quota còn đủ. Những khoản đang được đồng nghiệp sửa sẽ được đọc lại trong giao dịch trước khi bổ sung khóa. Chỉ một trường <code>contractDigitsV2</code> được cập nhật.</p>
+<button type="button" id="writeStart">Bắt đầu bổ sung từ đầu</button>
+<button type="button" id="writeNext" class="secondary" disabled>Tiếp tục bổ sung</button>
+<h2>Bước 3 · Kiểm tra lại từ đầu (nên chạy hai lượt sạch)</h2>
+<p>Sau khi bổ sung hết các đợt, bấm <strong>Bắt đầu kiểm tra từ đầu</strong> để đối chiếu toàn bộ ít nhất hai lượt. Nếu còn khoản thiếu/lỗi hoặc có người đang tạo/sửa khoản mới bằng bản website cũ, không được kích hoạt V2. Cần triển khai Rules + bộ ghi mới cùng nhau sau đó mới bật tra cứu.</p>
+<div class="grid" aria-label="Thống kê">
+<div class="metric"><small>Đã kiểm tra</small><b id="seen">0</b></div>
+<div class="metric"><small>Thiếu/sai chỉ mục</small><b id="mismatch">0</b></div>
+<div class="metric"><small>Đã bổ sung</small><b id="updated">0</b></div>
+<div class="metric"><small>Lỗi</small><b id="errors">0</b></div>
+<div class="metric"><small>Đợt kiểm tra</small><b id="mode">—</b></div>
+<div class="metric"><small>Trạng thái</small><b id="finished">—</b></div>
+</div>
+<pre id="detail" aria-live="polite">Chưa chạy; không phát sinh đọc Payment.</pre>
+<div class="note warning" style="margin-top:20px">
+<strong>Chưa bật tra cứu nhanh:</strong> Trang bảo trì này chỉ hỗ trợ sao lưu/đối chiếu/bổ sung khóa hợp đồng cũ sau khi Admin bấm. Việc kích hoạt tìm trùng nhanh V2 phải đợi Rules đã duyệt, toàn bộ bộ ghi đã cập nhật và kiểm tra dữ liệu sạch. Tuyệt đối không bật V1.
+</div>
+</section>
+</main>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,collection,query,orderBy,documentId,startAfter,limit,doc,
+  getDocFromServer,getDocsFromServer,runTransaction,setDoc,serverTimestamp} from "./assets/js/firestore-payment.mjs";
+import {computeIndexV2} from "./assets/js/payment-index-v2-core.mjs";
+import {sealPaymentBackup,openPaymentBackup} from "./assets/js/payment-backup-codec.mjs";
+const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
+const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
+const $=id=>document.getElementById(id);
+const MAX_READ=200,MAX_WRITE=80,PAGE=40;
+let adminUid="",busy=false,authGeneration=0,activeMode="",backupChecked=false;
+const buttons=["auditStart","auditNext","writeStart","writeNext","backupRun","backupVerify"];
+const freshState=()=>({cursor:null,seen:0,mismatch:0,updated:0,errors:0,finished:false});
+const key=mode=>"cscec-contract-index-v2-"+adminUid+"-"+mode;
+function loadState(mode){
+  try{const data=JSON.parse(sessionStorage.getItem(key(mode))||"null");return data&&Number.isSafeInteger(data.seen)&&typeof data.finished==="boolean"?data:freshState();}
+  catch{return freshState();}
+}
+const storeState=(mode,state)=>sessionStorage.setItem(key(mode),JSON.stringify(state));
+function paint(mode,state,message=""){
+  $("seen").textContent=String(state.seen);$("mismatch").textContent=String(state.mismatch);
+  $("updated").textContent=String(state.updated);$("errors").textContent=String(state.errors);
+  $("mode").textContent=mode==="audit"?"Đối chiếu":"Bổ sung";
+  $("finished").textContent=state.finished?"Hết danh sách":"Chưa hết";
+  $("detail").textContent=(message?message+"\n":"")+"Đã xử lý "+state.seen+" Payment; "+state.mismatch+" thiếu/sai; "+
+    state.updated+" đã bổ sung; "+state.errors+" lỗi. "+(state.finished?
+    "Đã đến cuối danh sách.":'Bấm Tiếp tục để xử lý đợt tiếp theo.');
+}
+function setButtons(){
+  const enabled=Boolean(adminUid)&&!busy;
+  for(const id of buttons)$(id).disabled=!enabled;
+  if(enabled){
+    $("auditNext").disabled=loadState("audit").finished||loadState("audit").seen===0;
+    $("writeNext").disabled=!backupChecked||loadState("write").finished||loadState("write").seen===0;
+    $("writeStart").disabled=!backupChecked||!loadState("audit").finished||loadState("audit").errors!==0;
+
+  }
+}
+function inspect(row){
+  if(row.contractNo!==undefined && row.contractNo!==null && typeof row.contractNo!=="string")
+    throw Error("Số hợp đồng có định dạng không hợp lệ; dừng để xử lý thủ công.");
+  const fields=computeIndexV2(row);
+  return {fields,wrong:row.contractDigitsV2!==fields.contractDigitsV2};
+}
+async function step(mode,restart=false){
+  if(busy||!adminUid)return;
+  if(mode==="write"&&(!backupChecked||!loadState("audit").finished||loadState("audit").errors)){
+    alert("Cần sao lưu có mã hóa, kiểm tra được tệp và hoàn tất đối chiếu Bước 1 trước khi bổ sung chỉ mục.");return;
+  }
+  if(restart&&!confirm("Bắt đầu lại từ khoản đầu tiên? Không xóa/chỉnh sửa dữ liệu đã có."))return;
+  if(mode==="write"&&!confirm("Bổ sung tối đa 80 chỉ mục HỢP ĐỒNG trong đợt này? Đảm bảo đã sao lưu mã hóa và kiểm tra tệp. Chỉ ghi một trường contractDigitsV2; không sửa tiền hay nghiệp vụ."))return;
+  const uid=adminUid;const state=restart?freshState():loadState(mode);
+  if(state.finished){paint(mode,state,"Đã đến cuối. Bắt đầu lại để kiểm tra lần tiếp.");return;}
+  busy=true;activeMode=mode;setButtons();
+  $("status").textContent=mode==="audit"?"Đang kiểm tra theo từng đợt…":"Đang bổ sung theo từng đợt…";
+  try{
+    let done=0,writesThisRun=0;
+    while(done<MAX_READ&&writesThisRun<MAX_WRITE){
+      const pageSize=Math.min(PAGE,MAX_READ-done);
+      const constraints=[orderBy(documentId())];
+      if(state.cursor)constraints.push(startAfter(state.cursor));
+      constraints.push(limit(pageSize));
+      const snapshot=await getDocsFromServer(query(collection(db,"payments"),...constraints));
+      if(!snapshot.docs.length){state.finished=true;break;}
+      for(const item of snapshot.docs){
+        if(auth.currentUser?.uid!==uid)throw Error("Phiên đăng nhập đã thay đổi. Dừng an toàn.");
+        // Check before moving the cursor. Failures keep the same document
+        // pending for the next run and never mark the audit as complete.
+        const check=inspect(item.data());
+        if(check.wrong){
+          state.mismatch++;
+          if(mode==="write"){
+            const result=await runTransaction(db,async transaction=>{
+              const latest=await transaction.get(item.ref);
+              if(!latest.exists())return "missing";
+              const now=inspect(latest.data());
+              if(!now.wrong)return "already";
+              transaction.update(item.ref,now.fields);
+              return "updated";
+            },{maxAttempts:3});
+            if(result==="updated"){state.updated++;writesThisRun++;}
+          }
+        }
+        state.cursor=item.id;state.seen++;done++;
+        storeState(mode,state);
+        if(writesThisRun>=MAX_WRITE)break;
+      }
+      if(snapshot.size<pageSize&&writesThisRun<MAX_WRITE){state.finished=true;break;}
+    }
+    storeState(mode,state);
+    paint(mode,state,mode==="audit"?"Đợt kiểm tra hoàn tất.":"Đợt bổ sung hoàn tất.");
+    $("status").textContent=state.finished?"Đã đến cuối danh sách; hãy thực hiện bước kế tiếp.":"Đợt này đã hoàn tất. Có thể bấm Tiếp tục.";
+  }catch(e){
+    state.errors++;
+    storeState(mode,state);
+    paint(mode,state,"ĐÃ DỪNG: "+String(e?.code||e?.message||e)+". Chưa đánh dấu hoàn tất. Kiểm tra lỗi/quota rồi tiếp tục an toàn.");
+    $("status").textContent="Đã dừng an toàn, không tự chạy lại.";
+  }finally{busy=false;setButtons();}
+}
+// An encrypted backup is generated entirely in browser memory, then downloaded.
+// No plaintext export, log, upload, or persistent browser storage.
+const BACKUP_PAGE_SIZE=100,BACKUP_LIMIT=50000,BACKUP_MAX_BYTES=160*1024*1024;
+function clearBackupPasswords(){
+  $("backupPassword").value="";$("backupPasswordConfirm").value="";
+}
+function checkBackupFreshness(info){
+  const created=Date.parse(info.createdAt);
+  const audit=loadState("audit");
+  if(!Number.isFinite(created)||created>Date.now()+60000||Date.now()-created>2*60*60*1000)
+    throw Error("Bản sao lưu không được tạo trong 2 giờ gần nhất. Hãy sao lưu lại.");
+  if(!audit.finished||audit.errors!==0||info.count!==audit.seen)
+    throw Error("Số Payment trong bản sao lưu không khớp kết quả đối chiếu đã hoàn tất. Kiểm tra lại từ đầu trước khi cập nhật.");
+}
+async function downloadPaymentBackup(){
+  if(busy||!adminUid)return;
+  const password=$("backupPassword").value,confirmPass=$("backupPasswordConfirm").value;
+  if(password.length<14||password!==confirmPass){
+    $("backupStatus").textContent="Mật khẩu phải ít nhất 14 ký tự và hai ô phải giống nhau.";return;
+  }
+  if(!confirm("Đọc toàn bộ Payment một lần để tải bản sao lưu MÃ HÓA về máy? Thao tác này phát sinh document reads nhưng không ghi Firebase."))return;
+  const uid=adminUid;
+  let rows=[],cursor=null,limitReached=false;
+  busy=true;backupChecked=false;setButtons();
+  try{
+    while(true){
+      if(auth.currentUser?.uid!==uid)throw Error("Phiên đăng nhập đã thay đổi.");
+      const args=[orderBy(documentId())];
+      if(cursor)args.push(startAfter(cursor));
+      args.push(limit(BACKUP_PAGE_SIZE));
+      const snapshot=await getDocsFromServer(query(collection(db,"payments"),...args));
+      if(snapshot.empty)break;
+      for(const item of snapshot.docs)rows.push({id:item.id,data:item.data()});
+      cursor=snapshot.docs[snapshot.docs.length-1].id;
+      $("backupStatus").textContent="Đang tạo bản sao lưu: đã đọc "+rows.length+" khoản. Không ghi dữ liệu.";
+      if(rows.length>BACKUP_LIMIT){limitReached=true;break;}
+      if(snapshot.size<BACKUP_PAGE_SIZE)break;
+    }
+    if(limitReached||!rows.length)throw Error("Số dữ liệu vượt giới hạn cho một bản sao lưu an toàn.");
+    if(auth.currentUser?.uid!==uid)throw Error("Phiên đăng nhập đã thay đổi.");
+    $("backupStatus").textContent="Đã đọc "+rows.length+" khoản. Đang mã hóa và tự kiểm tra dữ liệu...";
+    const envelope=await sealPaymentBackup({cryptoApi:crypto,passphrase:password,docs:rows});
+    const file=JSON.stringify(envelope);
+    if(new TextEncoder().encode(file).length>BACKUP_MAX_BYTES)
+      throw Error("Bản sao lưu vượt giới hạn kích thước an toàn.");
+    // An auditable backup must still be downloadable if Staff added a row
+    // since the last audit. Only the later VERIFY step gates index writes.
+    const blob=new Blob([file],{type:"application/json"});
+    const url=URL.createObjectURL(blob),a=document.createElement("a");
+    a.href=url;
+    a.download="CSCEC-Payment-ENCRYPTED-"+new Date().toISOString().slice(0,19).replace(/[:T]/g,"-")+".json";
+    document.body.append(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),30000);
+    $("backupStatus").textContent="ĐÃ MÃ HÓA + KIỂM TRA "+rows.length+
+      " khoản. File đã được yêu cầu tải xuống máy. Để xác nhận file thực sự lưu được, dùng nút Kiểm tra tệp sao lưu trước khi bổ sung.";
+  }catch(error){
+    $("backupStatus").textContent="SAO LƯU CHƯA HOÀN TẤT: "+String(error?.message||error)+
+      ". Không tạo bản sao lưu từng phần, không thay đổi Payment.";
+  }finally{
+    rows.length=0;clearBackupPasswords();backupChecked=false;busy=false;setButtons();
+  }
+}
+async function verifyPaymentBackup(){
+  if(busy||!adminUid)return;
+  const file=$("backupFile").files?.[0];
+  const pass=$("backupPassword").value;
+  if(!file||pass.length<14){$("backupStatus").textContent="Chọn tệp JSON đã tải và nhập lại mật khẩu (ít nhất 14 ký tự).";return;}
+  if(file.size>BACKUP_MAX_BYTES){$("backupStatus").textContent="Tệp vượt giới hạn dung lượng cho phép.";return;}
+  busy=true;backupChecked=false;setButtons();
+  try{
+    const parsed=JSON.parse(await file.text());
+    const checked=await openPaymentBackup({cryptoApi:crypto,passphrase:pass,envelope:parsed});
+    checkBackupFreshness(checked);
+    backupChecked=true;
+    $("backupStatus").textContent="ĐÃ XÁC MINH TỆP MÃ HÓA: "+checked.count+
+      " khoản; SHA-256 "+checked.sha256.slice(0,16)+
+      "…; mật khẩu giải mã được, dữ liệu không sai checksum. Chỉ mục vẫn chưa được bật. "+
+      "Tệp cần được lưu an toàn ngoài trình duyệt; việc khôi phục vẫn phải thử trên môi trường giả lập.";
+  }catch(error){
+    $("backupStatus").textContent="CHƯA XÁC MINH ĐƯỢC TỆP: "+String(error?.message||error);
+  }finally{clearBackupPasswords();busy=false;setButtons();}
+}
+$("backupRun").addEventListener("click",downloadPaymentBackup);
+$("backupVerify").addEventListener("click",verifyPaymentBackup);
+
+for(const [id,mode,restart]of[
+  ["auditStart","audit",true],["auditNext","audit",false],
+  ["writeStart","write",true],["writeNext","write",false]
+])$(id).addEventListener("click",()=>step(mode,restart));
+onAuthStateChanged(auth,async user=>{
+  const token=++authGeneration;adminUid="";backupChecked=false;setButtons();$("controls").hidden=true;
+  if(!user){$("status").textContent="Vui lòng đăng nhập tài khoản Admin tại Trang chủ trước.";return;}
+  try{
+    const snapshot=await getDocFromServer(doc(db,"authUsers",user.uid));
+    if(token!==authGeneration)return;
+    const p=snapshot.exists()?snapshot.data():{};
+    if(String(p.role||"").toLowerCase()!=="admin"||p.disabled===true||p.active===false){
+      $("status").textContent="Chỉ tài khoản Admin được phép mở trang này.";return;
+    }
+    adminUid=user.uid;$("controls").hidden=false;
+    $("status").textContent="Admin đã xác thực. Chưa đọc hoặc chỉnh sửa khoản Payment nào.";
+    setButtons();
+  }catch{
+    if(token===authGeneration)$("status").textContent="Không xác minh được quyền Admin. Không chạy.";
+  }
+});
+</script>
+</body></html>
