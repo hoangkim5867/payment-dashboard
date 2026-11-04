@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
-test('V2 atomic writer rollout preserves all SDK methods and never switches on indexed queries',()=>{
+test('V2 atomic writers continue to support all SDK calls and guarded indexed queries',()=>{
  const source=fs.readFileSync(path.join(__dirname,'../../site/assets/js/firestore-payment.mjs'),'utf8');
  const names=['addDoc','setDoc','updateDoc','writeBatch','runTransaction'];
  const sdk=Object.fromEntries(names.map(name=>[name,()=>{}]));
@@ -24,6 +24,7 @@ test('V2 atomic writer rollout preserves all SDK methods and never switches on i
  assert.deepEqual(Array.from(received.options.sourceFields),['contractNo']);
  for(const name of ['payment.html','payment-mobile-renderer.html']){
    const payment=fs.readFileSync(path.join(__dirname,'../../site',name),'utf8');
-   assert.match(payment,/PAYMENT_INDEX_V2_QUERY_CODE_ENABLED = false/);
+   assert.match(payment,/PAYMENT_INDEX_V2_QUERY_CODE_ENABLED = true/);
+   assert.match(payment,/activationVersion===3/);
  }
 });

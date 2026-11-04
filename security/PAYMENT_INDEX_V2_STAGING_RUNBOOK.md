@@ -1,4 +1,4 @@
-# Contract-first candidate lookup V2 — STAGING ONLY
+# Contract-first candidate lookup V2 — controlled production activation
 
 ## How contract-first lookup avoids false negatives
 The previous draft filtered by `ipcDigitsV2`: dozens of contracts commonly share IPC001, so the query still returned unnecessary documents. This revision filters **by contract number first**, then performs the ORIGINAL complete comparison (Project + Contract + IPC, amount/status/month priority) on all candidates.
@@ -11,16 +11,20 @@ The previous draft filtered by `ipcDigitsV2`: dozens of contracts commonly share
 - Contract numbers without significant digits, or numbers containing only digit `1`, may have a broad empty key, so their queries can still read many rows. No fixed read-count claim is made.
 - Updates of `contractNo` atomically update the V2 field; changes only to IPC do not require changing the contract candidate key.
 
-## Status and release gate
-**NOT ACTIVE.** Both `PAYMENT_V2_WRITERS_ENABLED=false` and `PAYMENT_INDEX_V2_QUERY_CODE_ENABLED=false` remain in the branch. PR is Draft. No production Rules, Payment data, migration, marker, or Vercel environment are altered by this PR.
+## Current production migration state (4 November 2026)
+- The Admin reports one verified encrypted backup and two full clean audits of **2,003** Payment documents: 0 mismatches, 0 errors. Treat the user-reported audit as evidence, not a permanent invariant: new writes can happen between verification and activation.
+- Production currently has **TRANSITION Rules** published and V2 automatic writers deployed. The legacy duplicate scan is still active; no readiness marker was activated.
+- Strict production candidate: `security/firestore.rules.V2_STRICT_REVIEW_ONLY` (same compiled Rules as Emulator-tested `V2_STAGING_ONLY`; the test asserts exact equality below the header).
+- The new HTML release has V2 candidate code compiled, but it requires **marker activationVersion=3**. Without that marker it ALWAYS runs the original full-history duplicate check, preserving functionality.
+- The release metadata `contractV2ReadyToActivate` is true only on the production build if both Payment pages and the writer are present; staging builds forcibly disable V2.
 
-## Before production
-1. Obtain an independent restorable production backup and compare the **exact currently deployed** Firestore Rules with the staging V2 candidate; no permissive overlapping allow path.
-2. Run emulator tests with Staff/Admin: forged V1/V2 metadata denied, contract edits work atomically, old paid-workflow edits remain functional, and no Cash Control, Archive, UNC, or plan review regression.
-3. Rehearse **all** web and external Payment writers on an isolated Firebase staging project with synchronized V2, including all active desktop/mobile clients. An out-of-date client must not silently write a stale key.
-4. Coordinate writer + Rules deployment. New Payment creates must already carry V2. Pre-backfill legacy rows may receive workflow updates without V2, but their contract changes must include V2.
-5. Audit/backfill **all** Payment documents using `backend/backfill-contract-digits-v2.cjs`, paged read-only by default. Require a restorable backup and explicit separate authorization for `--write`. Only `contractDigitsV2` may be modified, with fresh transactional rechecks.
-6. Do **two complete independent audits** after backfill, ensuring mismatch=invalid=errors=0 and verify every writer continues to maintain the contract field.
-7. Only then enable BOTH V2 code gates, and set protected Admin-only `systemConfig/paymentLookupV2` marker fields (`ready:true`, `schemaVersion:2`, `rulesVerified:true`, `backfillVerified:true`, `synchronousWritersVerified:true`). Confirm duplicate parity and billed Firestore reads with actual Staff import.
+## Final activation order
+1. Instruct **all Staff to close and hard-refresh old Payment tabs**; confirm no one is writing Payment during the Rules swap. Old clients not writing the V2 key will be denied by strict Rules.
+2. In Firestore Console publish `security/firestore.rules.V2_STRICT_REVIEW_ONLY` (not the transition file). Preserve/export the current Rules as a rollback copy, and ensure no unexpected modifications since last comparison.
+3. Verify Staff/Admin can still save and edit **synthetic, nonfinancial test rows in Emulator** and that production users can read their ordinary Payment view. Do not create synthetic financial rows in production.
+4. Deploy the controlled V2 release built from this PR: it does not require a marker to keep legacy duplicate checks working, and V1 remains disabled.
+5. Admin uses `admin-index-v2-contract.html` → Step 4, confirms strict Rules, backup, current Staff code, then clicks **Kiểm tra lần cuối và bật V2**. This explicitly initiates ONE final full server audit (about 2,003 reads). The marker is created only if every current document has a correct `contractDigitsV2` and an activated V2 production build is verified. The marker stores `ready:true,schemaVersion:2,activationVersion:3,candidateType:'contractDigitsV2',rulesVerified:true,backfillVerified:true,synchronousWritersVerified:true,continuousMaintenance:true,verifiedPaymentCount:<count>`.
+6. Verify same/cross-month Excel warnings for Admin and Staff, and use Firebase Usage and browser `?firestoreAudit=1` to confirm reads have decreased; client audit counts are not billed reads.
+7. If a problem occurs, Admin clicks **Tắt tra cứu nhanh V2**. This sets marker `ready:false` and restores full-history duplicate checks (read-heavy but correct), without altering any payment data.
 
-**Do not enable V1 three-YES flags, do not deploy staging Rules alone, and do not activate queries before every historical row is indexed.** The query deliberately fails closed if its verified marker is absent. Legacy production continues to function until the migration is approved and complete.
+**Never enable V1 / the three historical YES switches.** A missing/unreadable V2 marker means the app uses the original full duplicate scan; no new functionality is blocked during staging. No automatic background reads or production data writes are initiated by merely opening the Admin page.

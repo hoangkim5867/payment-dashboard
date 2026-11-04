@@ -45,7 +45,7 @@ test('browser and backend calculate identical ASCII contract digits excluding 1'
    assert.match(source,/replace\(\/\[\^0-9\]\/g,''\)\.replace\(\/1\/g,''\)/);
  }
 });
-test('Rules validate contract candidate; V2 still gated off in production',()=>{
+test('Rules validate contract candidate; V2 query is armed only with marker v3',()=>{
  const rules=fs.readFileSync(path.join(root,'security/firestore.rules.V2_STAGING_ONLY'),'utf8');
  assert.match(rules,/function validContractDigitsV2/);
  assert.ok(rules.includes("value.replace('[^0-9]','').replace('1','')"));
@@ -56,7 +56,9 @@ test('Rules validate contract candidate; V2 still gated off in production',()=>{
  assert.match(source,/contractDigitsV2/);
  for(const page of ['payment.html','payment-mobile-renderer.html']){
    const html=fs.readFileSync(path.join(root,'site',page),'utf8');
-   assert.match(html,/PAYMENT_INDEX_V2_QUERY_CODE_ENABLED = false/);
+   assert.match(html,/PAYMENT_INDEX_V2_QUERY_CODE_ENABLED = true/);
+   assert.match(html,/activationVersion===3/);
+   assert.match(html,/if\(!ready\)return ensureImportDuplicateHistory\(\);/);
    assert.match(html,/where\("contractDigitsV2","in",keys\.slice/);
    assert.match(html,/contractDigitsV2ForPreview\(row\.data\.contractNo\)/);
  }

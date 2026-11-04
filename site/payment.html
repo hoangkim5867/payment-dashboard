@@ -21348,13 +21348,15 @@ async function ensurePrivateHistory2026Loaded(){
     }
 }
 
-const PAYMENT_INDEX_V2_QUERY_CODE_ENABLED = false; // DO NOT ENABLE before tested V2 Rules+writer+complete backfill.
+const PAYMENT_INDEX_V2_QUERY_CODE_ENABLED = true; // runtime requires V2 activationVersion=3 marker; otherwise legacy duplicate scan.
 async function paymentIndexV2Ready(){
     const marker=await getDocFromServer(doc(db,"systemConfig","paymentLookupV2"));
     const v=marker.exists()?marker.data():{};
     return v.ready===true && v.schemaVersion===2 &&
+        v.activationVersion===3 && v.candidateType==='contractDigitsV2' &&
         v.rulesVerified===true && v.backfillVerified===true &&
-        v.synchronousWritersVerified===true;
+        v.synchronousWritersVerified===true && v.continuousMaintenance===true &&
+        Number.isSafeInteger(v.verifiedPaymentCount) && v.verifiedPaymentCount>0;
 }
 // Exact same ASCII-digit candidate key as the Rules and the V2 writers.
 function contractDigitsV2ForPreview(value){
@@ -21386,8 +21388,12 @@ async function ensureImportDuplicateHistoryForRows(localRows){
     if(typeof PAYMENT_INDEX_V2_QUERY_CODE_ENABLED!=='undefined' && PAYMENT_INDEX_V2_QUERY_CODE_ENABLED){
         // Fail closed if the secure index is unavailable: NEVER silently
         // switch to a full 2,000-document scan or assume no duplicates.
-        if(!await paymentIndexV2Ready())
-            throw Error("Chỉ mục tra cứu an toàn chưa sẵn sàng. Chưa thể Xem trước Excel.");
+        // Keep legacy duplicate protection fully operational while the
+        // approved activation marker is absent or cannot be retrieved.
+        let ready=false;
+        try{ready=await paymentIndexV2Ready();}
+        catch(error){console.warn('V2 lookup marker unavailable, using safe legacy duplicate check',error);}
+        if(!ready)return ensureImportDuplicateHistory();
         const keys=[...new Set((localRows||[])
             .filter(row=>!!row?.data)
             .map(row=>contractDigitsV2ForPreview(row.data.contractNo)))];
@@ -26021,7 +26027,7 @@ confirmExcelImportBtn.addEventListener(
         }
 
         if(excelPreviewReusedDuplicateHistory ||
-           (typeof PAYMENT_INDEX_V2_QUERY_CODE_ENABLED!=='undefined' && PAYMENT_INDEX_V2_QUERY_CODE_ENABLED)){
+           (typeof PAYMENT_INDEX_V2_QUERY_CODE_ENABLED!=='undefined' && PAYMENT_INDEX_V2_QUERY_CODE_ENABLED && importDuplicateHistoryLoaded!==true)){
             // Indexed V2 candidates may change in another Staff session while
             // a preview is open. Re-query just the relevant IPC digits before
             // any write; changed warnings require a fresh human review.
