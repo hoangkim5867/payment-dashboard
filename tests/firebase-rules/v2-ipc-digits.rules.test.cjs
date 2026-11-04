@@ -64,3 +64,16 @@ test('Non-owner Admin also cannot commit malformed key; compatible staff workflo
  await sdk.updateDoc(staffRef,{processPaper:'done'});
  assert.equal((await sdk.getDoc(staffRef)).data().ipcDigitsV2,'017');
 });
+
+test('Legacy rows without V2 remain editable for workflow, but IPC changes need a valid key',async()=>{
+ const ref=sdk.doc(staff,'payments/legacy-v2-transition');
+ await env.withSecurityRulesDisabled(async ctx=>{
+   await sdk.setDoc(sdk.doc(ctx.firestore(),'payments/legacy-v2-transition'),base);
+ });
+ await sdk.updateDoc(ref,{processPaper:'in-review'});
+ assert.equal((await sdk.getDoc(ref)).data().ipcDigitsV2,undefined);
+ await assert.rejects(sdk.updateDoc(ref,{ipcNo:'IPC099'}));
+ await writers.updateDoc(ref,{ipcNo:'IPC099'});
+ assert.equal((await sdk.getDoc(ref)).data().ipcDigitsV2,'099');
+ await assert.rejects(sdk.updateDoc(ref,{ipcDigitsV2:sdk.deleteField()}));
+});
