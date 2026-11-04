@@ -5353,6 +5353,7 @@ function ccGoogleSyncInspectOnly(){
 /* Google Sheets API pilot. PHU HUNG TEST COPY only. Never touch historical PHU HUNG tab.
    Google OAuth is obtained via an explicit click and is kept only in memory. */
 const CC_SYNC_PILOT_ID='1bxY6jQ3qHJ0oTiWDmbH4eeFgZR7goqX3_s1Kz9UlfD4';
+const CC_SYNC_OAUTH_CLIENT_ID='781332326791-s033knic9cmpf3h20altttsqmhjbot1t.apps.googleusercontent.com';
 const CC_SYNC_PILOT_TAB='DATA_CASHCONTROL';
 const CC_SYNC_HEADER=['sourceId','projectKey','month','date','company','contractNo',
     'content','ipc','type','income','subcontract','material','otherDirect','indirect',
@@ -5559,8 +5560,7 @@ async function ccGoogleSyncCommitPilot(){
 function ccGoogleSyncInitializeGooglePilot(){
   const oauth=$('ccGoogleSyncOAuthClient');
   if(!oauth)return;
-  oauth.value=localStorage.getItem('cashGoogleSheetsOAuthClientId')||
-    localStorage.getItem('cashLoanDriveClientId')||'';
+  oauth.value=localStorage.getItem('cashGoogleSheetsOAuthClientId')||CC_SYNC_OAUTH_CLIENT_ID;
   $('ccGoogleSyncAuthorize')?.addEventListener('click',async()=>{
     try{await ccGoogleSyncAuth()}catch(error){ccGoogleSyncStatus('Lỗi kết nối: '+error.message)}
   });
