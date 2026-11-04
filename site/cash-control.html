@@ -5450,6 +5450,9 @@ async function ccGoogleSyncReadSheet(){
   const result=await ccGoogleSyncApi('/values/'+encodeURIComponent("'"+CC_SYNC_PILOT_TAB+"'!A1:S")+
     '?valueRenderOption=UNFORMATTED_VALUE');
   const values=result.values||[];
+  // An existing but blank tab may be left by an interrupted setup. Fail closed.
+  // Only a freshly created tab in commitPilot is eligible for header initialization.
+  if(!values.length)throw Error('Tab DATA_CASHCONTROL đang trống, cần khởi tạo header riêng trước khi ghi.');
   if(values.length && (values[0].length!==CC_SYNC_HEADER.length ||
       CC_SYNC_HEADER.some((name,i)=>values[0][i]!==name))) {
     throw Error('Tab thử có cấu trúc khác; không ghi đè.');
@@ -5477,6 +5480,11 @@ async function ccGoogleSyncComparePilot(){
     const row=oldRow.row;
     if(String(row[1]||'')!==r.project || String(row[2]||'')!==r.month){
       blocked.push({id:r.id,reason:'Sai dự án/tháng'});continue;
+    }
+    // Protect the unmanaged balance and status columns too: neither may contain
+    // handwritten data in this machine-managed mirror.
+    if(String(row[16]??'').trim()!=='' || String(row[18]??'synced')!=='synced'){
+      blocked.push({id:r.id,reason:'Có chỉnh sửa ngoài vùng đồng bộ (số dư/trạng thái)'});continue;
     }
     const currentValues=ccGoogleSyncPayloadCells(row.slice(3,16));
     const remoteHash=await ccGoogleSyncSha(currentValues);
@@ -5513,7 +5521,9 @@ async function ccGoogleSyncCommitPilot(){
   const check=await ccGoogleSyncComparePilot();
   if(check.blocked.length)throw Error('Dữ liệu thay đổi hoặc có xung đột; dừng.');
   const signature=p=>JSON.stringify(p.changes.map(x=>[x.id,x.hash,x.op,x.sheetRow]));
-  if(signature(check)!==signature(oldPlan))throw Error('Dữ liệu vừa thay đổi, cần xác nhận lại.');
+  if(signature(check)!==signature(oldPlan) || check.sourceCount!==oldPlan.sourceCount ||
+      check.remoteExists!==oldPlan.remoteExists)
+    throw Error('Dữ liệu vừa thay đổi, cần xác nhận lại.');
   if(!confirm('CHỈ GHI VÀO PHU HUNG TEST / DATA_CASHCONTROL: '+
     check.changes.length+' giao dịch. Tab PHU HUNG lịch sử không bị sửa. Tiếp tục?'))return;
   $('ccGoogleSyncCommit').disabled=true;
