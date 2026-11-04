@@ -5640,9 +5640,24 @@ async function ccGoogleSyncCommitPilot(){
       method:'POST',body:{values:additions.map(pack)}
     });
   }
+  // Trust only data read back from Google, never a successful HTTP write alone.
+  // This does not touch Firestore.
+  const verified=await ccGoogleSyncReadSheet();
+  const verifiedById=new Map(verified.rows.map(row=>[String(row[0]),row]));
+  for(const entry of changes){
+    const candidate=verifiedById.get(entry.id);
+    if(!candidate ||
+       String(candidate[1]||'')!==entry.project ||
+       String(candidate[2]||'')!==entry.month ||
+       String(candidate[17]||'')!==entry.hash ||
+       await ccGoogleSyncSha(ccGoogleSyncPayloadCells(candidate.slice(3,16)))!==entry.hash){
+      throw Error('Đã gửi lệnh ghi nhưng không xác minh được dòng '+entry.id+
+        '. Không bấm ghi lại ngay; bấm So sánh để kiểm tra trạng thái.');
+    }
+  }
   ccGoogleSyncPlan=null;
-  ccGoogleSyncStatus('Đã ghi bản TEST: '+additions.length+' mới, '+updates.length+
-    ' cập nhật. Không ghi vào tab PHU HUNG cũ. Kiểm tra lại bằng nút So sánh.');
+  ccGoogleSyncStatus('ĐÃ XÁC MINH Google Sheets TEST: '+additions.length+' dòng mới, '+
+    updates.length+' dòng cập nhật. Không sửa tab PHU HUNG lịch sử.');
   }finally{
     ccGoogleSyncWriteInFlight=false;
   }
