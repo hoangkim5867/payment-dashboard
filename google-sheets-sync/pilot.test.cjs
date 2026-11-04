@@ -205,3 +205,20 @@ test('two payments with the same date/IPC/amount but different companies are dis
   assert.equal(diff.legacyAudit.matchedSourceIds.length,0);
   assert.equal(f.nodes.ccGoogleSyncCommit.disabled,true);
 });
+
+test('TEST sync preserves historical ledger and writes all 19 mirror fields',async()=>{
+  const f=fixture({month:'2026-11'});
+  const historicalSnapshot=JSON.stringify(f.state.legacyValues);
+  await f.api.compare();
+  await f.api.commit();
+  assert.equal(f.state.rows.length,1);
+  assert.equal(f.state.rows[0].length,19);
+  assert.equal(f.state.rows[0][1],'PHU HUNG');
+  assert.equal(f.state.rows[0][2],'2026-11');
+  assert.equal(f.state.rows[0][10],100.3);
+  assert.equal(JSON.stringify(f.state.legacyValues),historicalSnapshot);
+  await f.api.compare();
+  await f.api.commit();
+  assert.equal(f.state.rows.length,1,'repeated sync must not duplicate');
+  assert.equal(JSON.stringify(f.state.legacyValues),historicalSnapshot);
+});
