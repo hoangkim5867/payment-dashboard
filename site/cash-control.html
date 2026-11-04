@@ -5302,7 +5302,7 @@ function ccGoogleSyncInspectOnly(){
   const out=$('ccGoogleSyncPreviewResult');
   const month=$('ccGoogleSyncMonth')?.value||'';
   const projects=ccGoogleSyncSelectedProjects();
-  if(!/^20\\d{2}-(0[1-9]|1[0-2])$/.test(month)||!projects.length){
+  if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)||!projects.length){
     out.textContent='Cần chọn tháng và ít nhất một dự án.';return;
   }
   const result=projects.map(project=>{
