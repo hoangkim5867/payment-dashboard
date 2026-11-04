@@ -33,5 +33,5 @@ test('new V2 index must NOT be trusted without Rules+backfill activation',()=>{
  assert.match(rules,/validIpcDigitsV2\(request.resource.data\)/);
  assert.match(rules,/safeStaffLookupCreate/);
  const source=fs.readFileSync(path.join(root,'site/assets/js/firestore-payment.mjs'),'utf8');
- assert.match(source,/V1 indexed reads are under security hold/);
+ assert.match(source,/PAYMENT_V2_WRITERS_ENABLED=false/);
 });
