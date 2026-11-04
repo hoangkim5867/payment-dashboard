@@ -1,9 +1,11 @@
 // Keep payment lookup fields in the same atomic commit as business data.
 // Non-payment-only operations retain the original SDK write path.
-export function createPaymentWriters(sdk, computeIndex) {
+export function createPaymentWriters(sdk, computeIndex, options={}) {
   const isPayment = ref => ref?.parent?.path === 'payments';
-  const indexFields = ['duplicateKeyV1', 'mepLookupV1', 'paymentLookupSchemaV1'];
-  const sourceFields = ['project','contractNo','ipcNo','budgetNo','paymentType','contractId','noMEPException','internalExpenseCode','deleted'];
+  // V1 default is retained for existing tests. V2 passes its own single-field
+  // server-verifiable candidate key; never write untrusted V1 metadata in V2.
+  const indexFields = options.indexFields || ['duplicateKeyV1', 'mepLookupV1', 'paymentLookupSchemaV1'];
+  const sourceFields = options.sourceFields || ['project','contractNo','ipcNo','budgetNo','paymentType','contractId','noMEPException','internalExpenseCode','deleted'];
   function topLevelField(field, candidates=[...sourceFields,...indexFields]) {
     if(typeof field === 'string') return field;
     if(typeof sdk.FieldPath === 'function' && typeof field?.isEqual === 'function') {
