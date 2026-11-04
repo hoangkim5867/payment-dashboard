@@ -5349,6 +5349,225 @@ function ccGoogleSyncInspectOnly(){
     '<p style="font-size:12px;color:#8c5c19;margin:10px 0">Đây là thống kê giao dịch Cash Control đang có, KHÔNG phải số mới/đã sửa so với Google Sheets. '+
     'Không đủ điều kiện để ghi thật cho đến khi đối chiếu ID, bảo toàn chỉnh sửa tay và xác thực quyền.</p>';
 }
+
+/* Google Sheets API pilot. PHU HUNG TEST COPY only. Never touch historical PHU HUNG tab.
+   Google OAuth is obtained via an explicit click and is kept only in memory. */
+const CC_SYNC_PILOT_ID='1bxY6jQ3qHJ0oTiWDmbH4eeFgZR7goqX3_s1Kz9UlfD4';
+const CC_SYNC_PILOT_TAB='DATA_CASHCONTROL';
+const CC_SYNC_HEADER=['sourceId','projectKey','month','date','company','contractNo',
+    'content','ipc','type','income','subcontract','material','otherDirect','indirect',
+    'financial','otherPayable','balance','sourceHash','syncStatus'];
+let ccGoogleSyncToken='',ccGoogleSyncTokenClient=null,ccGoogleSyncPlan=null;
+const ccGoogleSyncStatus=message=>{
+  const el=$('ccGoogleSyncGoogleStatus');if(el)el.textContent=message;
+};
+const ccGoogleSyncNumber=n=>Number(n||0);
+const ccGoogleSyncCellValue=x=>x==null?'':String(x);
+const ccGoogleSyncRowValues=r=>[
+  r.date,r.company,r.contractNo,r.content,r.ipc,r.type,
+  ccGoogleSyncNumber(r.income),ccGoogleSyncNumber(r.subcontract),
+  ccGoogleSyncNumber(r.material),ccGoogleSyncNumber(r.otherDirect),
+  ccGoogleSyncNumber(r.indirect),ccGoogleSyncNumber(r.financial),
+  ccGoogleSyncNumber(r.otherPayable)
+];
+const ccGoogleSyncPayloadCells=values=>values.map((v,i)=>
+  i>=6?Number(String(v??'0').replace(/,/g,''))||0:String(v??'')
+);
+async function ccGoogleSyncSha(v){
+  const bytes=new TextEncoder().encode(JSON.stringify(v));
+  const digest=await crypto.subtle.digest('SHA-256',bytes);
+  return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function ccGoogleSyncCurrentRows(project,month){
+  if(project!=='PHU HUNG')throw Error('Pilot chỉ cho phép dự án PHU HUNG.');
+  if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)||month<'2026-10')
+    throw Error('Chỉ thử từ tháng 10/2026 trở đi.');
+  if(!paymentMonths.has(project))throw Error(
+    'Chưa xác minh tải đủ Payment PHU HUNG. Không tự đọc thêm Firestore.'
+  );
+  const src=legacyCashExportRows(month,project);
+  const results=[],seen=new Set();
+  for(const row of src){
+    const ids=row._syncIds||[];
+    if(!ids.length)throw Error('Có giao dịch thiếu ID nguồn, dừng để tránh trùng.');
+    const id=row._taxQuarter
+       ?'tax:'+project+':'+row.date+':'+row._taxQuarter+':'+(row._taxDirection||'out')
+       :project+':'+ids.slice().sort().join('+');
+    if(seen.has(id))throw Error('ID nguồn trùng trong kỳ: '+id);
+    seen.add(id);
+    const values=ccGoogleSyncRowValues(row);
+    const hash=await ccGoogleSyncSha(ccGoogleSyncPayloadCells(values));
+    results.push({id,project,month,values,hash});
+  }
+  return results;
+}
+async function ccGoogleSyncAuth(){
+  if(!currentAuthUser||!isCashControlOwner())throw Error('Cần đăng nhập Admin Cash Control.');
+  const clientId=String($('ccGoogleSyncOAuthClient')?.value||'').trim();
+  if(!/^[\w-]+\.apps\.googleusercontent\.com$/.test(clientId))
+    throw Error('Chưa nhập Google OAuth Client ID hợp lệ.');
+  if(!window.google?.accounts?.oauth2)throw Error('Google Identity Services chưa tải.');
+  localStorage.setItem('cashGoogleSheetsOAuthClientId',clientId);
+  ccGoogleSyncToken='';
+  ccGoogleSyncPlan=null;
+  $('ccGoogleSyncCommit').disabled=true;
+  ccGoogleSyncStatus('Đang xin cấp quyền Google Sheets…');
+  ccGoogleSyncToken=await new Promise((resolve,reject)=>{
+    ccGoogleSyncTokenClient=google.accounts.oauth2.initTokenClient({
+      client_id:clientId,
+      scope:'https://www.googleapis.com/auth/spreadsheets',
+      callback:response=>response?.access_token
+        ?resolve(response.access_token):reject(Error(response?.error||'Không được cấp quyền')),
+      error_callback:error=>reject(Error(error?.message||'Không thể đăng nhập Google'))
+    });
+    ccGoogleSyncTokenClient.requestAccessToken({prompt:'consent'});
+  });
+  ccGoogleSyncStatus('Google đã cấp quyền tạm thời. Chỉ có thể ghi vào Sheets mà tài khoản Google có quyền sửa.');
+}
+async function ccGoogleSyncApi(path,{method='GET',body}={}){
+  if(!ccGoogleSyncToken)throw Error('Chưa kết nối Google hoặc phiên đã hết hạn.');
+  const res=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+
+    encodeURIComponent(CC_SYNC_PILOT_ID)+path,{
+      method,
+      headers:{Authorization:'Bearer '+ccGoogleSyncToken,
+        ...(body?{'Content-Type':'application/json'}:{})},
+      ...(body?{body:JSON.stringify(body)}:{})
+    });
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok){
+    if(res.status===401){ccGoogleSyncToken='';ccGoogleSyncPlan=null;}
+    throw Error('Google Sheets API '+res.status+': '+String(data.error?.message||'Không thể truy cập'));
+  }
+  return data;
+}
+async function ccGoogleSyncReadSheet(){
+  const metadata=await ccGoogleSyncApi('?fields=spreadsheetId,properties(title),sheets(properties(title,sheetId))');
+  if(!/TEST/i.test(metadata.properties?.title||''))throw Error('Chặn ghi: file Google không có chữ TEST.');
+  const historical=metadata.sheets?.find(x=>x.properties?.title==='PHU HUNG');
+  if(!historical)throw Error('Không tìm thấy tab PHU HUNG gốc của bản sao.');
+  const test=metadata.sheets?.find(x=>x.properties?.title===CC_SYNC_PILOT_TAB);
+  if(!test)return {exists:false,rows:[],title:metadata.properties.title};
+  const result=await ccGoogleSyncApi('/values/'+encodeURIComponent("'"+CC_SYNC_PILOT_TAB+"'!A1:S")+
+    '?valueRenderOption=UNFORMATTED_VALUE');
+  const values=result.values||[];
+  if(values.length && (values[0].length!==CC_SYNC_HEADER.length ||
+      CC_SYNC_HEADER.some((name,i)=>values[0][i]!==name))) {
+    throw Error('Tab thử có cấu trúc khác; không ghi đè.');
+  }
+  const seen=new Set();
+  for(const row of values.slice(1)){
+    const id=String(row[0]||'');
+    if(!id||seen.has(id))throw Error('Tab thử có ID trùng/rỗng; dừng đồng bộ.');
+    seen.add(id);
+  }
+  return {exists:true,rows:values.slice(1),title:metadata.properties.title};
+}
+async function ccGoogleSyncComparePilot(){
+  if(!currentAuthUser||!isCashControlOwner())throw Error('Cần đăng nhập Admin.');
+  if(ccGoogleSyncSelectedProjects().length!==1||ccGoogleSyncSelectedProjects()[0]!=='PHU HUNG')
+    throw Error('Pilot chỉ cho chọn một dự án PHU HUNG.');
+  const month=$('ccGoogleSyncMonth')?.value||'';
+  const source=await ccGoogleSyncCurrentRows('PHU HUNG',month);
+  const remote=await ccGoogleSyncReadSheet();
+  const old=new Map(remote.rows.map((row,i)=>[String(row[0]),{row,index:i+2}]));
+  const changes=[],blocked=[],unchanged=[];
+  for(const r of source){
+    const oldRow=old.get(r.id);
+    if(!oldRow){changes.push({...r,op:'new'});continue}
+    const row=oldRow.row;
+    if(String(row[1]||'')!==r.project || String(row[2]||'')!==r.month){
+      blocked.push({id:r.id,reason:'Sai dự án/tháng'});continue;
+    }
+    const currentValues=ccGoogleSyncPayloadCells(row.slice(3,16));
+    const remoteHash=await ccGoogleSyncSha(currentValues);
+    if(remoteHash!==String(row[17]||'')){
+      blocked.push({id:r.id,reason:'Dữ liệu trên Google Sheets đã được sửa tay'});continue;
+    }
+    if(r.hash===String(row[17]||'')){unchanged.push(r.id);continue}
+    changes.push({...r,op:'update',sheetRow:oldRow.index});
+  }
+  const sourceIds=new Set(source.map(r=>r.id));
+  const orphan=remote.rows.filter(row=>String(row[2]||'')===month&&!sourceIds.has(String(row[0]||'')));
+  if(orphan.length)blocked.push({id:'*',reason:orphan.length+' dòng cũ không còn trong Cash Control; không tự xóa'});
+  const plan={month,sourceCount:source.length,remoteExists:remote.exists,
+    changes,blocked,unchanged,created:Date.now()};
+  ccGoogleSyncPlan=plan;
+  $('ccGoogleSyncCommit').disabled=blocked.length>0||!changes.length;
+  ccGoogleSyncStatus('Bản TEST: '+source.length+' dòng Cash Control · '+changes.filter(r=>r.op==='new').length+
+    ' mới · '+changes.filter(r=>r.op==='update').length+' sửa · '+
+    unchanged.length+' không đổi · '+blocked.length+' xung đột. '+
+    (blocked.length?'Chặn ghi, cần xử lý xung đột.':'Có thể xác nhận ghi tab TEST.'));
+  return plan;
+}
+async function ccGoogleSyncCommitPilot(){
+  if(!currentAuthUser||!isCashControlOwner())throw Error('Chỉ Admin Cash Control.');
+  if(!ccGoogleSyncPlan||!ccGoogleSyncPlan.changes.length||ccGoogleSyncPlan.blocked.length)
+    throw Error('Chưa có bản so sánh sạch.');
+  if(Date.now()-ccGoogleSyncPlan.created>120000)throw Error('Bản so sánh quá 2 phút. So sánh lại.');
+  const selected=ccGoogleSyncSelectedProjects();
+  const month=$('ccGoogleSyncMonth')?.value||'';
+  if(selected.length!==1||selected[0]!=='PHU HUNG'||month!==ccGoogleSyncPlan.month)
+    throw Error('Dự án/tháng đã thay đổi. So sánh lại.');
+  // Re-evaluate live source + destination immediately before writing.
+  const oldPlan=ccGoogleSyncPlan;
+  const check=await ccGoogleSyncComparePilot();
+  if(check.blocked.length)throw Error('Dữ liệu thay đổi hoặc có xung đột; dừng.');
+  const signature=p=>JSON.stringify(p.changes.map(x=>[x.id,x.hash,x.op,x.sheetRow]));
+  if(signature(check)!==signature(oldPlan))throw Error('Dữ liệu vừa thay đổi, cần xác nhận lại.');
+  if(!confirm('CHỈ GHI VÀO PHU HUNG TEST / DATA_CASHCONTROL: '+
+    check.changes.length+' giao dịch. Tab PHU HUNG lịch sử không bị sửa. Tiếp tục?'))return;
+  $('ccGoogleSyncCommit').disabled=true;
+  const changes=check.changes;
+  const sheetName="'"+CC_SYNC_PILOT_TAB+"'";
+  if(!check.remoteExists){
+    await ccGoogleSyncApi(':batchUpdate',{method:'POST',body:{
+      requests:[{addSheet:{properties:{title:CC_SYNC_PILOT_TAB}}}]
+    }});
+    await ccGoogleSyncApi('/values/'+encodeURIComponent(sheetName+'!A1:S1')+
+      '?valueInputOption=RAW',{method:'PUT',body:{values:[CC_SYNC_HEADER]}});
+  }
+  const pack=r=>[r.id,r.project,r.month,...r.values,'',r.hash,'synced'];
+  const updates=changes.filter(r=>r.op==='update');
+  const additions=changes.filter(r=>r.op==='new');
+  if(updates.length){
+    await ccGoogleSyncApi('/values:batchUpdate',{method:'POST',body:{
+      valueInputOption:'RAW',data:updates.map(r=>({
+        range:sheetName+'!A'+r.sheetRow+':S'+r.sheetRow,values:[pack(r)]
+      }))
+    }});
+  }
+  if(additions.length){
+    await ccGoogleSyncApi('/values/'+encodeURIComponent(sheetName+'!A:S')+
+      ':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS',{
+      method:'POST',body:{values:additions.map(pack)}
+    });
+  }
+  ccGoogleSyncPlan=null;
+  ccGoogleSyncStatus('Đã ghi bản TEST: '+additions.length+' mới, '+updates.length+
+    ' cập nhật. Không ghi vào tab PHU HUNG cũ. Kiểm tra lại bằng nút So sánh.');
+}
+function ccGoogleSyncInitializeGooglePilot(){
+  const oauth=$('ccGoogleSyncOAuthClient');
+  if(!oauth)return;
+  oauth.value=localStorage.getItem('cashGoogleSheetsOAuthClientId')||
+    localStorage.getItem('cashLoanDriveClientId')||'';
+  $('ccGoogleSyncAuthorize')?.addEventListener('click',async()=>{
+    try{await ccGoogleSyncAuth()}catch(error){ccGoogleSyncStatus('Lỗi kết nối: '+error.message)}
+  });
+  $('ccGoogleSyncCompare')?.addEventListener('click',async()=>{
+    try{await ccGoogleSyncComparePilot()}catch(error){
+      ccGoogleSyncPlan=null;$('ccGoogleSyncCommit').disabled=true;
+      ccGoogleSyncStatus('Không thể so sánh: '+error.message);
+    }
+  });
+  $('ccGoogleSyncCommit')?.addEventListener('click',async()=>{
+    try{await ccGoogleSyncCommitPilot()}catch(error){
+      ccGoogleSyncPlan=null;$('ccGoogleSyncCommit').disabled=true;
+      ccGoogleSyncStatus('Dừng ghi TEST: '+error.message);
+    }
+  });
+}
+
 function ccGoogleSyncInitializePreview(){
   const button=$('ccGoogleSyncPreviewOpen');
   if(!button)return;
@@ -5370,6 +5589,7 @@ function ccGoogleSyncInitializePreview(){
   $('ccGoogleSyncInspect')?.addEventListener('click',ccGoogleSyncInspectOnly);
 }
 ccGoogleSyncInitializePreview();
+ccGoogleSyncInitializeGooglePilot();
 
 function exportLegacyCashFlowMerged(monthList,selectedProject){
     const wb=XLSX.utils.book_new();
