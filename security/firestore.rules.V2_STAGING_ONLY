@@ -192,6 +192,13 @@ service cloud.firestore {
       allow list: if false;
       allow create, update, delete: if trustedProfileAdmin();
     }
+    // Stage-only V2 marker. Must be written only after complete Rules+writer
+    // validation and two clean full backfill audits; client never creates it.
+    match /systemConfig/paymentLookupV2 {
+      allow get: if approvedUser();
+      allow list: if false;
+      allow create, update, delete: if trustedProfileAdmin();
+    }
     // Explicit collection policies; unknown collections/subcollections deny by default.
     function validMaster(data){
       return data.keys().size() <= 100
