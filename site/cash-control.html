@@ -1420,6 +1420,22 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
       <button type="button" class="btn" id="ccGoogleSyncChooseAll">Chọn tất cả</button>
       <button type="button" class="btn primary" id="ccGoogleSyncInspect">Kiểm tra dữ liệu hiện có</button>
     </div>
+    <div class="note" style="margin-top:10px">
+      <b>PHU HUNG TEST:</b> Đồng bộ chỉ vào tab riêng DATA_CASHCONTROL của bản sao;
+      tab PHU HUNG lịch sử không bị sửa. Đây chưa phải đồng bộ chính thức tất cả dự án.
+      <div class="fg" style="margin-top:8px">
+        <div class="field"><label>Google OAuth Client ID</label>
+          <input id="ccGoogleSyncOAuthClient" autocomplete="off" placeholder="...apps.googleusercontent.com" style="width:100%">
+          <small>Lưu Client ID trên máy, không lưu access token. Google sẽ yêu cầu đăng nhập/cấp quyền.</small>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" type="button" id="ccGoogleSyncAuthorize">Kết nối Google</button>
+        <button class="btn" type="button" id="ccGoogleSyncCompare">So sánh bản TEST</button>
+        <button class="btn primary" type="button" id="ccGoogleSyncCommit" disabled>Ghi thay đổi vào tab TEST</button>
+      </div>
+      <p id="ccGoogleSyncGoogleStatus" style="font-size:12px;color:#475569;margin:8px 0">Chưa kết nối Google. Không có thao tác ghi tự động.</p>
+    </div>
     <div id="ccGoogleSyncPreviewResult" aria-live="polite"></div>
     <div class="mfoot">
       <span style="color:#6d7890;font-size:12px">Chưa có nút ghi Google Sheets. Cần cấu hình file đích, bảo mật và đối chiếu bản sao trước.</span>
