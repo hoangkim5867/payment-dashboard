@@ -19997,8 +19997,8 @@ async function paymentIndexV2Ready(){
         v.synchronousWritersVerified===true;
 }
 // Exact same ASCII-digit candidate key as the Rules and the V2 writers.
-function ipcDigitsV2ForPreview(value){
-    return String(value??'').replace(/[^0-9]/g,'');
+function contractDigitsV2ForPreview(value){
+    return String(value??'').replace(/[^0-9]/g,'').replace(/1/g,'');
 }
 const PAYMENT_INDEX_QUERY_CODE_ENABLED = true; // ARMED, but stays legacy until secure server marker is verified.
 // Always revalidate the marker at the beginning of EACH data query.
@@ -20030,16 +20030,16 @@ async function ensureImportDuplicateHistoryForRows(localRows){
             throw Error("Chỉ mục tra cứu an toàn chưa sẵn sàng. Chưa thể Xem trước Excel.");
         const keys=[...new Set((localRows||[])
             .filter(row=>!!row?.data)
-            .map(row=>ipcDigitsV2ForPreview(row.data.ipcNo)))];
+            .map(row=>contractDigitsV2ForPreview(row.data.contractNo)))];
         const matched=new Map();
         for(let i=0;i<keys.length;i+=20){
             const snapshot=await getDocs(query(paymentsRef,
-                where("ipcDigitsV2","in",keys.slice(i,i+20))));
+                where("contractDigitsV2","in",keys.slice(i,i+20))));
             snapshot.forEach(item=>matched.set(item.id,{
                 id:item.id,...normalizeLoadedPaymentData(item.data())
             }));
         }
-        // This deliberately OVERselects (e.g. IPC017 and MEP017).
+        // This deliberately OVERselects e.g. LAB-002 and SUPL-002.
         // The original same/cross-month Project+Contract+IPC comparisons
         // below are unchanged. The returned rows are NOT final duplicates.
         importDuplicateHistoryPayments=[...matched.values()];
