@@ -10,7 +10,7 @@ const PAYMENT_V2_WRITERS_ENABLED=false; // staging release gate; production rema
 export const {addDoc,setDoc,updateDoc,writeBatch,runTransaction} =
     PAYMENT_V2_WRITERS_ENABLED
       ? createPaymentWriters(sdk,computeIndexV2,
-          {indexFields:['ipcDigitsV2'],sourceFields:['ipcNo']})
+          {indexFields:['contractDigitsV2'],sourceFields:['contractNo']})
       : sdk;
 
 /*
