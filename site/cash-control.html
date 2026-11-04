@@ -5545,11 +5545,10 @@ async function ccGoogleSyncComparePilot(internal=false){
   const month=$('ccGoogleSyncMonth')?.value||'';
   const source=await ccGoogleSyncCurrentRows('PHU HUNG',month);
   const remote=await ccGoogleSyncReadSheet();
-  // October already exists in the old PHU HUNG ledger. Never mirror its rows
-  // until a read-only audit matches date, money, contract and IPC for each row.
-  const legacyAudit=month==='2026-10'
-    ?await ccGoogleSyncAuditLegacy(month,source)
-    :null;
+  // Never duplicate records already copied into the historical PHU HUNG sheet,
+  // for October AND all later months. If the month has zero historical rows,
+  // new Cash Control entries can be mirrored to the separate sync tab.
+  const legacyAudit=await ccGoogleSyncAuditLegacy(month,source);
   const old=new Map(remote.rows.map((row,i)=>[String(row[0]),{row,index:i+2}]));
   const changes=[],blocked=[],unchanged=[];
   for(const r of source){
@@ -5575,7 +5574,7 @@ async function ccGoogleSyncComparePilot(internal=false){
   const sourceIds=new Set(source.map(r=>r.id));
   const orphan=remote.rows.filter(row=>String(row[2]||'')===month&&!sourceIds.has(String(row[0]||'')));
   if(orphan.length)blocked.push({id:'*',reason:orphan.length+' dòng cũ không còn trong Cash Control; không tự xóa'});
-  if(legacyAudit && !legacyAudit.exact){
+  if(legacyAudit.ledgerCount>0 && !legacyAudit.exact){
     blocked.push({id:'legacy',reason:'PHU HUNG tháng 10 không khớp từng ngày/số tiền: '+
       legacyAudit.unmatchedSource+' dòng Cash Control chưa khớp, '+
       legacyAudit.unmatchedLedger+' dòng Google Sheets chưa khớp.'});
@@ -5588,7 +5587,8 @@ async function ccGoogleSyncComparePilot(internal=false){
   ccGoogleSyncStatus('Bản TEST: '+source.length+' dòng Cash Control · '+changes.filter(r=>r.op==='new').length+
     ' mới · '+changes.filter(r=>r.op==='update').length+' sửa · '+
     unchanged.length+' không đổi · '+blocked.length+' xung đột. '+
-    (legacyAudit?'Sổ cũ tháng 10: '+(legacyAudit.exact?'KHỚP ngày/số tiền':'CHƯA KHỚP')+' ('+legacyAudit.ledgerCount+' dòng). ':'')+
+    ('Sổ lịch sử '+month+': '+(!legacyAudit.ledgerCount?'chưa có giao dịch':legacyAudit.exact?'khớp các khóa giao dịch':'CHƯA KHỚP')+
+    ' ('+legacyAudit.ledgerCount+' dòng). ')+
     (blocked.length?'Chặn ghi, cần xử lý xung đột.':'Có thể xác nhận ghi tab TEST.'));
   return plan;
 }
