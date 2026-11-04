@@ -21383,7 +21383,7 @@ function importPaymentLookupKey(data){
 }
 
 async function ensureImportDuplicateHistoryForRows(localRows){
-    if(PAYMENT_INDEX_V2_QUERY_CODE_ENABLED){
+    if(typeof PAYMENT_INDEX_V2_QUERY_CODE_ENABLED!=='undefined' && PAYMENT_INDEX_V2_QUERY_CODE_ENABLED){
         // Fail closed if the secure index is unavailable: NEVER silently
         // switch to a full 2,000-document scan or assume no duplicates.
         if(!await paymentIndexV2Ready())
