@@ -115,11 +115,14 @@ service cloud.firestore {
       return !request.resource.data.keys().hasAny(['contractDigitsV2'])
         || validContractDigitsV2(request.resource.data);
     }
+    // During transition, old open tabs may change contractNo without
+    // updating the index field. They are not permitted to modify/delete an
+    // index directly. Indexed reads remain OFF until every writer is updated,
+    // the STRICT Rules are deployed, and the entire collection audits clean.
     function validContractDigitsV2Update(){
       let changed=request.resource.data.diff(resource.data).affectedKeys();
-      return validContractDigitsV2(request.resource.data)
-        || (!resource.data.keys().hasAny(['contractDigitsV2'])
-          && !changed.hasAny(['contractNo','contractDigitsV2']));
+      return !changed.hasAny(['contractDigitsV2'])
+        || validContractDigitsV2(request.resource.data);
     }
 
     function staffEditableFields(){
