@@ -118,3 +118,58 @@ function cashSyncPreviewDiff(projectKey, candidateRecords) {
   Logger.log(JSON.stringify(summary));
   return summary;
 }
+
+/**
+ * Phase 1 reconciliation for PHU HUNG's existing sheet (read-only).
+ * Reports October totals and identifies possible duplicate legacy keys.
+ * This function intentionally never modifies cells or logs customer names.
+ */
+function cashSyncAuditExistingPhuHungOctober() {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = spreadsheet.getSheetByName('PHU HUNG');
+  if (!sheet) throw Error('Không tìm thấy tab PHU HUNG.');
+  const values = sheet.getDataRange().getValues();
+  const tz = 'Asia/Ho_Chi_Minh', month = '2026-10';
+  const byKey = new Map();
+  let count = 0, income = 0, expense = 0, lastBalance = null, ambiguous = 0;
+  const amount = x => typeof x === 'number' ? x :
+    (Number(String(x || '0').replace(/,/g, '')) || 0);
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    const raw = row[0];
+    const date = raw instanceof Date && !isNaN(raw)
+      ? Utilities.formatDate(raw, tz, 'yyyy-MM-dd')
+      : String(raw || '').trim().replace(/\//g, '-');
+    if (!date.startsWith(month + '-')) continue;
+    const inflow = amount(row[6]);
+    const outflow = row.slice(7, 13).reduce((sum, n) => sum + amount(n), 0);
+    const key = [date, amount(inflow), amount(outflow),
+      String(row[2] || '').trim().toUpperCase(),
+      String(row[4] || '').trim().toUpperCase()].join('|');
+    byKey.set(key, (byKey.get(key) || 0) + 1);
+    count++; income += inflow; expense += outflow; lastBalance = amount(row[13]);
+  }
+  for (const n of byKey.values()) if (n > 1) ambiguous += n;
+  const result = {month, rows:count, income, expense, lastBalance,
+    ambiguousRows:ambiguous, source:'Existing Google Sheet only',
+    safeToWrite:false};
+  Logger.log(JSON.stringify(result));
+  return result;
+}
+
+/**
+ * Non-destructive preparation check. An existing 2026-10 baseline is NOT
+ * automatically adopted as synced. All same-month rows need reviewed matching.
+ */
+function cashSyncCheckPilotReady() {
+  const mapping = cashSyncGetProjectMap_();
+  const projectKey = Object.keys(mapping).find(k=>/PHU\s*HUNG/i.test(k));
+  if (!projectKey) throw Error('Chưa map PHU HUNG với bản sao Google Sheet.');
+  const x = mapping[projectKey];
+  const spreadsheet = SpreadsheetApp.openById(x.spreadsheetId);
+  const legacy = spreadsheet.getSheetByName('PHU HUNG');
+  if (!legacy) throw Error('Không có tab PHU HUNG gốc, dừng để tránh mất lịch sử.');
+  const probe = cashSyncInspectDestinations();
+  return {projectKey, target:x.sheetName, legacyRows:legacy.getLastRow(),
+    mapping:probe, writeEnabled:false};
+}
