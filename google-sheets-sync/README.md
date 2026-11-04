@@ -57,3 +57,10 @@ These checks are **not** end-to-end browser, Google OAuth, Vercel or real-data a
 - Legacy balance column N is never overwritten; even an exact transaction match does not assert equal opening or closing balances.
 - This code has **not** yet been executed against real Cash Control October source in the browser. A historical ledger match is pending, not claimed.
 - Mock checks show a matching single ledger row passes; an amount mismatch is rejected. The initial mock lacked contract/IPC strictness; that strictness was subsequently added and must still be regression-tested before release.
+
+## Additional safeguards (2026-11-04)
+- Compare the historical PHU HUNG ledger on **every sync month from October 2026**, not October alone. If there are manually pasted transactions in a later month, a date/amount/contract/IPC mismatch blocks the write. If that month has zero historical rows, the separate mirror can accept new transactions.
+- Block concurrent compare/write operations while a TEST write is in progress.
+- After Google reports a write, read back every changed row and verify its project, month and SHA-256 content before claiming success.
+- A branch-only Node test suite and GitHub Actions workflow were added. The CI outcome must be checked; commits alone do not mean CI passed.
+- All protections apply to the separate pilot mirror; they do NOT authorize a production rollout or imply the historical balance has been reconciled.
