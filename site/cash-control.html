@@ -5466,6 +5466,70 @@ async function ccGoogleSyncReadSheet(){
   }
   return {exists:true,rows:values.slice(1),title:metadata.properties.title};
 }
+
+// Verify the existing PHU HUNG ledger before adding any October mirror rows.
+// This check is READ ONLY and works with Google Sheets' numeric date serials,
+// ISO date text and Vietnamese dd/MM/yyyy date text.
+const ccGoogleSyncNormDate=value=>{
+  if(typeof value==='number' && Number.isFinite(value)){
+    const iso=new Date(Date.UTC(1899,11,30)+Math.floor(value)*86400000)
+      .toISOString().slice(0,10);
+    return iso;
+  }
+  const raw=String(value||'').trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(raw))return raw.slice(0,10);
+  const m=raw.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
+  if(m)return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+  return '';
+};
+const ccGoogleSyncMoney=n=>{
+  if(typeof n==='number')return n;
+  const s=String(n||'').trim().replace(/\s/g,'');
+  if(!s)return 0;
+  const comma=s.lastIndexOf(','),dot=s.lastIndexOf('.');
+  const normalized=comma>dot?s.replace(/\./g,'').replace(',','.') : s.replace(/,/g,'');
+  const out=Number(normalized);
+  return Number.isFinite(out)?out:NaN;
+};
+const ccGoogleSyncMoneyKey=n=>{
+  const value=ccGoogleSyncMoney(n);
+  return Number.isFinite(value)?String(Math.round(value*1e6)/1e6):'INVALID';
+};
+const ccGoogleSyncFingerprint=(date,amounts)=>
+  date+'|'+amounts.map(ccGoogleSyncMoneyKey).join('|');
+async function ccGoogleSyncAuditLegacy(month,source){
+  const read=await ccGoogleSyncApi('/values/'+encodeURIComponent("'PHU HUNG'!A1:N")+
+    '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER');
+  const counts=new Map(),badDates=[],invalidAmounts=[];
+  let ledgerCount=0;
+  (read.values||[]).forEach((row,index)=>{
+    const date=ccGoogleSyncNormDate(row[0]);
+    if(!date.startsWith(month+'-'))return;
+    if(row[0]!=='' && !date)badDates.push(index+1);
+    const values=row.slice(6,13);
+    const signature=ccGoogleSyncFingerprint(date,values);
+    if(signature.includes('INVALID'))invalidAmounts.push(index+1);
+    counts.set(signature,(counts.get(signature)||0)+1);
+    ledgerCount++;
+  });
+  let unmatchedSource=0;
+  for(const entry of source){
+    const signature=ccGoogleSyncFingerprint(
+      ccGoogleSyncNormDate(entry.values[0]),entry.values.slice(6,13));
+    const count=counts.get(signature)||0;
+    if(count){counts.set(signature,count-1)}
+    else unmatchedSource++;
+  }
+  const unmatchedLedger=[...counts.values()].reduce((sum,n)=>sum+n,0);
+  return {
+    ledgerCount,sourceCount:source.length,
+    unmatchedSource,unmatchedLedger,invalidAmounts:invalidAmounts.length,
+    exact:unmatchedSource===0&&unmatchedLedger===0&&invalidAmounts.length===0,
+    // Amount/date matching alone cannot guarantee contract/IPC identity.
+    scope:'Date and seven money columns only; no contract/IPC reconciliation'
+  };
+}
+
 async function ccGoogleSyncComparePilot(){
   if(!currentAuthUser||!isCashControlOwner())throw Error('Cần đăng nhập Admin.');
   if(ccGoogleSyncSelectedProjects().length!==1||ccGoogleSyncSelectedProjects()[0]!=='PHU HUNG')
@@ -5473,6 +5537,11 @@ async function ccGoogleSyncComparePilot(){
   const month=$('ccGoogleSyncMonth')?.value||'';
   const source=await ccGoogleSyncCurrentRows('PHU HUNG',month);
   const remote=await ccGoogleSyncReadSheet();
+  // October already exists in the old PHU HUNG ledger. Never mirror its rows
+  // until a complete read-only legacy audit proves there are no missing amounts.
+  const legacyAudit=month==='2026-10'
+    ?await ccGoogleSyncAuditLegacy(month,source)
+    :null;
   const old=new Map(remote.rows.map((row,i)=>[String(row[0]),{row,index:i+2}]));
   const changes=[],blocked=[],unchanged=[];
   for(const r of source){
@@ -5498,13 +5567,20 @@ async function ccGoogleSyncComparePilot(){
   const sourceIds=new Set(source.map(r=>r.id));
   const orphan=remote.rows.filter(row=>String(row[2]||'')===month&&!sourceIds.has(String(row[0]||'')));
   if(orphan.length)blocked.push({id:'*',reason:orphan.length+' dòng cũ không còn trong Cash Control; không tự xóa'});
+  if(legacyAudit && !legacyAudit.exact){
+    blocked.push({id:'legacy',reason:'PHU HUNG tháng 10 không khớp từng ngày/số tiền: '+
+      legacyAudit.unmatchedSource+' dòng Cash Control chưa khớp, '+
+      legacyAudit.unmatchedLedger+' dòng Google Sheets chưa khớp.'});
+  }
+  // Read-only evidence, never use these amounts as balances.
   const plan={month,sourceCount:source.length,remoteExists:remote.exists,
-    changes,blocked,unchanged,created:Date.now()};
+    changes,blocked,unchanged,legacyAudit,created:Date.now()};
   ccGoogleSyncPlan=plan;
   $('ccGoogleSyncCommit').disabled=blocked.length>0||!changes.length;
   ccGoogleSyncStatus('Bản TEST: '+source.length+' dòng Cash Control · '+changes.filter(r=>r.op==='new').length+
     ' mới · '+changes.filter(r=>r.op==='update').length+' sửa · '+
     unchanged.length+' không đổi · '+blocked.length+' xung đột. '+
+    (legacyAudit?'Sổ cũ tháng 10: '+(legacyAudit.exact?'KHỚP ngày/số tiền':'CHƯA KHỚP')+' ('+legacyAudit.ledgerCount+' dòng). ':'')+
     (blocked.length?'Chặn ghi, cần xử lý xung đột.':'Có thể xác nhận ghi tab TEST.'));
   return plan;
 }
