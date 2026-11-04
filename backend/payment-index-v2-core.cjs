@@ -1,16 +1,18 @@
 'use strict';
-// Necessary (coarse) duplicate candidate key, NEVER a final duplicate decision.
-// The original normalize() can remove case/spacing/diacritics but preserves
-// ASCII digits. Thus normalized IPC equality => equal ascii-digit sequence.
-// This intentionally overselects candidates (e.g. IPC001 and MEP001) and
-// never replaces the existing Project + Contract + IPC comparisons.
-function ipcDigitsV2(value) {
-  return String(value ?? '').replace(/[^0-9]/g,'');
+// Necessary coarse CONTRACT candidate key, never a final duplicate result.
+// The original contract normalization removes punctuation and may INSERT
+// one ASCII '1' in the EATON PARK P -> P1 alias. Removing every '1' from
+// the digit signature makes this candidate key invariant under that alias.
+// PHU HUNG -> PH and other aliases do not add/remove any other ASCII digit.
+// Therefore an exact original contract match ALWAYS has the same V2 key;
+// unrelated contracts may collide and are removed by the unchanged matcher.
+function contractDigitsV2(value) {
+  return String(value ?? '').replace(/[^0-9]/g,'').replace(/1/g,'');
 }
 function computeIndexV2(payment) {
-  return {ipcDigitsV2:ipcDigitsV2(payment?.ipcNo)};
+  return {contractDigitsV2:contractDigitsV2(payment?.contractNo)};
 }
 function hasValidIndexV2(payment) {
-  return payment?.ipcDigitsV2 === ipcDigitsV2(payment?.ipcNo);
+  return payment?.contractDigitsV2 === contractDigitsV2(payment?.contractNo);
 }
-module.exports={ipcDigitsV2,computeIndexV2,hasValidIndexV2};
+module.exports={contractDigitsV2,computeIndexV2,hasValidIndexV2};
