@@ -52,7 +52,8 @@ test('Rules validate contract candidate; V2 still gated off in production',()=>{
  assert.match(rules,/validContractDigitsV2\(request.resource.data\)/);
  assert.match(rules,/safeStaffLookupCreate/);
  const source=fs.readFileSync(path.join(root,'site/assets/js/firestore-payment.mjs'),'utf8');
- assert.match(source,/PAYMENT_V2_WRITERS_ENABLED=false/);
+ assert.match(source,/PAYMENT_V2_WRITERS_ENABLED=true/);
+ assert.match(source,/contractDigitsV2/);
  for(const page of ['payment.html','payment-mobile-renderer.html']){
    const html=fs.readFileSync(path.join(root,'site',page),'utf8');
    assert.match(html,/PAYMENT_INDEX_V2_QUERY_CODE_ENABLED = false/);
