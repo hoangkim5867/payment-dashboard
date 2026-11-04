@@ -50,3 +50,10 @@ The isolated JavaScript diff logic was executed with mocked Google Sheets API re
 - Pilot block parsed successfully as JavaScript.
 
 These checks are **not** end-to-end browser, Google OAuth, Vercel or real-data acceptance tests. The known staging/authorization blockers remain.
+## October transaction-by-transaction baseline guard (2026-11-04)
+- The PHU HUNG Google historical ledger is fetched **read-only** via Sheets API (A:N) when checking October 2026.
+- Legacy Google rows are compared against Cash Control by exact normalized date, seven income/expense amounts (to 1e-6), normalized contract number and IPC, with duplicate occurrence counts preserved.
+- A mismatch blocks the Write TEST button and reports unmatched row counts. A mismatch in totals alone is not considered evidence of matching transactions.
+- Legacy balance column N is never overwritten; even an exact transaction match does not assert equal opening or closing balances.
+- This code has **not** yet been executed against real Cash Control October source in the browser. A historical ledger match is pending, not claimed.
+- Mock checks show a matching single ledger row passes; an amount mismatch is rejected. The initial mock lacked contract/IPC strictness; that strictness was subsequently added and must still be regression-tested before release.
