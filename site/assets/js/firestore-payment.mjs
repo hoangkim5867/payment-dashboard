@@ -6,7 +6,7 @@ import * as sdk from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firest
 // V1 metadata remains UNTRUSTED and is never written by the V2 adapter.
 import {createPaymentWriters} from './payment-writers.mjs';
 import {computeIndexV2} from './payment-index-v2-core.mjs';
-const PAYMENT_V2_WRITERS_ENABLED=false; // staging release gate; production remains unchanged
+const PAYMENT_V2_WRITERS_ENABLED=true; // enable ONLY after approved V2 TRANSITION Rules are published
 export const {addDoc,setDoc,updateDoc,writeBatch,runTransaction} =
     PAYMENT_V2_WRITERS_ENABLED
       ? createPaymentWriters(sdk,computeIndexV2,
