@@ -5560,8 +5560,13 @@ async function ccGoogleSyncComparePilot(internal=false){
   const historicalIds=new Set(legacyAudit.matchedSourceIds);
   for(const r of source){
     const oldRow=old.get(r.id);
-    // This exact transaction is already visible in the original PHU HUNG tab.
-    // No duplicate mirror entry is needed on first synchronization.
+    // Never count one transaction twice if it now exists in both the historic
+    // ledger and the mirror (for example after someone pastes a new row manually).
+    if(oldRow&&historicalIds.has(r.id)){
+      blocked.push({id:r.id,reason:'Giao dịch đồng thời nằm trong sổ cũ và tab đồng bộ'});
+      continue;
+    }
+    // A historic row already exists; do not copy it into the mirror again.
     if(!oldRow&&historicalIds.has(r.id)){unchanged.push(r.id);continue}
     if(!oldRow){changes.push({...r,op:'new'});continue}
     const row=oldRow.row;
