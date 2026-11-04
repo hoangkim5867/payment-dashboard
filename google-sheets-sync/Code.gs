@@ -18,7 +18,14 @@ const CASH_SYNC_EXPECTED_HEADER = [
 
 function cashSyncGetProjectMap_() {
   const raw = PropertiesService.getScriptProperties().getProperty(CASH_SYNC_MAP_PROPERTY);
-  if (!raw) throw Error('Chưa cấu hình SHEET_MAP_JSON trong Script Properties.');
+  if (!raw) {
+    // Only the user-provided PHU HUNG TEST copy; inspection-only fallback.
+    // No writes are present anywhere in this Apps Script.
+    return {'PHU HUNG': {
+      spreadsheetId:'1bxY6jQ3qHJ0oTiWDmbH4eeFgZR7goqX3_s1Kz9UlfD4',
+      sheetName:'DATA_CASHCONTROL'
+    }};
+  }
   let parsed;
   try { parsed = JSON.parse(raw); }
   catch (_) { throw Error('SHEET_MAP_JSON không phải JSON hợp lệ.'); }
