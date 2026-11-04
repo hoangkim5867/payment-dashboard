@@ -1,0 +1,25 @@
+name: Cash Sheets Pilot Regression
+on:
+  push:
+    branches:
+      - feature/cash-google-sync-readonly-20261104
+    paths:
+      - 'site/cash-control.html'
+      - 'google-sheets-sync/pilot.test.cjs'
+      - '.github/workflows/cash-sheets-pilot.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  no-network-pilot-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Test Google Sheets pilot logic without cloud credentials
+        run: node --test google-sheets-sync/pilot.test.cjs
