@@ -1431,6 +1431,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" type="button" id="ccGoogleSyncAuthorize">Kết nối Google</button>
+        <button class="btn" type="button" id="ccGoogleSyncLoadSource">Tải PHU HUNG nếu chưa có dữ liệu</button>
         <button class="btn" type="button" id="ccGoogleSyncCompare">So sánh bản TEST</button>
         <button class="btn primary" type="button" id="ccGoogleSyncCommit" disabled>Ghi thay đổi vào tab TEST</button>
       </div>
@@ -5668,6 +5669,38 @@ function ccGoogleSyncInitializeGooglePilot(){
   oauth.value=localStorage.getItem('cashGoogleSheetsOAuthClientId')||CC_SYNC_OAUTH_CLIENT_ID;
   $('ccGoogleSyncAuthorize')?.addEventListener('click',async()=>{
     try{await ccGoogleSyncAuth()}catch(error){ccGoogleSyncStatus('Lỗi kết nối: '+error.message)}
+  });
+  $('ccGoogleSyncLoadSource')?.addEventListener('click',async()=>{
+    if(!currentAuthUser||!isCashControlOwner()){
+      ccGoogleSyncStatus('Chỉ Admin được tải dữ liệu.');
+      return;
+    }
+    const selected=ccGoogleSyncSelectedProjects();
+    if(selected.length!==1||selected[0]!=='PHU HUNG'){
+      ccGoogleSyncStatus('Chỉ chọn PHU HUNG cho bản thử này.');
+      return;
+    }
+    if(paymentMonths.has('PHU HUNG')){
+      ccGoogleSyncStatus('PHU HUNG đã có trong bộ nhớ, không đọc thêm Firestore. Có thể bấm So sánh.');
+      return;
+    }
+    if(!confirm('Tải toàn bộ Payment dự án PHU HUNG một lần từ Firestore? Thao tác này có phát sinh reads; không tự chạy khi so sánh.')){
+      return;
+    }
+    const button=$('ccGoogleSyncLoadSource');
+    button.disabled=true;
+    ccGoogleSyncPlan=null;
+    $('ccGoogleSyncCommit').disabled=true;
+    try{
+      const ok=await loadProjectPayments('PHU HUNG',{quiet:true,refresh:true});
+      ccGoogleSyncStatus(ok&&paymentMonths.has('PHU HUNG')
+        ?'Đã tải dữ liệu PHU HUNG vào bộ nhớ. Bấm So sánh bản TEST.'
+        :'Không tải đủ dữ liệu PHU HUNG. Không cho ghi Google Sheets.');
+    }catch(error){
+      ccGoogleSyncStatus('Không tải được dữ liệu: '+error.message);
+    }finally{
+      button.disabled=false;
+    }
   });
   $('ccGoogleSyncCompare')?.addEventListener('click',async()=>{
     try{await ccGoogleSyncComparePilot()}catch(error){
