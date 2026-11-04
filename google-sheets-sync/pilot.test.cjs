@@ -222,3 +222,28 @@ test('TEST sync preserves historical ledger and writes all 19 mirror fields',asy
   assert.equal(f.state.rows.length,1,'repeated sync must not duplicate');
   assert.equal(JSON.stringify(f.state.legacyValues),historicalSnapshot);
 });
+
+test('conflicting historical amount blocks TEST writes entirely',async()=>{
+  const f=fixture({month:'2026-11'});
+  f.state.legacyValues=[
+    ['日期'],['2026-11-03','Test Vendor','H-001','IPC','IPC01','',0,100.31,0,0,0,0,0]
+  ];
+  const before=JSON.stringify(f.state.legacyValues);
+  const diff=await f.api.compare();
+  assert.ok(diff.blocked.some(row=>row.id==='legacy'));
+  assert.equal(f.nodes.ccGoogleSyncCommit.disabled,true);
+  assert.equal(f.state.postCalls,0);
+  assert.equal(f.state.rows.length,0);
+  assert.equal(JSON.stringify(f.state.legacyValues),before);
+});
+
+test('changed contract on historical row is not mistaken for matching IPC',async()=>{
+  const f=fixture({month:'2026-11'});
+  f.state.legacyValues=[
+    ['日期'],['2026-11-03','Test Vendor','H-002','IPC','IPC01','',0,100.3,0,0,0,0,0]
+  ];
+  const diff=await f.api.compare();
+  assert.equal(diff.legacyAudit.matchedSourceIds.length,0);
+  assert.ok(diff.blocked.some(row=>row.id==='legacy'));
+  assert.equal(f.state.postCalls,0);
+});
