@@ -1,44 +1,40 @@
-# Kết nối Cash Control → Google Sheets (giai đoạn an toàn)
+# Cash Control → Google Sheets · PHU HUNG TEST pilot
 
-## Trạng thái
-- PR #58: chỉ kiểm tra dữ liệu Cash Control đang ở trong bộ nhớ, chưa gọi thêm Firestore.
-- Script ở thư mục này: chỉ hỗ trợ kiểm tra mapping và xem trước Sheet đích, **không ghi dữ liệu**.
-- Chưa có URL/ID Google Sheets thật trong repo. Không thể ghép 13 dự án vào file đích bằng cách đoán tên.
-- Chưa có luồng ủy quyền an toàn từ nút Cash Control sang Google; **không được xuất bản Apps Script như Web App công khai để nhận dữ liệu tài chính**.
-- Chưa được phép merge hoặc bật đồng bộ thật.
+## What's implemented (draft PR #58)
+- In Cash Control's **Báo cáo quản trị**, open **Đồng bộ Google Sheets (thử)**.
+- Select **PHU HUNG**, month October 2026 or later.
+- Preview source totals **without any extra Firestore query**; when Payment project cache is incomplete, actual sync is blocked.
+- Explicit Google OAuth permission via Google Identity Services (the owner provides a valid OAuth Web Client ID with the deployment's allowed JavaScript origin).
+- Browser requests **Google Sheets API** directly, using a short-lived, memory-only token. No publicly writable Apps Script endpoint or new Firebase.
+- The **only writable destination** is the user-supplied TEST copy with ID `1bxY6jQ3qHJ0oTiWDmbH4eeFgZR7goqX3_s1Kz9UlfD4`, tab `DATA_CASHCONTROL`. Original `PHU HUNG` tab is untouched.
+- Click **So sánh bản TEST** before a write. Compare stable Cash Control source identifiers; quarter-grouped tax rows use a quarter/date key. SHA-256 of sync fields detects remote edits.
+- Click **Ghi thay đổi vào tab TEST** only after comparison with zero conflicts and explicit browser confirmation. Update existing IDs, append new IDs; unchanged are skipped. Missing source IDs and orphaned target IDs block writes. No automatic deletion.
+- Retry reads the target first, avoiding duplicate appends after a partial failure when Google's previous operations are visible.
 
-## Mapping cần tạo
-Một tệp Google Sheet cho mỗi dự án. Dùng Spreadsheet ID lấy từ URL:
-`https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit`
+## Safety limits and known gaps
+- This is **not production-ready**. The branch is behind main. Do not merge.
+- OAuth Client ID and authorized origin are not configured. The connected Apps Script editor does NOT provide a usable browser OAuth client by itself.
+- Vercel Preview build is blocked by the repository's separate-Firebase-staging requirement. Do not bypass or weaken that safeguard.
+- Browser-side Admin guard is **not a production server-side authorization check**. Production must add a trusted server-side Admin gate.
+- No real Google Sheet has been written as part of creating this code. No complete browser end-to-end test yet.
+- The TEST tab is a **separate data mirror**, not merged into historical `PHU HUNG` sheet. A later step must reconcile October overlap and preserve Google Sheets' actual opening/closing balance.
+- Google API writes are not cross-request atomic. If an update succeeds but append fails, retry safely by re-comparing.
+- Changing project, date/month, or source IDs requires explicit reconciliation; old entries are not automatically deleted.
+- Source completeness check is conservative: requires project-wide Payment loaded. Cash Control can still change after loading; a stale cache is not authoritative. Don't sync without checking freshness.
+- Quarter tax aggregation is driven by the existing Excel export logic. It should be verified against actual data and source IDs before production use.
+- User-configured OAuth client ID is stored in localStorage. The OAuth access token is **not** stored there.
 
-Dự án thuộc danh mục Cash Control, không dùng tên viết tay của người dùng làm chìa khóa duy nhất:
-- PHU HUNG
-- ELYSIAN
-- EATON
-- 红鹤别墅1.1区
-- C17-2
-- FOXCONN
-- OCEAN LINK
-- SSIS
-- Các dự án còn lại từ danh mục thực tế
+## PHU HUNG TEST baseline
+The historic tab reportedly has 182 rows, including 30 October transactions. October baseline Google Sheets totals reported in chat should be **re-verified**, not coded as trusted constants. Historical cash balance differs from Cash Control: never copy Cash Control's balance into the history sheet.
 
-**Chưa tự khẳng định** EATON = EATON P1, C17-2 = C17, hay 红鹤别墅1.1区 = HONGHAC 1.1; phải xác nhận trước khi map.
+## Files
+- `site/cash-control.html`: draft UI and TEST Google Sheets API pilot.
+- `google-sheets-sync/Code.gs`: optional Apps Script mapping inspection and isolated TEST tab setup.
+- This README documents conditions to lift before any real rollout.
 
-Trong Apps Script, cấu hình `SHEET_MAP_JSON` trong Script Properties:
-`{"PHU HUNG":{"spreadsheetId":"ID_...","sheetName":"DATA_CASHCONTROL"}}`
-
-Không dùng ID giả để ghi thật. Sheet `DATA_CASHCONTROL` nên tạo mới hoặc bản sao trước, không ghi trực tiếp vào vùng dữ liệu người dùng đang chỉnh tay.
-
-## Cách triển khai dự kiến
-1. Lấy danh sách Sheet thật và xác nhận quyền của tài khoản phụ trách. Sao lưu từng file.
-2. Kiểm thử script preview đọc header và phân loại trạng thái Sheet (không ghi).
-3. Kiểm tra ID và danh tính giao dịch Cash Control, cách xử lý 2 chiều điều chuyển, gộp thuế, đổi tháng, xóa giao dịch.
-4. Tạo endpoint trung gian có **xác thực Admin máy chủ, chống replay, rate limit, kiểm tra mapping server-side**. Không đặt service key trong HTML.
-5. Đồng bộ staging lên bản sao Sheet, so sánh số dòng/tổng thu/chi/số dư theo từng dự án/tháng và bảo vệ chỉnh tay.
-6. Chỉ bật ghi thật sau khi kiểm thử đạt, có bản sao lưu và thao tác khôi phục.
-
-## Firestore
-Bộ xem trước trong PR #58 không gọi `getDocs` mới, nhưng mở/truy cập trang Cash Control vẫn có thể phát sinh các reads theo logic hiện hữu. Ghi Google Sheets sẽ chịu giới hạn/quota Google, không sử dụng Firestore mới nếu payload đã có đủ trong bộ nhớ.
-
-## Quy tắc tuyệt đối
-Không đoán mapping, không tự tạo bảng đích cho dự án chưa xác nhận, không ghi đè toàn bộ vùng hiện có, không biến hàm xem trước thành ghi thật, không tự động tải Payment nếu thiếu.
+## Next verification
+1. Use a genuinely isolated test environment with an authorized OAuth origin and a separate Firebase staging project. Do NOT deploy the financial app with production Firebase secrets to preview.
+2. Simulate missing source IDs, a manually modified test row, repeated sync, a new transaction, a changed transaction, and a partial write.
+3. Verify all 19 columns, exact decimal currency, input dates, grouped taxes and transfer signs.
+4. Compare every October transaction against existing historical sheet before any change to that sheet.
+5. Only then consider a production endpoint with server-side Admin verification, whitelist of project→spreadsheet IDs, version-based concurrency control, and backup/rollback.
