@@ -5359,6 +5359,7 @@ const CC_SYNC_HEADER=['sourceId','projectKey','month','date','company','contract
     'content','ipc','type','income','subcontract','material','otherDirect','indirect',
     'financial','otherPayable','balance','sourceHash','syncStatus'];
 let ccGoogleSyncToken='',ccGoogleSyncTokenClient=null,ccGoogleSyncPlan=null;
+let ccGoogleSyncWriteInFlight=false;
 const ccGoogleSyncStatus=message=>{
   const el=$('ccGoogleSyncGoogleStatus');if(el)el.textContent=message;
 };
@@ -5536,7 +5537,8 @@ async function ccGoogleSyncAuditLegacy(month,source){
   };
 }
 
-async function ccGoogleSyncComparePilot(){
+async function ccGoogleSyncComparePilot(internal=false){
+  if(ccGoogleSyncWriteInFlight&&!internal)throw Error('Đang ghi, chờ hoàn tất trước khi so sánh lại.');
   if(!currentAuthUser||!isCashControlOwner())throw Error('Cần đăng nhập Admin.');
   if(ccGoogleSyncSelectedProjects().length!==1||ccGoogleSyncSelectedProjects()[0]!=='PHU HUNG')
     throw Error('Pilot chỉ cho chọn một dự án PHU HUNG.');
@@ -5591,6 +5593,9 @@ async function ccGoogleSyncComparePilot(){
   return plan;
 }
 async function ccGoogleSyncCommitPilot(){
+  if(ccGoogleSyncWriteInFlight)throw Error('Đang có lượt ghi khác, đã chặn thao tác đồng thời.');
+  ccGoogleSyncWriteInFlight=true;
+  try{
   if(!currentAuthUser||!isCashControlOwner())throw Error('Chỉ Admin Cash Control.');
   if(!ccGoogleSyncPlan||!ccGoogleSyncPlan.changes.length||ccGoogleSyncPlan.blocked.length)
     throw Error('Chưa có bản so sánh sạch.');
@@ -5601,7 +5606,7 @@ async function ccGoogleSyncCommitPilot(){
     throw Error('Dự án/tháng đã thay đổi. So sánh lại.');
   // Re-evaluate live source + destination immediately before writing.
   const oldPlan=ccGoogleSyncPlan;
-  const check=await ccGoogleSyncComparePilot();
+  const check=await ccGoogleSyncComparePilot(true);
   if(check.blocked.length)throw Error('Dữ liệu thay đổi hoặc có xung đột; dừng.');
   const signature=p=>JSON.stringify(p.changes.map(x=>[x.id,x.hash,x.op,x.sheetRow]));
   if(signature(check)!==signature(oldPlan) || check.sourceCount!==oldPlan.sourceCount ||
@@ -5638,6 +5643,9 @@ async function ccGoogleSyncCommitPilot(){
   ccGoogleSyncPlan=null;
   ccGoogleSyncStatus('Đã ghi bản TEST: '+additions.length+' mới, '+updates.length+
     ' cập nhật. Không ghi vào tab PHU HUNG cũ. Kiểm tra lại bằng nút So sánh.');
+  }finally{
+    ccGoogleSyncWriteInFlight=false;
+  }
 }
 function ccGoogleSyncInitializeGooglePilot(){
   const oauth=$('ccGoogleSyncOAuthClient');
