@@ -155,3 +155,29 @@ test('November empty historical ledger allows separate mirror rows',async()=>{
   assert.equal(diff.blocked.length,0);
   assert.equal(diff.changes.length,1);
 });
+
+test('October entries already present in PHU HUNG are not duplicated in DATA_CASHCONTROL',async()=>{
+  const f=fixture({month:'2026-10',source:[tx('2026-10')]});
+  f.state.legacyValues=[
+    ['日期'],['2026-10-03','Test Vendor','H-001','IPC','IPC01','',0,100.3,0,0,0,0,0]
+  ];
+  const diff=await f.api.compare();
+  assert.equal(diff.legacyAudit.matchedSourceIds.length,1);
+  assert.equal(diff.changes.length,0);
+  assert.equal(diff.unchanged.length,1);
+  assert.equal(diff.blocked.length,0);
+  assert.equal(f.state.postCalls,0);
+});
+test('November partial historic entries allow only the missing transaction to sync',async()=>{
+  const source=[tx('2026-11'),{...tx('2026-11',250.5),_syncIds:['expense:002']}];
+  const f=fixture({month:'2026-11',source});
+  f.state.legacyValues=[
+    ['日期'],['2026-11-03','Test Vendor','H-001','IPC','IPC01','',0,100.3,0,0,0,0,0]
+  ];
+  const diff=await f.api.compare();
+  assert.equal(diff.legacyAudit.matchedSourceIds.length,1);
+  assert.equal(diff.changes.length,1);
+  assert.equal(diff.unchanged.length,1);
+  assert.equal(diff.blocked.length,0);
+  assert.equal(diff.changes[0].values[7],250.5);
+});
