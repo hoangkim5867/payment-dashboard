@@ -21348,6 +21348,18 @@ async function ensurePrivateHistory2026Loaded(){
     }
 }
 
+const PAYMENT_INDEX_V2_QUERY_CODE_ENABLED = false; // DO NOT ENABLE before tested V2 Rules+writer+complete backfill.
+async function paymentIndexV2Ready(){
+    const marker=await getDocFromServer(doc(db,"systemConfig","paymentLookupV2"));
+    const v=marker.exists()?marker.data():{};
+    return v.ready===true && v.schemaVersion===2 &&
+        v.rulesVerified===true && v.backfillVerified===true &&
+        v.synchronousWritersVerified===true;
+}
+// Exact same ASCII-digit candidate key as the Rules and the V2 writers.
+function contractDigitsV2ForPreview(value){
+    return String(value??'').replace(/[^0-9]/g,'').replace(/1/g,'');
+}
 const PAYMENT_INDEX_QUERY_CODE_ENABLED = true; // ARMED, but stays legacy until secure server marker is verified.
 // Always revalidate the marker at the beginning of EACH data query.
 // Never cache a previous `ready=true`, because an admin may disable an index
@@ -21371,6 +21383,30 @@ function importPaymentLookupKey(data){
 }
 
 async function ensureImportDuplicateHistoryForRows(localRows){
+    if(typeof PAYMENT_INDEX_V2_QUERY_CODE_ENABLED!=='undefined' && PAYMENT_INDEX_V2_QUERY_CODE_ENABLED){
+        // Fail closed if the secure index is unavailable: NEVER silently
+        // switch to a full 2,000-document scan or assume no duplicates.
+        if(!await paymentIndexV2Ready())
+            throw Error("Chỉ mục tra cứu an toàn chưa sẵn sàng. Chưa thể Xem trước Excel.");
+        const keys=[...new Set((localRows||[])
+            .filter(row=>!!row?.data)
+            .map(row=>contractDigitsV2ForPreview(row.data.contractNo)))];
+        const matched=new Map();
+        for(let i=0;i<keys.length;i+=20){
+            const snapshot=await getDocs(query(paymentsRef,
+                where("contractDigitsV2","in",keys.slice(i,i+20))));
+            snapshot.forEach(item=>matched.set(item.id,{
+                id:item.id,...normalizeLoadedPaymentData(item.data())
+            }));
+        }
+        // This deliberately OVERselects e.g. LAB-002 and SUPL-002.
+        // The original same/cross-month Project+Contract+IPC comparisons
+        // below are unchanged. The returned rows are NOT final duplicates.
+        importDuplicateHistoryPayments=[...matched.values()];
+        importDuplicateHistoryLoaded=false;
+        return importDuplicateHistoryPayments;
+    }
+
     if(!PAYMENT_INDEX_QUERY_CODE_ENABLED || !await paymentIndexV1Ready()){
         return ensureImportDuplicateHistory();
     }
@@ -25984,7 +26020,11 @@ confirmExcelImportBtn.addEventListener(
             return;
         }
 
-        if(excelPreviewReusedDuplicateHistory){
+        if(excelPreviewReusedDuplicateHistory ||
+           (typeof PAYMENT_INDEX_V2_QUERY_CODE_ENABLED!=='undefined' && PAYMENT_INDEX_V2_QUERY_CODE_ENABLED)){
+            // Indexed V2 candidates may change in another Staff session while
+            // a preview is open. Re-query just the relevant IPC digits before
+            // any write; changed warnings require a fresh human review.
             // Refresh all warnings using current Firestore results BEFORE
             // the original validation and any write. Keep one-click import
             // when nothing changed, but require review if new conflicts

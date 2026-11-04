@@ -79,13 +79,13 @@ for(const page of htmls){
     assert.match(src,/Date\.now\(\)<excelPreviewHistoryCacheExpiresAt/);
     assert.match(src,/await ensureImportDuplicateHistoryForRows\(localRows\)/);
     const confirm=src.indexOf('confirmExcelImportBtn.addEventListener(');
-    const freshness=src.indexOf('if(excelPreviewReusedDuplicateHistory){',confirm);
+    const freshness=src.indexOf('if(excelPreviewReusedDuplicateHistory ||',confirm);
     const recheck=src.indexOf('await renderExcelImportPreview({forceFreshHistory:true})',freshness);
     const valid=src.indexOf('const validRows =',confirm);
     const write=src.indexOf('await batch.commit();',confirm);
     assert.ok(confirm>0&&freshness>confirm&&recheck>freshness&&
       valid>recheck&&write>valid,
-      'A reused preview must recheck and compare warnings before a batch can write');
+      'Reused or V2 indexed previews must recheck and compare warnings before a batch can write');
     assert.match(src,/beforeWarnings!==afterWarnings/);
     assert.match(src,/if\(confirmExcelImportBtn.disabled\|\|beforeWarnings!==afterWarnings\)/);
     assert.match(src,/clearExcelPreviewHistoryCache\(\)/);
