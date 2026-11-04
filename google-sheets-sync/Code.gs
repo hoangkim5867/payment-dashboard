@@ -180,3 +180,40 @@ function cashSyncCheckPilotReady() {
   return {projectKey, target:x.sheetName, legacyRows:legacy.getLastRow(),
     mapping:probe, writeEnabled:false};
 }
+
+/**
+ * Explicit opt-in setup, TEST COPY ONLY.
+ * Creates a new DATA_CASHCONTROL tab. Does not touch historical PHU HUNG cells.
+ * NOT called automatically and NOT a real synchronization.
+ */
+function cashSyncPreparePilotTab() {
+  const spreadsheetId='1bxY6jQ3qHJ0oTiWDmbH4eeFgZR7goqX3_s1Kz9UlfD4';
+  const spreadsheet=SpreadsheetApp.openById(spreadsheetId);
+  if (!/TEST/i.test(spreadsheet.getName()) ||
+      !spreadsheet.getSheetByName('PHU HUNG')) {
+    throw Error('Chỉ cho phép bản PHU HUNG TEST có tab lịch sử.');
+  }
+  let sheet=spreadsheet.getSheetByName('DATA_CASHCONTROL');
+  if (sheet) {
+    const values=sheet.getLastColumn()
+      ? sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0].map(String)
+      : [];
+    if (values.length && (values.length!==CASH_SYNC_EXPECTED_HEADER.length ||
+        !CASH_SYNC_EXPECTED_HEADER.every((h,i)=>h===values[i]))) {
+      throw Error('Tab DATA_CASHCONTROL đã có dữ liệu/cấu trúc khác. Không sửa.');
+    }
+    if (sheet.getLastRow()>1) {
+      throw Error('Tab đồng bộ đã có giao dịch. Không chạy bước khởi tạo.');
+    }
+  } else {
+    sheet=spreadsheet.insertSheet('DATA_CASHCONTROL');
+  }
+  if (!sheet.getLastRow()) {
+    sheet.getRange(1,1,1,CASH_SYNC_EXPECTED_HEADER.length)
+      .setValues([CASH_SYNC_EXPECTED_HEADER]);
+    sheet.setFrozenRows(1);
+  }
+  return {spreadsheet:spreadsheet.getName(),sheet:sheet.getName(),
+    historicalRows:spreadsheet.getSheetByName('PHU HUNG').getLastRow(),
+    testOnly:true, transactionsWritten:0};
+}
