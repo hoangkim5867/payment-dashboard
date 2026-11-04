@@ -1,5 +1,5 @@
 // V2 STAGING ONLY — DO NOT DEPLOY OVER PRODUCTION RULES.
-// This candidate requires every existing Payment to have a valid ipcDigitsV2
+// This candidate requires every existing Payment to have a valid contractDigitsV2
 // before Staff workflow edits will succeed. Audit/backfill and update ALL
 // browser writers first. No V1 marker activation is permitted.
 rules_version = '2';
@@ -98,27 +98,27 @@ service cloud.firestore {
     // ASCII digits of IPC. A forged value cannot hide an existing Payment.
     // This is only a coarse prefilter; final duplicate checks must still use
     // the original project+contract+IPC normalization on ALL returned rows.
-    function validIpcDigitsV2(data){
-      let value = data.get('ipcNo',null);
-      let expected = value is string ? value.replace('[^0-9]','') : '';
-      return data.get('ipcDigitsV2',null) is string
-        && data.get('ipcDigitsV2',null) == expected;
+    function validContractDigitsV2(data){
+      let value = data.get('contractNo',null);
+      let expected = value is string ? value.replace('[^0-9]','').replace('1','') : '';
+      return data.get('contractDigitsV2',null) is string
+        && data.get('contractDigitsV2',null) == expected;
     }
     // Migration-safe legacy updates: keep Staff's existing workflow usable
     // before backfill. Any IPC edit MUST atomically supply a verified V2 key.
     // Once a row has a V2 key, it can never be removed by client writes.
-    function validIpcDigitsV2Update(){
+    function validContractDigitsV2Update(){
       let changed=request.resource.data.diff(resource.data).affectedKeys();
-      return validIpcDigitsV2(request.resource.data)
-        || (!resource.data.keys().hasAny(['ipcDigitsV2'])
-          && !changed.hasAny(['ipcNo','ipcDigitsV2']));
+      return validContractDigitsV2(request.resource.data)
+        || (!resource.data.keys().hasAny(['contractDigitsV2'])
+          && !changed.hasAny(['contractNo','contractDigitsV2']));
     }
 
     function staffEditableFields(){
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
         'paymentMonth','paymentType','noMEPException','internalExpenseCode','contractKey','contractId',
         'personInCharge','project','company','bankAccount','contractNo','contractName','ipcNo','budgetNo',
-        'costType','contractType','ipcDigitsV2','amount','remark','processPlatformPlan','processPaper',
+        'costType','contractType','contractDigitsV2','amount','remark','processPlatformPlan','processPaper',
         'processSettlement','processPaymentNo','processPlatformPayment',
         'updatedAt','updatedBy','updatedByUid','updatedByEmail'
       ]);
@@ -139,12 +139,12 @@ service cloud.firestore {
     }
     match /payments/{paymentId} {
       allow read: if approvedUser();
-      allow create: if approvedUser() && validPayment(request.resource.data) && safeIpcDocumentCreate() && validIpcDigitsV2(request.resource.data)
+      allow create: if approvedUser() && validPayment(request.resource.data) && safeIpcDocumentCreate() && validContractDigitsV2(request.resource.data)
         && (adminUser() || (request.resource.data.get('createdByUid', '') == request.auth.uid
           && pendingPayment(request.resource.data) && blankAdminFields(request.resource.data)
           && safeStaffLookupCreate()))
         && (!request.resource.data.keys().hasAny(planFields()) || reviewOwner());
-      allow update: if approvedUser() && validPayment(request.resource.data) && safeIpcDocumentUpdate() && validIpcDigitsV2Update()
+      allow update: if approvedUser() && validPayment(request.resource.data) && safeIpcDocumentUpdate() && validContractDigitsV2Update()
         && (adminUser()
           || (resource.data.paymentMonth == currentPaymentMonth()
               && pendingPayment(resource.data) && staffEditableFields())
