@@ -104,6 +104,15 @@ service cloud.firestore {
       return data.get('ipcDigitsV2',null) is string
         && data.get('ipcDigitsV2',null) == expected;
     }
+    // Migration-safe legacy updates: keep Staff's existing workflow usable
+    // before backfill. Any IPC edit MUST atomically supply a verified V2 key.
+    // Once a row has a V2 key, it can never be removed by client writes.
+    function validIpcDigitsV2Update(){
+      let changed=request.resource.data.diff(resource.data).affectedKeys();
+      return validIpcDigitsV2(request.resource.data)
+        || (!resource.data.keys().hasAny(['ipcDigitsV2'])
+          && !changed.hasAny(['ipcNo','ipcDigitsV2']));
+    }
 
     function staffEditableFields(){
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -135,7 +144,7 @@ service cloud.firestore {
           && pendingPayment(request.resource.data) && blankAdminFields(request.resource.data)
           && safeStaffLookupCreate()))
         && (!request.resource.data.keys().hasAny(planFields()) || reviewOwner());
-      allow update: if approvedUser() && validPayment(request.resource.data) && safeIpcDocumentUpdate() && validIpcDigitsV2(request.resource.data)
+      allow update: if approvedUser() && validPayment(request.resource.data) && safeIpcDocumentUpdate() && validIpcDigitsV2Update()
         && (adminUser()
           || (resource.data.paymentMonth == currentPaymentMonth()
               && pendingPayment(resource.data) && staffEditableFields())
