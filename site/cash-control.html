@@ -5519,21 +5519,26 @@ async function ccGoogleSyncAuditLegacy(month,source){
     counts.set(signature,(counts.get(signature)||0)+1);
     ledgerCount++;
   });
-  let unmatchedSource=0;
+  const matchedSourceIds=[],missingSourceIds=[];
   for(const entry of source){
     const signature=ccGoogleSyncFingerprint(
       ccGoogleSyncNormDate(entry.values[0]),entry.values.slice(6,13),
       entry.values[2],entry.values[4]);
     const count=counts.get(signature)||0;
-    if(count){counts.set(signature,count-1)}
-    else unmatchedSource++;
+    if(count){
+      counts.set(signature,count-1);
+      matchedSourceIds.push(entry.id);
+    }else{
+      missingSourceIds.push(entry.id);
+    }
   }
   const unmatchedLedger=[...counts.values()].reduce((sum,n)=>sum+n,0);
   return {
     ledgerCount,sourceCount:source.length,
-    unmatchedSource,unmatchedLedger,invalidAmounts:invalidAmounts.length,
-    exact:unmatchedSource===0&&unmatchedLedger===0&&invalidAmounts.length===0,
-    // Amount/date matching alone cannot guarantee contract/IPC identity.
+    matchedSourceIds,missingSourceIds,
+    unmatchedSource:missingSourceIds.length,unmatchedLedger,
+    invalidAmounts:invalidAmounts.length,
+    exact:missingSourceIds.length===0&&unmatchedLedger===0&&invalidAmounts.length===0,
     scope:'Date, seven money columns, contract number and IPC'
   };
 }
@@ -5552,8 +5557,12 @@ async function ccGoogleSyncComparePilot(internal=false){
   const legacyAudit=await ccGoogleSyncAuditLegacy(month,source);
   const old=new Map(remote.rows.map((row,i)=>[String(row[0]),{row,index:i+2}]));
   const changes=[],blocked=[],unchanged=[];
+  const historicalIds=new Set(legacyAudit.matchedSourceIds);
   for(const r of source){
     const oldRow=old.get(r.id);
+    // This exact transaction is already visible in the original PHU HUNG tab.
+    // No duplicate mirror entry is needed on first synchronization.
+    if(!oldRow&&historicalIds.has(r.id)){unchanged.push(r.id);continue}
     if(!oldRow){changes.push({...r,op:'new'});continue}
     const row=oldRow.row;
     if(String(row[1]||'')!==r.project || String(row[2]||'')!==r.month){
@@ -5575,10 +5584,10 @@ async function ccGoogleSyncComparePilot(internal=false){
   const sourceIds=new Set(source.map(r=>r.id));
   const orphan=remote.rows.filter(row=>String(row[2]||'')===month&&!sourceIds.has(String(row[0]||'')));
   if(orphan.length)blocked.push({id:'*',reason:orphan.length+' dòng cũ không còn trong Cash Control; không tự xóa'});
-  if(legacyAudit.ledgerCount>0 && !legacyAudit.exact){
-    blocked.push({id:'legacy',reason:'PHU HUNG tháng 10 không khớp từng ngày/số tiền: '+
-      legacyAudit.unmatchedSource+' dòng Cash Control chưa khớp, '+
-      legacyAudit.unmatchedLedger+' dòng Google Sheets chưa khớp.'});
+  if(legacyAudit.unmatchedLedger>0||legacyAudit.invalidAmounts>0){
+    blocked.push({id:'legacy',reason:'Sổ PHU HUNG đang có '+
+      legacyAudit.unmatchedLedger+' giao dịch chưa tìm được trong Cash Control hoặc dữ liệu tiền lỗi. '+
+      'Không tự ghi đè hoặc xóa.'});
   }
   // Read-only evidence, never use these amounts as balances.
   const plan={month,sourceCount:source.length,remoteExists:remote.exists,
