@@ -194,3 +194,14 @@ test('a transaction in both historic ledger and mirror blocks a second copy',asy
   assert.equal(f.nodes.ccGoogleSyncCommit.disabled,true);
   assert.equal(f.state.rows.length,1);
 });
+
+test('two payments with the same date/IPC/amount but different companies are distinct',async()=>{
+  const f=fixture({month:'2026-11',source:[tx('2026-11')]});
+  f.state.legacyValues=[
+    ['日期'],['2026-11-03','A different vendor','H-001','IPC','IPC01','',0,100.3,0,0,0,0,0]
+  ];
+  const diff=await f.api.compare();
+  assert.ok(diff.blocked.some(x=>x.id==='legacy'));
+  assert.equal(diff.legacyAudit.matchedSourceIds.length,0);
+  assert.equal(f.nodes.ccGoogleSyncCommit.disabled,true);
+});
