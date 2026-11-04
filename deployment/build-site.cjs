@@ -28,7 +28,7 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
  fs.writeFileSync(file,text);
  }
  if(indexReadGuards!==3)throw Error('Expected three safe-read guards');
- if(configs!==8)throw Error('Expected eight Firebase app configurations, got '+configs);
+ if(configs!==9)throw Error('Expected nine Firebase app configurations, got '+configs);
  fs.writeFileSync(path.join(out,'release-environment.json'),JSON.stringify({target,firebaseProject:target==='staging'?stagingConfig.projectId:PRODUCTION_PROJECT,indexOptimizationEnabledByDefault:Boolean(enableIndexQueries),contractMasterMEPIndexEnabledByDefault:false},null,2));
  return {target,configs,indexReadGuards,firebaseProject:target==='staging'?stagingConfig.projectId:PRODUCTION_PROJECT};
 }

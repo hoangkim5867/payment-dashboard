@@ -1,0 +1,27 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const html=fs.readFileSync(path.join(__dirname,'../../site/admin-index-v2-contract.html'),'utf8');
+const v2=fs.readFileSync(path.join(__dirname,'../../site/assets/js/payment-index-v2-core.mjs'),'utf8');
+test('Admin V2 tool is isolated and does not auto scan or auto activate Payments',()=>{
+ assert.match(html,/onAuthStateChanged\(auth,/);
+ assert.match(html,/getDocFromServer\(doc\(db,"authUsers",user.uid\)\)/);
+ assert.match(html,/<section id="controls" hidden>/);
+ assert.match(html,/getDocsFromServer\(query\(collection\(db,"payments"\),/);
+ assert.match(html,/function step\(mode,restart=false\)/);
+ assert.match(html,/const MAX_READ=200,MAX_WRITE=80,PAGE=40/);
+ assert.doesNotMatch(html,/activationEnable|activateIndexedExcel|systemConfig\/paymentLookupV1/);
+ assert.doesNotMatch(html,/setDoc\(INDEX_MARKER|const INDEX_MARKER=/);
+});
+test('Admin V2 tool repairs only one contract index field; uses transaction fresh reads',()=>{
+ assert.match(html,/import \{computeIndexV2\} from ".\/assets\/js\/payment-index-v2-core.mjs"/);
+ assert.match(v2,/return \{contractDigitsV2:contractDigitsV2\(payment\?\.contractNo\)\}/);
+ assert.match(html,/contractDigitsV2!==fields.contractDigitsV2/);
+ assert.match(html,/await runTransaction\(db,async transaction=>/);
+ assert.match(html,/await transaction.get\(item.ref\)/);
+ assert.match(html,/transaction.update\(item.ref,now.fields\)/);
+ assert.match(html,/mode==="write"&&!confirm\(/);
+ assert.match(html,/!backupChecked/);
+ assert.match(html,/checkBackupFreshness\(checked\)/);
+ assert.match(html,/sessionStorage/);
+ assert.doesNotMatch(html,/import \{computeIndexV1\}/);
+});
