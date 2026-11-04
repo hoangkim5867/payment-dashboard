@@ -1213,7 +1213,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           </div>
         </div>
       </div>
-      <button class="btn" id="ccGoogleSyncPreviewOpen" type="button" title="Chỉ kiểm tra, không ghi Google Sheets">↗ Đồng bộ Google Sheets (thử)</button>
+      <button class="btn" id="ccGoogleSyncPreviewOpen" type="button" title="Chỉ Admin; bản thử PHU HUNG, ghi được vào file Google Sheets TEST sau khi xác nhận">↗ Đồng bộ Google Sheets (thử)</button>
       <div class="hidden" aria-hidden="true">
         <button id="exportCashExcelBtn">⇩ Excel quản trị</button>
         <button id="exportActiveCashExcelBtn">Excel QT phát sinh</button>
@@ -5291,9 +5291,9 @@ function buildLegacyCashFlowMergedSheet(project,monthsList){
 /* Google Sheets sync feasibility audit (strictly read-only).
    No getDocs(), no Firebase query, no Apps Script endpoint, no external request.
    Does not classify deltas until a real sheet-side baseline exists. */
-const ccGoogleSyncSeedProjects=[
-  'PHU HUNG','ELYSIAN','EATON','红鹤别墅1.1区','C17-2','FOXCONN','OCEAN LINK','SSIS'
-];
+// First pilot can only write to the PHU HUNG TEST spreadsheet.
+// Keep other projects unselected until their destinations are configured.
+const ccGoogleSyncSeedProjects=['PHU HUNG'];
 function ccGoogleSyncSafeText(value){
   return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
