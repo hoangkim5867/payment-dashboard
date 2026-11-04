@@ -95,9 +95,9 @@ service cloud.firestore {
     function lookupMetadataFields(){return ['duplicateKeyV1','mepLookupV1','paymentLookupSchemaV1'];}
     function safeStaffLookupCreate(){return !request.resource.data.keys().hasAny(lookupMetadataFields());}
     // Stage-only V2 candidate index: Rules can independently recompute the
-    // ASCII digits of IPC. A forged value cannot hide an existing Payment.
-    // This is only a coarse prefilter; final duplicate checks must still use
-    // the original project+contract+IPC normalization on ALL returned rows.
+    // ASCII contract digits EXCEPT 1. The legacy EATON PARK P -> P1
+    // alias may insert a 1, so excluding it prevents missing candidates.
+    // Final duplicate checks still use the original Project+Contract+IPC.
     function validContractDigitsV2(data){
       let value = data.get('contractNo',null);
       let expected = value is string ? value.replace('[^0-9]','').replace('1','') : '';
@@ -105,7 +105,7 @@ service cloud.firestore {
         && data.get('contractDigitsV2',null) == expected;
     }
     // Migration-safe legacy updates: keep Staff's existing workflow usable
-    // before backfill. Any IPC edit MUST atomically supply a verified V2 key.
+    // before backfill. Any contract edit MUST atomically supply a verified V2 key.
     // Once a row has a V2 key, it can never be removed by client writes.
     function validContractDigitsV2Update(){
       let changed=request.resource.data.diff(resource.data).affectedKeys();
