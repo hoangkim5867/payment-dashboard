@@ -1213,6 +1213,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           </div>
         </div>
       </div>
+      <button class="btn" id="ccGoogleSyncPreviewOpen" type="button" title="Chỉ kiểm tra, không ghi Google Sheets">↗ Đồng bộ Google Sheets (thử)</button>
       <div class="hidden" aria-hidden="true">
         <button id="exportCashExcelBtn">⇩ Excel quản trị</button>
         <button id="exportActiveCashExcelBtn">Excel QT phát sinh</button>
@@ -1394,6 +1395,38 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
 <div class="modal" id="transferModal"><div class="mbox loan-modal-box"><div class="mhead"><div><h3>Giao dịch nội bộ</h3><div class="csub">Nhập một lần, hệ thống tự ghi tiền ra ở dự án chuyển và tiền vào ở dự án nhận.</div></div><button class="btn" data-close="transferModal">✕</button></div><div class="fg loan-form-grid"><div class="field full"><label>Loại giao dịch</label><select id="tType"><option value="loan">Cho vay</option><option value="repayment">Hoàn vay</option><option value="transfer">Điều chuyển</option></select></div><div class="field"><label>Ngày</label><input type="date" id="tDate"></div><div class="field"><label>Số tiền</label><input type="number" id="tAmount" min="0" placeholder="0"></div><div class="field"><label>Dự án chuyển tiền</label><input id="tFrom" list="projectList" placeholder="Chọn dự án"></div><div class="field"><label>Dự án nhận tiền</label><input id="tTo" list="projectList" placeholder="Chọn dự án"></div><div class="field full"><label>Ghi chú</label><input id="tDesc" placeholder="Không bắt buộc"></div></div><div class="mfoot"><button class="btn" data-close="transferModal">Hủy</button><button class="btn danger hidden" id="deleteTransferInModal">Xóa giao dịch</button><button class="btn primary" id="saveTransfer">Lưu giao dịch</button></div></div></div>
 <div class="modal" id="openingModal"><div class="mbox"><div class="mhead"><h3>Số dư đầu kỳ tại 01/08/2026</h3><button class="btn" data-close="openingModal">✕</button></div><div class="note">Nhập số dư cuối ngày 31/07/2026 của từng dự án. Chỉ nhập một lần; từ tháng 09/2026 trở đi hệ thống tự chuyển số dư cuối tháng trước sang đầu tháng sau.</div><div id="openingSaveStatus" class="note hidden" style="margin-top:10px;border-color:#abefc6;background:#ecfdf3;color:#027a48"></div><div class="fg" id="openingFields" style="margin-top:10px"></div><div class="mfoot"><button class="btn" data-close="openingModal">Hủy</button><button class="btn primary" id="saveOpening">Lưu số dư</button></div></div></div>
 
+
+<!-- Read-only Google Sheets synchronization feasibility preview. No remote writes. -->
+<div class="modal" id="ccGoogleSyncPreviewModal">
+  <div class="mbox" style="max-width:980px;width:calc(100% - 24px);max-height:90vh;overflow:auto">
+    <div class="mhead">
+      <div><h3>Đồng bộ Google Sheets · Kiểm tra trước</h3>
+        <div class="csub">Mới thử đọc dữ liệu đang có trên trang; chưa kết nối hoặc ghi Google Sheets.</div></div>
+      <button type="button" class="btn" data-close="ccGoogleSyncPreviewModal">✕</button>
+    </div>
+    <div class="note" style="margin:10px 0">
+      <b>Bản thử an toàn:</b> không gọi Firestore để tải thêm Payment, không gửi dữ liệu ra ngoài,
+      không sửa Cash Control. Trạng thái thiếu dữ liệu sẽ được cảnh báo rõ.
+      <br>Chưa thể xác định giao dịch <b>mới / đã sửa</b> khi chưa đối chiếu Google Sheets thật và ID giao dịch.
+    </div>
+    <div class="fg" style="display:flex;gap:12px;flex-wrap:wrap">
+      <div class="field" style="min-width:180px;flex:1"><label>Tháng kiểm tra</label>
+        <input type="month" id="ccGoogleSyncMonth" class="btn" style="width:100%"></div>
+      <div class="field" style="min-width:220px;flex:2"><label>Phạm vi</label>
+        <div id="ccGoogleSyncProjects" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px;padding:10px;border:1px solid #dce4ef;border-radius:8px"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin:12px 0">
+      <button type="button" class="btn" id="ccGoogleSyncChooseAll">Chọn tất cả</button>
+      <button type="button" class="btn primary" id="ccGoogleSyncInspect">Kiểm tra dữ liệu hiện có</button>
+    </div>
+    <div id="ccGoogleSyncPreviewResult" aria-live="polite"></div>
+    <div class="mfoot">
+      <span style="color:#6d7890;font-size:12px">Chưa có nút ghi Google Sheets. Cần cấu hình file đích, bảo mật và đối chiếu bản sao trước.</span>
+      <button type="button" class="btn" data-close="ccGoogleSyncPreviewModal">Đóng</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal" id="exportRangeModal">
   <div class="mbox" style="max-width:620px">
@@ -5237,6 +5270,90 @@ function buildLegacyCashFlowMergedSheet(project,monthsList){
 
     return ws;
 }
+
+/* Google Sheets sync feasibility audit (strictly read-only).
+   No getDocs(), no Firebase query, no Apps Script endpoint, no external request.
+   Does not classify deltas until a real sheet-side baseline exists. */
+const ccGoogleSyncSeedProjects=[
+  'PHU HUNG','ELYSIAN','EATON','红鹤别墅1.1区','C17-2','FOXCONN','OCEAN LINK','SSIS'
+];
+function ccGoogleSyncSafeText(value){
+  return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function ccGoogleSyncBuildSelector(){
+  const container=$('ccGoogleSyncProjects');
+  if(!container)return;
+  const projects=allProjects();
+  container.textContent='';
+  projects.forEach(project=>{
+    const label=document.createElement('label');
+    label.style.cssText='display:flex;gap:6px;align-items:center;font-size:12px';
+    const checkbox=document.createElement('input');
+    checkbox.type='checkbox'; checkbox.value=project;
+    checkbox.checked=ccGoogleSyncSeedProjects.some(p=>normProject(p)===normProject(project));
+    const span=document.createElement('span');span.textContent=project;
+    label.append(checkbox,span);container.append(label);
+  });
+}
+function ccGoogleSyncSelectedProjects(){
+  return [...document.querySelectorAll('#ccGoogleSyncProjects input:checked')].map(x=>x.value);
+}
+function ccGoogleSyncInspectOnly(){
+  const out=$('ccGoogleSyncPreviewResult');
+  const month=$('ccGoogleSyncMonth')?.value||'';
+  const projects=ccGoogleSyncSelectedProjects();
+  if(!/^20\\d{2}-(0[1-9]|1[0-2])$/.test(month)||!projects.length){
+    out.textContent='Cần chọn tháng và ít nhất một dự án.';return;
+  }
+  const result=projects.map(project=>{
+    // A complete-project cache is the only sufficient completeness signal in this prototype.
+    // Month-only caches are not treated as complete history.
+    const complete=paymentMonths.has(project);
+    const rows=legacyCashExportRows(month,project);
+    const incomes=rows.reduce((n,x)=>n+Number(x.income||0),0);
+    const expenses=rows.reduce((n,x)=>n+
+      Number(x.subcontract||0)+Number(x.material||0)+
+      Number(x.otherDirect||0)+Number(x.indirect||0)+
+      Number(x.financial||0)+Number(x.otherPayable||0),0);
+    return {project,complete,count:rows.length,incomes,expenses};
+  });
+  // All values below are derived from existing in-memory Cash Control state.
+  const fmt=n=>Number(n).toLocaleString('vi-VN',{maximumFractionDigits:0});
+  const missing=result.filter(x=>!x.complete).length;
+  out.innerHTML='<div class="note" style="margin:8px 0"><b>Kiểm tra dữ liệu '+ccGoogleSyncSafeText(month)+'</b>: '+
+    result.length+' dự án · '+result.reduce((n,x)=>n+x.count,0)+' dòng giao dịch đang có trên trang · '+
+    missing+' dự án chưa xác minh đã tải đủ Payment. '+
+    '<b>Không có giao dịch nào được gửi hoặc ghi.</b></div>'+
+    '<div class="mep-table-wrap" style="max-height:330px;overflow:auto"><table class="mep-table"><thead><tr>'+
+    '<th>Dự án</th><th>Dòng hiện có</th><th>Thu (điều chuyển có thể âm)</th><th>Chi</th><th>Kiểm tra tải Payment</th>'+
+    '</tr></thead><tbody>'+result.map(r=>'<tr><td>'+ccGoogleSyncSafeText(r.project)+'</td>'+
+    '<td>'+fmt(r.count)+'</td><td>'+fmt(r.incomes)+'</td><td>'+fmt(r.expenses)+'</td>'+
+    '<td>'+(r.complete?'✓ Đã tải toàn dự án trong phiên':'⚠ Chưa xác minh đủ, không đồng bộ')+
+    '</td></tr>').join('')+'</tbody></table></div>'+
+    '<p style="font-size:12px;color:#8c5c19;margin:10px 0">Đây là thống kê giao dịch Cash Control đang có, KHÔNG phải số mới/đã sửa so với Google Sheets. '+
+    'Không đủ điều kiện để ghi thật cho đến khi đối chiếu ID, bảo toàn chỉnh sửa tay và xác thực quyền.</p>';
+}
+function ccGoogleSyncInitializePreview(){
+  const button=$('ccGoogleSyncPreviewOpen');
+  if(!button)return;
+  button.addEventListener('click',()=>{
+    if(!currentAuthUser||!isCashControlOwner()){
+      alert('Chỉ Admin Cash Control được xem công cụ đồng bộ.');return;
+    }
+    $('ccGoogleSyncMonth').value=$('rMonth')?.value||CURRENT;
+    ccGoogleSyncBuildSelector();
+    $('ccGoogleSyncPreviewResult').textContent='Chưa kiểm tra. Không có dữ liệu nào được gửi đi.';
+    openModal('ccGoogleSyncPreviewModal');
+  });
+  $('ccGoogleSyncChooseAll')?.addEventListener('click',()=>{
+    const checkboxes=[...document.querySelectorAll('#ccGoogleSyncProjects input')];
+    const select=checkboxes.some(x=>!x.checked);
+    checkboxes.forEach(x=>x.checked=select);
+    $('ccGoogleSyncChooseAll').textContent=select?'Bỏ chọn hết':'Chọn tất cả';
+  });
+  $('ccGoogleSyncInspect')?.addEventListener('click',ccGoogleSyncInspectOnly);
+}
+ccGoogleSyncInitializePreview();
 
 function exportLegacyCashFlowMerged(monthList,selectedProject){
     const wb=XLSX.utils.book_new();
