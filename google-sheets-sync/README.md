@@ -38,3 +38,15 @@ The historic tab reportedly has 182 rows, including 30 October transactions. Oct
 3. Verify all 19 columns, exact decimal currency, input dates, grouped taxes and transfer signs.
 4. Compare every October transaction against existing historical sheet before any change to that sheet.
 5. Only then consider a production endpoint with server-side Admin verification, whitelist of project→spreadsheet IDs, version-based concurrency control, and backup/rollback.
+
+## Mock verification (November 4, 2026)
+The isolated JavaScript diff logic was executed with mocked Google Sheets API responses (no real network or user data):
+- Initial unsynced source transaction → 1 new, 0 blocked.
+- Repeated comparison after matching hash → 0 new, 1 unchanged.
+- Manual amount modification on Google side → 1 blocked, 0 updates.
+- Cash Control amount change with unchanged Google record → 1 update candidate.
+- Source record removed while target remains → blocked orphan, never auto-delete.
+- All mock runs issued **0 write requests**.
+- Pilot block parsed successfully as JavaScript.
+
+These checks are **not** end-to-end browser, Google OAuth, Vercel or real-data acceptance tests. The known staging/authorization blockers remain.
