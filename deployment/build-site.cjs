@@ -17,10 +17,20 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
  if(!['staging','production'].includes(target))throw Error('Unknown deployment target');
  if(target==='staging')validateStagingConfig(stagingConfig);
  const src=path.resolve(source),out=path.resolve(output);if(out===src||out.startsWith(src+path.sep))throw Error('Output cannot overwrite or nest within source');
- fs.mkdirSync(out,{recursive:true});fs.cpSync(src,out,{recursive:true});let configs=0,indexReadGuards=0;
+ fs.mkdirSync(out,{recursive:true});fs.cpSync(src,out,{recursive:true});let configs=0,indexReadGuards=0,v2PageGuards=0;
  for(const name of fs.readdirSync(out).filter(n=>n.endsWith('.html'))){const file=path.join(out,name);let text=fs.readFileSync(file,'utf8');const pattern=/const firebaseConfig\s*=\s*\{[\s\S]*?\};/g;
  text=text.replace(pattern,original=>{configs++;return target==='staging'?'const firebaseConfig='+JSON.stringify(stagingConfig)+';':original});
  if(target==='staging'&&text.includes('cscecmep-payment.firebaseapp.com'))throw Error('Production Auth endpoint left in staging output');
+ // Indexed V2 requires BOTH pages to ship the guarded query. Staging
+ // always disables it, even when source has the release-ready code.
+ if(['payment.html','payment-mobile-renderer.html'].includes(name)){
+   if(!text.includes('const PAYMENT_INDEX_V2_QUERY_CODE_ENABLED = true;'))
+     throw Error('Missing guarded Payment V2 query from '+name);
+   v2PageGuards++;
+   if(target==='staging')
+     text=text.replace('const PAYMENT_INDEX_V2_QUERY_CODE_ENABLED = true;',
+       'const PAYMENT_INDEX_V2_QUERY_CODE_ENABLED = false;');
+ }
  // The server marker is a runtime safety gate, but a marker alone is not
  // authority to enable queries. A separate explicit *build* release gate is
  // required after a clean full backfill + production Rules verification.
@@ -29,8 +39,12 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
  }
  if(indexReadGuards!==3)throw Error('Expected three safe-read guards');
  if(configs!==9)throw Error('Expected nine Firebase app configurations, got '+configs);
- fs.writeFileSync(path.join(out,'release-environment.json'),JSON.stringify({target,firebaseProject:target==='staging'?stagingConfig.projectId:PRODUCTION_PROJECT,indexOptimizationEnabledByDefault:Boolean(enableIndexQueries),contractMasterMEPIndexEnabledByDefault:false},null,2));
- return {target,configs,indexReadGuards,firebaseProject:target==='staging'?stagingConfig.projectId:PRODUCTION_PROJECT};
+ if(v2PageGuards!==2)throw Error('Expected two guarded V2 pages');
+ const writerSource=fs.readFileSync(path.join(out,'assets/js/firestore-payment.mjs'),'utf8');
+ const contractV2ReadyToActivate=target==='production' &&
+   writerSource.includes('PAYMENT_V2_WRITERS_ENABLED=true') && v2PageGuards===2;
+ fs.writeFileSync(path.join(out,'release-environment.json'),JSON.stringify({target,firebaseProject:target==='staging'?stagingConfig.projectId:PRODUCTION_PROJECT,indexOptimizationEnabledByDefault:Boolean(enableIndexQueries),contractMasterMEPIndexEnabledByDefault:false,contractV2ReadyToActivate},null,2));
+ return {target,configs,indexReadGuards,v2PageGuards,contractV2ReadyToActivate,firebaseProject:target==='staging'?stagingConfig.projectId:PRODUCTION_PROJECT};
 }
 module.exports={buildSite,validateStagingConfig};
 if(require.main===module){
