@@ -26020,7 +26020,11 @@ confirmExcelImportBtn.addEventListener(
             return;
         }
 
-        if(excelPreviewReusedDuplicateHistory){
+        if(excelPreviewReusedDuplicateHistory ||
+           (typeof PAYMENT_INDEX_V2_QUERY_CODE_ENABLED!=='undefined' && PAYMENT_INDEX_V2_QUERY_CODE_ENABLED)){
+            // Indexed V2 candidates may change in another Staff session while
+            // a preview is open. Re-query just the relevant IPC digits before
+            // any write; changed warnings require a fresh human review.
             // Refresh all warnings using current Firestore results BEFORE
             // the original validation and any write. Keep one-click import
             // when nothing changed, but require review if new conflicts
