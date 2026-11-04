@@ -1,10 +1,17 @@
 export * from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import * as sdk from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-// V1 indexed reads are under security hold. Do not let any browser user
-// write unverified lookup metadata. Legacy duplicate checking stays active.
-// Use native writes while held: no extra reads, transaction limits, transform
-// restrictions or FieldPath interpretation from the inactive index adapter.
-export const {addDoc,setDoc,updateDoc,writeBatch,runTransaction}=sdk;
+// Both client read and write paths are deliberately disabled until V2 Rules
+// and ALL 2,000+ existing Payments are audited/backfilled. Do not turn these
+// on separately: a partially indexed query can silently miss duplicates.
+// V1 metadata remains UNTRUSTED and is never written by the V2 adapter.
+import {createPaymentWriters} from './payment-writers.mjs';
+import {computeIndexV2} from './payment-index-v2-core.mjs';
+const PAYMENT_V2_WRITERS_ENABLED=false; // staging release gate; production remains unchanged
+export const {addDoc,setDoc,updateDoc,writeBatch,runTransaction} =
+    PAYMENT_V2_WRITERS_ENABLED
+      ? createPaymentWriters(sdk,computeIndexV2,
+          {indexFields:['ipcDigitsV2'],sourceFields:['ipcNo']})
+      : sdk;
 
 /*
  * Opt-in, read-only instrumentation for diagnosing Firestore reads.
