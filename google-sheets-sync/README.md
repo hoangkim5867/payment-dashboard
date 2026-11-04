@@ -64,3 +64,10 @@ These checks are **not** end-to-end browser, Google OAuth, Vercel or real-data a
 - After Google reports a write, read back every changed row and verify its project, month and SHA-256 content before claiming success.
 - A branch-only Node test suite and GitHub Actions workflow were added. The CI outcome must be checked; commits alone do not mean CI passed.
 - All protections apply to the separate pilot mirror; they do NOT authorize a production rollout or imply the historical balance has been reconciled.
+
+## Preview deployment blocker verified (2026-11-04)
+- Inspected Vercel project `cscec-mep-payment` environment-variable metadata (no secret values read).
+- There is no `PAYMENT_FIREBASE_STAGING_CONFIG` environment variable for Preview, so the existing `deployment/build-site.cjs` safety gate cannot build a Cash Control preview.
+- Do **not** deploy the entire Cash Control production Firebase configuration to a separate test domain, or bypass `validateStagingConfig`. The Google Cloud OAuth project `cash-sheets-sync-test` is **not** itself a configured Firebase staging project.
+- Real end-to-end Cash Control → Google Sheets TEST browser verification is blocked until a separate Firebase staging project's config is provisioned for the Vercel Preview environment.
+- The isolated Google OAuth page already confirmed read-only Google Sheets API access, and Apps Script independently confirmed write access; neither proves the PR's direct Cash Control write flow.
