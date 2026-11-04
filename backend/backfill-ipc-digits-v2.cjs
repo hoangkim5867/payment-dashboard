@@ -4,16 +4,16 @@
 const {initializeApp,applicationDefault}=require('firebase-admin/app');
 const {getFirestore,FieldPath}=require('firebase-admin/firestore');
 const {readOptions}=require('./index-migration-core.cjs');
-const {ipcDigitsV2}=require('./payment-index-v2-core.cjs');
+const {contractDigitsV2}=require('./payment-index-v2-core.cjs');
 const cfg=readOptions(process.argv.slice(2),process.env);
 initializeApp(cfg.emulator?{projectId:cfg.projectId}:{credential:applicationDefault(),projectId:cfg.projectId});
 function inspect(row){
- const value=row?.ipcNo;
+ const value=row?.contractNo;
  // Ensure the production Rules can reproduce every indexed field exactly.
  if(value!==undefined&&value!==null&&typeof value!=='string')
-   return {ok:false,reason:'non_text_ipc'};
- const expected=ipcDigitsV2(value);
- return {ok:true,expected,needsRepair:row?.ipcDigitsV2!==expected};
+   return {ok:false,reason:'non_text_contract'};
+ const expected=contractDigitsV2(value);
+ return {ok:true,expected,needsRepair:row?.contractDigitsV2!==expected};
 }
 (async()=>{
  const col=getFirestore().collection('payments');
@@ -22,7 +22,7 @@ function inspect(row){
  const report=reachedEnd=>{
    console.log(JSON.stringify({projectId:cfg.projectId,mode:cfg.write?'WRITE':'AUDIT',
      inspected,mismatch,updated,invalid,errors,reachedEnd,nextAfter:reachedEnd?null:cursor,
-     onlyFieldChanged:'ipcDigitsV2',markerActivated:false},null,2));
+     onlyFieldChanged:'contractDigitsV2',markerActivated:false},null,2));
    if(invalid||errors)process.exitCode=2;
  };
  while(inspected<cfg.maxDocs){
@@ -43,7 +43,7 @@ function inspect(row){
       const validated=inspect(current.data());
       if(!validated.ok)throw Error('Invalid current IPC data');
       if(!validated.needsRepair)return false;
-      tx.update(document.ref,{ipcDigitsV2:validated.expected});
+      tx.update(document.ref,{contractDigitsV2:validated.expected});
       return true;
      },{maxAttempts:3});
      if(changed)updated++;
