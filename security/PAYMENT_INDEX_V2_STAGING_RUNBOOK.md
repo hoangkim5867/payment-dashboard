@@ -1,34 +1,26 @@
-# Secure IPC candidate index V2 — STAGING ONLY
+# Contract-first candidate lookup V2 — STAGING ONLY
 
-## Why this is different from the blocked V1 index
-V1 used `duplicateKeyV1` supplied by browser code. Firestore Rules cannot independently reproduce its full Unicode/alias normalization, so a modified client could write a misleading V1 key and hide a real duplicate. Do not activate V1.
+## How contract-first lookup avoids false negatives
+The previous draft filtered by `ipcDigitsV2`: dozens of contracts commonly share IPC001, so the query still returned unnecessary documents. This revision filters **by contract number first**, then performs the ORIGINAL complete comparison (Project + Contract + IPC, amount/status/month priority) on all candidates.
 
-V2 is a **Rules-verifiable coarse index**, NOT an exact duplicate key:
+- `contractDigitsV2` is a *coarse*, independently verifiable candidate key: take the ASCII digits of `contractNo`, then remove every `1`. Example `CSCECVN-SEA-MEP-LAB-002` → `002`.
+- Why ignore digit `1`? The existing production normalization can insert `1` in **EATON PARK P → P1**. If we used all raw digits, equivalent contract numbers might fall into different query buckets. Removing `1` is deliberately conservative, even though some unrelated contracts collide.
+- PHU HUNG → PH, punctuation, diacritics, and spacing aliases preserve the remaining ASCII digits. Equal normalized contract numbers therefore always share the same candidate key.
+- The Rules calculate `contractNo.replace('[^0-9]','').replace('1','')` and require the value to match. Unlike exact V1 normalization, it is independently checkable by the server.
+- All original same-month and cross-month duplicate checks still run on returned candidates, including cross-project, amount, paid status, split payment warnings, and original alias normalization. The coarse key is **never** proof of a duplicate.
+- Contract numbers without significant digits, or numbers containing only digit `1`, may have a broad empty key, so their queries can still read many rows. No fixed read-count claim is made.
+- Updates of `contractNo` atomically update the V2 field; changes only to IPC do not require changing the contract candidate key.
 
-- `ipcDigitsV2` = keep ASCII digits from IPC (`IPC017` → `017`). Firestore Rules computes and validates the same expression on **every** Payment create/update, including Admin and Staff.
-- All original Project + Contract + IPC comparisons, month/status/amount warning priority, and in-paste duplicate checks remain unchanged on the **returned candidate documents**.
-- Equality after the existing IPC normalization always implies the same ASCII-digit sequence; the V2 query therefore overselects (not underselects) candidates. Some IPC patterns with no ASCII digits will have a broad key and may use more reads.
-- Browser writer adapter updates the key in the same Firestore commit as changing IPC. Its V2 configuration cannot write the old V1 fields. Workflow-only updates preserve the existing V2 field.
-- No background listener, extra scan, or post-write trigger is required to maintain V2.
+## Status and release gate
+**NOT ACTIVE.** Both `PAYMENT_V2_WRITERS_ENABLED=false` and `PAYMENT_INDEX_V2_QUERY_CODE_ENABLED=false` remain in the branch. PR is Draft. No production Rules, Payment data, migration, marker, or Vercel environment are altered by this PR.
 
-## Current release status
-**NOT ACTIVE.** Both `PAYMENT_V2_WRITERS_ENABLED` and `PAYMENT_INDEX_V2_QUERY_CODE_ENABLED` are `false`. Existing production Rules and payment rows are untouched; normal Excel paste still takes the legacy fallback. This change cannot honestly be called a production quota fix yet.
+## Before production
+1. Obtain an independent restorable production backup and compare the **exact currently deployed** Firestore Rules with the staging V2 candidate; no permissive overlapping allow path.
+2. Run emulator tests with Staff/Admin: forged V1/V2 metadata denied, contract edits work atomically, old paid-workflow edits remain functional, and no Cash Control, Archive, UNC, or plan review regression.
+3. Rehearse **all** web and external Payment writers on an isolated Firebase staging project with synchronized V2, including all active desktop/mobile clients. An out-of-date client must not silently write a stale key.
+4. Coordinate writer + Rules deployment. New Payment creates must already carry V2. Pre-backfill legacy rows may receive workflow updates without V2, but their contract changes must include V2.
+5. Audit/backfill **all** Payment documents using `backend/backfill-contract-digits-v2.cjs`, paged read-only by default. Require a restorable backup and explicit separate authorization for `--write`. Only `contractDigitsV2` may be modified, with fresh transactional rechecks.
+6. Do **two complete independent audits** after backfill, ensuring mismatch=invalid=errors=0 and verify every writer continues to maintain the contract field.
+7. Only then enable BOTH V2 code gates, and set protected Admin-only `systemConfig/paymentLookupV2` marker fields (`ready:true`, `schemaVersion:2`, `rulesVerified:true`, `backfillVerified:true`, `synchronousWritersVerified:true`). Confirm duplicate parity and billed Firestore reads with actual Staff import.
 
-## Required ordered rollout (no shortcut)
-1. Verify a restorable backup and get the exact current deployed production Rules. Compare every existing match block with `security/firestore.rules.V2_STAGING_ONLY`, especially any overlapping allow rules.
-2. Run Firebase Emulator tests for both Staff and Admin using synthetic data. Confirm V1 spoofing is denied, V2 values must match IPC even when the user bypasses the website, Staff can add/edit/workflow correctly, and no unrelated cash/UNC/Archive permission regresses.
-3. Rehearse switching **all** Payment writers (desktop, mobile, Plan Review, Contract Master, other clients) to V2 in a separate staging Firebase; ensure they never write V1. Re-run all business parity tests and Excel UI tests.
-4. Publish verified V2 Rules together with the updated writers in a coordinated staged release. Do not enable indexed queries yet. The staging Rules permit non-IPC workflow edits on legacy rows without V2 while backfilling, but require a verified V2 field if their IPC changes. New creates require V2; coordinate the writer+Rules rollout to avoid old cached clients creating without V2.
-5. Audit/backfill every payment using `backend/backfill-ipc-digits-v2.cjs`, default read-only with `--max-docs=120` and bounded continuation cursors. Only after explicit backup, Rules and write approval may `--write --production-approved` run. Never run this process automatically on opening the app.
-6. Complete **two full clean audits** showing `mismatch=0`, `invalid=0`, `errors=0`, including documents changed during rollout; verify every writer still maintains V2.
-7. Protect `systemConfig/paymentLookupV2` from Staff, then enable the **two V2 build gates together**, and set the Admin-controlled V2 marker `ready:true,schemaVersion:2,rulesVerified:true,backfillVerified:true,synchronousWritersVerified:true`. Check real read counts and Staff duplicate warnings after activation.
-
-Never enable the V1 three-YES controls as a substitute. A missing V2 marker **fails closed** on the V2 route; it does not silently run a full-collection scan or proceed without warnings.
-
-## Tests
-- `node --test tests/index-v1/v2-coarse-index.test.cjs`
-- `tests/firebase-rules/package.json`: emulator script includes `v2-ipc-digits.rules.test.cjs`.
-- GitHub PR checks: verify, emulator, browser. All must pass before anything is proposed for production.
-
-## Important production caveat
-Only a staged implementation and Rules candidate are in this PR. Neither a real production Rules deployment nor a complete production backfill is part of the PR. Until those are verified, a zero-read guarantee or safe production activation would be misleading.
+**Do not enable V1 three-YES flags, do not deploy staging Rules alone, and do not activate queries before every historical row is indexed.** The query deliberately fails closed if its verified marker is absent. Legacy production continues to function until the migration is approved and complete.
