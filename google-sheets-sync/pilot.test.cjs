@@ -135,3 +135,23 @@ test('pilot source rejects months older than 2026-10',async()=>{
   const f=fixture({month:'2026-09',source:[tx('2026-09')]});
   await assert.rejects(f.api.currentRows('PHU HUNG','2026-09'),/tháng 10/);
 });
+
+test('November historical manual entries are audited, not blindly duplicated',async()=>{
+  const f=fixture({month:'2026-11'});
+  f.state.legacyValues=[
+    ['日期'],['2026-11-03','Test Vendor','H-999','IPC','IPC01','',0,100.3,0,0,0,0,0]
+  ];
+  const diff=await f.api.compare();
+  assert.equal(diff.legacyAudit.ledgerCount,1);
+  assert.equal(diff.legacyAudit.exact,false);
+  assert.ok(diff.blocked.some(x=>x.id==='legacy'));
+  assert.equal(f.nodes.ccGoogleSyncCommit.disabled,true);
+  assert.equal(f.state.postCalls,0);
+});
+test('November empty historical ledger allows separate mirror rows',async()=>{
+  const f=fixture({month:'2026-11'});
+  const diff=await f.api.compare();
+  assert.equal(diff.legacyAudit.ledgerCount,0);
+  assert.equal(diff.blocked.length,0);
+  assert.equal(diff.changes.length,1);
+});
