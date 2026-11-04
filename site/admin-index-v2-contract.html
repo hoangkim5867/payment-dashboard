@@ -71,7 +71,16 @@ button.secondary{background:#eaf0f6;color:#1b4263}button:disabled{cursor:not-all
 </div>
 <pre id="detail" aria-live="polite">Chưa chạy; không phát sinh đọc Payment.</pre>
 <div class="note warning" style="margin-top:20px">
-<strong>Chưa bật tra cứu nhanh:</strong> Trang bảo trì này chỉ hỗ trợ sao lưu/đối chiếu/bổ sung khóa hợp đồng cũ sau khi Admin bấm. Việc kích hoạt tìm trùng nhanh V2 phải đợi Rules đã duyệt, toàn bộ bộ ghi đã cập nhật và kiểm tra dữ liệu sạch. Tuyệt đối không bật V1.
+<h2>Bước 4 · Kích hoạt tra cứu nhanh V2 (chỉ Admin)</h2>
+<p>Tính năng này chỉ được bật sau khi Firestore đã Publish <strong>Rules V2 nghiêm ngặt</strong>, tất cả thiết bị Staff đã mở bản Payment mới và hai lượt đối chiếu sạch. Không bật V1.</p>
+<p>Khi bấm Bật, hệ thống tự đối chiếu <strong>toàn bộ Payment một lần cuối</strong> từ máy chủ (khoảng một lượt đọc cho mỗi khoản). Nếu còn thiếu/sai chỉ mục hoặc mất quyền đọc, hệ thống sẽ <strong>không bật</strong>. Không sửa khoản thanh toán nào trong lúc kiểm tra.</p>
+<label><input type="checkbox" id="v2RulesConfirmed"> Tôi xác nhận đã Publish Rules V2 nghiêm ngặt, có bản sao lưu mã hóa an toàn và Staff dùng code mới.</label>
+<div style="margin-top:10px">
+<button type="button" class="secondary" id="v2Check">Xem trạng thái V2</button>
+<button type="button" id="v2Enable" disabled>Kiểm tra lần cuối và bật V2</button>
+<button type="button" class="secondary" id="v2Disable">Tắt tra cứu nhanh V2</button>
+</div>
+<p id="v2Status" role="status">Chưa kiểm tra trạng thái. Không tự đọc Payment khi mở trang.</p>
 </div>
 </section>
 </main>
@@ -87,7 +96,7 @@ const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
 const $=id=>document.getElementById(id);
 const MAX_READ=200,MAX_WRITE=80,PAGE=40;
 let adminUid="",busy=false,authGeneration=0,activeMode="",backupChecked=false;
-const buttons=["auditStart","auditNext","writeStart","writeNext","backupRun","backupVerify"];
+const buttons=["auditStart","auditNext","writeStart","writeNext","backupRun","backupVerify","v2Check","v2Enable","v2Disable"];
 const freshState=()=>({cursor:null,seen:0,mismatch:0,updated:0,errors:0,finished:false});
 const key=mode=>"cscec-contract-index-v2-"+adminUid+"-"+mode;
 function loadState(mode){
@@ -111,6 +120,7 @@ function setButtons(){
     $("auditNext").disabled=loadState("audit").finished||loadState("audit").seen===0;
     $("writeNext").disabled=!backupChecked||loadState("write").finished||loadState("write").seen===0;
     $("writeStart").disabled=!backupChecked||!loadState("audit").finished||loadState("audit").errors!==0;
+    $("v2Enable").disabled=!$("v2RulesConfirmed").checked;
 
   }
 }
@@ -259,6 +269,104 @@ async function verifyPaymentBackup(){
 }
 $("backupRun").addEventListener("click",downloadPaymentBackup);
 $("backupVerify").addEventListener("click",verifyPaymentBackup);
+
+// Stage 4 is a one-click, ADMIN-only deployment activation step. In the
+// absence of a verified version-3 marker, Payment keeps the full safe legacy
+// duplicate check; the UI never silently proceeds with zero candidates.
+const V2_MARKER=doc(db,"systemConfig","paymentLookupV2");
+const V2_SCAN_PAGE=80,V2_MAX_AUDIT=50000;
+async function checkV2Build(){
+  const response=await fetch("./release-environment.json",{cache:"no-store"});
+  if(!response.ok)throw Error("Không đọc được thông tin bản Vercel production.");
+  const release=await response.json();
+  if(release.target!=="production"||
+    release.firebaseProject!=="cscecmep-payment"||
+    release.contractV2ReadyToActivate!==true)
+    throw Error("Vercel chưa phát hành bản tra cứu V2 đúng. Không ghi công tắc.");
+  return release;
+}
+async function inspectV2Status(){
+  if(!adminUid||busy)return;
+  busy=true;setButtons();
+  try{
+    await checkV2Build();
+    const snap=await getDocFromServer(V2_MARKER);
+    const data=snap.exists()?snap.data():{};
+    const active=data.ready===true && data.schemaVersion===2 &&
+      data.activationVersion===3 && data.candidateType==="contractDigitsV2";
+    $("v2Status").textContent=active?
+      "ĐÃ BẬT: Payment có thể tra cứu trùng theo số hợp đồng.":"CHƯA BẬT: Payment vẫn kiểm tra lịch sử đầy đủ như trước.";
+  }catch(error){
+    $("v2Status").textContent="CHƯA SẴN SÀNG: "+String(error?.message||error);
+  }finally{busy=false;setButtons();}
+}
+async function verifyAllContractsOnce(uid){
+  let seen=0,cursor=null;
+  while(true){
+    if(auth.currentUser?.uid!==uid)throw Error("Phiên đăng nhập đã thay đổi; dừng an toàn.");
+    const constraints=[orderBy(documentId())];
+    if(cursor)constraints.push(startAfter(cursor));
+    constraints.push(limit(V2_SCAN_PAGE));
+    const snap=await getDocsFromServer(query(collection(db,"payments"),...constraints));
+    if(snap.empty)break;
+    for(const item of snap.docs){
+      if(inspect(item.data()).wrong)
+        throw Error("Phát hiện khoản thiếu hoặc sai chỉ mục hợp đồng. Chưa kích hoạt; cần bổ sung riêng.");
+      seen++;
+      if(seen>V2_MAX_AUDIT)throw Error("Vượt giới hạn kiểm tra, chưa kích hoạt.");
+    }
+    cursor=snap.docs[snap.docs.length-1].id;
+    $("v2Status").textContent="Đang kiểm tra từ Firebase: "+seen+" khoản, 0 thiếu/sai. Chưa bật.";
+    if(snap.size<V2_SCAN_PAGE)break;
+  }
+  if(seen===0)throw Error("Không xác minh được Payment. Không kích hoạt.");
+  return seen;
+}
+async function enableV2(){
+  if(!adminUid||busy)return;
+  if(!$("v2RulesConfirmed").checked){
+    $("v2Status").textContent="Phải xác nhận Rules nghiêm ngặt, sao lưu và Staff trước khi bật.";return;
+  }
+  if(!confirm("Bật V2 cho toàn bộ Staff? Hệ thống sẽ đọc lại mỗi Payment một lần cuối để xác nhận chỉ mục; không ghi Payment. Chỉ tiếp tục nếu Rules V2 nghiêm ngặt đã Publish và mọi Staff dùng bản web mới."))return;
+  const uid=adminUid;
+  busy=true;setButtons();
+  try{
+    await checkV2Build();
+    const count=await verifyAllContractsOnce(uid);
+    if(auth.currentUser?.uid!==uid)throw Error("Phiên đăng nhập đã thay đổi.");
+    await setDoc(V2_MARKER,{
+      ready:true,schemaVersion:2,activationVersion:3,candidateType:"contractDigitsV2",
+      rulesVerified:true,backfillVerified:true,synchronousWritersVerified:true,
+      continuousMaintenance:true,verifiedPaymentCount:count,
+      activatedAt:serverTimestamp(),activatedByUid:uid
+    },{merge:true});
+    const verified=await getDocFromServer(V2_MARKER);
+    const d=verified.exists()?verified.data():{};
+    if(d.ready!==true||d.activationVersion!==3||d.candidateType!=="contractDigitsV2")
+      throw Error("Không xác minh được công tắc V2 sau khi ghi.");
+    $("v2Status").textContent="ĐÃ BẬT TRA CỨU V2: "+count+
+      " khoản đã đối chiếu sạch. Staff có thể xem trước Excel bằng truy vấn theo số hợp đồng.";
+  }catch(error){
+    $("v2Status").textContent="CHƯA KÍCH HOẠT: "+String(error?.code||error?.message||error);
+  }finally{busy=false;setButtons();}
+}
+async function disableV2(){
+  if(!adminUid||busy)return;
+  if(!confirm("Tắt V2? Payment sẽ quay lại kiểm tra lịch sử đầy đủ (tốn reads hơn nhưng không bỏ sót)."))return;
+  busy=true;setButtons();
+  try{
+    await setDoc(V2_MARKER,{ready:false,deactivatedAt:serverTimestamp(),deactivatedByUid:adminUid},{merge:true});
+    const snap=await getDocFromServer(V2_MARKER);
+    if(!snap.exists()||snap.data().ready!==false)throw Error("Không xác nhận được trạng thái tắt.");
+    $("v2Status").textContent="ĐÃ TẮT V2: Payment quay lại kiểm tra trùng đầy đủ.";
+  }catch(error){
+    $("v2Status").textContent="KHÔNG TẮT ĐƯỢC: "+String(error?.code||error?.message||error);
+  }finally{busy=false;setButtons();}
+}
+$("v2RulesConfirmed").addEventListener("change",setButtons);
+$("v2Check").addEventListener("click",inspectV2Status);
+$("v2Enable").addEventListener("click",enableV2);
+$("v2Disable").addEventListener("click",disableV2);
 
 for(const [id,mode,restart]of[
   ["auditStart","audit",true],["auditNext","audit",false],
