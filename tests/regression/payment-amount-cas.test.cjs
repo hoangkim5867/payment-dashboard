@@ -15,14 +15,14 @@ test('only amount is changed; old server amount and per-attempt nonce are suppli
 test('normal Save invokes amount-only atomic write before the original transaction',()=>{
  const html=fs.readFileSync(path.join(__dirname,'../../site/payment.html'),'utf8');
  const start=html.indexOf('savePaymentBtn.addEventListener(');
- const end=html.indexOf('/* =====================================================\\n   MANUAL ADD',start);
+ const end=html.indexOf('/* =====================================================\n   MANUAL ADD',start);
  const code=html.slice(start,end);
  assert.ok(start>=0 && end>start);
- assert.match(code,/buildAmountOnlyFormPatch\\(/);
- assert.match(code,/if\\(amountOnlyPatch\\)\\{[\\s\\S]*?await updateDoc\\(doc\\(db,"payments",editingId\\),\\{/);
- assert.match(code,/else if\\(bankOnlyPatch\\)/);
- assert.match(code,/else\\{[\\s\\S]*?await runTransaction\\(/);
- assert.match(code,/if\\(!sameTimestamp\\(livePayment\\.updatedAt,editingUpdatedAtAtOpen\\)\\)/);
+ assert.match(code,/buildAmountOnlyFormPatch\(/);
+ assert.match(code,/if\(amountOnlyPatch\)\{[\s\S]*?await updateDoc\(doc\(db,"payments",editingId\),\{/);
+ assert.match(code,/else if\(bankOnlyPatch\)/);
+ assert.match(code,/else\{[\s\S]*?await runTransaction\(/);
+ assert.match(code,/if\(!sameTimestamp\(livePayment\.updatedAt,editingUpdatedAtAtOpen\)\)/);
  assert.doesNotMatch(html,/saveAmountOnlyBtn/);
  assert.doesNotMatch(html,/Chỉ cập nhật số tiền của Payment này/);
 });
