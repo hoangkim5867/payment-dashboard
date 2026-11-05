@@ -15,3 +15,23 @@ export function buildAmountOnlyPatch(payment, rawAmount, nonce) {
     amountEditGuard: {baseAmount: original, nonce}
   };
 }
+
+/**
+ * Fast path is allowed ONLY when the reconstructed Save form has no changes
+ * other than the amount. Keep the old guarded transaction for every other
+ * edit, including a Contract-derived field changing unexpectedly.
+ */
+export function buildAmountOnlyFormPatch(previous, form, nonce) {
+  if(!previous || !form || typeof previous!=='object' || typeof form!=='object')return null;
+  const patch=buildAmountOnlyPatch(previous,form.amount,nonce);
+  if(!patch)return null;
+  for(const [field,value] of Object.entries(form)){
+    if(field==='amount')continue;
+    const before=previous[field];
+    if(value===before)continue;
+    if((value==='' || value==null) && (before==='' || before==null))continue;
+    if(typeof value==='number' && typeof before==='number' && Object.is(value,before))continue;
+    return null;
+  }
+  return patch;
+}
