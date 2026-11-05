@@ -23,7 +23,7 @@ function context(){
     excelCashIpc:()=>'IPC001',excelCashType:()=>'支出',
     excelInternalCounterpartyLabel:()=>'Internal',
     excelTransferContent:()=>'Transfer',excelTransferTypeLabel:()=>'Transfer type',
-    excelTaxQuarterCode:()=>'',excelTaxQuarterContent:()=>'',console
+    excelTaxQuarterCode:()=>'',excelTaxQuarterContent:()=>'', $:()=>null,console
   };
   vm.createContext(ctx);vm.runInContext(code,ctx);
   return {ctx,expenses,transfers};
