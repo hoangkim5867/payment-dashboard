@@ -5942,7 +5942,7 @@ async function ccGoogleSyncCorrectLegacyTest(){
       if(!values.some(v=>String(v??'').trim()))continue; // harmless blank separator
       const date=ccGoogleSyncNormDate(row[0]);
       const balanceText=String(balances[sheetRow-1]?.[0]??'').trim();
-      if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||!balanceText){
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!balanceText){
         const later=[];
         for(let k=sheetRow+1;k<=last&&later.length<8;k++){
           const value=String(balances[k-1]?.[0]??'').trim();
@@ -5952,7 +5952,7 @@ async function ccGoogleSyncCorrectLegacyTest(){
         }
         const a=String(row[0]??'').trim();
         const balanceReason=!balanceText?'N'+sheetRow+' trống':
-          !/^\\d{4}-\\d{2}-\\d{2}$/.test(date)?'A'+sheetRow+' không phải ngày giao dịch':'khác';
+          !/^\d{4}-\d{2}-\d{2}$/.test(date)?'A'+sheetRow+' không phải ngày giao dịch':'khác';
         throw Error('Dữ liệu sổ tại hàng '+sheetRow+': '+balanceReason+
           ' (A='+a.slice(0,24)+', K='+String(row[10]??'trống').slice(0,24)+
           ', tổng số dòng='+last+', có số dư phía sau: '+(later.join('; ')||'không thấy')+
