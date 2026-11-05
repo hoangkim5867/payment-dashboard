@@ -5622,11 +5622,29 @@ const ccGoogleSyncMoneyKey=n=>{
 const ccGoogleSyncNormalizeLabel=value=>
   String(value??'').normalize('NFKC').trim().toUpperCase()
     .replace(/\s+/g,'').replace(/[‐‑‒–—−]/g,'-');
+// Historical payroll descriptions can be Vietnamese in Cash Control and
+// Chinese in PHU HUNG's manually maintained ledger. Only exact, preapproved
+// payroll labels with blank contract AND IPC are equivalent; other payees
+// remain strictly distinct. Monetary values are NEVER rounded or tolerated.
+const CC_SYNC_PAYROLL_LABEL_ALIASES=new Map([
+  ['LƯƠNGTRUNGQUỐC','PAYROLL_CN'],['中方员工工资','PAYROLL_CN'],
+  ['TIỀNĂN','PAYROLL_MEAL'],['伙食费','PAYROLL_MEAL'],
+  ['LƯƠNGVIỆTNAM','PAYROLL_VN'],['越籍员工工资','PAYROLL_VN'],
+  ['BẢOHIỂMTQ','PAYROLL_CN_INSURANCE'],['中国社保','PAYROLL_CN_INSURANCE'],
+  ['BẢOHIỂMVN','PAYROLL_VN_INSURANCE'],['越南社保','PAYROLL_VN_INSURANCE'],
+  ['PHÍCÔNGĐOÀN','PAYROLL_UNION'],['工会经费','PAYROLL_UNION']
+]);
+const ccGoogleSyncLedgerCompanyKey=(company,contractNo,ipc)=>{
+  const name=ccGoogleSyncNormalizeLabel(company);
+  if(ccGoogleSyncNormalizeLabel(contractNo)||ccGoogleSyncNormalizeLabel(ipc))
+    return name;
+  return CC_SYNC_PAYROLL_LABEL_ALIASES.get(name)||name;
+};
 const ccGoogleSyncFingerprint=(date,amounts,contractNo,ipc,company)=>
   date+'|'+amounts.map(ccGoogleSyncMoneyKey).join('|')+
   '|'+ccGoogleSyncNormalizeLabel(contractNo)+
   '|'+ccGoogleSyncNormalizeLabel(ipc)+
-  '|'+ccGoogleSyncNormalizeLabel(company);
+  '|'+ccGoogleSyncLedgerCompanyKey(company,contractNo,ipc);
 // Read-only historical reconciliation. Never infer duplicates from total sums.
 // Exact matches are one-to-one. Remaining rows are shown as diagnostic hints,
 // not automatically treated as equivalent or synchronized.
@@ -5670,7 +5688,9 @@ async function ccGoogleSyncAuditLegacy(month,source){
     const a=entry.values,b=item.row;
     const changes=[];
     if(ccGoogleSyncNormDate(a[0])!==ccGoogleSyncNormDate(b[0]))changes.push('Ngày');
-    if(norm(a[1])!==norm(b[1]))changes.push('Đơn vị');
+    if(ccGoogleSyncLedgerCompanyKey(a[1],a[2],a[4])!==
+       ccGoogleSyncLedgerCompanyKey(b[1],b[2],b[4]))
+      changes.push('Đơn vị');
     if(norm(a[2])!==norm(b[2]))changes.push('Hợp đồng');
     if(norm(a[4])!==norm(b[4]))changes.push('IPC');
     if(!moneyEqual(a.slice(6,13),b.slice(6,13)))changes.push('Số tiền / nhóm tiền');
@@ -5686,7 +5706,9 @@ async function ccGoogleSyncAuditLegacy(month,source){
       const amount=moneyEqual(a.slice(6,13),b.slice(6,13));
       const contract=Boolean(norm(a[2]))&&norm(a[2])===norm(b[2]);
       const ipc=Boolean(norm(a[4]))&&norm(a[4])===norm(b[4]);
-      const company=Boolean(norm(a[1]))&&norm(a[1])===norm(b[1]);
+      const company=Boolean(norm(a[1]))&&
+        ccGoogleSyncLedgerCompanyKey(a[1],a[2],a[4])===
+        ccGoogleSyncLedgerCompanyKey(b[1],b[2],b[4]);
       const date=ccGoogleSyncNormDate(a[0])===ccGoogleSyncNormDate(b[0]);
       const anchors=[amount,contract,ipc,company,date].filter(Boolean).length;
       const score=(amount?9:0)+(contract?5:0)+(ipc?5:0)+(company?3:0)+(date?2:0);
