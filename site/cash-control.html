@@ -5720,8 +5720,10 @@ function ccGoogleSyncAnalyzeRunningBalances(rows,formulaRows){
       result.formulaRowsChecked++;
       const refs=Array.from(formula.matchAll(/(?:^|[^A-Z0-9_])\$?([A-N])\$?(\d+)/gi),
         x=>({column:x[1].toUpperCase(),row:Number(x[2])}));
+      const isFirstDatedTransaction=!previous;
       const directPrevious=previous&&previous.row===sheetRow-1&&
         refs.some(x=>x.column==='N'&&x.row===previous.row);
+      if(isFirstDatedTransaction)result.openingFormulaRow=sheetRow;
       const incomeReferenced=refs.some(x=>x.column==='G'&&x.row===sheetRow);
       const expenseReferenced=refs.some(x=>
         'HIJKLM'.includes(x.column)&&x.row===sheetRow);
@@ -5729,10 +5731,10 @@ function ccGoogleSyncAnalyzeRunningBalances(rows,formulaRows){
       if(incomeReferenced)result.formulaSelfIncomeReferences++;
       if(expenseReferenced)result.formulaExpenseReferences++;
       // Store at most 12 examples to avoid displaying large sensitive formulas.
-      if((!directPrevious||!incomeReferenced||!expenseReferenced)&&
+      if(((!directPrevious&&!isFirstDatedTransaction)||!incomeReferenced||!expenseReferenced)&&
           result.formulaReview.length<12)
         result.formulaReview.push({row:sheetRow,
-          reason:!directPrevious?'không thấy N dòng trước':!incomeReferenced?
+          reason:!directPrevious&&!isFirstDatedTransaction?'không thấy N dòng trước':!incomeReferenced?
             'không thấy ô thu G của dòng':'không thấy nhóm chi H:M'});
     }
     if(previous&&previous.month===month&&previous.row===sheetRow-1){
@@ -6278,6 +6280,8 @@ function ccGoogleSyncInitializeGooglePilot(){
         ' dòng giao dịch có công thức; '+audit.formulaPriorReferences+' tham chiếu N dòng ngay trước; '+
         audit.formulaSelfIncomeReferences+' tham chiếu G cùng dòng; '+audit.formulaExpenseReferences+
         ' tham chiếu nhóm H:M cùng dòng. '+
+        (audit.openingFormulaRow?'Dòng giao dịch mở đầu N'+audit.openingFormulaRow+
+          ' được xử lý riêng, không bắt buộc tham chiếu giao dịch trước. ':'')+
         (audit.formulaReview.length?'Cần xem lại ví dụ: '+audit.formulaReview.slice(0,4).map(x=>
           'N'+x.row+' ('+x.reason+')').join('; ')+'. ':'')+
         'Không ghi dữ liệu. Kết quả này không chứng nhận đủ điều kiện ghi sổ.');
