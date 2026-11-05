@@ -5471,7 +5471,8 @@ function legacyCashExportRows(month,project){
             otherPayable:x.direction==='out'&&bucket==='other'?amount:0,
             sortText:x.description||'',
             _taxQuarter:x.direction==='out'?excelTaxQuarterCode(x):'',
-            _taxDirection:x.direction
+            _taxDirection:x.direction,
+            _syncIds:x.id?['expense:'+String(x.id)]:[]
         });
     });
 
