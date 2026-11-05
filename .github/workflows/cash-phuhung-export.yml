@@ -1,0 +1,18 @@
+name: Cash PHU HUNG source export isolation
+on:
+  pull_request:
+    paths:
+      - 'site/cash-control.html'
+      - 'tests/cash-phuhung-export-source.test.cjs'
+      - '.github/workflows/cash-phuhung-export.yml'
+  workflow_dispatch:
+jobs:
+  source-export-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify isolated PHU HUNG source export
+        run: node --test tests/cash-phuhung-export-source.test.cjs

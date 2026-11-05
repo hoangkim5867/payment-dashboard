@@ -1163,6 +1163,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
     <div><h2>Báo cáo quản trị</h2><p>Chỉ giữ 3 góc nhìn cần dùng: dòng tiền thực tế, kế hoạch vốn và nghĩa vụ đang treo.</p></div>
     <div class="acts">
       <select id="rMonth" class="btn"></select>
+      <button type="button" class="btn" id="cashPhuHungExportSource" hidden title="Chỉ Admin · tải JSON về máy, không gửi Google">Xuất nguồn PHU HUNG TEST</button>
       <div class="report-project-multi" id="reportProjectMulti">
         <button type="button" class="btn report-project-trigger" id="reportProjectTrigger">
           <span id="reportProjectTriggerText">Tất cả dự án</span><span class="report-project-caret">⌄</span>
@@ -4987,7 +4988,8 @@ function modernCashExportRows(month,project){
             income:x.direction==='in'?amount:0,
             expense:x.direction==='out'?amount:0,
             _taxQuarter:x.direction==='out'?excelTaxQuarterCode(x):'',
-            _taxDirection:x.direction
+            _taxDirection:x.direction,
+            _syncIds:x.id?['expense:'+String(x.id)]:[]
         });
     });
 
@@ -5431,6 +5433,8 @@ function excelGroupQuarterlyTaxRows(rows,moneyColumns,lang){
         const match=seen.get(key);
         if(match){
             for(const col of moneyColumns)match[col]=Number(match[col]||0)+Number(sourceRow[col]||0);
+            // Metadata only for owner-initiated read-only TEST export.
+            match._syncIds=[...(match._syncIds||[]),...(sourceRow._syncIds||[])];
         }else{
             const clone={...sourceRow,content:excelTaxQuarterContent(q,lang)||sourceRow.content,sortText:q};
             seen.set(key,clone);
@@ -5467,7 +5471,8 @@ function legacyCashExportRows(month,project){
             otherPayable:x.direction==='out'&&bucket==='other'?amount:0,
             sortText:x.description||'',
             _taxQuarter:x.direction==='out'?excelTaxQuarterCode(x):'',
-            _taxDirection:x.direction
+            _taxDirection:x.direction,
+            _syncIds:x.id?['expense:'+String(x.id)]:[]
         });
     });
 
@@ -5489,7 +5494,7 @@ function legacyCashExportRows(month,project){
                 type:excelTransferTypeLabel(x,window.cashExportLang||cashLang,project),
                 income:-amount,
                 subcontract:0,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0,
-                sortText:x.description||''
+                sortText:x.description||'',_syncIds:x.id?['transfer:'+String(x.id)+':out']:[]
             });
         }
 
@@ -5503,7 +5508,7 @@ function legacyCashExportRows(month,project){
                 type:excelTransferTypeLabel(x,window.cashExportLang||cashLang,project),
                 income:amount,
                 subcontract:0,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0,
-                sortText:x.description||''
+                sortText:x.description||'',_syncIds:x.id?['transfer:'+String(x.id)+':in']:[]
             });
         }
     });
@@ -5519,6 +5524,68 @@ function legacyCashExportRows(month,project){
         return String(a.sortText).localeCompare(String(b.sortText));
     });
 }
+
+// Dedicated read-only, on-device source transfer for the isolated Google
+// Sheets pilot. Does not access Google or write any Firestore documents.
+async function cashPhuHungExportSourceSnapshot(){
+  if(!currentAuthUser||!isCashControlOwner())throw Error('Chỉ Admin có quyền xuất bản chụp.');
+  if(!paymentMonths.has('PHU HUNG')){
+    if(!confirm('Chỉ đọc Payment PHU HUNG một lượt để xuất nguồn? Có phát sinh Firestore reads.'))return;
+    const ok=await loadProjectPayments('PHU HUNG',{quiet:true,refresh:false});
+    if(!ok||!paymentMonths.has('PHU HUNG'))throw Error('Không thể xác minh đã tải đủ Payment.');
+  }
+  const months=[];
+  for(const month of ['2026-10','2026-11']){
+    const ids=new Set(),rows=[];
+    for(const r of legacyCashExportRows(month,'PHU HUNG')){
+      const rawIds=r._syncIds||[];
+      if(!rawIds.length)throw Error('Nguồn thiếu ID ở '+month+'; không xuất để tránh trùng.');
+      const id=r._taxQuarter?
+        'tax:PHU HUNG:'+r.date+':'+r._taxQuarter+':'+(r._taxDirection||'out'):
+        'PHU HUNG:'+rawIds.slice().sort().join('+');
+      if(ids.has(id))throw Error('ID trùng: '+id);
+      ids.add(id);
+      const values=[
+        r.date,r.company,r.contractNo,r.content,r.ipc,r.type,
+        Number(r.income||0),Number(r.subcontract||0),Number(r.material||0),
+        Number(r.otherDirect||0),Number(r.indirect||0),
+        Number(r.financial||0),Number(r.otherPayable||0)
+      ];
+      const bytes=new TextEncoder().encode(JSON.stringify(values.map((v,i)=>
+        i>=6?Number(String(v??'0').replace(/,/g,''))||0:String(v??'')
+      )));
+      const digest=await crypto.subtle.digest('SHA-256',bytes);
+      const hash=Array.from(new Uint8Array(digest),n=>n.toString(16).padStart(2,'0')).join('');
+      rows.push({id,project:'PHU HUNG',month,values,hash});
+    }
+    months.push({month,rows});
+  }
+  const file={schema:'PHU_HUNG_CASH_SOURCE_V1',project:'PHU HUNG',
+    createdAt:new Date().toISOString(),sourceProject:firebaseConfig.projectId,months};
+  const blob=new Blob([JSON.stringify(file,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  try{
+    const a=document.createElement('a');a.href=url;
+    a.download='PHU_HUNG_CASH_SOURCE_TEST_'+new Date().toISOString().slice(0,10)+'.json';
+    a.click();
+  }finally{setTimeout(()=>URL.revokeObjectURL(url),1500)}
+  alert('Đã xuất '+months.map(m=>m.month+': '+m.rows.length+' dòng').join(', ')+
+    '. Chỉ tải JSON về máy, không gửi Google và không ghi Firebase. Bảo quản file vì chứa dữ liệu tài chính.');
+}
+function cashPhuHungInitSourceExporter(){
+  const button=$('cashPhuHungExportSource');
+  if(!button)return;
+  // Owner auth state may be initialized asynchronously after page load.
+  button.hidden=true;
+  button.addEventListener('click',async()=>{
+    if(!isCashControlOwner())return alert('Chỉ Admin được xuất nguồn.');
+    button.disabled=true;
+    try{await cashPhuHungExportSourceSnapshot()}
+    catch(error){alert('Chưa xuất nguồn: '+error.message)}
+    finally{button.disabled=false}
+  });
+}
+cashPhuHungInitSourceExporter();
 
 function buildLegacyCashFlowSheet(project,month){
     const L=cashFlowStandaloneExcelText(window.cashExportLang||cashLang);
@@ -10834,6 +10901,8 @@ function clearCashAccessState(){
 
 onAuthStateChanged(auth,async user=>{
     currentAuthUser=user||null;
+    const pilotExportButton=$('cashPhuHungExportSource');
+    if(pilotExportButton)pilotExportButton.hidden=!isCashControlOwner();
     updateCashAuthUI();
 
     if(!user || !isCashControlOwner()){
