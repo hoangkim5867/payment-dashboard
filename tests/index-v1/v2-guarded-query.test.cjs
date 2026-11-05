@@ -36,15 +36,20 @@ function runPreview(code,{ready,documents}){
  };
 }
 for(const page of ['payment.html','payment-mobile-renderer.html']){
- test(page+': marker off/unavailable keeps safe legacy full-history duplicate checking',async()=>{
+ test(page+': marker off/unavailable prevents unverified import',async()=>{
    const docs=[{id:'same',project:'ELYSIAN',contractNo:'LAB-002',ipcNo:'IPC017',contractDigitsV2:'002'}];
    const row={data:{project:'ELYSIAN',contractNo:'LAB002',ipcNo:'IPC017'}};
    for(const ready of [false,'error']){
      const sample=runPreview(helperFor(page),{ready,documents:docs});
-     const result=await sample.preview([row]);
-     assert.equal(result.length,1);
-     assert.equal(duplicateKeyV1(result[0]),duplicateKeyV1(row.data));
-     assert.equal(sample.summary().legacyReads,1);
+     if(page==='payment.html'){
+       await assert.rejects(()=>sample.preview([row]),/Tra cứu trùng IPC V2 chưa sẵn sàng/);
+       assert.equal(sample.summary().legacyReads,0);
+     }else{
+       const result=await sample.preview([row]);
+       assert.equal(result.length,1);
+       assert.equal(duplicateKeyV1(result[0]),duplicateKeyV1(row.data));
+       assert.equal(sample.summary().legacyReads,1);
+     }
      assert.equal(sample.summary().queries,0);
    }
  });
