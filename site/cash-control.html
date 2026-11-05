@@ -5571,17 +5571,41 @@ async function ccGoogleSyncAuth(){
 }
 async function ccGoogleSyncApi(path,{method='GET',body}={}){
   if(!ccGoogleSyncToken)throw Error('Chưa kết nối Google hoặc phiên đã hết hạn.');
-  const res=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+
-    encodeURIComponent(CC_SYNC_PILOT_ID)+path,{
-      method,
-      headers:{Authorization:'Bearer '+ccGoogleSyncToken,
-        ...(body?{'Content-Type':'application/json'}:{})},
-      ...(body?{body:JSON.stringify(body)}:{})
+  let res,serverWrite=false;
+  if(method!=='GET'&&firebaseConfig.projectId==='cscecmep-payment'){
+    // Production cannot mutate Google Sheets directly from browser code.
+    // A Vercel function verifies Firebase ID token + the Admin UID allowlist,
+    // then independently restricts the write to the PHU HUNG TEST copy.
+    // Firebase Auth getIdToken does not issue Firestore document reads.
+    if(!currentAuthUser||!isCashControlOwner()||
+       typeof currentAuthUser.getIdToken!=='function')
+      throw Error('Chỉ Admin có phiên Firebase hợp lệ mới được ghi Google.');
+    const firebaseToken=await currentAuthUser.getIdToken();
+    serverWrite=true;
+    res=await fetch('/api/cash-sync-write',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',
+        'X-Firebase-ID-Token':firebaseToken,
+        Authorization:'Bearer '+ccGoogleSyncToken},
+      body:JSON.stringify({path,method,body})
     });
+  }else{
+    // The isolated Firebase staging Preview retains its existing TEST-only
+    // flow until its own server UID and project settings are configured.
+    // No branch mode may target an arbitrary spreadsheet ID.
+    res=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+
+      encodeURIComponent(CC_SYNC_PILOT_ID)+path,{
+        method,
+        headers:{Authorization:'Bearer '+ccGoogleSyncToken,
+          ...(body?{'Content-Type':'application/json'}:{})},
+        ...(body?{body:JSON.stringify(body)}:{})
+      });
+  }
   const data=await res.json().catch(()=>({}));
   if(!res.ok){
     if(res.status===401){ccGoogleSyncToken='';ccGoogleSyncPlan=null;}
-    throw Error('Google Sheets API '+res.status+': '+String(data.error?.message||'Không thể truy cập'));
+    throw Error((serverWrite?'Admin server / Google Sheets ':'Google Sheets API ')+
+      res.status+': '+String(data.error?.message||data.error||'Không thể truy cập'));
   }
   return data;
 }
