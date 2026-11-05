@@ -2866,6 +2866,8 @@ html[data-theme] .data-first-summary .enterprise-filter-main > .global-search-fi
     Cancel
 </button>
 
+<button type="button" class="btn-gray" id="syncContractBankBtn" style="display:none;" title="Chỉ cập nhật tài khoản ngân hàng theo Contract, không sửa các thông tin khác">Cập nhật ngân hàng từ Contract</button>
+
 <button
     class="btn-primary"
     id="savePaymentBtn"
@@ -19567,6 +19569,17 @@ async function openEditModal(
         "";
 
 
+    const syncBankBtn = document.getElementById("syncContractBankBtn");
+    if(syncBankBtn){
+        const sourceContract = !editingMEP && allContracts.find(item =>
+            normalize(item.project) === normalize(payment.project) &&
+            normalize(item.contractNo) === normalize(payment.contractNo)
+        );
+        syncBankBtn.style.display = sourceContract &&
+            String(sourceContract.bankAccount || "").trim() !==
+            String(payment.bankAccount || "").trim() ? "" : "none";
+    }
+
     paymentModal.classList.add(
         "show"
     );
@@ -19732,6 +19745,8 @@ formContractNo.addEventListener(
 ===================================================== */
 
 function closePaymentModal(){
+    const syncBankBtn = document.getElementById("syncContractBankBtn");
+    if(syncBankBtn)syncBankBtn.style.display = "none";
     emergencyPaymentDrafts.resetSession();
     paymentModal.classList.remove(
         "show"
@@ -19764,6 +19779,65 @@ cancelBtn.addEventListener(
    The modal closes only through ×, Cancel or a successful Save.
 */
 
+
+/* Only re-copy the account from Contract for this existing Payment.
+   Unlike the full Edit flow, this is an explicit narrow field update:
+   no transaction/getDoc and no mutation of amount/IPC/process.
+   Firestore Rules still authorize the operation. */
+const syncContractBankBtn = document.getElementById("syncContractBankBtn");
+syncContractBankBtn?.addEventListener("click",async()=>{
+    if(!ensureOperator() || !editingId || !currentAuthUser)return;
+    const payment = allPayments.find(p=>p.id===editingId);
+    if(!payment || isPaymentWorkflowLocked(payment)){
+        alert("Không được cập nhật ngân hàng của Payment đã khóa.");
+        return;
+    }
+    if(payment.paymentType==="other" || normalizeMEP(payment.contractNo)){
+        alert("Chức năng này chỉ áp dụng Payment theo hợp đồng trong Contract Master.");
+        return;
+    }
+    const sourceContract = allContracts.find(c=>
+        normalize(c.project)===normalize(payment.project) &&
+        normalize(c.contractNo)===normalize(payment.contractNo)
+    );
+    if(!sourceContract){
+        alert("Không tìm thấy hợp đồng nguồn. Chưa cập nhật.");
+        return;
+    }
+    const newBank = String(sourceContract.bankAccount || "").trim();
+    const oldBank = String(payment.bankAccount || "").trim();
+    if(!newBank || newBank===oldBank){
+        alert("Contract không có tài khoản ngân hàng mới để cập nhật.");
+        return;
+    }
+    if(!confirm("Chỉ cập nhật ngân hàng của Payment này từ Contract?\\n\\nCũ: "+(oldBank||"—")+"\\nMới: "+newBank+"\\n\\nSố tiền, IPC, tiến trình và các trường khác sẽ giữ nguyên."))return;
+    syncContractBankBtn.disabled=true;
+    try{
+        await updateDoc(doc(db,"payments",payment.id),{
+            bankAccount:newBank,
+            updatedAt:serverTimestamp(),
+            updatedBy:currentOperatorName,
+            updatedByUid:currentAuthUser.uid,
+            updatedByEmail:currentAuthUser.email||""
+        });
+        const before={...payment};
+        payment.bankAccount=newBank;
+        try{
+            await logActivity("EDIT",{...payment}, "",buildChangeDetails(before,payment));
+        }catch(error){
+            console.warn("BANK-ONLY PAYMENT POST-SAVE AUDIT LOG ERROR:",error);
+        }
+        closePaymentModal();
+        updateIPCFilter();
+        renderPayments();
+        alert("✅ Đã cập nhật ngân hàng trên Payment. Các thông tin khác giữ nguyên.");
+    }catch(error){
+        console.error("BANK-ONLY PAYMENT UPDATE ERROR:",error);
+        alert("❌ Chưa cập nhật ngân hàng: "+(error?.message||error));
+    }finally{
+        syncContractBankBtn.disabled=false;
+    }
+});
 
 /* =====================================================
    SAVE
