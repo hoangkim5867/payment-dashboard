@@ -349,3 +349,16 @@ test('exactly one authorized 0.3 VND payroll mismatch is eligible for one-cell T
   const bad=await f.api.audit(month,entries);
   assert.equal(await f.api.correctionCandidate(bad,entries,month),null);
 });
+
+test('October correction recognizes ISO date A148 and rejects non-date headers',()=>{
+  const repairSource=pilot.slice(pilot.indexOf('async function ccGoogleSyncCorrectLegacyTest()'),
+    pilot.indexOf('async function ccGoogleSyncCommitPilot()'));
+  const dates=[...repairSource.matchAll(/\/\^([^\n]+?)\$\/\.test\(date\)/g)];
+  assert.equal(dates.length,2,'both validation and diagnostic must use same date regex');
+  for(const match of dates){
+    const expression=new RegExp('^'+match[1]+'$');
+    assert.equal(expression.test('2026-10-27'),true);
+    assert.equal(expression.test('TỔNG CỘNG'),false);
+    assert.equal(expression.test('2026-10-27x'),false);
+  }
+});
