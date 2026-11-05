@@ -2667,6 +2667,22 @@ let cashSeedGeneration=0;
 const CASH_SEED_HASH="c1a3fdf298b2b5cbec9dd293fa5a199a3cee086fbe35984b0bebbdc8b9b58f12";
 async function loadProtectedLegacySeed(user){
     const generation=++cashSeedGeneration;
+    // A newly-created, isolated Firebase staging project intentionally has no
+    // production legacy seed. Allow only its empty, clearly-labelled UI to load.
+    // Production retains mandatory historical seed + SHA-256 verification.
+    if(firebaseConfig.projectId==='cash-control-staging'){
+        if(currentAuthUser?.uid!==user.uid || !isCashControlOwner())return false;
+        LEGACY_SALARY=[];LEGACY_FINANCE=[];LEGACY_VNB=[];LEGACY_CASH_SPECIAL=[];
+        legacySeedReady=true;
+        const banner=document.createElement('div');
+        banner.id='cashStagingEmptyNotice';
+        banner.setAttribute('role','status');
+        banner.style.cssText='position:sticky;top:0;z-index:100;background:#fff3cc;color:#62430e;padding:10px 18px;text-align:center;font:600 13px/1.5 sans-serif;border-bottom:1px solid #e2b45b';
+        banner.textContent='BẢN THỬ FIREBASE STAGING · Chưa có lịch sử Cash Control hoặc Payment thật. Số liệu trống không phải số dư thực tế; chưa dùng để đồng bộ Google Sheets.';
+        if(!document.getElementById(banner.id))document.body.prepend(banner);
+        invalidateCashCalculations();
+        return true;
+    }
     if(!isCashControlOwner())throw new Error('Owner access required');
     const snapshot=await getDoc(doc(db,'cash_control_private',"legacy_seed_20261021_v1"));
     if(!snapshot.exists())throw new Error('Protected history is not provisioned');
