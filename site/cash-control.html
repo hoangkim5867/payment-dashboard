@@ -5936,6 +5936,41 @@ async function ccGoogleSyncMergeCachedSource(history,mirror,source,month){
     sourceNew,sourceUpdated,sourceCount:source.length};
 }
 
+// Compare a generated TEST tab against a complete computed plan before
+// creating another tab. This is read-only and avoids identical duplicate tabs
+// when the owner clicks the button again with unchanged data.
+async function ccGoogleSyncVerifyComputedTab(title,plan){
+  if(!/^AUTO_PHU_HUNG_TEST_[A-Z0-9]+$/.test(title))
+    throw Error('Không đúng tên tab sổ tự tính TEST.');
+  const sheet="'"+title+"'",last=plan.rows.length+1;
+  const [back,backFormulas]=await Promise.all([
+    ccGoogleSyncApi('/values/'+encodeURIComponent(sheet+'!A1:Q'+last)+
+      '?valueRenderOption=UNFORMATTED_VALUE'),
+    ccGoogleSyncApi('/values/'+encodeURIComponent(sheet+'!N2:N'+last)+
+      '?valueRenderOption=FORMULA')
+  ]);
+  const rows=(back.values||[]).slice(1),actualFormulas=backFormulas.values||[];
+  if(rows.length!==plan.rows.length||actualFormulas.length!==plan.rows.length||
+     (back.values||[])[0]?.join('|')!==CC_SYNC_AUTO_LEDGER_HEADER.join('|'))
+    return false;
+  for(let i=0;i<plan.rows.length;i++){
+    const actual=rows[i],expected=plan.rows[i];
+    const a=ccGoogleSyncPayloadCells(actual?.slice(0,13)||[]);
+    const b=ccGoogleSyncPayloadCells(expected.values);
+    if(a.length!==13||b.length!==13||
+       a.some((v,j)=>v!==b[j])||
+       String(actual?.[14]??'')!==expected.origin||
+       String(actual?.[15]??'')!==expected.sourceId||
+       (i===0&&Math.abs(Number(actual?.[16])-plan.opening)>0.000001)||
+       String(actualFormulas[i]?.[0]??'').replace(/\s+/g,'')!==
+         expected.formula.replace(/\s+/g,'')||
+       !Number.isFinite(Number(actual?.[13]))||
+       Math.abs(Number(actual[13])-expected.balance)>0.000001)
+      return false;
+  }
+  return true;
+}
+
 // The user explicitly confirms a new, timestamped TEST tab. No existing tab is
 // cleared, deleted or modified, and the historical PHU HUNG sheet is untouched.
 async function ccGoogleSyncCreateComputedLedgerTest(){
@@ -5975,6 +6010,18 @@ async function ccGoogleSyncCreateComputedLedgerTest(){
     }
     const plan=await ccGoogleSyncBuildConsolidatedLedger(
       legacy.values||[],formulas.values||[],nextMirror);
+    const oldGenerated=(meta.sheets||[]).map(x=>x.properties?.title||'')
+      .filter(title=>/^AUTO_PHU_HUNG_TEST_[A-Z0-9]+$/.test(title))
+      .sort().reverse().slice(0,3);
+    for(const title of oldGenerated){
+      if(await ccGoogleSyncVerifyComputedTab(title,plan)){
+        ccGoogleSyncStatus('SỔ TỰ TÍNH TEST ĐÃ TỒN TẠI VÀ KHỚP: '+title+
+          '; '+plan.rows.length+' giao dịch, số dư cuối '+
+          plan.closingBalance.toLocaleString('vi-VN')+
+          '. Không tạo tab trùng, không ghi thêm dữ liệu.');
+        return;
+      }
+    }
     if(!confirm((plan.mirroredCount?
       'TẠO SỔ TỔNG HỢP PHU HUNG TEST: ':
       'TẠO SỔ LỊCH SỬ PHU HUNG TEST (CHƯA CÓ GIAO DỊCH CASH CONTROL MỚI): ')+
@@ -5995,27 +6042,9 @@ async function ccGoogleSyncCreateComputedLedgerTest(){
     await ccGoogleSyncApi('/values/'+encodeURIComponent(sheet+'!N2:N'+last)+
       '?valueInputOption=USER_ENTERED',{method:'PUT',body:{
         values:plan.rows.map(x=>[x.formula])}});
-    const [back,backFormulas]=await Promise.all([
-      ccGoogleSyncApi('/values/'+encodeURIComponent(sheet+'!A1:Q'+last)+
-        '?valueRenderOption=UNFORMATTED_VALUE'),
-      ccGoogleSyncApi('/values/'+encodeURIComponent(sheet+'!N2:N'+last)+
-        '?valueRenderOption=FORMULA')
-    ]);
-    const rows=(back.values||[]).slice(1),actualFormulas=backFormulas.values||[];
-    if(rows.length!==plan.rows.length||actualFormulas.length!==plan.rows.length||
-       (back.values||[])[0]?.join('|')!==CC_SYNC_AUTO_LEDGER_HEADER.join('|'))
-      throw Error('Tab mới chưa đúng cấu trúc khi đọc lại. Không coi là hoàn tất.');
-    for(let i=0;i<plan.rows.length;i++){
-      const actual=rows[i],expected=plan.rows[i];
-      if(String(actual?.[0]??'')!==expected.values[0]||
-         String(actual?.[15]??'')!==expected.sourceId||
-         String(actualFormulas[i]?.[0]??'').replace(/\s+/g,'')!==
-           expected.formula.replace(/\s+/g,'')||
-         !Number.isFinite(Number(actual?.[13]))||
-         Math.abs(Number(actual[13])-expected.balance)>0.000001)
-        throw Error('Đã tạo tab nhưng kiểm tra lại thất bại ở hàng '+(i+2)+
-          '. Không chạy lại trước khi xem tab đó.');
-    }
+    if(!await ccGoogleSyncVerifyComputedTab(title,plan))
+      throw Error('Đã tạo tab nhưng kiểm tra lại không khớp dữ liệu/công thức. '+
+        'Không chạy lại trước khi xem tab đó.');
     ccGoogleSyncStatus((plan.mirroredCount?
       'ĐÃ XÁC MINH SỔ TỔNG HỢP TEST: ':'ĐÃ XÁC MINH SỔ LỊCH SỬ TEST (CHƯA CÓ GIAO DỊCH CASH CONTROL MỚI): ')+title+'; '+
       plan.historicCount+' lịch sử + '+plan.mirroredCount+' giao dịch từ nguồn/mirror; '+
