@@ -19745,9 +19745,9 @@ formContractNo.addEventListener(
 ===================================================== */
 
 function closePaymentModal(){
+    emergencyPaymentDrafts.resetSession();
     const syncBankBtn = document.getElementById("syncContractBankBtn");
     if(syncBankBtn)syncBankBtn.style.display = "none";
-    emergencyPaymentDrafts.resetSession();
     paymentModal.classList.remove(
         "show"
     );
