@@ -279,3 +279,36 @@ test('staging DEMO amount edit updates one fake row without duplication',async()
   assert.equal(f.state.rows.length,2);
   assert.equal(f.state.rows[1][11],765432);
 });
+
+test('historical payroll bilingual labels match only with identical date, all amounts and no contract',async()=>{
+  const amount=349248728;
+  const source=[{...tx('2026-10',amount),_syncIds:['salary:001'],contractNo:'',
+    ipc:'',company:'Lương Trung Quốc',indirect:amount,subcontract:0}];
+  const f=fixture({month:'2026-10',source});
+  f.state.legacyValues=[['Ngày'],['2026-10-03','中方员工工资','','','', '',0,0,0,0,amount,0,0]];
+  const diff=await f.api.compare();
+  assert.equal(diff.legacyAudit.matchedSourceIds.length,1);
+  assert.equal(diff.legacyAudit.unmatchedLedger,0);
+  assert.equal(diff.changes.length,0);
+  assert.equal(diff.blocked.length,0);
+});
+test('bilingual payroll cannot hide a 0.3 VND amount difference',async()=>{
+  const amount=350945181;
+  const source=[{...tx('2026-10',amount),_syncIds:['salary:002'],contractNo:'',
+    ipc:'',company:'Lương Trung Quốc',indirect:amount,subcontract:0}];
+  const f=fixture({month:'2026-10',source});
+  f.state.legacyValues=[['Ngày'],['2026-10-03','中方员工工资','','','', '',0,0,0,0,amount+0.3,0,0]];
+  const diff=await f.api.compare();
+  assert.equal(diff.legacyAudit.matchedSourceIds.length,0);
+  assert.equal(diff.legacyAudit.unmatchedLedger,1);
+  assert.equal(diff.blocked.length,1);
+});
+test('unrelated companies are never collapsed by bilingual payroll alias',async()=>{
+  const source=[{...tx('2026-10',125),_syncIds:['expense:third-party'],
+    company:'Lương Trung Quốc',contractNo:'REAL-C-01',ipc:'IPC002'}];
+  const f=fixture({month:'2026-10',source});
+  f.state.legacyValues=[['Ngày'],['2026-10-03','中方员工工资','REAL-C-01','','IPC002','',0,125,0,0,0,0,0]];
+  const diff=await f.api.compare();
+  assert.equal(diff.legacyAudit.matchedSourceIds.length,0);
+  assert.equal(diff.blocked.length,1);
+});
