@@ -12,18 +12,29 @@ test('only amount is changed; old server amount and per-attempt nonce are suppli
   assert.equal(buildAmountOnlyPatch(payment,'-100',nonce),null);
   assert.equal(buildAmountOnlyPatch(payment,'1500000000','invalid'),null);
 });
-test('amount-only button avoids reads and leaves full edits on guarded path',()=>{
+test('normal Save invokes amount-only atomic write before the original transaction',()=>{
  const html=fs.readFileSync(path.join(__dirname,'../../site/payment.html'),'utf8');
- const start=html.indexOf('amountOnlyBtn?.addEventListener("click"');
- const end=html.indexOf('/* =====================================================\n   SAVE',start);
+ const start=html.indexOf('savePaymentBtn.addEventListener(');
+ const end=html.indexOf('/* =====================================================\\n   MANUAL ADD',start);
  const code=html.slice(start,end);
  assert.ok(start>=0 && end>start);
- assert.match(code,/buildAmountOnlyPatch\(payment,formAmount\.value,crypto\.randomUUID\(\)\)/);
- assert.match(code,/await updateDoc\(doc\(db,"payments",payment\.id\),\{/);
- assert.doesNotMatch(code,/\b(?:runTransaction|getDoc|getDocs|addDoc)\s*\(/);
- assert.doesNotMatch(code.slice(code.indexOf('await updateDoc('),code.indexOf('});',code.indexOf('await updateDoc('))+3),/\.\.\.payment\b/);
- assert.match(code,/isPaymentWorkflowLocked\(payment\)/);
- assert.match(html,/if\(!sameTimestamp\(livePayment\.updatedAt,editingUpdatedAtAtOpen\)\)/);
+ assert.match(code,/buildAmountOnlyFormPatch\\(/);
+ assert.match(code,/if\\(amountOnlyPatch\\)\\{[\\s\\S]*?await updateDoc\\(doc\\(db,"payments",editingId\\),\\{/);
+ assert.match(code,/else if\\(bankOnlyPatch\\)/);
+ assert.match(code,/else\\{[\\s\\S]*?await runTransaction\\(/);
+ assert.match(code,/if\\(!sameTimestamp\\(livePayment\\.updatedAt,editingUpdatedAtAtOpen\\)\\)/);
+ assert.doesNotMatch(html,/saveAmountOnlyBtn/);
+ assert.doesNotMatch(html,/Chỉ cập nhật số tiền của Payment này/);
+});
+test('normal form fast path rejects mixed changes and preserves amount base',async()=>{
+ const {buildAmountOnlyFormPatch}=await helper;
+ const previous={amount:900000000,bankAccount:'old',ipcNo:'IPC014',remark:'',processPaper:'done',contractName:'EATON'};
+ const changed={...previous,amount:1400000000};
+ assert.deepEqual(buildAmountOnlyFormPatch(previous,changed,nonce),{amount:1400000000,amountEditGuard:{baseAmount:900000000,nonce}});
+ assert.equal(buildAmountOnlyFormPatch(previous,{...changed,bankAccount:'different'},nonce),null);
+ assert.equal(buildAmountOnlyFormPatch(previous,{...changed,ipcNo:'IPC015'},nonce),null);
+ assert.equal(buildAmountOnlyFormPatch(previous,{...changed,processPaper:'pending'},nonce),null);
+ assert.equal(buildAmountOnlyFormPatch(previous,{...previous},nonce),null);
 });
 test('proposed Rules validate amount-only old value and nonce in resource.data',()=>{
  const rules=fs.readFileSync(path.join(__dirname,'../../security/firestore.rules.AMOUNT_CAS_STAGING_ONLY'),'utf8');
