@@ -8,7 +8,7 @@ let env, db, paymentRef;
 const month=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit'}).format(new Date());
 before(async()=>{
   if(process.env.FIRESTORE_EMULATOR_HOST!=='127.0.0.1:8080')throw Error('Requires local Firestore Emulator');
-  const rules=fs.readFileSync(path.join(__dirname,'../../security/firestore.rules.AMOUNT_CAS_STAGING_ONLY'),'utf8');
+  const rules=fs.readFileSync(path.join(__dirname,'../../security/firestore.rules.AMOUNT_CAS_FROM_USER_20261104_STAGING_ONLY'),'utf8');
   env=await initializeTestEnvironment({projectId:'demo-payment-amount-cas',firestore:{host:'127.0.0.1',port:8080,rules}});
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async ctx=>{
