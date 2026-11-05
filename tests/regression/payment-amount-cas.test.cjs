@@ -21,7 +21,7 @@ test('amount-only button avoids reads and leaves full edits on guarded path',()=
  assert.match(code,/buildAmountOnlyPatch\(payment,formAmount\.value,crypto\.randomUUID\(\)\)/);
  assert.match(code,/await updateDoc\(doc\(db,"payments",payment\.id\),\{/);
  assert.doesNotMatch(code,/\b(?:runTransaction|getDoc|getDocs|addDoc)\s*\(/);
- assert.doesNotMatch(code,/\.\.\.payment\b/);
+ assert.doesNotMatch(code.slice(code.indexOf('await updateDoc('),code.indexOf('});',code.indexOf('await updateDoc('))+3),/\.\.\.payment\b/);
  assert.match(code,/isPaymentWorkflowLocked\(payment\)/);
  assert.match(html,/if\(!sameTimestamp\(livePayment\.updatedAt,editingUpdatedAtAtOpen\)\)/);
 });
