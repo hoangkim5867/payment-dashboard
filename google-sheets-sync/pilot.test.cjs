@@ -224,8 +224,10 @@ test('TEST sync preserves historical ledger and writes all 19 mirror fields',asy
   assert.equal(f.state.rows[0][2],'2026-11');
   assert.equal(f.state.rows[0][10],100.3);
   assert.equal(JSON.stringify(f.state.legacyValues),historicalSnapshot);
-  await f.api.compare();
-  await f.api.commit();
+  const retry=await f.api.compare();
+  assert.equal(retry.changes.length,0);
+  assert.equal(retry.unchanged.length,1);
+  assert.equal(f.nodes.ccGoogleSyncCommit.disabled,true);
   assert.equal(f.state.rows.length,1,'repeated sync must not duplicate');
   assert.equal(JSON.stringify(f.state.legacyValues),historicalSnapshot);
 });
@@ -358,7 +360,7 @@ test('October correction recognizes ISO date A148 and rejects non-date headers',
   const repairSource=pilot.slice(pilot.indexOf('async function ccGoogleSyncCorrectLegacyTest()'),
     pilot.indexOf('async function ccGoogleSyncCommitPilot()'));
   const dates=[...repairSource.matchAll(/\/\^([^\n]+?)\$\/\.test\(date\)/g)];
-  assert.equal(dates.length,2,'both validation and diagnostic must use same date regex');
+  assert.equal(dates.length,1,'historical TEST repair has one ISO date guard');
   for(const match of dates){
     const expression=new RegExp('^'+match[1]+'$');
     assert.equal(expression.test('2026-10-27'),true);
