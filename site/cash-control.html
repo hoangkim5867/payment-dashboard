@@ -1439,6 +1439,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <button class="btn" type="button" id="ccGoogleSyncDemoToggle" hidden>Thử 2 giao dịch giả</button>
         <button class="btn" type="button" id="ccGoogleSyncDemoChange" hidden>Sửa số tiền giả</button>
         <button class="btn primary" type="button" id="ccGoogleSyncCommit" disabled>Ghi thay đổi vào tab TEST</button>
+        <button class="btn" type="button" id="ccGoogleSyncCorrectLegacy" disabled hidden>Sửa 1 số tiền lịch sử trên bản TEST</button>
       </div>
       <p id="ccGoogleSyncGoogleStatus" style="font-size:12px;color:#475569;margin:8px 0">Chưa kết nối Google. Không có thao tác ghi tự động.</p>
     </div>
@@ -5838,6 +5839,15 @@ async function ccGoogleSyncComparePilot(internal=false){
     changes,blocked,unchanged,legacyAudit,created:Date.now()};
   ccGoogleSyncPlan=plan;
   $('ccGoogleSyncCommit').disabled=blocked.length>0||!changes.length;
+  const fixButton=$('ccGoogleSyncCorrectLegacy');
+  if(fixButton){
+    fixButton.hidden=true;fixButton.disabled=true;
+    const candidate=await ccGoogleSyncLegacyCorrectionCandidate(legacyAudit,source,month);
+    if(candidate && blocked.length===1 && !remote.rows.length){
+      fixButton.hidden=false;fixButton.disabled=false;
+      fixButton.textContent='Sửa khoản lương 0,3 VND trên Google TEST (có sao lưu)';
+    }
+  }
   const snapshotDiagnostic=ccGoogleSyncImportedRows&&!ccGoogleSyncDemoActive
     ?' | Nguồn JSON nhập vào: '+source.length+' dòng ('+month+').':'';
   const demoDiagnostic=ccGoogleSyncDemoActive
@@ -5855,6 +5865,98 @@ async function ccGoogleSyncComparePilot(internal=false){
       ?' ĐỂ THỬ SỬA: trước tiên phải GHI THÀNH CÔNG 2 DÒNG DEMO và thấy thông báo ĐÃ XÁC MINH; khi đó so sánh lại phải có 2 không đổi.':'')
   );
   return plan;
+}
+// Narrow, owner-confirmed financial correction on the TEST spreadsheet COPY.
+// Does not change Cash Control or production Google Sheets. Only permitted for
+// the previously verified October payroll adjustment and no other record.
+const CC_SYNC_LEGACY_FIX_ID='PHU HUNG:expense:manual_salary_payroll_1793330653912_rzk8d';
+async function ccGoogleSyncLegacyCorrectionCandidate(audit,source,month){
+  if(month!=='2026-10'||!CC_SYNC_DEMO_ALLOWED||ccGoogleSyncDemoActive||
+      !ccGoogleSyncImportedRows) return null;
+  if(audit.ledgerCount!==30||source.length!==30||
+      audit.matchedSourceIds.length!==29||audit.unmatchedSource!==1||
+      audit.unmatchedLedger!==1||audit.invalidAmounts) return null;
+  const item=audit.details?.find(x=>x.source?.id===CC_SYNC_LEGACY_FIX_ID);
+  if(!item||!item.ledger||item.confidence!=='Gợi ý'||
+      item.changes.length!==1||item.changes[0]!=='Số tiền / nhóm tiền')return null;
+  const v=item.source.values,b=item.ledger.row;
+  if(ccGoogleSyncNormDate(v[0])!=='2026-10-27'||
+      ccGoogleSyncNormDate(b[0])!=='2026-10-27'||
+      ccGoogleSyncLedgerCompanyKey(v[1],v[2],v[4])!=='PAYROLL_CN'||
+      ccGoogleSyncLedgerCompanyKey(b[1],b[2],b[4])!=='PAYROLL_CN'||
+      ccGoogleSyncNormalizeLabel(v[2])||ccGoogleSyncNormalizeLabel(v[4])||
+      ccGoogleSyncNormalizeLabel(b[2])||ccGoogleSyncNormalizeLabel(b[4]))return null;
+  if(v.slice(6,13).some((n,i)=>i!==4&&ccGoogleSyncMoneyKey(n)!==ccGoogleSyncMoneyKey(b[6+i])))return null;
+  if(ccGoogleSyncMoneyKey(v[10])!=='350945181'||
+      ccGoogleSyncMoneyKey(b[10])!=='350945181.3')return null;
+  // Verify the imported content hash is still correct, never treat edited
+  // local JS values as the authorized source.
+  if(await ccGoogleSyncSha(ccGoogleSyncPayloadCells(v))!==item.source.hash)return null;
+  return {id:item.source.id,row:item.ledger.index,oldValue:350945181.3,newValue:350945181};
+}
+async function ccGoogleSyncCorrectLegacyTest(){
+  if(ccGoogleSyncWriteInFlight)throw Error('Đang ghi, không được ghi đồng thời.');
+  ccGoogleSyncWriteInFlight=true;
+  const button=$('ccGoogleSyncCorrectLegacy');
+  if(button)button.disabled=true;
+  try{
+    if(firebaseConfig.projectId!=='cash-control-staging'||!isCashControlOwner()||
+       !currentAuthUser||!ccGoogleSyncImportedRows||ccGoogleSyncDemoActive||
+       $('ccGoogleSyncMonth')?.value!=='2026-10')throw Error('Chỉ Admin tại TEST với nguồn JSON tháng 10.');
+    if(!ccGoogleSyncPlan||Date.now()-ccGoogleSyncPlan.created>120000)
+      throw Error('Bản kiểm tra đã cũ. Bấm So sánh lại trước.');
+    // Compare source and destination one more time before any modification.
+    const source=await ccGoogleSyncCurrentRows('PHU HUNG','2026-10');
+    const preAudit=await ccGoogleSyncAuditLegacy('2026-10',source);
+    const candidate=await ccGoogleSyncLegacyCorrectionCandidate(preAudit,source,'2026-10');
+    if(!candidate)throw Error('Nguồn/sổ vừa thay đổi hoặc không còn đúng một sai lệch 0,3 VND.');
+    const meta=await ccGoogleSyncApi('?fields=spreadsheetId,properties(title),sheets(properties(title,sheetId))');
+    if(!/TEST/i.test(meta.properties?.title||'')||
+        meta.spreadsheetId!==CC_SYNC_PILOT_ID)
+      throw Error('Không phải file Sheets TEST đã chỉ định.');
+    const sheet=meta.sheets?.find(x=>x.properties?.title==='PHU HUNG');
+    if(!sheet||!Number.isInteger(sheet.properties?.sheetId))throw Error('Không tìm thấy tab PHU HUNG của bản sao.');
+    // Preserve financial balances: only allow a single-cell correction if
+    // every affected populated balance is formula-driven (will recalculate).
+    const formula=await ccGoogleSyncApi('/values/'+encodeURIComponent(
+      "'PHU HUNG'!N"+candidate.row+":N")+'?valueRenderOption=FORMULA');
+    const affected=(formula.values||[]).map(x=>String(x[0]??'').trim());
+    if(!affected.length||affected.some(x=>x && !x.startsWith('=')))
+      throw Error('Cột số dư N có giá trị tĩnh, cần xử lý số dư liên quan trước khi sửa khoản tiền. Chưa ghi.');
+    if(!confirm('XÁC NHẬN SỬA CHỈ TRÊN GOOGLE SHEETS TEST: PHU HUNG!K'+candidate.row+
+      '\\nLương Trung Quốc 27/10/2026\\n350.945.181,3 → 350.945.181 VND'+
+      '\\nHệ thống tạo bản sao lưu tab PHU HUNG trước, sau đó mới sửa đúng một ô. Không sửa Firebase hay Google Sheets gốc. Tiếp tục?'))return;
+    // Backup the whole historical tab BEFORE any amount mutation.
+    const backupName='BACKUP_PHU_HUNG_'+new Date().toISOString().replace(/[-:TZ.]/g,'').slice(0,14);
+    await ccGoogleSyncApi(':batchUpdate',{method:'POST',body:{requests:[{
+      duplicateSheet:{sourceSheetId:sheet.properties.sheetId,insertSheetIndex:meta.sheets.length,
+        newSheetName:backupName}
+    }]}});
+    // Recheck the precise cell immediately after creating the backup.
+    const before=await ccGoogleSyncApi('/values/'+encodeURIComponent(
+      "'PHU HUNG'!K"+candidate.row)+
+      '?valueRenderOption=UNFORMATTED_VALUE');
+    if(ccGoogleSyncMoneyKey(before.values?.[0]?.[0])!=='350945181.3')
+      throw Error('Giá trị vừa thay đổi: đã sao lưu nhưng chưa sửa.');
+    await ccGoogleSyncApi('/values/'+encodeURIComponent(
+      "'PHU HUNG'!K"+candidate.row)+
+      '?valueInputOption=RAW',{method:'PUT',body:{values:[[candidate.newValue]]}});
+    const after=await ccGoogleSyncApi('/values/'+encodeURIComponent(
+      "'PHU HUNG'!K"+candidate.row)+
+      '?valueRenderOption=UNFORMATTED_VALUE');
+    if(ccGoogleSyncMoneyKey(after.values?.[0]?.[0])!=='350945181')
+      throw Error('Đã gửi lệnh sửa nhưng đọc lại chưa đúng. Kiểm tra bản sao lưu '+backupName);
+    const checked=await ccGoogleSyncAuditLegacy('2026-10',source);
+    if(!checked.exact||checked.matchedSourceIds.length!==30)
+      throw Error('Đã sửa ô tiền nhưng đối chiếu còn khác. Kiểm tra thủ công, bản sao lưu '+backupName);
+    ccGoogleSyncPlan=null;
+    ccGoogleSyncStatus('ĐÃ XÁC MINH: 30/30 khớp trong Google Sheets TEST. Đã cập nhật K'+candidate.row+
+      ' từ 350.945.181,3 thành 350.945.181 VND. Sao lưu: '+backupName+'. Firebase và file Google gốc không đổi.');
+    ccGoogleSyncRenderAudit(checked,'2026-10');
+  }finally{
+    ccGoogleSyncWriteInFlight=false;
+    if(button)button.disabled=true;
+  }
 }
 async function ccGoogleSyncCommitPilot(){
   if(ccGoogleSyncWriteInFlight)throw Error('Đang có lượt ghi khác, đã chặn thao tác đồng thời.');
@@ -6019,6 +6121,11 @@ function ccGoogleSyncInitializeGooglePilot(){
     try{await ccGoogleSyncComparePilot()}catch(error){
       ccGoogleSyncPlan=null;$('ccGoogleSyncCommit').disabled=true;
       ccGoogleSyncStatus('Không thể so sánh: '+error.message);
+    }
+  });
+  $('ccGoogleSyncCorrectLegacy')?.addEventListener('click',async()=>{
+    try{await ccGoogleSyncCorrectLegacyTest()}catch(error){
+      ccGoogleSyncStatus('CHƯA HOÀN TẤT SỬA SỔ TEST: '+error.message);
     }
   });
   $('ccGoogleSyncCommit')?.addEventListener('click',async()=>{
