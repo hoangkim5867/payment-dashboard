@@ -5737,6 +5737,7 @@ function ccGoogleSyncInitializeGooglePilot(){
       ccGoogleSyncDemoActive=!ccGoogleSyncDemoActive;
       CC_SYNC_PILOT_TAB=ccGoogleSyncDemoActive?ccGoogleSyncDemoTab:'DATA_CASHCONTROL';
       ccGoogleSyncDemoEdited=false;ccGoogleSyncPlan=null;
+      demoChange.disabled=false;demoChange.textContent='Sửa số tiền giả';
       $('ccGoogleSyncCommit').disabled=true;
       $('ccGoogleSyncMonth').value=ccGoogleSyncDemoActive?'2026-11':'2026-10';
       demoToggle.textContent=ccGoogleSyncDemoActive?'Thoát chế độ DEMO':'Thử 2 giao dịch giả';
@@ -5747,9 +5748,12 @@ function ccGoogleSyncInitializeGooglePilot(){
     });
     demoChange.addEventListener('click',()=>{
       if(!ccGoogleSyncDemoActive)return;
-      ccGoogleSyncDemoEdited=!ccGoogleSyncDemoEdited;
+      // One-way edit: a second click must never silently undo the demonstration.
+      ccGoogleSyncDemoEdited=true;
+      demoChange.disabled=true;
+      demoChange.textContent='Đã sửa: 567.890 → 765.432';
       ccGoogleSyncPlan=null;$('ccGoogleSyncCommit').disabled=true;
-      ccGoogleSyncStatus('Đã thay đổi giao dịch giả thứ 2. Bấm So sánh bản TEST lại.');
+      ccGoogleSyncStatus('DEMO: Giao dịch DEMO-PHU-HUNG-002 đã đổi số tiền từ 567.890 thành 765.432. Bấm So sánh bản TEST; dự kiến 1 sửa, 1 không đổi nếu 2 dòng đã ghi thành công.');
     });
   }
   oauth.value=localStorage.getItem('cashGoogleSheetsOAuthClientId')||CC_SYNC_OAUTH_CLIENT_ID;
