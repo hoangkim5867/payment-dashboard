@@ -362,3 +362,31 @@ test('October correction recognizes ISO date A148 and rejects non-date headers',
     assert.equal(expression.test('2026-10-27x'),false);
   }
 });
+
+
+test('staging DEMO third transaction appends once and stays unchanged on retry',async()=>{
+  const f=fixture({demo:true});
+  await f.api.compare();
+  await f.api.commit();
+  vm.runInContext('ccGoogleSyncDemoEdited=true',f.context);
+  await f.api.compare();
+  await f.api.commit();
+  vm.runInContext('ccGoogleSyncDemoAdded=true',f.context);
+  const diff=await f.api.compare();
+  assert.equal(diff.sourceCount,3);
+  assert.equal(diff.changes.length,1);
+  assert.equal(diff.changes[0].op,'new');
+  assert.equal(diff.changes[0].id,'DEMO-PHU-HUNG-003');
+  assert.equal(diff.unchanged.length,2);
+  assert.equal(diff.blocked.length,0);
+  await f.api.commit();
+  assert.equal(f.state.rows.length,3);
+  assert.equal(f.state.rows[2][12],345678);
+  const writes=f.state.postCalls;
+  const retry=await f.api.compare();
+  assert.equal(retry.changes.length,0);
+  assert.equal(retry.unchanged.length,3);
+  assert.equal(retry.blocked.length,0);
+  assert.equal(f.state.postCalls,writes,'comparison must not issue writes');
+  assert.equal(f.state.rows.length,3,'retry must not append duplicate');
+});
