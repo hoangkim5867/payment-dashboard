@@ -638,11 +638,12 @@ test('direct cached source matches October history and adds only November new ro
   const newer=await cachedSourceRow(f.api,
     ['2026-11-02','NEW','C4','IPC','IPC04','支出',0,0,100,0,0,0,0],
     'PHU HUNG:expense:new');
+  const knownNov=await cachedSourceRow(f.api,history[3].slice(0,13),'PHU HUNG:old3');
   const october=await f.api.mergeCachedSource(history,[],[matched,matchedTwo],'2026-10');
   assert.equal(october.matchedHistoric,2);
   assert.equal(october.sourceNew,0);
-  const november=await f.api.mergeCachedSource(history,october.mirror,[newer],'2026-11');
-  assert.equal(november.matchedHistoric,0);
+  const november=await f.api.mergeCachedSource(history,october.mirror,[knownNov,newer],'2026-11');
+  assert.equal(november.matchedHistoric,1);
   assert.equal(november.sourceNew,1);
   assert.equal(november.mirror.length,1);
   const computed=await f.api.buildAutoLedger(history,formulas,november.mirror);
@@ -671,7 +672,8 @@ test('direct source edit replaces valid older mirror row only in generated view'
   const current=await fakeMirrorRow(f.api,oldValues,'PHU HUNG:expense:new');
   const direct=await cachedSourceRow(f.api,editedValues,'PHU HUNG:expense:new');
   const before=JSON.stringify(current);
-  const merge=await f.api.mergeCachedSource(history,[current],[direct],'2026-11');
+  const knownNov=await cachedSourceRow(f.api,history[3].slice(0,13),'PHU HUNG:old3');
+  const merge=await f.api.mergeCachedSource(history,[current],[knownNov,direct],'2026-11');
   assert.equal(merge.sourceUpdated,1);
   assert.equal(merge.mirror.length,1);
   assert.equal(merge.mirror[0][11],125);
@@ -685,7 +687,8 @@ test('direct source detects edited Google mirror and stops before creating a vie
   const existing=await fakeMirrorRow(f.api,values,'PHU HUNG:expense:new');
   existing[11]=999;
   const source=await cachedSourceRow(f.api,values,'PHU HUNG:expense:new');
-  await assert.rejects(f.api.mergeCachedSource(history,[existing],[source],'2026-11'),
+  const knownNov=await cachedSourceRow(f.api,history[3].slice(0,13),'PHU HUNG:old3');
+  await assert.rejects(f.api.mergeCachedSource(history,[existing],[knownNov,source],'2026-11'),
     /Mirror đã bị chỉnh sửa/);
 });
 test('source fingerprint cannot hide duplicate historic and mirror payment',async()=>{
