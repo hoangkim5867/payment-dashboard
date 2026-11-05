@@ -257,7 +257,7 @@ test('staging DEMO generates two fake source records and never reads production 
   assert.equal(diff.changes.length,2);
   assert.equal(diff.blocked.length,0);
   assert.equal(f.state.postCalls,0);
-  assert.deepEqual(diff.changes.map(x=>x.id),['DEMO-PHU-HUNG-001','DEMO-PHU-HUNG-002']);
+  assert.deepEqual(Array.from(diff.changes,x=>String(x.id)),['DEMO-PHU-HUNG-001','DEMO-PHU-HUNG-002']);
   await f.api.commit();
   assert.equal(f.state.rows.length,2);
   assert.equal(f.state.rows[0].length,19);
