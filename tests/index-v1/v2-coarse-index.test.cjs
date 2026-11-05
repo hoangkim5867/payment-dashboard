@@ -58,7 +58,8 @@ test('Rules validate contract candidate; V2 query is armed only with marker v3',
    const html=fs.readFileSync(path.join(root,'site',page),'utf8');
    assert.match(html,/PAYMENT_INDEX_V2_QUERY_CODE_ENABLED = true/);
    assert.match(html,/activationVersion===3/);
-   assert.match(html,/if\(!ready\)return ensureImportDuplicateHistory\(\);/);
+   if(page==='payment.html')assert.match(html,/if\(!ready\)\{[\s\S]*?throw new Error\(/);
+   else assert.match(html,/if\(!ready\)return ensureImportDuplicateHistory\(\);/);
    assert.match(html,/where\("contractDigitsV2","in",keys\.slice/);
    assert.match(html,/contractDigitsV2ForPreview\(row\.data\.contractNo\)/);
  }
