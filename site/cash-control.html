@@ -5649,12 +5649,20 @@ async function ccGoogleSyncComparePilot(internal=false){
     changes,blocked,unchanged,legacyAudit,created:Date.now()};
   ccGoogleSyncPlan=plan;
   $('ccGoogleSyncCommit').disabled=blocked.length>0||!changes.length;
+  const demoDiagnostic=ccGoogleSyncDemoActive
+    ?' | DEMO đích '+CC_SYNC_PILOT_TAB+': '+(remote.exists?'đã có tab, '+remote.rows.length+' dòng':'CHƯA CÓ TAB')+
+       ' | Dòng đã tìm thấy: '+source.filter(r=>old.has(r.id)).length+'/2.'
+    :'';
   ccGoogleSyncStatus('Bản TEST: '+source.length+' dòng Cash Control · '+changes.filter(r=>r.op==='new').length+
     ' mới · '+changes.filter(r=>r.op==='update').length+' sửa · '+
     unchanged.length+' không đổi · '+blocked.length+' xung đột. '+
     ('Sổ lịch sử '+month+': '+(!legacyAudit.ledgerCount?'chưa có giao dịch':legacyAudit.exact?'khớp các khóa giao dịch':'CHƯA KHỚP')+
     ' ('+legacyAudit.ledgerCount+' dòng). ')+
-    (blocked.length?'Chặn ghi, cần xử lý xung đột.':'Có thể xác nhận ghi tab TEST.'));
+    (blocked.length?'Chặn ghi, cần xử lý xung đột.':'Có thể xác nhận ghi tab TEST.')+
+    demoDiagnostic+
+    (ccGoogleSyncDemoActive && !source.some(r=>old.has(r.id))
+      ?' ĐỂ THỬ SỬA: trước tiên phải GHI THÀNH CÔNG 2 DÒNG DEMO và thấy thông báo ĐÃ XÁC MINH; khi đó so sánh lại phải có 2 không đổi.':'')
+  );
   return plan;
 }
 async function ccGoogleSyncCommitPilot(){
@@ -5722,7 +5730,7 @@ async function ccGoogleSyncCommitPilot(){
   }
   ccGoogleSyncPlan=null;
   ccGoogleSyncStatus('ĐÃ XÁC MINH Google Sheets TEST / '+CC_SYNC_PILOT_TAB+': '+additions.length+' dòng mới, '+
-    updates.length+' dòng cập nhật. Không sửa tab PHU HUNG lịch sử.');
+    updates.length+' dòng cập nhật. Đã đọc lại '+verified.rows.length+' dòng ở tab đích. Không sửa tab PHU HUNG lịch sử.');
   }finally{
     ccGoogleSyncWriteInFlight=false;
   }
