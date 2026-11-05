@@ -5933,6 +5933,8 @@ async function ccGoogleSyncCorrectLegacyTest(){
     // only. Do not mistake a blank N for a broken balance calculation.
     const hasBalanceAfter=Array.from({length:last-candidate.row+1},(_,i)=>
       String(balances[candidate.row-1+i]?.[0]??'').trim()).some(Boolean);
+    // Do not attempt repairing an existing mixed-format ledger unless
+    // the exact downstream balances and date boundaries can be audited.
     const relevant=[];
     if(hasBalanceAfter)for(let sheetRow=candidate.row;sheetRow<=last;sheetRow++){
       const row=rows[sheetRow-1]||[];
@@ -5940,9 +5942,22 @@ async function ccGoogleSyncCorrectLegacyTest(){
       if(!values.some(v=>String(v??'').trim()))continue; // harmless blank separator
       const date=ccGoogleSyncNormDate(row[0]);
       const balanceText=String(balances[sheetRow-1]?.[0]??'').trim();
-      if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||!balanceText)
-        throw Error('Có dòng tiêu đề, tổng cộng hoặc thiếu số dư tại hàng '+sheetRow+
-          '. Chưa sửa để tránh sai số dư.');
+      if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||!balanceText){
+        const later=[];
+        for(let k=sheetRow+1;k<=last&&later.length<8;k++){
+          const value=String(balances[k-1]?.[0]??'').trim();
+          if(value)later.push('N'+k+'='+(
+            value.startsWith('=')?'công thức':
+            Number.isFinite(ccGoogleSyncMoney(value))?'số':'khác'));
+        }
+        const a=String(row[0]??'').trim();
+        const balanceReason=!balanceText?'N'+sheetRow+' trống':
+          !/^\\d{4}-\\d{2}-\\d{2}$/.test(date)?'A'+sheetRow+' không phải ngày giao dịch':'khác';
+        throw Error('Dữ liệu sổ tại hàng '+sheetRow+': '+balanceReason+
+          ' (A='+a.slice(0,24)+', K='+String(row[10]??'trống').slice(0,24)+
+          ', tổng số dòng='+last+', có số dư phía sau: '+(later.join('; ')||'không thấy')+
+          '). Chưa ghi để bảo toàn số dư.');
+      }
       relevant.push({sheetRow,row,balanceText});
     }
     if(hasBalanceAfter&&(!relevant.length||relevant[0].sheetRow!==candidate.row))
