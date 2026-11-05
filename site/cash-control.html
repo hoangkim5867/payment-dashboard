@@ -5718,7 +5718,7 @@ function ccGoogleSyncAnalyzeRunningBalances(rows,formulaRows){
     // mathematical meaning of arbitrary Google Sheets formulas.
     if(formula.startsWith('=')){
       result.formulaRowsChecked++;
-      const refs=Array.from(formula.matchAll(/(?:^|[^A-Z0-9_])\\$?([A-N])\\$?(\\d+)/gi),
+      const refs=Array.from(formula.matchAll(/(?:^|[^A-Z0-9_])\$?([A-N])\$?(\d+)/gi),
         x=>({column:x[1].toUpperCase(),row:Number(x[2])}));
       const directPrevious=previous&&previous.row===sheetRow-1&&
         refs.some(x=>x.column==='N'&&x.row===previous.row);
