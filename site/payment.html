@@ -20364,9 +20364,7 @@ savePaymentBtn.addEventListener(
                 const amountOnlyPatch = buildAmountOnlyFormPatch(
                     existingPayment,data,crypto.randomUUID()
                 );
-                const bankOnlyPatch = !amountOnlyPatch
-                    ? buildBankOnlyPaymentPatch(existingPayment,data)
-                    : null;
+                const bankOnlyPatch = buildBankOnlyPaymentPatch(existingPayment,data);
                 if(amountOnlyPatch){
                     // Rules compare the displayed baseline against the server
                     // amount atomically; no transaction/getDoc read needed.
