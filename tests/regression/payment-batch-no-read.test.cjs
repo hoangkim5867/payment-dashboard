@@ -40,9 +40,17 @@ test('full sets and deletes remain one batch without reads',async()=>{
  batch.set(h.ref('first'),{project:'PH',ipcNo:'A'});batch.delete(h.ref('second'));await batch.commit();
  assert.equal(h.calls.transactions,0);assert.equal(h.calls.batches,1);assert.equal(h.calls.commits[0].length,2);
 });
-test('updates, merges and repeated payment paths retain previous transaction behavior',async()=>{
+test('index-neutral updates and merges use direct batch without transaction reads',async()=>{
  const {createPaymentWriters}=await imported;
- for(const make of [b=>b.update(b.ref,{amount:20}),b=>b.set(b.ref,{amount:1},{merge:true}),b=>{b.set(b.ref,{project:'PH'});b.update(b.ref,{ipcNo:'NEXT'});}]) {
+ for(const make of [b=>b.update(b.ref,{amount:20}),b=>b.set(b.ref,{amount:1},{merge:true})]) {
+  const h=harness(),batch=createPaymentWriters(h.sdk,index.computeIndexV1).writeBatch({});
+  const b={ref:h.ref('one'),set:batch.set,update:batch.update};make(b);await batch.commit();
+  assert.equal(h.calls.transactions,0);assert.equal(h.calls.reads,0);assert.equal(h.calls.batches,1);
+ }
+});
+test('indexed changes and repeated payment paths retain transactional safeguards',async()=>{
+ const {createPaymentWriters}=await imported;
+ for(const make of [b=>b.update(b.ref,{ipcNo:'NEXT'}),b=>b.set(b.ref,{contractNo:'NEXT'},{merge:true}),b=>{b.set(b.ref,{project:'PH'});b.update(b.ref,{ipcNo:'NEXT'});}]) {
   const h=harness(),batch=createPaymentWriters(h.sdk,index.computeIndexV1).writeBatch({});
   const b={ref:h.ref('one'),set:batch.set,update:batch.update};make(b);await batch.commit();
   assert.equal(h.calls.transactions,1);assert.ok(h.calls.reads>=1);assert.equal(h.calls.batches,0);
