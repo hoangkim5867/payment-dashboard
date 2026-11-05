@@ -5966,11 +5966,13 @@ async function ccGoogleSyncMergeCachedSource(history,mirror,source,month){
 async function ccGoogleSyncVerifyComputedTab(title,plan){
   if(title!==CC_SYNC_STABLE_VIEW&&!/^AUTO_PHU_HUNG_TEST_[A-Z0-9]+$/.test(title))
     throw Error('Không đúng tên tab sổ tự tính TEST.');
-  const sheet="'"+title+"'",last=plan.rows.length+1;
+  // Read the ENTIRE generated range, not merely the new plan's length.
+  // Otherwise stale trailing transactions could masquerade as an exact match.
+  const sheet="'"+title+"'";
   const [back,backFormulas]=await Promise.all([
-    ccGoogleSyncApi('/values/'+encodeURIComponent(sheet+'!A1:Q'+last)+
+    ccGoogleSyncApi('/values/'+encodeURIComponent(sheet+'!A1:Q')+
       '?valueRenderOption=UNFORMATTED_VALUE'),
-    ccGoogleSyncApi('/values/'+encodeURIComponent(sheet+'!N2:N'+last)+
+    ccGoogleSyncApi('/values/'+encodeURIComponent(sheet+'!N2:N')+
       '?valueRenderOption=FORMULA')
   ]);
   const rows=(back.values||[]).slice(1),actualFormulas=backFormulas.values||[];
