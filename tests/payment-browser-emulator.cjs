@@ -26,6 +26,13 @@ const server=http.createServer((req,res)=>{
  try { await auth.createUser({uid,email,password:'SyntheticTestOnly123!',emailVerified:true}); }
  catch(error) { if(error.code!=='auth/uid-already-exists')throw error; }
  await db.doc('authUsers/'+uid).set({role:'staff',displayName:'Synthetic Test User',email,username:'pr11synthetic'});
+ // Synthetic emulator-only marker, never written to production.
+ // Required because desktop Excel preview now refuses unbounded full-collection reads.
+ await db.doc('systemConfig/paymentLookupV2').set({
+  ready:true,schemaVersion:2,activationVersion:3,candidateType:'contractDigitsV2',
+  rulesVerified:true,backfillVerified:true,synchronousWritersVerified:true,
+  continuousMaintenance:true,verifiedPaymentCount:1
+ });
  await db.doc('contracts/pr11-test-contract').set({
   project:'TEST PROJECT',contractNo:'TEST-PR11-MEP-SUPL-001',company:'SYNTHETIC COMPANY',
   bankAccount:'12345678',contractName:'Synthetic test contract',costType:'材料款',contractType:'材料款',status:'Active'
