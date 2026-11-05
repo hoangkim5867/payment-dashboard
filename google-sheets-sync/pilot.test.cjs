@@ -634,11 +634,12 @@ async function cachedSourceRow(api,values,id){
 test('direct cached source matches October history and adds only November new row',async()=>{
   const f=fixture(),{history,formulas}=autoLedgerFixture();
   const matched=await cachedSourceRow(f.api,history[1].slice(0,13),'PHU HUNG:old1');
+  const matchedTwo=await cachedSourceRow(f.api,history[2].slice(0,13),'PHU HUNG:old2');
   const newer=await cachedSourceRow(f.api,
     ['2026-11-02','NEW','C4','IPC','IPC04','支出',0,0,100,0,0,0,0],
     'PHU HUNG:expense:new');
-  const october=await f.api.mergeCachedSource(history,[],[matched],'2026-10');
-  assert.equal(october.matchedHistoric,1);
+  const october=await f.api.mergeCachedSource(history,[],[matched,matchedTwo],'2026-10');
+  assert.equal(october.matchedHistoric,2);
   assert.equal(october.sourceNew,0);
   const november=await f.api.mergeCachedSource(history,october.mirror,[newer],'2026-11');
   assert.equal(november.matchedHistoric,0);
