@@ -5719,8 +5719,16 @@ function ccGoogleSyncAnalyzeRunningBalances(rows,formulaRows){
         result.mismatches.push({row:sheetRow,expected,actual:balance});
     }else if(previous){
       if(previous.month!==month){
+        // Formula references are diagnostic only: a matching reference alone
+        // never proves the month-opening balance is correct.
+        const refs=[...formula.matchAll(/(?:^|[^A-Z0-9_])\\$?N\\$?(\\d+)/gi)].map(x=>Number(x[1]));
+        const lastBalanceRow=previous.row;
+        const referencesPriorBalance=refs.includes(lastBalanceRow);
+        const naiveContinuity=Math.round((previous.balance+nums[0]-nums.slice(1).reduce((sum,n)=>sum+n,0))*1e6)/1e6;
         result.monthBoundaries.push({row:sheetRow,from:previous.month,to:month,
-          firstBalanceFormula:formula.startsWith('=')});
+          firstBalanceFormula:formula.startsWith('='),
+          referencesPriorBalance,priorBalanceRow:lastBalanceRow,
+          formulaReferences:refs,continuityMatches:Math.abs(naiveContinuity-balance)<=0.000001});
       }else result.unverified.push({row:sheetRow,reason:'có hàng ngăn cách'});
     }
     previous={row:sheetRow,month,balance};
@@ -6234,7 +6242,13 @@ function ccGoogleSyncInitializeGooglePilot(){
         ' điểm chuyển tháng (không kết luận liên tục); '+audit.unverified.length+
         ' đoạn bất thường chưa xác minh; '+audit.formulaCount+' ô số dư có công thức. '+
         (audit.monthBoundaries.length?'Đầu kỳ có công thức: '+audit.monthBoundaries.filter(x=>x.firstBalanceFormula).length+
-          '/'+audit.monthBoundaries.length+'; chưa kiểm chứng công thức chuyển kỳ. ':'')+
+          '/'+audit.monthBoundaries.length+'. Tham chiếu trực tiếp số dư giao dịch cuối kỳ trước: '+
+          audit.monthBoundaries.filter(x=>x.referencesPriorBalance).length+'/'+audit.monthBoundaries.length+
+          '. Số dư đầu tháng khớp phép tính nối kỳ: '+audit.monthBoundaries.filter(x=>x.continuityMatches).length+
+          '/'+audit.monthBoundaries.length+' (chỉ là đối chiếu số học, chưa xác nhận nghiệp vụ kết chuyển). '+
+          'Ví dụ: '+audit.monthBoundaries.slice(0,4).map(x=>'N'+x.row+
+            (x.referencesPriorBalance?' có':' không có')+' tham chiếu N'+x.priorBalanceRow+
+            (x.continuityMatches?', số học khớp':', số học khác')).join('; ')+'. ':'')+
         (audit.mismatches.length?'Ví dụ lệch: '+audit.mismatches.slice(0,3).map(x=>'N'+x.row+' dự kiến '+x.expected+' nhưng Google '+x.actual).join('; ')+'. ':'')+
         (audit.unverified.length?'Ví dụ chưa xác minh: '+audit.unverified.slice(0,3).map(x=>'hàng '+x.row+' ('+x.reason+')').join('; ')+'. ':'')+
         'Không ghi dữ liệu. Kết quả này không chứng nhận đủ điều kiện ghi sổ.');
