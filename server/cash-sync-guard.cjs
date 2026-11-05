@@ -81,10 +81,11 @@ function isMirrorTab(tab,project){
     (project==='cash-control-staging'&&tab==='DATA_CASHCONTROL_DEMO');
 }
 const isAutoTab=tab=>/^AUTO_PHU_HUNG_TEST_\d{8}T\d{6}$/.test(tab);
+const STABLE_TEST_VIEW='PHU_HUNG_VIEW_TEST';
 const safeRows=(rows,columns,max=5000)=>Array.isArray(rows)&&rows.length>0&&rows.length<=max&&
   rows.every(r=>Array.isArray(r)&&r.length===columns&&r.every(v=>
     v===null||typeof v==='string'||typeof v==='number'||typeof v==='boolean'));
-function validateWrite(method,path,body,project){
+function validateWrite(method,path,body,project,stableSheetId=null){
   if(typeof path!=='string'||path.length>350||path.includes('..')||
      !body||typeof body!=='object'||Array.isArray(body))block('Disallowed Sheets write.');
   let decoded;
@@ -92,8 +93,57 @@ function validateWrite(method,path,body,project){
   if(method==='POST'&&decoded===':batchUpdate'){
     const items=body.requests;
     if(!Array.isArray(items)||items.length!==1)block('Only one new TEST tab is allowed.');
+    // Atomic replacement is limited to a derived TEST tab, never history.
+    if(items[0]?.updateCells){
+      const op=items[0].updateCells,range=op.range;
+      if(!Number.isInteger(stableSheetId)||stableSheetId<0||
+         Object.keys(items[0]).length!==1||
+         Object.keys(op).sort().join(',')!=='fields,range,rows'||
+         op.fields!=='userEnteredValue'||
+         !range||range.sheetId!==stableSheetId||
+         range.startRowIndex!==0||range.startColumnIndex!==0||
+         range.endColumnIndex!==17||
+         !Number.isInteger(range.endRowIndex)||range.endRowIndex<2||
+         range.endRowIndex>10001||
+         !Array.isArray(op.rows)||op.rows.length<2||
+         op.rows.length>range.endRowIndex||op.rows.length>10001)
+        block('Only a bounded TEST view may be replaced atomically.');
+      const rowCount=op.rows.length;
+      for(let i=0;i<rowCount;i++){
+        const cells=op.rows[i]?.values;
+        if(!Array.isArray(cells)||cells.length!==17)
+          block('Invalid TEST view grid.');
+        for(let col=0;col<17;col++){
+          const cell=cells[col];
+          if(!cell||typeof cell!=='object'||Array.isArray(cell)||
+             Object.keys(cell).some(k=>k!=='userEnteredValue'))
+            block('Unexpected Google grid cell.');
+          const v=cell.userEnteredValue;
+          if(!v)continue;
+          if(typeof v!=='object'||Array.isArray(v)||
+             Object.keys(v).length!==1||
+             !['numberValue','stringValue','boolValue','formulaValue'].includes(Object.keys(v)[0]))
+            block('Unsupported Google grid value.');
+          const type=Object.keys(v)[0],value=v[type];
+          if(type==='numberValue'&&!(typeof value==='number'&&Number.isFinite(value))||
+             type==='stringValue'&&typeof value!=='string'||
+             type==='boolValue'&&typeof value!=='boolean')
+            block('Invalid Google grid value.');
+          if(type==='formulaValue'){
+            const expected=i===1?'=$Q$2+G2-SUM(H2:M2)':
+              '=N'+i+'+G'+(i+1)+'-SUM(H'+(i+1)+':M'+(i+1)+')';
+            if(i===0||col!==13||value!==expected)
+              block('Only the approved balance formula is allowed.');
+          }else if(i>0&&col===13)
+            block('Every balance cell must contain the running formula.');
+          if(i===0&&(type!=='stringValue'||value!==COMPUTED_HEADER[col]))
+            block('Unexpected TEST view header.');
+        }
+      }
+      return;
+    }
     const props=items[0]?.addSheet?.properties,tab=props?.title;
-    if(typeof tab!=='string'||!isMirrorTab(tab,project)&&!isAutoTab(tab)||
+    if(typeof tab!=='string'||!isMirrorTab(tab,project)&&!isAutoTab(tab)&&tab!==STABLE_TEST_VIEW||
        Object.keys(items[0]).length!==1||Object.keys(props||{}).length!==1)
       block('Cannot create a non-TEST tab.');
     return;
@@ -144,5 +194,5 @@ function validateWrite(method,path,body,project){
   }
   block('Unsupported generated sheet write.');
 }
-module.exports={TEST_SPREADSHEET_ID,readConfig,verifyFirebaseAdminToken,validateWrite,
+module.exports={TEST_SPREADSHEET_ID,STABLE_TEST_VIEW,readConfig,verifyFirebaseAdminToken,validateWrite,
   isMirrorTab,isAutoTab};
