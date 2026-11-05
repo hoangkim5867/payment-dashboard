@@ -19857,7 +19857,7 @@ amountOnlyBtn?.addEventListener("click",async()=>{
         alert("Payment này đã khóa hoặc không còn trong danh sách. Chưa sửa số tiền.");
         return;
     }
-    const patch=buildAmountOnlyPatch(payment,formAmount.value);
+    const patch=buildAmountOnlyPatch(payment,formAmount.value,crypto.randomUUID());
     if(!patch){
         alert("Số tiền không hợp lệ, không thay đổi hoặc vượt giới hạn số nguyên an toàn.");
         return;
