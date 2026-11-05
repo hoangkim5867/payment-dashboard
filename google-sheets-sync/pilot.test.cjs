@@ -78,7 +78,7 @@ function fixture({month='2026-11',source=[tx(month)],demo=false,staging=false}={
     "\nccGoogleSyncToken='FAKE_TEST_TOKEN';"+
     (demo?"\nccGoogleSyncDemoActive=true; CC_SYNC_PILOT_TAB=ccGoogleSyncDemoTab;":"")+
     (staging?"\nccGoogleSyncImportedRows=new Map();":"")+
-    "\nthis.pilotAPI={compare:ccGoogleSyncComparePilot,commit:ccGoogleSyncCommitPilot,audit:ccGoogleSyncAuditLegacy,currentRows:ccGoogleSyncCurrentRows,correctionCandidate:ccGoogleSyncLegacyCorrectionCandidate,balanceAudit:ccGoogleSyncAnalyzeRunningBalances,buildAutoLedger:ccGoogleSyncBuildConsolidatedLedger,sha:ccGoogleSyncSha,payload:ccGoogleSyncPayloadCells};",context);
+    "\nthis.pilotAPI={compare:ccGoogleSyncComparePilot,commit:ccGoogleSyncCommitPilot,audit:ccGoogleSyncAuditLegacy,currentRows:ccGoogleSyncCurrentRows,correctionCandidate:ccGoogleSyncLegacyCorrectionCandidate,balanceAudit:ccGoogleSyncAnalyzeRunningBalances,buildAutoLedger:ccGoogleSyncBuildConsolidatedLedger,mergeCachedSource:ccGoogleSyncMergeCachedSource,sha:ccGoogleSyncSha,payload:ccGoogleSyncPayloadCells};",context);
   return {state,nodes,api:context.pilotAPI,context};
 }
 test('new transaction is written to isolated TEST tab and verified',async()=>{
@@ -625,4 +625,73 @@ test('computed TEST historical-only preview works with no DATA_CASHCONTROL mirro
   assert.equal(JSON.stringify(history),historyBefore);
   assert.equal(JSON.stringify(formulas),formulasBefore);
   assert.equal(f.state.postCalls,0);
+});
+
+async function cachedSourceRow(api,values,id){
+  return {id,project:'PHU HUNG',month:values[0].slice(0,7),
+    values,hash:await api.sha(api.payload(values))};
+}
+test('direct cached source matches October history and adds only November new row',async()=>{
+  const f=fixture(),{history,formulas}=autoLedgerFixture();
+  const matched=await cachedSourceRow(f.api,history[1].slice(0,13),'PHU HUNG:old1');
+  const newer=await cachedSourceRow(f.api,
+    ['2026-11-02','NEW','C4','IPC','IPC04','支出',0,0,100,0,0,0,0],
+    'PHU HUNG:expense:new');
+  const october=await f.api.mergeCachedSource(history,[],[matched],'2026-10');
+  assert.equal(october.matchedHistoric,1);
+  assert.equal(october.sourceNew,0);
+  const november=await f.api.mergeCachedSource(history,october.mirror,[newer],'2026-11');
+  assert.equal(november.matchedHistoric,0);
+  assert.equal(november.sourceNew,1);
+  assert.equal(november.mirror.length,1);
+  const computed=await f.api.buildAutoLedger(history,formulas,november.mirror);
+  assert.equal(computed.rows.length,4);
+  assert.equal(computed.closingBalance,830);
+  assert.equal(f.state.postCalls,0,'no Firestore or Sheets write in pure comparison');
+});
+test('cached source must match all historic entries of selected month or stop',async()=>{
+  const f=fixture(),{history}=autoLedgerFixture();
+  const onlyOne=await cachedSourceRow(f.api,history[1].slice(0,13),'PHU HUNG:one');
+  await assert.rejects(f.api.mergeCachedSource(history,[],[onlyOne],'2026-10'),
+    /Thiếu 1 giao dịch lịch sử/);
+});
+test('cached-source reconciliation does not erase unexplained older mirror entries',async()=>{
+  const f=fixture(),{history}=autoLedgerFixture();
+  const octoberMirror=await fakeMirrorRow(f.api,
+    ['2026-10-30','NEW','C9','IPC','IPC09','支出',0,5,0,0,0,0,0],
+    'PHU HUNG:orphan');
+  await assert.rejects(f.api.mergeCachedSource(history,[octoberMirror],[],'2026-10'),
+    /Thiếu 2 giao dịch lịch sử|không còn trong dữ liệu/);
+});
+test('direct source edit replaces valid older mirror row only in generated view',async()=>{
+  const f=fixture(),{history,formulas}=autoLedgerFixture();
+  const oldValues=['2026-11-02','NEW','C4','IPC','IPC04','支出',0,0,100,0,0,0,0];
+  const editedValues=['2026-11-02','NEW','C4','IPC','IPC04','支出',0,0,125,0,0,0,0];
+  const current=await fakeMirrorRow(f.api,oldValues,'PHU HUNG:expense:new');
+  const direct=await cachedSourceRow(f.api,editedValues,'PHU HUNG:expense:new');
+  const before=JSON.stringify(current);
+  const merge=await f.api.mergeCachedSource(history,[current],[direct],'2026-11');
+  assert.equal(merge.sourceUpdated,1);
+  assert.equal(merge.mirror.length,1);
+  assert.equal(merge.mirror[0][11],125);
+  assert.equal(JSON.stringify(current),before,'real mirror is never modified');
+  const result=await f.api.buildAutoLedger(history,formulas,merge.mirror);
+  assert.equal(result.closingBalance,805);
+});
+test('direct source detects edited Google mirror and stops before creating a view',async()=>{
+  const f=fixture(),{history}=autoLedgerFixture();
+  const values=['2026-11-02','NEW','C4','IPC','IPC04','支出',0,0,100,0,0,0,0];
+  const existing=await fakeMirrorRow(f.api,values,'PHU HUNG:expense:new');
+  existing[11]=999;
+  const source=await cachedSourceRow(f.api,values,'PHU HUNG:expense:new');
+  await assert.rejects(f.api.mergeCachedSource(history,[existing],[source],'2026-11'),
+    /Mirror đã bị chỉnh sửa/);
+});
+test('source fingerprint cannot hide duplicate historic and mirror payment',async()=>{
+  const f=fixture(),{history}=autoLedgerFixture();
+  const values=history[3].slice(0,13);
+  const source=await cachedSourceRow(f.api,values,'PHU HUNG:matched');
+  const mirror=await fakeMirrorRow(f.api,values,'PHU HUNG:matched');
+  await assert.rejects(f.api.mergeCachedSource(history,[mirror],[source],'2026-11'),
+    /đồng thời trong lịch sử và mirror/);
 });
