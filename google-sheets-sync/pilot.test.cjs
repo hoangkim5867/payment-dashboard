@@ -464,3 +464,29 @@ test('balance audit classifies cross-month transition separately from unexplaine
   assert.equal(checked.unverified.length,0);
   assert.equal(f.state.postCalls,0);
 });
+
+test('boundary formula references last prior month balance without certifying transfer',()=>{
+  const f=fixture();
+  const rows=[
+    ['2026-10-31','A','','','', '',0,0,0,0,0,0,0,1000],
+    ['2026-11-01','B','','','', '',0,100,0,0,0,0,0,900]
+  ];
+  const r=f.api.balanceAudit(rows,[[],['=N1+G2-SUM(H2:M2)']]);
+  assert.equal(r.monthBoundaries.length,1);
+  assert.equal(r.monthBoundaries[0].referencesPriorBalance,true);
+  assert.equal(r.monthBoundaries[0].continuityMatches,true);
+  assert.equal(r.mismatches.length,0);
+  assert.equal(f.state.postCalls,0);
+});
+test('month reset is explicitly flagged as not direct continuity, not mislabeled a balance error',()=>{
+  const f=fixture();
+  const rows=[
+    ['2026-10-31','A','','','', '',0,0,0,0,0,0,0,1000],
+    ['2026-11-01','B','','','', '',0,100,0,0,0,0,0,-100]
+  ];
+  const r=f.api.balanceAudit(rows,[[],['=G2-SUM(H2:M2)']]);
+  assert.equal(r.monthBoundaries[0].referencesPriorBalance,false);
+  assert.equal(r.monthBoundaries[0].continuityMatches,false);
+  assert.equal(r.unverified.length,0);
+  assert.equal(r.mismatches.length,0);
+});
