@@ -78,7 +78,7 @@ function fixture({month='2026-11',source=[tx(month)],demo=false,staging=false}={
     "\nccGoogleSyncToken='FAKE_TEST_TOKEN';"+
     (demo?"\nccGoogleSyncDemoActive=true; CC_SYNC_PILOT_TAB=ccGoogleSyncDemoTab;":"")+
     (staging?"\nccGoogleSyncImportedRows=new Map();":"")+
-    "\nthis.pilotAPI={compare:ccGoogleSyncComparePilot,commit:ccGoogleSyncCommitPilot,audit:ccGoogleSyncAuditLegacy,currentRows:ccGoogleSyncCurrentRows,correctionCandidate:ccGoogleSyncLegacyCorrectionCandidate,balanceAudit:ccGoogleSyncAnalyzeRunningBalances};",context);
+    "\nthis.pilotAPI={compare:ccGoogleSyncComparePilot,commit:ccGoogleSyncCommitPilot,audit:ccGoogleSyncAuditLegacy,currentRows:ccGoogleSyncCurrentRows,correctionCandidate:ccGoogleSyncLegacyCorrectionCandidate,balanceAudit:ccGoogleSyncAnalyzeRunningBalances,buildAutoLedger:ccGoogleSyncBuildConsolidatedLedger,sha:ccGoogleSyncSha,payload:ccGoogleSyncPayloadCells};",context);
   return {state,nodes,api:context.pilotAPI,context};
 }
 test('new transaction is written to isolated TEST tab and verified',async()=>{
@@ -521,4 +521,84 @@ test('read-only formula audit flags hardcoded balances despite matching current 
   assert.equal(outcome.formulaExpenseReferences,0);
   assert.equal(outcome.formulaReview[0].row,2);
   assert.equal(f.state.postCalls,0);
+});
+
+function autoLedgerFixture(){
+  const history=[
+    ['Date'],
+    ['2026-10-30','History A','C1','IPC','IPC01','支出',1000,0,0,0,0,0,0,1000],
+    ['2026-10-31','History B','C2','IPC','IPC02','支出',0,50,0,0,0,0,0,950],
+    ['2026-11-01','History C','C3','IPC','IPC03','支出',0,0,20,0,0,0,0,930]
+  ];
+  const formulas=[[],['=G2-SUM(H2:M2)'],
+    ['=N2+G3-SUM(H3:M3)'],['=N3+G4-SUM(H4:M4)']];
+  return {history,formulas};
+}
+async function fakeMirrorRow(api,values,id='PHU HUNG:expense:abc'){
+  return [id,'PHU HUNG',values[0].slice(0,7),...values,'',
+    await api.sha(api.payload(values)),'synced'];
+}
+test('computed TEST ledger merges older history and new mirror without touching history',async()=>{
+  const f=fixture(),{history,formulas}=autoLedgerFixture();
+  const unchanged=JSON.stringify(history),formulaBefore=JSON.stringify(formulas);
+  const value=['2026-11-02','New Vendor','C4','IPC','IPC04','支出',0,0,100,0,0,0,0];
+  const mirror=await fakeMirrorRow(f.api,value);
+  const plan=await f.api.buildAutoLedger(history,formulas,[mirror]);
+  assert.equal(plan.historicCount,3);
+  assert.equal(plan.mirroredCount,1);
+  assert.equal(plan.rows.length,4);
+  assert.equal(plan.opening,0);
+  assert.equal(plan.closingBalance,830);
+  assert.equal(plan.rows[0].formula,'=$Q$2+G2-SUM(H2:M2)');
+  assert.equal(plan.rows[3].formula,'=N4+G5-SUM(H5:M5)');
+  assert.equal(plan.rows[3].cells[15],mirror[0]);
+  assert.equal(JSON.stringify(history),unchanged);
+  assert.equal(JSON.stringify(formulas),formulaBefore);
+  assert.equal(f.state.postCalls,0);
+});
+test('computed ledger inserts backdated mirror transaction in a separate sorted view',async()=>{
+  const f=fixture(),{history,formulas}=autoLedgerFixture();
+  const value=['2026-10-30','Vendor D','C5','IPC','IPC05','支出',0,15,0,0,0,0,0];
+  const mirror=await fakeMirrorRow(f.api,value);
+  const plan=await f.api.buildAutoLedger(history,formulas,[mirror]);
+  assert.equal(plan.rows[1].origin,'CASH_CONTROL');
+  assert.equal(plan.rows[1].balance,985);
+  assert.equal(plan.closingBalance,915);
+  assert.equal(history[2][13],950,'original balance must remain unchanged');
+});
+test('computed TEST ledger blocks manually modified mirror amount',async()=>{
+  const f=fixture(),{history,formulas}=autoLedgerFixture();
+  const value=['2026-11-02','New Vendor','C4','IPC','IPC04','支出',0,0,100,0,0,0,0];
+  const mirror=await fakeMirrorRow(f.api,value);
+  mirror[11]=999;
+  await assert.rejects(f.api.buildAutoLedger(history,formulas,[mirror]),/sửa ngoài Cash Control/);
+  assert.equal(f.state.postCalls,0);
+});
+test('computed TEST ledger blocks duplicated transaction in historical sheet',async()=>{
+  const f=fixture(),{history,formulas}=autoLedgerFixture();
+  const mirror=await fakeMirrorRow(f.api,history[3].slice(0,13),'PHU HUNG:duplicate');
+  await assert.rejects(f.api.buildAutoLedger(history,formulas,[mirror]),/trùng nội dung/);
+});
+test('computed TEST ledger blocks wrong historical balance or broken formula',async()=>{
+  const f=fixture(),{history,formulas}=autoLedgerFixture();
+  const badHistory=history.map(r=>[...r]);badHistory[2][13]=951;
+  await assert.rejects(f.api.buildAutoLedger(badHistory,formulas,[]),/Chưa kiểm chứng/);
+  const badFormula=formulas.map(r=>[...r]);badFormula[2]=['=950'];
+  await assert.rejects(f.api.buildAutoLedger(history,badFormula,[]),/tham chiếu công thức/);
+});
+test('computed TEST ledger refuses earlier-than-opening mirror and wrong project',async()=>{
+  const f=fixture(),{history,formulas}=autoLedgerFixture();
+  const value=['2026-10-29','New Vendor','C4','IPC','IPC04','支出',0,0,100,0,0,0,0];
+  const mirror=await fakeMirrorRow(f.api,value);
+  await assert.rejects(f.api.buildAutoLedger(history,formulas,[mirror]),/sớm hơn/);
+  mirror[1]='OTHER PROJECT';
+  await assert.rejects(f.api.buildAutoLedger(history,formulas,[mirror]),/sai dự án/);
+});
+test('first dated transaction formula is seed, not a missing previous-transaction error',()=>{
+  const f=fixture(),{history,formulas}=autoLedgerFixture();
+  const audit=f.api.balanceAudit(history,formulas);
+  assert.equal(audit.openingFormulaRow,2);
+  assert.equal(audit.formulaRowsChecked,3);
+  assert.equal(audit.formulaPriorReferences,2);
+  assert.equal(audit.formulaReview.length,0);
 });
