@@ -602,3 +602,11 @@ test('first dated transaction formula is seed, not a missing previous-transactio
   assert.equal(audit.formulaPriorReferences,2);
   assert.equal(audit.formulaReview.length,0);
 });
+
+test('computed ledger refuses to reorder unsorted original transactions',async()=>{
+  const f=fixture(),{history,formulas}=autoLedgerFixture();
+  history[2][0]='2026-10-29';
+  await assert.rejects(f.api.buildAutoLedger(history,formulas,[]),
+    /Ngày sổ lịch sử không tăng dần/);
+  assert.equal(f.state.postCalls,0);
+});
