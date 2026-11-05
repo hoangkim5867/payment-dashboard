@@ -490,3 +490,35 @@ test('month reset is explicitly flagged as not direct continuity, not mislabeled
   assert.equal(r.unverified.length,0);
   assert.equal(r.mismatches.length,0);
 });
+
+test('read-only formula audit finds previous N, current G and H:M references',()=>{
+  const f=fixture();
+  const rows=[
+    ['2026-10-31','A','','','', '',0,0,0,0,0,0,0,1000],
+    ['2026-11-01','B','','','', '',0,100,0,0,0,0,0,900]
+  ];
+  const outcome=f.api.balanceAudit(rows,[['=900+G1-SUM(H1:M1)'],['=N1+G2-SUM(H2:M2)']]);
+  assert.equal(outcome.formulaRowsChecked,2);
+  assert.equal(outcome.formulaPriorReferences,1);
+  assert.equal(outcome.formulaSelfIncomeReferences,2);
+  assert.equal(outcome.formulaExpenseReferences,2);
+  assert.equal(outcome.formulaReview.length,1);
+  assert.equal(outcome.formulaReview[0].row,1);
+  assert.equal(f.state.postCalls,0);
+});
+test('read-only formula audit flags hardcoded balances despite matching current values',()=>{
+  const f=fixture();
+  const rows=[
+    ['2026-11-01','A','','','', '',0,0,0,0,0,0,0,1000],
+    ['2026-11-02','B','','','', '',0,100,0,0,0,0,0,900]
+  ];
+  const outcome=f.api.balanceAudit(rows,[[],['=900']]);
+  assert.equal(outcome.checked,1);
+  assert.equal(outcome.mismatches.length,0);
+  assert.equal(outcome.formulaRowsChecked,1);
+  assert.equal(outcome.formulaPriorReferences,0);
+  assert.equal(outcome.formulaSelfIncomeReferences,0);
+  assert.equal(outcome.formulaExpenseReferences,0);
+  assert.equal(outcome.formulaReview[0].row,2);
+  assert.equal(f.state.postCalls,0);
+});
