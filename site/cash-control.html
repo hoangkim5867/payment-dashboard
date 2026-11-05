@@ -1439,7 +1439,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
     </div>
     <div id="ccGoogleSyncPreviewResult" aria-live="polite"></div>
     <div class="mfoot">
-      <span style="color:#6d7890;font-size:12px">Chưa có nút ghi Google Sheets. Cần cấu hình file đích, bảo mật và đối chiếu bản sao trước.</span>
+      <span style="color:#6d7890;font-size:12px">Chỉ ghi vào tab DATA_CASHCONTROL của bản TEST khi nguồn đầy đủ và không có xung đột. Không sửa tab PHU HUNG lịch sử.</span>
       <button type="button" class="btn" data-close="ccGoogleSyncPreviewModal">Đóng</button>
     </div>
   </div>
@@ -5316,14 +5316,17 @@ function ccGoogleSyncSafeText(value){
 function ccGoogleSyncBuildSelector(){
   const container=$('ccGoogleSyncProjects');
   if(!container)return;
-  const projects=allProjects();
+  // This pilot only supports PHU HUNG. Never offer a selectable project
+  // without its own audited destination spreadsheet and access policy.
+  const projects=['PHU HUNG'];
   container.textContent='';
   projects.forEach(project=>{
     const label=document.createElement('label');
     label.style.cssText='display:flex;gap:6px;align-items:center;font-size:12px';
     const checkbox=document.createElement('input');
     checkbox.type='checkbox'; checkbox.value=project;
-    checkbox.checked=ccGoogleSyncSeedProjects.some(p=>normProject(p)===normProject(project));
+    checkbox.checked=true;
+    checkbox.disabled=true;
     const span=document.createElement('span');span.textContent=project;
     label.append(checkbox,span);container.append(label);
   });
@@ -5402,7 +5405,7 @@ async function ccGoogleSyncCurrentRows(project,month){
   if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)||month<'2026-10')
     throw Error('Chỉ thử từ tháng 10/2026 trở đi.');
   if(!paymentMonths.has(project))throw Error(
-    'Chưa xác minh tải đủ Payment PHU HUNG. Không tự đọc thêm Firestore.'
+    'Firebase staging chưa xác minh đủ Payment PHU HUNG. Không dùng 30 dòng Google Sheets làm dữ liệu nguồn, không tự đọc Firebase chính.'
   );
   const src=legacyCashExportRows(month,project);
   const results=[],seen=new Set();
@@ -5760,10 +5763,7 @@ function ccGoogleSyncInitializePreview(){
     openModal('ccGoogleSyncPreviewModal');
   });
   $('ccGoogleSyncChooseAll')?.addEventListener('click',()=>{
-    const checkboxes=[...document.querySelectorAll('#ccGoogleSyncProjects input')];
-    const select=checkboxes.some(x=>!x.checked);
-    checkboxes.forEach(x=>x.checked=select);
-    $('ccGoogleSyncChooseAll').textContent=select?'Bỏ chọn hết':'Chọn tất cả';
+    ccGoogleSyncStatus('Bản thử này chỉ hỗ trợ PHU HUNG; không thể chọn dự án khác.');
   });
   $('ccGoogleSyncInspect')?.addEventListener('click',ccGoogleSyncInspectOnly);
 }
