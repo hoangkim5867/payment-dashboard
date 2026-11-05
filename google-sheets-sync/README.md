@@ -71,3 +71,11 @@ These checks are **not** end-to-end browser, Google OAuth, Vercel or real-data a
 - Do **not** deploy the entire Cash Control production Firebase configuration to a separate test domain, or bypass `validateStagingConfig`. The Google Cloud OAuth project `cash-sheets-sync-test` is **not** itself a configured Firebase staging project.
 - Real end-to-end Cash Control → Google Sheets TEST browser verification is blocked until a separate Firebase staging project's config is provisioned for the Vercel Preview environment.
 - The isolated Google OAuth page already confirmed read-only Google Sheets API access, and Apps Script independently confirmed write access; neither proves the PR's direct Cash Control write flow.
+
+## PHU HUNG running-balance audit (November 5, 2026)
+- Added an **Admin-only, read-only** "Kiểm tra số dư PHU HUNG (chỉ đọc)" button to the TEST interface.
+- Before reporting, the browser validates the selected spreadsheet ID, TEST title and historical tab; then reads PHU HUNG A:N values and the N-column formula representation.
+- For adjacent dated transactions in the same calendar month, compare next balance to previous balance + income - six expense columns, using exact millionth-unit comparison. Missing/non-numeric amounts and balances are reported as unverified. Formula cells are counted but **not edited**.
+- Separators, summaries, headers and month transitions are **not** automatically bridged. A passing result is a partial consistency check, not an approval to insert rows or change the ledger.
+- Node mock tests cover matching and mismatching balances, headings/month boundaries, and missing balances. **CI outcome not yet confirmed** for the new head; Vercel Preview is READY but that only confirms deployment.
+- The validated direct mirror flow remains separate from the historical running-balance ledger. No automatic posting into PHU HUNG has been enabled. A trusted server-side Admin authorization gate, complete historical opening/closing balance verification, transaction ordering, safe row insertion/formula handling, backup/rollback and user acceptance are still required before production release.
