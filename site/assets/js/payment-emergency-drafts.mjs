@@ -99,7 +99,10 @@ export function restoreDraftFields(modal,values,{onFieldRestored=()=>{}}={}){
   return misses;
 }
 
-export function createPaymentEmergencyDrafts({modal,saveButton,getContext,setEntryType,prepareRestore=()=>{},onFieldRestored=()=>{}}){
+export function createPaymentEmergencyDrafts({modal,saveButton,getContext,setEntryType,prepareRestore=()=>{},onFieldRestored=()=>{},enabled=true}){
+  // The legacy draft store remains untouched for possible manual recovery.
+  // When disabled, do not add buttons, listeners, local writes or prompts.
+  if(!enabled)return {beginWrite:()=>null,notifyWriteSuccess:()=>{},notifyWriteFailure:()=>{},resetSession:()=>{}};
   if(!modal||!saveButton)throw Error('Payment draft controls not available');
   const footer=saveButton.parentElement;
   const status=document.createElement('span');

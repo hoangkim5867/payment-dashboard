@@ -6460,6 +6460,7 @@ const modalTitle =
 
 
 const emergencyPaymentDrafts=createPaymentEmergencyDrafts({
+  enabled:false, // Hide unused encrypted draft controls; preserve legacy stored drafts.
   modal:paymentModal,saveButton:savePaymentBtn,
   getContext:()=>({uid:currentAuthUser?.uid,editingId,editVersion:editingUpdatedAtAtOpen,entryType:currentPaymentEntryType}),
   setEntryType:type=>setPaymentEntryType(type==="mep"?"mep":"contract"),
@@ -18936,7 +18937,7 @@ addPaymentBtn.addEventListener(
         );
 
         if(addContractLoadFailed){
-            alert("⚠ Không tải được danh sách hợp đồng. Bạn vẫn có thể nhập thông tin và chọn ‘Lưu nháp mã hóa’. Hãy kết nối lại để tải danh sách hợp đồng và kiểm tra dữ liệu trước khi Lưu lên Firestore.");
+            alert("⚠ Không tải được danh sách hợp đồng. Hãy kết nối lại để tải danh sách hợp đồng và kiểm tra dữ liệu trước khi Lưu lên Firestore. Nội dung chưa được lưu lên hệ thống.");
         }
 
     }

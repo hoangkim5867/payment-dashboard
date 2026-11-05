@@ -55,7 +55,8 @@ for(const page of ['payment.html','payment-mobile-renderer.html']){
   assert.match(section,/addContractLoadFailed = true/);
   assert.match(section,/paymentModal\.classList\.add\(/);
   assert.match(section,/if\(addContractLoadFailed\)/);
-  assert.match(section,/Lưu nháp mã hóa/);
+  assert.doesNotMatch(section,/Lưu nháp mã hóa/);
+  assert.match(src,/enabled:false, \/\/ Hide unused encrypted draft controls/);
  });
  test(page+' does not carry an encrypted draft key into another Add/Edit record',()=>{
   const src=fs.readFileSync(path.resolve(__dirname,'../../site',page),'utf8');
