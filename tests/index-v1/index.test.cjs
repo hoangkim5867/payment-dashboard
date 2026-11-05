@@ -75,7 +75,8 @@ test('lookup remains gated until backfill and continuous maintenance are verifie
     const source=fs.readFileSync(path.join(site,f),'utf8');
     assert.match(source,/ensureImportDuplicateHistoryForRows\(localRows\)/);
     assert.match(source,/where\("duplicateKeyV1","in",keys\.slice/);
-    assert.match(source,/return ensureImportDuplicateHistory\(\)/);
+    if(f==='payment.html')assert.doesNotMatch(source,/return ensureImportDuplicateHistory\(\)/);
+    else assert.match(source,/return ensureImportDuplicateHistory\(\)/);
   }
   const source=fs.readFileSync(path.join(site,'contract-master.html'),'utf8');
   assert.match(source,/where\("mepLookupV1","==",true\)/);

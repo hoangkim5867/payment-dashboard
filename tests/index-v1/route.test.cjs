@@ -46,9 +46,14 @@ for(const html of htmls){
       paymentIndexV1Ready:async()=>false,
       ensureImportDuplicateHistory:async()=>{fallback++;return ['fallback']}};
     vm.createContext(sandbox);vm.runInContext(src.slice(start,end),sandbox);
-    const out=await sandbox.ensureImportDuplicateHistoryForRows([{data:{}}]);
-    assert.equal(fallback,1);
-    assert.equal(out[0],'fallback');
+    if(html==='payment.html'){
+      await assert.rejects(()=>sandbox.ensureImportDuplicateHistoryForRows([{data:{}}]),/Tra cứu trùng IPC chưa sẵn sàng/);
+      assert.equal(fallback,0);
+    }else{
+      const out=await sandbox.ensureImportDuplicateHistoryForRows([{data:{}}]);
+      assert.equal(fallback,1);
+      assert.equal(out[0],'fallback');
+    }
   });
 }
 

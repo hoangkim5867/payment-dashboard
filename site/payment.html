@@ -21441,7 +21441,11 @@ async function ensureImportDuplicateHistoryForRows(localRows){
         let ready=false;
         try{ready=await paymentIndexV2Ready();}
         catch(error){console.warn('V2 lookup marker unavailable, using safe legacy duplicate check',error);}
-        if(!ready)return ensureImportDuplicateHistory();
+        if(!ready){
+            // Never scan all Payment documents during Excel Preview.
+            // Without a verified index, duplicates cannot be safely checked.
+            throw new Error("Tra cứu trùng IPC V2 chưa sẵn sàng. Đã dừng Xem trước để tránh quét toàn bộ Payment và không cho nhập khi chưa kiểm tra trùng. Vui lòng báo Admin kiểm tra chỉ mục.");
+        }
         const keys=[...new Set((localRows||[])
             .filter(row=>!!row?.data)
             .map(row=>contractDigitsV2ForPreview(row.data.contractNo)))];
@@ -21462,7 +21466,7 @@ async function ensureImportDuplicateHistoryForRows(localRows){
     }
 
     if(!PAYMENT_INDEX_QUERY_CODE_ENABLED || !await paymentIndexV1Ready()){
-        return ensureImportDuplicateHistory();
+        throw new Error("Tra cứu trùng IPC chưa sẵn sàng. Đã dừng Xem trước để tránh quét toàn bộ Payment.");
     }
     // All comparisons still use the original findSameMonthDuplicateImport
     // and findCrossMonthDuplicateImport functions, including tie-breaking.
@@ -21476,7 +21480,7 @@ async function ensureImportDuplicateHistoryForRows(localRows){
     }
     if(keys.some(key=>!key || new TextEncoder().encode(key).length>1000)){
         // Firestore indexes truncate unusually long field values.
-        return ensureImportDuplicateHistory();
+        throw new Error("Khóa tra cứu trùng IPC quá dài; không thể kiểm tra an toàn mà không quét toàn bộ Payment.");
     }
     const fetched=new Map();
     // Firestore IN queries max 30 disjunctions; use 20 for headroom.
@@ -22958,123 +22962,36 @@ function smartDetectRow(row){
     let pastedProject = "";
     let projectDetectionSource = "";
 
-    const knownProjectMatch =
-        cells.find(
-            cell => {
-
-                const key =
-                    normalizeSmartProject(
-                        cell
-                    );
-
-                if(!key){
-                    return false;
-                }
-
-                return allContracts.some(
-                    master =>
-                        normalizeSmartProject(
-                            master.project
-                        ) ===
-                        key
-                );
-            }
-        );
-
-    if(knownProjectMatch){
-
-        pastedProject =
-            canonicalProjectDisplay(
-                knownProjectMatch
-            );
-
-        project =
-            pastedProject;
-
-        projectDetectionSource =
-            "master-exact";
-
-    }else{
-
-        const costTypeIndex =
-            cells.findIndex(
-                looksLikeCostTypeValue
-            );
-
-        const contractTypeIndex =
-            cells.findIndex(
-                looksLikeContractTypeValue
-            );
-
-        /*
-           Start only after fields that normally precede Project.
-           Contract Type is strongest; Cost Type / IPC are fallbacks.
-        */
-        const tailStart =
-            Math.max(
-                ipcCellIndex,
-                costTypeIndex,
-                contractTypeIndex
-            );
-
-        if(
-            tailStart >= 0 &&
-            amountCellIndex > tailStart
-        ){
-
-            const candidates = [];
-
-            for(
-                let index = tailStart + 1;
-                index < amountCellIndex;
-                index++
-            ){
-
-                const value =
-                    String(
-                        cells[index] || ""
-                    ).trim();
-
-                if(!value){
-                    continue;
-                }
-
-                if(
-                    looksLikeMoneyCell(value) ||
-                    looksLikeIPC(value) ||
-                    looksLikeContractNo(value) ||
-                    looksLikeCostTypeValue(value) ||
-                    looksLikeContractTypeValue(value)
-                ){
-                    continue;
-                }
-
-                candidates.push(
-                    {
-                        index,
-                        value
-                    }
-                );
-            }
-
-            /*
-               Exactly one plausible value in the safe tail:
-               accept it as the pasted Project, even if it is brand new.
-            */
-            if(candidates.length === 1){
-
-                pastedProject =
-                    candidates[0].value;
-
-                project =
-                    canonicalProjectDisplay(
-                        pastedProject
-                    );
-
-                projectDetectionSource =
-                    "safe-tail";
-            }
+    /*
+       In the standard headerless clipboard layout, the Project is the
+       single text cell after IPC/cost type/contract type and before Amount.
+       Prefer this explicit Excel cell over a Master project-name match
+       elsewhere in the row (which can actually be the Contract Name).
+    */
+    const costTypeIndex = cells.findIndex(looksLikeCostTypeValue);
+    const contractTypeIndex = cells.findIndex(looksLikeContractTypeValue);
+    const tailStart = Math.max(ipcCellIndex,costTypeIndex,contractTypeIndex);
+    const tailProjects = [];
+    if(tailStart >= 0 && amountCellIndex > tailStart){
+        for(let index=tailStart+1;index<amountCellIndex;index++){
+            const value=String(cells[index]||"").trim();
+            if(!value || looksLikeMoneyCell(value) || looksLikeIPC(value) ||
+               looksLikeContractNo(value) || looksLikeCostTypeValue(value) ||
+               looksLikeContractTypeValue(value))continue;
+            tailProjects.push(value);
         }
+    }
+
+    if(tailProjects.length===1){
+        pastedProject = tailProjects[0];
+        project = canonicalProjectDisplay(pastedProject);
+        projectDetectionSource = "safe-tail";
+    }else{
+        // No unambiguous project cell in the structural Excel tail.
+        // Do NOT pick any text that coincidentally matches a Master Project:
+        // it may actually be the Contract Name. A uniquely matched contract
+        // can supply a project below; otherwise manual mapping is required.
+        projectDetectionSource = "unresolved";
     }
 
     let contractMatches = [];
@@ -23413,7 +23330,17 @@ function stabilizeSmartDetectedContractRow(row, detected){
 
     let master=null;
     if(exactMatches.length===1){
-        master=exactMatches[0];
+        // Never let a Contract Master typo silently override the
+        // explicit Project cell pasted from Excel.
+        master=(!fixed.project ||
+            normalizeSmartProject(exactMatches[0].project)===normalizeSmartProject(fixed.project))
+            ? exactMatches[0] : null;
+        if(!master && fixed.project){
+            fixed.projectConflict={
+                pastedProject:fixed.project,
+                masterProjects:[exactMatches[0].project||""]
+            };
+        }
     }else if(exactMatches.length>1){
         /* If duplicate Contract No. exists, only use an explicit known Project cell as tie-breaker. */
         master=exactMatches.find(item=>
@@ -24145,6 +24072,15 @@ function buildExcelImportRows({skipHistoryDuplicateCheck = false} = {}){
                     const isNewContract =
                         !contract &&
                         !!normalize(contractNo);
+
+                    // Same Contract No. exists under a different Project.
+                    // Never silently import or auto-create a second Master.
+                    if(isNewContract && normalize(pastedProject) && contractMatches.length){
+                        errors.push(
+                            "Dự án Excel ("+pastedProject+
+                            ") không khớp Contract Master của số HĐ này. Hãy kiểm tra/sửa Dự án trong Contract Master trước khi nhập."
+                        );
+                    }
 
                     if(
                         isNewContract &&
@@ -25189,9 +25125,12 @@ function findImportedContractMaster({project="",contractNo="",company="",bankAcc
                 normalizeSmartProject(master.project) === projectKey
         );
 
-        if(sameProject.length){
-            candidates = sameProject;
+        if(!sameProject.length){
+            // A specified Excel Project must never be replaced by a
+            // same-number Contract Master from another Project.
+            return null;
         }
+        candidates = sameProject;
     }
 
     if(accountDigits){

@@ -26,6 +26,13 @@ const server=http.createServer((req,res)=>{
  try { await auth.createUser({uid,email,password:'SyntheticTestOnly123!',emailVerified:true}); }
  catch(error) { if(error.code!=='auth/uid-already-exists')throw error; }
  await db.doc('authUsers/'+uid).set({role:'staff',displayName:'Synthetic Test User',email,username:'pr11synthetic'});
+ // Synthetic emulator-only marker, never written to production.
+ // Required because desktop Excel preview now refuses unbounded full-collection reads.
+ await db.doc('systemConfig/paymentLookupV2').set({
+  ready:true,schemaVersion:2,activationVersion:3,candidateType:'contractDigitsV2',
+  rulesVerified:true,backfillVerified:true,synchronousWritersVerified:true,
+  continuousMaintenance:true,verifiedPaymentCount:1
+ });
  await db.doc('contracts/pr11-test-contract').set({
   project:'TEST PROJECT',contractNo:'TEST-PR11-MEP-SUPL-001',company:'SYNTHETIC COMPANY',
   bankAccount:'12345678',contractName:'Synthetic test contract',costType:'材料款',contractType:'材料款',status:'Active'
@@ -82,6 +89,14 @@ const server=http.createServer((req,res)=>{
     await page.locator('#previewExcelPasteBtn').click();
     await page.waitForFunction(()=>!document.querySelector('#previewExcelPasteBtn').disabled&&!document.querySelector('#excelImportStatus').textContent.includes('⏳'));
    }
+   if(file==='payment.html'){
+     // The isolated Rules intentionally do not expose V2 marker.
+     // Desktop must reject an unsafe full-history fallback.
+     await preview();
+     assert.match(await page.locator('#excelImportStatus').innerText(),/Tra cứu trùng IPC V2 chưa sẵn sàng/);
+     assert.equal(await page.locator('#confirmExcelImportBtn').isEnabled(),false);
+     await page.locator('#closePasteExcelModal').click();
+   }else{
    await preview();
    assert(await page.locator('#confirmExcelImportBtn').isEnabled(),await page.locator('#excelImportStatus').innerText());
    await page.locator('#confirmExcelImportBtn').click();
@@ -115,11 +130,12 @@ const server=http.createServer((req,res)=>{
     return !snap.docs.some(d=>String(d.data().ipcNo||'').endsWith(suffix));
    },excelIpc,{timeout:30000});
    assert.equal((await readImported()).length,0);
+   }
    assert.deepEqual(blocked,[],'Test tried connecting to production backend');
    assert.deepEqual(errors,[],'Browser JavaScript error');
    const after=await page.evaluate(()=>window.__paymentReadAudit?.summary());
    const beforeCalls=before.groups.reduce((n,x)=>n+x.calls,0),afterCalls=after.groups.reduce((n,x)=>n+x.calls,0);
-   console.log(JSON.stringify({file,role,pass:true,saveAck:true,serverReadback:true,excelImport:true,legacyDuplicateWarning:true,inPasteDuplicateBlocked:true,undo:true,noClientMetadata:true,readTraceCallsBefore:beforeCalls,readTraceCallsAfter:afterCalls,scope:'localhost-emulator'}));
+   console.log(JSON.stringify({file,role,pass:true,saveAck:true,serverReadback:true,excelImport:file!=='payment.html',indexFallbackBlocked:file==='payment.html',legacyDuplicateWarning:file!=='payment.html',inPasteDuplicateBlocked:file!=='payment.html',undo:file!=='payment.html',noClientMetadata:true,readTraceCallsBefore:beforeCalls,readTraceCallsAfter:afterCalls,scope:'localhost-emulator'}));
    await ctx.close();
   }
  }finally{await browser.close();server.close();}

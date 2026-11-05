@@ -9,7 +9,8 @@ test('V2 indexed query never bypasses marker v3; V1 stays disabled',()=>{
  for(const page of ['payment.html','payment-mobile-renderer.html']){
   const html=fs.readFileSync(path.join(site,page),'utf8');
   assert.match(html,/PAYMENT_INDEX_V2_QUERY_CODE_ENABLED = true/);
-  assert.match(html,/if\(!ready\)return ensureImportDuplicateHistory\(\);/);
+  if(page==='payment.html')assert.match(html,/if\(!ready\)\{[\s\S]*?throw new Error\(/);
+  else assert.match(html,/if\(!ready\)return ensureImportDuplicateHistory\(\);/);
   assert.match(html,/activationVersion===3/);
   assert.match(html,/where\("contractDigitsV2","in",keys\.slice/);
  }
