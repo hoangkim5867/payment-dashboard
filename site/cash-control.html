@@ -1404,44 +1404,58 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <div class="csub">Thử trực tiếp PHU HUNG → Google Sheets TEST; có đối chiếu trước khi ghi vào tab riêng.</div></div>
       <button type="button" class="btn" data-close="ccGoogleSyncPreviewModal">✕</button>
     </div>
-    <div class="note" style="margin:10px 0">
-      <b>Bản thử an toàn:</b> không gọi Firestore để tải thêm Payment, không gửi dữ liệu ra ngoài,
-      không sửa Cash Control. Trạng thái thiếu dữ liệu sẽ được cảnh báo rõ.
-      <br>Chưa thể xác định giao dịch <b>mới / đã sửa</b> khi chưa đối chiếu Google Sheets thật và ID giao dịch.
-    </div>
-    <div class="fg" style="display:flex;gap:12px;flex-wrap:wrap">
-      <div class="field" style="min-width:180px;flex:1"><label>Tháng kiểm tra</label>
-        <input type="month" id="ccGoogleSyncMonth" class="btn" style="width:100%"></div>
-      <div class="field" style="min-width:220px;flex:2"><label>Phạm vi</label>
-        <div id="ccGoogleSyncProjects" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px;padding:10px;border:1px solid #dce4ef;border-radius:8px"></div>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin:12px 0">
-      <button type="button" class="btn" id="ccGoogleSyncChooseAll">Chọn tất cả</button>
-      <button type="button" class="btn primary" id="ccGoogleSyncInspect">Kiểm tra dữ liệu hiện có</button>
-    </div>
-    <div class="note" style="margin-top:10px">
-      <b>PHU HUNG TEST:</b> Đồng bộ chỉ vào tab riêng DATA_CASHCONTROL của bản sao;
-      tab PHU HUNG lịch sử không bị sửa. Đây chưa phải đồng bộ chính thức tất cả dự án.
-      <div class="fg" style="margin-top:8px">
-        <div class="field"><label>Google OAuth Client ID</label>
-          <input id="ccGoogleSyncOAuthClient" autocomplete="off" placeholder="...apps.googleusercontent.com" style="width:100%">
-          <small>Lưu Client ID trên máy, không lưu access token. Google sẽ yêu cầu đăng nhập/cấp quyền.</small>
+    <div style="margin:12px 0;padding:12px;border:1px solid #dbe4f0;border-radius:12px;background:#f8fbff">
+      <div style="font-weight:700;margin-bottom:8px">1. Chọn dữ liệu cần đồng bộ</div>
+      <div class="fg" style="display:flex;gap:12px;flex-wrap:wrap">
+        <div class="field" style="min-width:170px;flex:1">
+          <label>Tháng</label><input type="month" id="ccGoogleSyncMonth" class="btn" style="width:100%">
+        </div>
+        <div class="field" style="min-width:210px;flex:2">
+          <label>Dự án</label>
+          <div id="ccGoogleSyncProjects" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px;padding:10px;border:1px solid #dce4ef;border-radius:8px;background:white"></div>
         </div>
       </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn" type="button" id="ccGoogleSyncSourceImport" hidden>Nhập file nguồn PHU HUNG</button>
+        <input id="ccGoogleSyncSourceFile" type="file" accept=".json,application/json" hidden>
+        <button class="btn" type="button" id="ccGoogleSyncLoadSource">Tải nguồn PHU HUNG</button>
+        <button class="btn" type="button" id="ccGoogleSyncSourceExport" hidden>Xuất nguồn PHU HUNG (JSON)</button>
+      </div>
+      <small style="display:block;margin-top:6px;color:#64748b">Dữ liệu nhập chỉ ở bộ nhớ bản TEST. Không tải thêm Firestore tự động khi đối chiếu.</small>
+    </div>
+    <div style="margin:12px 0;padding:12px;border:1px solid #dbe4f0;border-radius:12px">
+      <div style="font-weight:700;margin-bottom:8px">2. Kết nối và đối chiếu</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" type="button" id="ccGoogleSyncAuthorize">Kết nối Google</button>
-        <button class="btn" type="button" id="ccGoogleSyncLoadSource">Tải PHU HUNG nếu chưa có dữ liệu</button>
-        <button class="btn" type="button" id="ccGoogleSyncSourceExport" hidden>Xuất nguồn PHU HUNG (JSON)</button>
-        <button class="btn" type="button" id="ccGoogleSyncSourceImport" hidden>Nhập nguồn PHU HUNG (JSON)</button>
-        <input id="ccGoogleSyncSourceFile" type="file" accept=".json,application/json" hidden>
-        <button class="btn" type="button" id="ccGoogleSyncCompare">So sánh bản TEST</button>
+        <button class="btn primary" type="button" id="ccGoogleSyncCompare">So sánh dữ liệu</button>
+      </div>
+      <p id="ccGoogleSyncGoogleStatus" aria-live="polite" style="font-size:13px;color:#475569;margin:10px 0 0">Chưa kết nối Google. Không có thao tác ghi tự động.</p>
+    </div>
+    <div style="margin:12px 0;padding:12px;border:1px solid #dbe4f0;border-radius:12px">
+      <div style="font-weight:700;margin-bottom:6px">3. Xử lý kết quả</div>
+      <small style="display:block;color:#64748b;margin-bottom:10px">Chỉ cho ghi khi đã so sánh, không có xung đột. Mọi thay đổi cần xác nhận.</small>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" type="button" id="ccGoogleSyncCorrectLegacy" disabled hidden>Sửa 1 số tiền lịch sử trên bản TEST</button>
+        <button class="btn primary" type="button" id="ccGoogleSyncCommit" disabled>Ghi thay đổi vào tab TEST</button>
+      </div>
+    </div>
+    <details style="margin:12px 0;border:1px solid #dbe4f0;border-radius:12px;padding:10px 12px">
+      <summary style="cursor:pointer;font-weight:600">Công cụ nâng cao và cấu hình OAuth</summary>
+      <div class="field" style="margin:10px 0">
+        <label>Google OAuth Client ID</label>
+        <input id="ccGoogleSyncOAuthClient" autocomplete="off" placeholder="...apps.googleusercontent.com" style="width:100%">
+        <small>Chỉ lưu Client ID trên trình duyệt; không lưu access token.</small>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn" id="ccGoogleSyncInspect">Kiểm tra dữ liệu hiện có</button>
         <button class="btn" type="button" id="ccGoogleSyncDemoToggle" hidden>Thử 2 giao dịch giả</button>
         <button class="btn" type="button" id="ccGoogleSyncDemoChange" hidden>Sửa số tiền giả</button>
-        <button class="btn primary" type="button" id="ccGoogleSyncCommit" disabled>Ghi thay đổi vào tab TEST</button>
-        <button class="btn" type="button" id="ccGoogleSyncCorrectLegacy" disabled hidden>Sửa 1 số tiền lịch sử trên bản TEST</button>
       </div>
-      <p id="ccGoogleSyncGoogleStatus" style="font-size:12px;color:#475569;margin:8px 0">Chưa kết nối Google. Không có thao tác ghi tự động.</p>
+    </details>
+    <div class="note" style="margin:10px 0">
+      <b>Bản TEST PHU HUNG:</b> Dữ liệu được đối chiếu với tab PHU HUNG lịch sử.
+      Các giao dịch mới chỉ được ghi vào DATA_CASHCONTROL sau khi kiểm tra sạch.
+      Không ghi Firebase, không tự ghi Google Sheets, không sửa Google Sheets gốc.
     </div>
     <div id="ccGoogleSyncAuditDetails" aria-live="polite" style="margin:12px 0"></div>
     <div id="ccGoogleSyncPreviewResult" aria-live="polite"></div>
@@ -6220,9 +6234,6 @@ function ccGoogleSyncInitializePreview(){
     ccGoogleSyncBuildSelector();
     $('ccGoogleSyncPreviewResult').textContent='Chưa kiểm tra. Không có dữ liệu nào được gửi đi.';
     openModal('ccGoogleSyncPreviewModal');
-  });
-  $('ccGoogleSyncChooseAll')?.addEventListener('click',()=>{
-    ccGoogleSyncStatus('Bản thử này chỉ hỗ trợ PHU HUNG; không thể chọn dự án khác.');
   });
   $('ccGoogleSyncInspect')?.addEventListener('click',ccGoogleSyncInspectOnly);
 }
