@@ -5928,50 +5928,41 @@ async function ccGoogleSyncCorrectLegacyTest(){
     const last=rows.reduce((m,row,i)=>row.some(v=>String(v??'').trim())?i+1:m,0);
     if(candidate.row>last||last>300)
       throw Error('Bảng dài hoặc vị trí ngoài phạm vi an toàn, chưa sửa.');
-    // A workbook may have NO running-balance column at all. In that case
-    // changing K cannot invalidate an existing N value/formula, so touch K
-    // only. Do not mistake a blank N for a broken balance calculation.
-    const hasBalanceAfter=Array.from({length:last-candidate.row+1},(_,i)=>
-      String(balances[candidate.row-1+i]?.[0]??'').trim()).some(Boolean);
-    // Do not attempt repairing an existing mixed-format ledger unless
-    // the exact downstream balances and date boundaries can be audited.
-    const relevant=[];
-    if(hasBalanceAfter)for(let sheetRow=candidate.row;sheetRow<=last;sheetRow++){
-      const row=rows[sheetRow-1]||[];
-      const values=row.slice(0,14);
-      if(!values.some(v=>String(v??'').trim()))continue; // harmless blank separator
-      const date=ccGoogleSyncNormDate(row[0]);
-      const balanceText=String(balances[sheetRow-1]?.[0]??'').trim();
-      if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!balanceText){
-        const later=[];
-        for(let k=sheetRow+1;k<=last&&later.length<8;k++){
-          const value=String(balances[k-1]?.[0]??'').trim();
-          if(value)later.push('N'+k+'='+(
-            value.startsWith('=')?'công thức':
-            Number.isFinite(ccGoogleSyncMoney(value))?'số':'khác'));
-        }
-        const a=String(row[0]??'').trim();
-        const balanceReason=!balanceText?'N'+sheetRow+' trống':
-          !/^\d{4}-\d{2}-\d{2}$/.test(date)?'A'+sheetRow+' không phải ngày giao dịch':'khác';
-        throw Error('Dữ liệu sổ tại hàng '+sheetRow+': '+balanceReason+
-          ' (A='+a.slice(0,24)+', K='+String(row[10]??'trống').slice(0,24)+
-          ', tổng số dòng='+last+', có số dư phía sau: '+(later.join('; ')||'không thấy')+
-          '). Chưa ghi để bảo toàn số dư.');
-      }
-      relevant.push({sheetRow,row,balanceText});
+    // Classify the whole downstream N column before touching any balance.
+    // Formulas in summary and later-month rows are allowed: Google recomputes
+    // them when the single source amount in K changes. Static/mixed sheets
+    // require a separately validated running-balance sequence.
+    const balanceEntries=[];
+    for(let r=candidate.row;r<=last;r++){
+      const cell=String(balances[r-1]?.[0]??'').trim();
+      if(cell)balanceEntries.push({sheetRow:r,cell});
     }
-    if(hasBalanceAfter&&(!relevant.length||relevant[0].sheetRow!==candidate.row))
-      throw Error('Không xác định được chuỗi số dư từ dòng sửa.');
-    const noBalances=!hasBalanceAfter;
-    const allFormulas=hasBalanceAfter&&relevant.every(x=>x.balanceText.startsWith('='));
-    const allStatic=hasBalanceAfter&&relevant.every(x=>!x.balanceText.startsWith('=')&&
-      Number.isFinite(ccGoogleSyncMoney(x.balanceText)));
+    const noBalances=balanceEntries.length===0;
+    const allFormulas=!noBalances&&balanceEntries.every(x=>x.cell.startsWith('='));
+    const allStatic=!noBalances&&balanceEntries.every(x=>
+      !x.cell.startsWith('=')&&Number.isFinite(ccGoogleSyncMoney(x.cell)));
     if(!noBalances&&!allFormulas&&!allStatic)
-      throw Error('Số dư trộn công thức và giá trị: không tự sửa.');
+      throw Error('Cột số dư N có công thức xen với giá trị tĩnh; không tự sửa.');
+    if(allFormulas&&balanceEntries[0].sheetRow!==candidate.row)
+      throw Error('N'+candidate.row+' trống trong khi số dư phía sau có công thức. Chưa ghi.');
     const delta=candidate.oldValue-candidate.newValue;
     const staticBalances=[];
     if(allStatic){
-      // The preceding populated row must carry the actual running balance.
+      // Only static running balances need a strict transaction-by-transaction
+      // audit. A summary/header would make their propagation ambiguous.
+      const relevant=[];
+      for(let sheetRow=candidate.row;sheetRow<=last;sheetRow++){
+        const row=rows[sheetRow-1]||[];
+        if(!row.slice(0,14).some(v=>String(v??'').trim()))continue;
+        const date=ccGoogleSyncNormDate(row[0]);
+        const balanceText=String(balances[sheetRow-1]?.[0]??'').trim();
+        if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||!balanceText)
+          throw Error('Có tiêu đề/tổng cộng hoặc thiếu số dư tại hàng '+
+            sheetRow+'; chặn sửa giá trị tĩnh.');
+        relevant.push({sheetRow,row,balanceText});
+      }
+      if(!relevant.length||relevant[0].sheetRow!==candidate.row)
+        throw Error('Không xác định được dãy số dư tĩnh bắt đầu tại dòng sửa.');
       let prevRow=candidate.row-2;
       while(prevRow>=0&&!String(rows[prevRow]?.[13]??'').trim())prevRow--;
       if(prevRow<0||!Number.isFinite(ccGoogleSyncMoney(rows[prevRow][13])))
@@ -5980,12 +5971,11 @@ async function ccGoogleSyncCorrectLegacyTest(){
       for(const entry of relevant){
         const amounts=entry.row.slice(6,13).map(ccGoogleSyncMoney);
         if(amounts.length!==7||amounts.some(n=>!Number.isFinite(n)))
-          throw Error('Có số tiền không hợp lệ ở hàng '+entry.sheetRow);
+          throw Error('Số tiền không hợp lệ tại hàng '+entry.sheetRow);
         const oldBalance=ccGoogleSyncMoney(entry.row[13]);
         const expected=running+amounts[0]-amounts.slice(1).reduce((a,b)=>a+b,0);
         if(!Number.isFinite(oldBalance)||Math.abs(expected-oldBalance)>0.005)
-          throw Error('Số dư đang không khớp cộng dồn tại hàng '+entry.sheetRow+
-            '. Chưa sửa số tiền để tránh lan sai.');
+          throw Error('Số dư cũ không khớp tại hàng '+entry.sheetRow+'. Chưa sửa.');
         running=oldBalance;
         staticBalances.push({sheetRow:entry.sheetRow,
           amount:Math.round((oldBalance+delta)*1e6)/1e6});
