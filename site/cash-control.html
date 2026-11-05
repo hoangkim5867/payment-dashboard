@@ -5697,7 +5697,7 @@ function ccGoogleSyncAnalyzeRunningBalances(rows,formulaRows){
     const balanceRaw=row[13];
     const formula=String(formulaRows[i]?.[0]??'').trim();
     if(formula.startsWith('='))result.formulaCount++;
-    if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)){
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){
       // Headers, totals and separator rows are not transactions.
       previous=null;
       continue;
