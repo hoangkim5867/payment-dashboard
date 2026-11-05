@@ -447,3 +447,20 @@ test('historical balance audit refuses to infer a missing balance',()=>{
   assert.equal(check.unverified.length,1);
   assert.equal(check.unverified[0].row,2);
 });
+
+test('balance audit classifies cross-month transition separately from unexplained gaps',()=>{
+  const f=fixture();
+  const rows=[
+    ['2026-10-31','A','','','', '',0,0,0,0,0,0,0,1000],
+    ['2026-11-01','B','','','', '',0,100,0,0,0,0,0,900],
+    ['2026-11-02','C','','','', '',0,50,0,0,0,0,0,850]
+  ];
+  const checked=f.api.balanceAudit(rows,[[],['=N1+G2-SUM(H2:M2)'],['=N2+G3-SUM(H3:M3)']]);
+  assert.equal(checked.checked,1);
+  assert.equal(checked.mismatches.length,0);
+  assert.equal(checked.monthBoundaries.length,1);
+  assert.equal(checked.monthBoundaries[0].row,2);
+  assert.equal(checked.monthBoundaries[0].firstBalanceFormula,true);
+  assert.equal(checked.unverified.length,0);
+  assert.equal(f.state.postCalls,0);
+});
