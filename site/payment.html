@@ -2866,6 +2866,7 @@ html[data-theme] .data-first-summary .enterprise-filter-main > .global-search-fi
     Cancel
 </button>
 
+<button type="button" class="btn-gray" id="saveAmountOnlyBtn" style="display:none;" title="Chỉ sửa số tiền, không thay đổi IPC hay tiến trình">Cập nhật riêng số tiền</button>
 <button type="button" class="btn-gray" id="syncContractBankBtn" style="display:none;" title="Chỉ cập nhật tài khoản ngân hàng theo Contract, không sửa các thông tin khác">Cập nhật ngân hàng từ Contract</button>
 
 <button
@@ -4047,6 +4048,7 @@ window.HISTORY_2026_EDITED_PREVIEW = null;
 <script type="module">
 import {createPaymentEmergencyDrafts} from "./assets/js/payment-emergency-drafts.mjs";
 import {buildBankOnlyPaymentPatch} from "./assets/js/payment-bank-only-edit.mjs";
+import {buildAmountOnlyPatch} from "./assets/js/payment-amount-only-edit.mjs";
 
 import {
     initializeApp
@@ -19570,6 +19572,8 @@ async function openEditModal(
         "";
 
 
+    const amountOnlyBtn = document.getElementById("saveAmountOnlyBtn");
+    if(amountOnlyBtn)amountOnlyBtn.style.display = "";
     const syncBankBtn = document.getElementById("syncContractBankBtn");
     if(syncBankBtn){
         const sourceContract = payment.paymentType !== "other" && allContracts.find(item =>
@@ -19747,6 +19751,8 @@ formContractNo.addEventListener(
 
 function closePaymentModal(){
     emergencyPaymentDrafts.resetSession();
+    const amountOnlyBtn = document.getElementById("saveAmountOnlyBtn");
+    if(amountOnlyBtn)amountOnlyBtn.style.display="none";
     const syncBankBtn = document.getElementById("syncContractBankBtn");
     if(syncBankBtn)syncBankBtn.style.display = "none";
     paymentModal.classList.remove(
@@ -19837,6 +19843,52 @@ syncContractBankBtn?.addEventListener("click",async()=>{
         alert("❌ Chưa cập nhật ngân hàng: "+(error?.message||error));
     }finally{
         syncContractBankBtn.disabled=false;
+    }
+});
+
+/* Amount-only route: no Payment document read. Security Rules perform
+   optimistic compare-and-swap against the amount visible when Edit opened.
+   Requires the matching reviewed Firestore Rules before production enablement. */
+const amountOnlyBtn = document.getElementById("saveAmountOnlyBtn");
+amountOnlyBtn?.addEventListener("click",async()=>{
+    if(!ensureOperator() || !editingId || !currentAuthUser)return;
+    const payment=allPayments.find(p=>p.id===editingId);
+    if(!payment || isPaymentWorkflowLocked(payment)){
+        alert("Payment này đã khóa hoặc không còn trong danh sách. Chưa sửa số tiền.");
+        return;
+    }
+    const patch=buildAmountOnlyPatch(payment,formAmount.value,crypto.randomUUID());
+    if(!patch){
+        alert("Số tiền không hợp lệ, không thay đổi hoặc vượt giới hạn số nguyên an toàn.");
+        return;
+    }
+    if(!confirm("Chỉ cập nhật số tiền của Payment này?\\n\\nIPC: "+
+       String(payment.ipcNo||"—")+"\\nCũ: "+formatMoney(payment.amount)+
+       "\\nMới: "+formatMoney(patch.amount)+
+       "\\n\\nKhông thay đổi thông tin khác."))return;
+    amountOnlyBtn.disabled=true;
+    try{
+        await updateDoc(doc(db,"payments",payment.id),{
+            ...patch,
+            updatedAt:serverTimestamp(),
+            updatedBy:currentOperatorName,
+            updatedByUid:currentAuthUser.uid,
+            updatedByEmail:currentAuthUser.email||""
+        });
+        const before={...payment};
+        payment.amount=patch.amount;
+        try{
+            await logActivity("EDIT",{...payment},"",buildChangeDetails(before,payment));
+        }catch(error){console.warn("PAYMENT AMOUNT EDIT AUDIT LOG ERROR:",error);}
+        closePaymentModal();
+        updateIPCFilter();
+        renderPayments();
+        alert("✅ Đã cập nhật riêng số tiền Payment.");
+    }catch(error){
+        console.error("PAYMENT AMOUNT CAS ERROR:",error);
+        alert("❌ Chưa lưu số tiền. Có thể khoản này đã được sửa ở nơi khác hoặc Firebase từ chối ghi. Tải lại dữ liệu trước khi thử lại. "+(error?.message||error));
+    }finally{
+        amountOnlyBtn.disabled=false;
     }
 });
 
