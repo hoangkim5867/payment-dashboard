@@ -98,3 +98,10 @@ These checks are **not** end-to-end browser, Google OAuth, Vercel or real-data a
 **Reported live TEST read-only checks:** 151 same-month pairs correct; 8/8 month transitions arithmetically correct; 160 dated formulas with 159 references to a prior dated balance (first dated row N5 is the opening seed); 178 formula cells total.
 
 Passing those checks authorizes an **isolated generated TEST tab**, not modifying the original financial ledger or launching production synchronization.
+
+## History-only calculated TEST view without DATA_CASHCONTROL (November 5, 2026)
+- Updated the new TEST-only computed-ledger workflow to no longer block when DATA_CASHCONTROL has not been initialized. An absent tab is explicitly treated as zero mirrored Cash Control transactions.
+- Still reads and verifies the PHU HUNG historical tab in full and creates a **new** independently calculated TEST view with formulas. Does not invent or read production Cash Control records and does not create a fake DATA_CASHCONTROL mirror.
+- Both the confirmation and result clearly state that the generated view is **history-only, NOT Cash Control synced** when no mirrored transactions are present.
+- Once DATA_CASHCONTROL has been safely populated and reconciled, a later generated view can include those new rows; prior generated views are not automatically overwritten.
+- Branch regression covers historical-only construction; isolated mocked Google Sheets API exercised both with and without the mirror, including formula write and readback. Neither was yet verified by writing a real Google Sheet.
