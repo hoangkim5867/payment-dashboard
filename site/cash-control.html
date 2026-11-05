@@ -5794,6 +5794,11 @@ async function ccGoogleSyncBuildConsolidatedLedger(history,formulaRows,mirror){
       originalBalance:ccGoogleSyncMoney(row[13])});
   }
   if(!historic.length)throw Error('Không tìm thấy giao dịch lịch sử để xác định số dư mở đầu.');
+  for(let i=1;i<historic.length;i++){
+    if(historic[i].values[0]<historic[i-1].values[0])
+      throw Error('Ngày sổ lịch sử không tăng dần ở hàng '+historic[i].sheetRow+
+        '; không tự sắp lại giao dịch lịch sử.');
+  }
   if(historic.length!==audit.checked+audit.monthBoundaries.length+1||
      audit.mismatches.length||audit.unverified.length||
      audit.monthBoundaries.some(x=>!x.continuityMatches))
@@ -5860,8 +5865,9 @@ async function ccGoogleSyncBuildConsolidatedLedger(history,formulaRows,mirror){
 // cleared, deleted or modified, and the historical PHU HUNG sheet is untouched.
 async function ccGoogleSyncCreateComputedLedgerTest(){
   if(ccGoogleSyncWriteInFlight)throw Error('Đang có thao tác ghi khác.');
-  if(!currentAuthUser||!isCashControlOwner()||ccGoogleSyncDemoActive)
-    throw Error('Chỉ Admin được tạo sổ tự tính; phải thoát chế độ DEMO.');
+  if(!currentAuthUser||!isCashControlOwner()||ccGoogleSyncDemoActive||
+     CC_SYNC_PILOT_TAB!=='DATA_CASHCONTROL')
+    throw Error('Chỉ Admin được tạo sổ tự tính từ DATA_CASHCONTROL; phải thoát DEMO.');
   ccGoogleSyncWriteInFlight=true;
   try{
     const meta=await ccGoogleSyncApi('?fields=spreadsheetId,properties(title),sheets(properties(title))');
