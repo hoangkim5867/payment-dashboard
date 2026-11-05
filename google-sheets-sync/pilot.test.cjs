@@ -23,7 +23,7 @@ function tx(month='2026-11',amount=100.3) {
     content:'IPC',ipc:'IPC01',type:'支出',income:0,subcontract:amount,material:0,
     otherDirect:0,indirect:0,financial:0,otherPayable:0,_syncIds:['expense:001']};
 }
-function fixture({month='2026-11',source=[tx(month)],demo=false}={}){
+function fixture({month='2026-11',source=[tx(month)],demo=false,staging=false}={}){
   const state={rows:[],tab:false,tabName:demo?'DATA_CASHCONTROL_DEMO':'DATA_CASHCONTROL',postCalls:0,legacyValues:[],source};
   const nodes={
     ccGoogleSyncMonth:{value:month},
@@ -63,7 +63,7 @@ function fixture({month='2026-11',source=[tx(month)],demo=false}={}){
   function ok(data){return {ok:true,json:async()=>data}}
   const context={
     currentAuthUser:{uid:'admin'},
-    firebaseConfig:{projectId:demo?'cash-control-staging':'test-project'},
+    firebaseConfig:{projectId:demo||staging?'cash-control-staging':'test-project'},
     isCashControlOwner:()=>true,
     paymentMonths:new Map([['PHU HUNG',[]]]),
     legacyCashExportRows:()=>state.source,
@@ -77,7 +77,8 @@ function fixture({month='2026-11',source=[tx(month)],demo=false}={}){
   vm.runInContext(pilot+
     "\nccGoogleSyncToken='FAKE_TEST_TOKEN';"+
     (demo?"\nccGoogleSyncDemoActive=true; CC_SYNC_PILOT_TAB=ccGoogleSyncDemoTab;":"")+
-    "\nthis.pilotAPI={compare:ccGoogleSyncComparePilot,commit:ccGoogleSyncCommitPilot,audit:ccGoogleSyncAuditLegacy,currentRows:ccGoogleSyncCurrentRows};",context);
+    (staging?"\nccGoogleSyncImportedRows=new Map();":"")+
+    "\nthis.pilotAPI={compare:ccGoogleSyncComparePilot,commit:ccGoogleSyncCommitPilot,audit:ccGoogleSyncAuditLegacy,currentRows:ccGoogleSyncCurrentRows,correctionCandidate:ccGoogleSyncLegacyCorrectionCandidate};",context);
   return {state,nodes,api:context.pilotAPI,context};
 }
 test('new transaction is written to isolated TEST tab and verified',async()=>{
@@ -311,4 +312,40 @@ test('unrelated companies are never collapsed by bilingual payroll alias',async(
   const diff=await f.api.compare();
   assert.equal(diff.legacyAudit.matchedSourceIds.length,0);
   assert.equal(diff.blocked.length,1);
+});
+
+test('exactly one authorized 0.3 VND payroll mismatch is eligible for one-cell TEST repair',async()=>{
+  const month='2026-10';
+  const source=Array.from({length:29},(_,i)=>({...tx(month,100+i),_syncIds:['expense:'+i],
+    company:'Company '+i,contractNo:'C-'+i,ipc:'IPC-'+i}));
+  source.forEach((r,i)=>{r.date=month+'-'+String((i%26)+1).padStart(2,'0')});
+  source.push({date:'2026-10-27',company:'Lương Trung Quốc',contractNo:'',content:'Payroll',
+    ipc:'',type:'Chi phí nhân sự',income:0,subcontract:0,material:0,otherDirect:0,
+    indirect:350945181,financial:0,otherPayable:0,
+    _syncIds:['expense:manual_salary_payroll_1793330653912_rzk8d']});
+  const f=fixture({month,source,staging:true});
+  f.state.legacyValues=[['Date'],...source.map((r,i)=>[
+    r.date,i===29?'中方员工工资':r.company,r.contractNo,'',r.ipc,'',
+    0,r.subcontract,0,0,i===29?350945181.3:r.indirect,0,0
+  ])];
+  const entries=source.map((row,i)=>({
+    id:i===29?'PHU HUNG:expense:manual_salary_payroll_1793330653912_rzk8d':'PHU HUNG:expense:'+i,
+    project:'PHU HUNG',month,
+    values:[row.date,row.company,row.contractNo,row.content,row.ipc,row.type,
+      row.income,row.subcontract,row.material,row.otherDirect,row.indirect,row.financial,row.otherPayable]
+  }));
+  for(const e of entries)e.hash=await webcrypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(e.values)))
+    .then(b=>Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,'0')).join(''));
+  const audit=await f.api.audit(month,entries);
+  assert.equal(audit.matchedSourceIds.length,29);
+  assert.equal(audit.unmatchedSource,1);
+  const fix=await f.api.correctionCandidate(audit,entries,month);
+  assert.equal(fix.row,31);
+  assert.equal(fix.oldValue,350945181.3);
+  assert.equal(fix.newValue,350945181);
+  assert.equal(f.state.postCalls,0);
+  // Reject even 0.01 VND difference from the authorized old value.
+  f.state.legacyValues[30][11]=350945181.31;
+  const bad=await f.api.audit(month,entries);
+  assert.equal(await f.api.correctionCandidate(bad,entries,month),null);
 });
