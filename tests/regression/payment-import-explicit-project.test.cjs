@@ -18,3 +18,10 @@ test('mismatched Master project must not silently replace Excel project or impor
  assert.match(lookup,/if\(!sameProject.length\)\{[\s\S]*?return null/);
  assert.match(html,/if\(isNewContract && normalize\(pastedProject\) && contractMatches.length\)/);
 });
+
+test('Excel preview never silently runs an unbounded payments collection scan when index unavailable',()=>{
+ const fn=html.split('async function ensureImportDuplicateHistoryForRows(localRows){')[1].split('async function ensureImportDuplicateHistory(){')[0];
+ assert.doesNotMatch(fn,/return ensureImportDuplicateHistory\(\)/);
+ assert.match(fn,/if\(!ready\)\{[\s\S]*?throw new Error\(/);
+ assert.match(fn,/if\(!PAYMENT_INDEX_QUERY_CODE_ENABLED/);
+});
