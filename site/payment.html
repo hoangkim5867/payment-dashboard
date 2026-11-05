@@ -4044,6 +4044,7 @@ window.HISTORY_2026_EDITED_PREVIEW = null;
 
 <script type="module">
 import {createPaymentEmergencyDrafts} from "./assets/js/payment-emergency-drafts.mjs";
+import {buildBankOnlyPaymentPatch} from "./assets/js/payment-bank-only-edit.mjs";
 
 import {
     initializeApp
@@ -20281,38 +20282,39 @@ savePaymentBtn.addEventListener(
 
                 draftWriteToken=emergencyPaymentDrafts.beginWrite();
 
-                await runTransaction(db, async transaction => {
-                    const paymentRef = doc(db,"payments",editingId);
-                    const liveSnapshot = await transaction.get(paymentRef);
-                    if(!liveSnapshot.exists()) throw new Error(t("paymentNotFound"));
-                    const livePayment = liveSnapshot.data();
-                    if(isPaymentWorkflowLocked(livePayment)) throw new Error(t("lockedEdit"));
-                    if(!sameTimestamp(livePayment.updatedAt,editingUpdatedAtAtOpen)){
-                        throw new Error(t("conflictEdit"));
-                    }
-                    latestData = livePayment;
-                    transaction.update(paymentRef,
-
-                    {
-
-                        ...data,
-
-                        updatedAt:
-                            serverTimestamp(),
-
-                        updatedBy:
-                            currentOperatorName,
-
-                        updatedByUid:
-                            currentAuthUser.uid,
-
-                        updatedByEmail:
-                            currentAuthUser.email || ""
-
-                    }
-
-                    );
-                });
+                // Strict bank-only edits update just the bank field, with no
+                // pre-read. Other edits retain the existing optimistic
+                // concurrency transaction and indexed-write safeguards.
+                const bankOnlyPatch = buildBankOnlyPaymentPatch(existingPayment,data);
+                if(bankOnlyPatch){
+                    await updateDoc(doc(db,"payments",editingId),{
+                        ...bankOnlyPatch,
+                        updatedAt:serverTimestamp(),
+                        updatedBy:currentOperatorName,
+                        updatedByUid:currentAuthUser.uid,
+                        updatedByEmail:currentAuthUser.email || ""
+                    });
+                    latestData = existingPayment;
+                }else{
+                    await runTransaction(db, async transaction => {
+                        const paymentRef = doc(db,"payments",editingId);
+                        const liveSnapshot = await transaction.get(paymentRef);
+                        if(!liveSnapshot.exists()) throw new Error(t("paymentNotFound"));
+                        const livePayment = liveSnapshot.data();
+                        if(isPaymentWorkflowLocked(livePayment)) throw new Error(t("lockedEdit"));
+                        if(!sameTimestamp(livePayment.updatedAt,editingUpdatedAtAtOpen)){
+                            throw new Error(t("conflictEdit"));
+                        }
+                        latestData = livePayment;
+                        transaction.update(paymentRef,{
+                            ...data,
+                            updatedAt:serverTimestamp(),
+                            updatedBy:currentOperatorName,
+                            updatedByUid:currentAuthUser.uid,
+                            updatedByEmail:currentAuthUser.email || ""
+                        });
+                    });
+                }
                 paymentWriteAcknowledged=true;
                 emergencyPaymentDrafts.notifyWriteSuccess(draftWriteToken);
                 draftWriteToken=null;
