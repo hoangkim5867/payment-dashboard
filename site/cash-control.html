@@ -5688,7 +5688,7 @@ async function ccGoogleSyncAuditRunningBalances(){
 // If there is no reliable preceding dated row and a numeric balance at both
 // sides, report the gap instead of guessing an opening balance or formulas.
 function ccGoogleSyncAnalyzeRunningBalances(rows,formulaRows){
-  const result={checked:0,mismatches:[],unverified:[],formulaCount:0};
+  const result={checked:0,mismatches:[],unverified:[],monthBoundaries:[],formulaCount:0};
   let previous=null;
   const amount=row=>row.slice(6,13).map(ccGoogleSyncMoney);
   for(let i=0;i<rows.length;i++){
@@ -5718,7 +5718,10 @@ function ccGoogleSyncAnalyzeRunningBalances(rows,formulaRows){
       if(Math.abs(expected-balance)>0.000001)
         result.mismatches.push({row:sheetRow,expected,actual:balance});
     }else if(previous){
-      result.unverified.push({row:sheetRow,reason:previous.month!==month?'qua kỳ khác':'có hàng ngăn cách'});
+      if(previous.month!==month){
+        result.monthBoundaries.push({row:sheetRow,from:previous.month,to:month,
+          firstBalanceFormula:formula.startsWith('=')});
+      }else result.unverified.push({row:sheetRow,reason:'có hàng ngăn cách'});
     }
     previous={row:sheetRow,month,balance};
   }
@@ -6227,7 +6230,11 @@ function ccGoogleSyncInitializeGooglePilot(){
       ccGoogleSyncStatus('Đang kiểm tra số dư cột N từ Google Sheets TEST (chỉ đọc)…');
       const audit=await ccGoogleSyncAuditRunningBalances();
       ccGoogleSyncStatus('SỔ PHU HUNG TEST — CHỈ ĐỌC: '+audit.checked+' cặp giao dịch liên tiếp cùng tháng đã kiểm tra, '+
-        audit.mismatches.length+' số dư lệch, '+audit.unverified.length+' khoảng chưa xác minh; '+audit.formulaCount+' ô số dư có công thức. '+
+        audit.mismatches.length+' số dư lệch; '+audit.monthBoundaries.length+
+        ' điểm chuyển tháng (không kết luận liên tục); '+audit.unverified.length+
+        ' đoạn bất thường chưa xác minh; '+audit.formulaCount+' ô số dư có công thức. '+
+        (audit.monthBoundaries.length?'Đầu kỳ có công thức: '+audit.monthBoundaries.filter(x=>x.firstBalanceFormula).length+
+          '/'+audit.monthBoundaries.length+'; chưa kiểm chứng công thức chuyển kỳ. ':'')+
         (audit.mismatches.length?'Ví dụ lệch: '+audit.mismatches.slice(0,3).map(x=>'N'+x.row+' dự kiến '+x.expected+' nhưng Google '+x.actual).join('; ')+'. ':'')+
         (audit.unverified.length?'Ví dụ chưa xác minh: '+audit.unverified.slice(0,3).map(x=>'hàng '+x.row+' ('+x.reason+')').join('; ')+'. ':'')+
         'Không ghi dữ liệu. Kết quả này không chứng nhận đủ điều kiện ghi sổ.');
