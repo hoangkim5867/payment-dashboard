@@ -1448,6 +1448,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button type="button" class="btn" id="ccGoogleSyncInspect">Kiểm tra dữ liệu hiện có</button>
+        <button type="button" class="btn" id="ccGoogleSyncBalanceAudit">Kiểm tra số dư PHU HUNG (chỉ đọc)</button>
         <button class="btn" type="button" id="ccGoogleSyncDemoToggle" hidden>Thử 2 giao dịch giả</button>
         <button class="btn" type="button" id="ccGoogleSyncDemoChange" hidden>Sửa số tiền giả</button>
         <button class="btn" type="button" id="ccGoogleSyncDemoAdd" hidden>Thêm giao dịch giả thứ 3</button>
@@ -5665,6 +5666,65 @@ const ccGoogleSyncFingerprint=(date,amounts,contractNo,ipc,company)=>
 // Read-only historical reconciliation. Never infer duplicates from total sums.
 // Exact matches are one-to-one. Remaining rows are shown as diagnostic hints,
 // not automatically treated as equivalent or synchronized.
+// Read-only check of running balances in the historical PHU HUNG tab.
+// Verify only adjacent dated transaction rows inside the same month. Do not
+// infer that balance remains continuous over summary rows or month boundaries.
+async function ccGoogleSyncAuditRunningBalances(){
+  if(!currentAuthUser||!isCashControlOwner())throw Error('Cần đăng nhập Admin.');
+  if(ccGoogleSyncDemoActive)throw Error('Thoát DEMO trước khi kiểm tra số dư lịch sử.');
+  const meta=await ccGoogleSyncApi('?fields=spreadsheetId,properties(title),sheets(properties(title))');
+  if(meta.spreadsheetId!==CC_SYNC_PILOT_ID||!/TEST/i.test(meta.properties?.title||'')||
+      !meta.sheets?.some(s=>s.properties?.title==='PHU HUNG'))
+    throw Error('Không đúng bản sao PHU HUNG TEST đã chỉ định.');
+  const [values,formulas]=await Promise.all([
+    ccGoogleSyncApi('/values/'+encodeURIComponent("'PHU HUNG'!A1:N")+
+      '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER'),
+    ccGoogleSyncApi('/values/'+encodeURIComponent("'PHU HUNG'!N1:N")+
+      '?valueRenderOption=FORMULA')
+  ]);
+  return ccGoogleSyncAnalyzeRunningBalances(values.values||[],formulas.values||[]);
+}
+// Pure calculation: cash balance = previous balance + income - all six expenses.
+// If there is no reliable preceding dated row and a numeric balance at both
+// sides, report the gap instead of guessing an opening balance or formulas.
+function ccGoogleSyncAnalyzeRunningBalances(rows,formulaRows){
+  const result={checked:0,mismatches:[],unverified:[],formulaCount:0};
+  let previous=null;
+  const amount=row=>row.slice(6,13).map(ccGoogleSyncMoney);
+  for(let i=0;i<rows.length;i++){
+    const row=rows[i]||[],sheetRow=i+1;
+    const date=ccGoogleSyncNormDate(row[0]);
+    const balanceRaw=row[13];
+    const formula=String(formulaRows[i]?.[0]??'').trim();
+    if(formula.startsWith('='))result.formulaCount++;
+    if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)){
+      // Headers, totals and separator rows are not transactions.
+      previous=null;
+      continue;
+    }
+    const nums=amount(row);
+    const balance=ccGoogleSyncMoney(balanceRaw);
+    const valid=nums.every(Number.isFinite)&&
+      balanceRaw!==undefined&&String(balanceRaw).trim()!==''&&Number.isFinite(balance);
+    if(!valid){
+      result.unverified.push({row:sheetRow,reason:'thiếu hoặc sai số tiền/số dư'});
+      previous=null;
+      continue;
+    }
+    const month=date.slice(0,7);
+    if(previous&&previous.month===month&&previous.row===sheetRow-1){
+      const expected=Math.round((previous.balance+nums[0]-nums.slice(1).reduce((s,n)=>s+n,0))*1e6)/1e6;
+      result.checked++;
+      if(Math.abs(expected-balance)>0.000001)
+        result.mismatches.push({row:sheetRow,expected,actual:balance});
+    }else if(previous){
+      result.unverified.push({row:sheetRow,reason:previous.month!==month?'qua kỳ khác':'có hàng ngăn cách'});
+    }
+    previous={row:sheetRow,month,balance};
+  }
+  return result;
+}
+
 async function ccGoogleSyncAuditLegacy(month,source){
   if(ccGoogleSyncDemoActive){
     if(!CC_SYNC_DEMO_ALLOWED||CC_SYNC_PILOT_TAB!==ccGoogleSyncDemoTab)throw Error('Demo tab mismatch');
@@ -6159,6 +6219,21 @@ function ccGoogleSyncInitializeGooglePilot(){
       ccGoogleSyncStatus('DEMO: thêm DEMO-PHU-HUNG-003 (345.678 VND) trong bộ nhớ; đích duy nhất DATA_CASHCONTROL_DEMO. Bấm So sánh dữ liệu, dự kiến 1 mới và 2 không đổi nếu DEMO-002 đã lưu 765.432.');
     });
   }
+  const balanceAuditButton=$('ccGoogleSyncBalanceAudit');
+  balanceAuditButton?.addEventListener('click',async()=>{
+    if(ccGoogleSyncWriteInFlight){ccGoogleSyncStatus('Đang ghi TEST; không kiểm tra số dư đồng thời.');return}
+    balanceAuditButton.disabled=true;
+    try{
+      ccGoogleSyncStatus('Đang kiểm tra số dư cột N từ Google Sheets TEST (chỉ đọc)…');
+      const audit=await ccGoogleSyncAuditRunningBalances();
+      ccGoogleSyncStatus('SỔ PHU HUNG TEST — CHỈ ĐỌC: '+audit.checked+' cặp giao dịch liên tiếp cùng tháng đã kiểm tra, '+
+        audit.mismatches.length+' số dư lệch, '+audit.unverified.length+' khoảng chưa xác minh; '+audit.formulaCount+' ô số dư có công thức. '+
+        (audit.mismatches.length?'Ví dụ lệch: '+audit.mismatches.slice(0,3).map(x=>'N'+x.row+' dự kiến '+x.expected+' nhưng Google '+x.actual).join('; ')+'. ':'')+
+        (audit.unverified.length?'Ví dụ chưa xác minh: '+audit.unverified.slice(0,3).map(x=>'hàng '+x.row+' ('+x.reason+')').join('; ')+'. ':'')+
+        'Không ghi dữ liệu. Kết quả này không chứng nhận đủ điều kiện ghi sổ.');
+    }catch(error){ccGoogleSyncStatus('CHƯA KIỂM TRA ĐƯỢC SỐ DƯ: '+error.message)}
+    finally{balanceAuditButton.disabled=false}
+  });
   const sourceExport=$('ccGoogleSyncSourceExport');
   const sourceImport=$('ccGoogleSyncSourceImport');
   const sourceFile=$('ccGoogleSyncSourceFile');
