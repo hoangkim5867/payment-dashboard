@@ -1449,6 +1449,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button type="button" class="btn" id="ccGoogleSyncInspect">Kiểm tra dữ liệu hiện có</button>
         <button type="button" class="btn" id="ccGoogleSyncBalanceAudit">Kiểm tra số dư PHU HUNG (chỉ đọc)</button>
+        <button type="button" class="btn" id="ccGoogleSyncBuildLedger">Tạo sổ tự tính TEST (tab riêng)</button>
         <button class="btn" type="button" id="ccGoogleSyncDemoToggle" hidden>Thử 2 giao dịch giả</button>
         <button class="btn" type="button" id="ccGoogleSyncDemoChange" hidden>Sửa số tiền giả</button>
         <button class="btn" type="button" id="ccGoogleSyncDemoAdd" hidden>Thêm giao dịch giả thứ 3</button>
@@ -5761,6 +5762,168 @@ function ccGoogleSyncAnalyzeRunningBalances(rows,formulaRows){
   return result;
 }
 
+// Auto-calculated consolidated TEST ledger: rebuild the presentation from
+// immutable historical transactions + already-confirmed mirror rows.
+// Never INSERT into the historic PHU HUNG sheet or overwrite its 178 formulas.
+const CC_SYNC_AUTO_LEDGER_HEADER=[
+  'date','company','contractNo','content','ipc','type','income','subcontract',
+  'material','otherDirect','indirect','financial','otherPayable','balance',
+  'origin','sourceId','openingBalance'
+];
+async function ccGoogleSyncBuildConsolidatedLedger(history,formulaRows,mirror){
+  const audit=ccGoogleSyncAnalyzeRunningBalances(history,formulaRows);
+  const historic=[];
+  const cleanValues=row=>{
+    const date=ccGoogleSyncNormDate(row[0]);
+    const amounts=row.slice(6,13).map(ccGoogleSyncMoney);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||amounts.length!==7||
+       !amounts.every(Number.isFinite))
+      throw Error('Không xác định được ngày hoặc nhóm thu/chi hợp lệ.');
+    return [date,...row.slice(1,6).map(x=>String(x??'')),...amounts];
+  };
+  const cashFlow=values=>values[6]-values.slice(7,13).reduce((a,b)=>a+b,0);
+  const round=x=>Math.round(x*1e6)/1e6;
+  for(let i=0;i<history.length;i++){
+    const row=history[i]||[],date=ccGoogleSyncNormDate(row[0]);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date))continue;
+    if(row[13]===undefined||String(row[13]).trim()===''||
+       !Number.isFinite(ccGoogleSyncMoney(row[13])))
+      throw Error('Sổ lịch sử thiếu số dư tại N'+(i+1)+'. Không lập sổ tự tính.');
+    historic.push({values:cleanValues(row),origin:'LỊCH SỬ',
+      sourceId:'HISTORIC_ROW_'+(i+1),sheetRow:i+1,
+      originalBalance:ccGoogleSyncMoney(row[13])});
+  }
+  if(!historic.length)throw Error('Không tìm thấy giao dịch lịch sử để xác định số dư mở đầu.');
+  if(historic.length!==audit.checked+audit.monthBoundaries.length+1||
+     audit.mismatches.length||audit.unverified.length||
+     audit.monthBoundaries.some(x=>!x.continuityMatches))
+    throw Error('Chưa kiểm chứng liên tục toàn bộ số dư lịch sử; chặn lập sổ tự tính.');
+  if(audit.formulaRowsChecked!==historic.length||
+     audit.formulaPriorReferences!==historic.length-1||
+     audit.formulaSelfIncomeReferences!==historic.length||
+     audit.formulaExpenseReferences!==historic.length)
+    throw Error('Chưa kiểm chứng đủ tham chiếu công thức lịch sử; chặn lập sổ tự tính.');
+  // Infer the opening anchor from the first historic transaction, then verify
+  // every historic closing balance independently from that anchor.
+  const opening=round(historic[0].originalBalance-cashFlow(historic[0].values));
+  let originalRunning=opening;
+  for(const entry of historic){
+    originalRunning=round(originalRunning+cashFlow(entry.values));
+    if(Math.abs(originalRunning-entry.originalBalance)>0.000001)
+      throw Error('Tái tính sổ lịch sử lệch tại N'+entry.sheetRow+'. Không ghi.');
+  }
+  if(!Array.isArray(mirror))throw Error('Chưa đọc được tab dữ liệu đồng bộ.');
+  const signed=new Set(historic.map(x=>{
+    const v=x.values;
+    return ccGoogleSyncFingerprint(v[0],v.slice(6,13),v[2],v[4],v[1]);
+  }));
+  const seenIds=new Set(),extras=[];
+  for(const raw of mirror){
+    const id=String(raw[0]??'').trim(),project=String(raw[1]??'').trim();
+    const values=cleanValues(raw.slice(3,16));
+    if(!id||seenIds.has(id)||project!=='PHU HUNG'||
+       String(raw[2]??'')!==values[0].slice(0,7))
+      throw Error('Dữ liệu mirror thiếu ID, trùng hoặc sai dự án/tháng.');
+    seenIds.add(id);
+    if(await ccGoogleSyncSha(ccGoogleSyncPayloadCells(raw.slice(3,16)))!==String(raw[17]??''))
+      throw Error('Mirror đã bị sửa ngoài Cash Control: '+id+'. Không ghi.');
+    if(values[0]<historic[0].values[0])
+      throw Error('Có giao dịch mới sớm hơn ngày mở đầu sổ; chưa thể tự suy số dư.');
+    const fingerprint=ccGoogleSyncFingerprint(
+      values[0],values.slice(6,13),values[2],values[4],values[1]);
+    if(signed.has(fingerprint))
+      throw Error('Có giao dịch đồng bộ trùng nội dung với sổ hiện có: '+id+'. Không ghi.');
+    signed.add(fingerprint);
+    extras.push({values,origin:'CASH_CONTROL',sourceId:id});
+  }
+  if(historic.length+extras.length>10000)throw Error('Sổ quá 10.000 giao dịch; cần phân kỳ.');
+  const combined=[...historic,...extras].sort((a,b)=>
+    a.values[0].localeCompare(b.values[0])||
+    (a.origin===b.origin?0:a.origin==='LỊCH SỬ'?-1:1)||
+    (a.sheetRow||0)-(b.sheetRow||0)||
+    a.sourceId.localeCompare(b.sourceId));
+  let balance=opening;
+  const generated=combined.map((entry,i)=>{
+    const target=i+2;
+    balance=round(balance+cashFlow(entry.values));
+    return {...entry,balance,
+      // The only formulas we write; all user-controlled descriptions use RAW.
+      formula:i===0?'=$Q$2+G2-SUM(H2:M2)':
+        '=N'+(target-1)+'+G'+target+'-SUM(H'+target+':M'+target+')',
+      cells:[...entry.values,'',entry.origin,entry.sourceId,i===0?opening:'']
+    };
+  });
+  return {rows:generated,opening,historicCount:historic.length,
+    mirroredCount:extras.length,closingBalance:balance,audit};
+}
+// The user explicitly confirms a new, timestamped TEST tab. No existing tab is
+// cleared, deleted or modified, and the historical PHU HUNG sheet is untouched.
+async function ccGoogleSyncCreateComputedLedgerTest(){
+  if(ccGoogleSyncWriteInFlight)throw Error('Đang có thao tác ghi khác.');
+  if(!currentAuthUser||!isCashControlOwner()||ccGoogleSyncDemoActive)
+    throw Error('Chỉ Admin được tạo sổ tự tính; phải thoát chế độ DEMO.');
+  ccGoogleSyncWriteInFlight=true;
+  try{
+    const meta=await ccGoogleSyncApi('?fields=spreadsheetId,properties(title),sheets(properties(title))');
+    if(meta.spreadsheetId!==CC_SYNC_PILOT_ID||!/TEST/i.test(meta.properties?.title||'')||
+       !meta.sheets?.some(x=>x.properties?.title==='PHU HUNG'))
+      throw Error('Không đúng file PHU HUNG TEST được phép.');
+    const mirror=await ccGoogleSyncReadSheet();
+    if(!mirror.exists)throw Error('Chưa có tab DATA_CASHCONTROL. Cần đồng bộ dữ liệu nguồn vào mirror TEST trước.');
+    const [legacy,formulas]=await Promise.all([
+      ccGoogleSyncApi('/values/'+encodeURIComponent("'PHU HUNG'!A1:N")+
+        '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER'),
+      ccGoogleSyncApi('/values/'+encodeURIComponent("'PHU HUNG'!N1:N")+
+        '?valueRenderOption=FORMULA')
+    ]);
+    const plan=await ccGoogleSyncBuildConsolidatedLedger(
+      legacy.values||[],formulas.values||[],mirror.rows);
+    if(!confirm('TẠO SỔ TỰ TÍNH TRONG FILE PHU HUNG TEST: '+plan.historicCount+
+      ' giao dịch lịch sử + '+plan.mirroredCount+' giao dịch mirror, '+plan.rows.length+
+      ' dòng, số dư cuối dự kiến '+plan.closingBalance.toLocaleString('vi-VN')+
+      '. Chỉ tạo TAB TEST MỚI; không sửa PHU HUNG hay DATA_CASHCONTROL. Tiếp tục?'))return;
+    const title='AUTO_PHU_HUNG_TEST_'+new Date().toISOString().replace(/[-:]/g,'').slice(0,15);
+    if(meta.sheets?.some(x=>x.properties?.title===title))
+      throw Error('Tab kết quả cùng thời điểm đã tồn tại; không ghi đè.');
+    ccGoogleSyncStatus('Đang dựng sổ riêng, tự sinh công thức số dư và đối chiếu lại…');
+    await ccGoogleSyncApi(':batchUpdate',{method:'POST',body:{
+      requests:[{addSheet:{properties:{title}}}]
+    }});
+    const sheet="'"+title+"'",last=plan.rows.length+1;
+    await ccGoogleSyncApi('/values/'+encodeURIComponent(sheet+'!A1:Q'+last)+
+      '?valueInputOption=RAW',{method:'PUT',body:{values:[
+        CC_SYNC_AUTO_LEDGER_HEADER,...plan.rows.map(x=>x.cells)]}});
+    await ccGoogleSyncApi('/values/'+encodeURIComponent(sheet+'!N2:N'+last)+
+      '?valueInputOption=USER_ENTERED',{method:'PUT',body:{
+        values:plan.rows.map(x=>[x.formula])}});
+    const [back,backFormulas]=await Promise.all([
+      ccGoogleSyncApi('/values/'+encodeURIComponent(sheet+'!A1:Q'+last)+
+        '?valueRenderOption=UNFORMATTED_VALUE'),
+      ccGoogleSyncApi('/values/'+encodeURIComponent(sheet+'!N2:N'+last)+
+        '?valueRenderOption=FORMULA')
+    ]);
+    const rows=(back.values||[]).slice(1),actualFormulas=backFormulas.values||[];
+    if(rows.length!==plan.rows.length||actualFormulas.length!==plan.rows.length||
+       (back.values||[])[0]?.join('|')!==CC_SYNC_AUTO_LEDGER_HEADER.join('|'))
+      throw Error('Tab mới chưa đúng cấu trúc khi đọc lại. Không coi là hoàn tất.');
+    for(let i=0;i<plan.rows.length;i++){
+      const actual=rows[i],expected=plan.rows[i];
+      if(String(actual?.[0]??'')!==expected.values[0]||
+         String(actual?.[15]??'')!==expected.sourceId||
+         String(actualFormulas[i]?.[0]??'').replace(/\s+/g,'')!==
+           expected.formula.replace(/\s+/g,'')||
+         !Number.isFinite(Number(actual?.[13]))||
+         Math.abs(Number(actual[13])-expected.balance)>0.000001)
+        throw Error('Đã tạo tab nhưng kiểm tra lại thất bại ở hàng '+(i+2)+
+          '. Không chạy lại trước khi xem tab đó.');
+    }
+    ccGoogleSyncStatus('ĐÃ XÁC MINH SỔ TỰ TÍNH TEST: '+title+'; '+
+      plan.historicCount+' lịch sử + '+plan.mirroredCount+' đồng bộ; '+
+      plan.rows.length+' giao dịch; số dư cuối '+plan.closingBalance.toLocaleString('vi-VN')+
+      '. Công thức số dư tự cập nhật trong tab mới. KHÔNG sửa tab PHU HUNG lịch sử.');
+  }finally{ccGoogleSyncWriteInFlight=false}
+}
+
 async function ccGoogleSyncAuditLegacy(month,source){
   if(ccGoogleSyncDemoActive){
     if(!CC_SYNC_DEMO_ALLOWED||CC_SYNC_PILOT_TAB!==ccGoogleSyncDemoTab)throw Error('Demo tab mismatch');
@@ -6255,6 +6418,13 @@ function ccGoogleSyncInitializeGooglePilot(){
       ccGoogleSyncStatus('DEMO: thêm DEMO-PHU-HUNG-003 (345.678 VND) trong bộ nhớ; đích duy nhất DATA_CASHCONTROL_DEMO. Bấm So sánh dữ liệu, dự kiến 1 mới và 2 không đổi nếu DEMO-002 đã lưu 765.432.');
     });
   }
+  const computedLedgerButton=$('ccGoogleSyncBuildLedger');
+  computedLedgerButton?.addEventListener('click',async()=>{
+    computedLedgerButton.disabled=true;
+    try{await ccGoogleSyncCreateComputedLedgerTest()}
+    catch(error){ccGoogleSyncStatus('CHƯA HOÀN TẤT SỔ TỰ TÍNH TEST: '+error.message)}
+    finally{computedLedgerButton.disabled=false}
+  });
   const balanceAuditButton=$('ccGoogleSyncBalanceAudit');
   balanceAuditButton?.addEventListener('click',async()=>{
     if(ccGoogleSyncWriteInFlight){ccGoogleSyncStatus('Đang ghi TEST; không kiểm tra số dư đồng thời.');return}
