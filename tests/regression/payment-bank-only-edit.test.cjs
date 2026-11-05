@@ -21,7 +21,7 @@ test('empty legacy optional fields are tolerated but nonblank changes are not',a
 test('desktop Payment bank-only branch updates one field; other edits retain transaction guard',()=>{
  const html=fs.readFileSync(path.join(__dirname,'../../site/payment.html'),'utf8');
  assert.match(html,/import \{buildBankOnlyPaymentPatch\} from "\.\/assets\/js\/payment-bank-only-edit\.mjs"/);
- assert.match(html,/const bankOnlyPatch = buildBankOnlyPaymentPatch\(existingPayment,data\)/);
- assert.match(html,/if\(bankOnlyPatch\)\{[\s\S]*?await updateDoc\(doc\(db,"payments",editingId\),\{[\s\S]*?\.\.\.bankOnlyPatch,[\s\S]*?\}\);[\s\S]*?\}else\{[\s\S]*?await runTransaction\(db, async transaction =>/);
+ assert.match(html,/const bankOnlyPatch = buildBankOnlyPaymentPatch\(\s*existingPayment,contractBankComparisonData\s*\)/);
+ assert.match(html,/else if\(bankOnlyPatch\)\{[\s\S]*?await updateDoc\(doc\(db,"payments",editingId\),\{[\s\S]*?\.\.\.bankOnlyPatch,[\s\S]*?\}\);[\s\S]*?\}else\{[\s\S]*?await runTransaction\(db, async transaction =>/);
  assert.match(html,/if\(!sameTimestamp\(livePayment\.updatedAt,editingUpdatedAtAtOpen\)\)/);
 });
