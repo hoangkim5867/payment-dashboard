@@ -1450,6 +1450,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <button type="button" class="btn" id="ccGoogleSyncInspect">Kiểm tra dữ liệu hiện có</button>
         <button type="button" class="btn" id="ccGoogleSyncBalanceAudit">Kiểm tra số dư PHU HUNG (chỉ đọc)</button>
         <button type="button" class="btn" id="ccGoogleSyncBuildLedger">Tạo sổ tự tính TEST (tab riêng)</button>
+        <small style="display:block;color:#64748b;width:100%">Chưa có DATA_CASHCONTROL vẫn tạo được sổ lịch sử tự tính để kiểm tra; không tự thêm giao dịch Cash Control.</small>
         <button class="btn" type="button" id="ccGoogleSyncDemoToggle" hidden>Thử 2 giao dịch giả</button>
         <button class="btn" type="button" id="ccGoogleSyncDemoChange" hidden>Sửa số tiền giả</button>
         <button class="btn" type="button" id="ccGoogleSyncDemoAdd" hidden>Thêm giao dịch giả thứ 3</button>
@@ -5875,7 +5876,10 @@ async function ccGoogleSyncCreateComputedLedgerTest(){
        !meta.sheets?.some(x=>x.properties?.title==='PHU HUNG'))
       throw Error('Không đúng file PHU HUNG TEST được phép.');
     const mirror=await ccGoogleSyncReadSheet();
-    if(!mirror.exists)throw Error('Chưa có tab DATA_CASHCONTROL. Cần đồng bộ dữ liệu nguồn vào mirror TEST trước.');
+    // Missing mirror is a valid HISTORY-ONLY preview, not a reason to block
+    // checking the original ledger's running-balance formulas. Never create
+    // placeholder Cash Control transactions or claim they have been synced.
+    const mirroredRows=mirror.exists?mirror.rows:[];
     const [legacy,formulas]=await Promise.all([
       ccGoogleSyncApi('/values/'+encodeURIComponent("'PHU HUNG'!A1:N")+
         '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER'),
@@ -5883,9 +5887,11 @@ async function ccGoogleSyncCreateComputedLedgerTest(){
         '?valueRenderOption=FORMULA')
     ]);
     const plan=await ccGoogleSyncBuildConsolidatedLedger(
-      legacy.values||[],formulas.values||[],mirror.rows);
-    if(!confirm('TẠO SỔ TỰ TÍNH TRONG FILE PHU HUNG TEST: '+plan.historicCount+
-      ' giao dịch lịch sử + '+plan.mirroredCount+' giao dịch mirror, '+plan.rows.length+
+      legacy.values||[],formulas.values||[],mirroredRows);
+    if(!confirm((mirror.exists&&plan.mirroredCount?
+      'TẠO SỔ TỔNG HỢP PHU HUNG TEST: ':
+      'TẠO SỔ LỊCH SỬ PHU HUNG TEST (CHƯA CÓ GIAO DỊCH CASH CONTROL): ')+
+      plan.historicCount+' giao dịch lịch sử + '+plan.mirroredCount+' giao dịch mirror, '+plan.rows.length+
       ' dòng, số dư cuối dự kiến '+plan.closingBalance.toLocaleString('vi-VN')+
       '. Chỉ tạo TAB TEST MỚI; không sửa PHU HUNG hay DATA_CASHCONTROL. Tiếp tục?'))return;
     const title='AUTO_PHU_HUNG_TEST_'+new Date().toISOString().replace(/[-:]/g,'').slice(0,15);
@@ -5923,7 +5929,8 @@ async function ccGoogleSyncCreateComputedLedgerTest(){
         throw Error('Đã tạo tab nhưng kiểm tra lại thất bại ở hàng '+(i+2)+
           '. Không chạy lại trước khi xem tab đó.');
     }
-    ccGoogleSyncStatus('ĐÃ XÁC MINH SỔ TỰ TÍNH TEST: '+title+'; '+
+    ccGoogleSyncStatus((plan.mirroredCount?
+      'ĐÃ XÁC MINH SỔ TỔNG HỢP TEST: ':'ĐÃ XÁC MINH SỔ LỊCH SỬ TEST (CHƯA ĐỒNG BỘ CASH CONTROL): ')+title+'; '+
       plan.historicCount+' lịch sử + '+plan.mirroredCount+' đồng bộ; '+
       plan.rows.length+' giao dịch; số dư cuối '+plan.closingBalance.toLocaleString('vi-VN')+
       '. Công thức số dư tự cập nhật trong tab mới. KHÔNG sửa tab PHU HUNG lịch sử.');
