@@ -10177,6 +10177,9 @@ async function doFirebaseLogin(){
             password
         );
 
+        // Remove the hidden credential after login, not the Firebase Auth session.
+        authPasswordInput.value = "";
+
     }catch(error){
 
         console.error(

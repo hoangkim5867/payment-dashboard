@@ -11233,6 +11233,11 @@ async function doFirebaseLogin(){
             password
         );
 
+        // Do not leave a populated, hidden password field on the Payment page.
+        // Chrome can mistake later financial-number edits for credential forms.
+        // Firebase Auth retains the session independently of this input value.
+        authPasswordInput.value = "";
+
     }catch(error){
 
         console.error(
