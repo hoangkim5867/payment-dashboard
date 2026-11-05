@@ -718,6 +718,12 @@ test('generated TEST tab comparison avoids repeating identical write or tab crea
   f.state.computedFormulas=plan.rows.map(x=>[x.formula]);
   const title='AUTO_PHU_HUNG_TEST_20261105T100110';
   assert.equal(await f.api.verifyComputedTab(title,plan),true);
+  const surplus=[...f.state.computedValues.at(-1)];
+  f.state.computedValues.push(surplus);
+  f.state.computedFormulas.push(['=N4+G5-SUM(H5:M5)']);
+  assert.equal(await f.api.verifyComputedTab(title,plan),false,
+    'extra transaction must not be ignored when new plan is shorter');
+  f.state.computedValues.pop();f.state.computedFormulas.pop();
   assert.equal(f.state.postCalls,0,'no mutation allowed during view comparison');
   f.state.computedValues[2][10]=999;
   assert.equal(await f.api.verifyComputedTab(title,plan),false,
