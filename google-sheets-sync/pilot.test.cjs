@@ -24,7 +24,7 @@ function tx(month='2026-11',amount=100.3) {
     otherDirect:0,indirect:0,financial:0,otherPayable:0,_syncIds:['expense:001']};
 }
 function fixture({month='2026-11',source=[tx(month)],demo=false,staging=false}={}){
-  const state={rows:[],tab:false,tabName:demo?'DATA_CASHCONTROL_DEMO':'DATA_CASHCONTROL',postCalls:0,legacyValues:[],source};
+  const state={rows:[],tab:false,tabName:demo?'DATA_CASHCONTROL_DEMO':'DATA_CASHCONTROL',postCalls:0,legacyValues:[],source,computedValues:[],computedFormulas:[]};
   const nodes={
     ccGoogleSyncMonth:{value:month},
     ccGoogleSyncCommit:{disabled:true},
@@ -39,6 +39,10 @@ function fixture({month='2026-11',source=[tx(month)],demo=false,staging=false}={
       sheets:[{properties:{title:'PHU HUNG'}},
         ...(state.tab?[{properties:{title:state.tabName}}]:[])]
     });
+    if(method==='GET'&&url.includes('AUTO_PHU_HUNG_TEST_')&&url.includes('valueRenderOption=FORMULA'))
+      return ok({values:state.computedFormulas});
+    if(method==='GET'&&url.includes('AUTO_PHU_HUNG_TEST_')&&url.includes('valueRenderOption=UNFORMATTED_VALUE'))
+      return ok({values:state.computedValues});
     if(method==='GET'&&url.includes('valueRenderOption')&&url.includes('PHU%20HUNG'))
       return ok({values:state.legacyValues});
     if(method==='GET'&&url.includes('valueRenderOption'))return ok({values:[header,...state.rows]});
@@ -78,7 +82,7 @@ function fixture({month='2026-11',source=[tx(month)],demo=false,staging=false}={
     "\nccGoogleSyncToken='FAKE_TEST_TOKEN';"+
     (demo?"\nccGoogleSyncDemoActive=true; CC_SYNC_PILOT_TAB=ccGoogleSyncDemoTab;":"")+
     (staging?"\nccGoogleSyncImportedRows=new Map();":"")+
-    "\nthis.pilotAPI={compare:ccGoogleSyncComparePilot,commit:ccGoogleSyncCommitPilot,audit:ccGoogleSyncAuditLegacy,currentRows:ccGoogleSyncCurrentRows,correctionCandidate:ccGoogleSyncLegacyCorrectionCandidate,balanceAudit:ccGoogleSyncAnalyzeRunningBalances,buildAutoLedger:ccGoogleSyncBuildConsolidatedLedger,mergeCachedSource:ccGoogleSyncMergeCachedSource,sha:ccGoogleSyncSha,payload:ccGoogleSyncPayloadCells};",context);
+    "\nthis.pilotAPI={compare:ccGoogleSyncComparePilot,commit:ccGoogleSyncCommitPilot,audit:ccGoogleSyncAuditLegacy,currentRows:ccGoogleSyncCurrentRows,correctionCandidate:ccGoogleSyncLegacyCorrectionCandidate,balanceAudit:ccGoogleSyncAnalyzeRunningBalances,buildAutoLedger:ccGoogleSyncBuildConsolidatedLedger,mergeCachedSource:ccGoogleSyncMergeCachedSource,verifyComputedTab:ccGoogleSyncVerifyComputedTab,sha:ccGoogleSyncSha,payload:ccGoogleSyncPayloadCells};",context);
   return {state,nodes,api:context.pilotAPI,context};
 }
 test('new transaction is written to isolated TEST tab and verified',async()=>{
@@ -698,4 +702,23 @@ test('source fingerprint cannot hide duplicate historic and mirror payment',asyn
   const mirror=await fakeMirrorRow(f.api,values,'PHU HUNG:matched');
   await assert.rejects(f.api.mergeCachedSource(history,[mirror],[source],'2026-11'),
     /đồng thời trong lịch sử và mirror/);
+});
+
+test('generated TEST tab comparison avoids repeating identical write or tab creation',async()=>{
+  const f=fixture(),{history,formulas}=autoLedgerFixture();
+  const plan=await f.api.buildAutoLedger(history,formulas,[]);
+  const headers=['date','company','contractNo','content','ipc','type','income',
+    'subcontract','material','otherDirect','indirect','financial','otherPayable',
+    'balance','origin','sourceId','openingBalance'];
+  f.state.computedValues=[headers,...plan.rows.map(x=>{
+    const row=[...x.cells];row[13]=x.balance;return row;
+  })];
+  f.state.computedFormulas=plan.rows.map(x=>[x.formula]);
+  const title='AUTO_PHU_HUNG_TEST_20261105T100110';
+  assert.equal(await f.api.verifyComputedTab(title,plan),true);
+  assert.equal(f.state.postCalls,0,'no mutation allowed during view comparison');
+  f.state.computedValues[2][10]=999;
+  assert.equal(await f.api.verifyComputedTab(title,plan),false,
+    'changed company/amount column in existing tab must not be silently reused');
+  assert.equal(f.state.postCalls,0);
 });
