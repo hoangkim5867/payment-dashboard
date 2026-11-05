@@ -149,3 +149,37 @@ test('server authorizes signed Admin then relays only permitted TEST write',asyn
     }
   }
 });
+
+test('atomic fixed TEST view update permits only approved sheet ID and N balance formulas',()=>{
+  const header=['date','company','contractNo','content','ipc','type','income',
+    'subcontract','material','otherDirect','indirect','financial','otherPayable',
+    'balance','origin','sourceId','openingBalance'];
+  const mk=value=>({userEnteredValue:typeof value==='number'?
+    {numberValue:value}:{stringValue:String(value)}});
+  const first=['2026-11-05','Vendor','','','IPC','支出',0,0,0,100,0,0,0,
+    '', 'CASH_CONTROL','PHU HUNG:abc',0].map(mk);
+  first[13]={userEnteredValue:{formulaValue:'=$Q$2+G2-SUM(H2:M2)'}};
+  const second=['2026-11-06','Vendor B','','','IPC','支出',0,0,0,50,0,0,0,
+    '', 'CASH_CONTROL','PHU HUNG:def',''].map(mk);
+  second[13]={userEnteredValue:{formulaValue:'=N2+G3-SUM(H3:M3)'}};
+  const body={requests:[{updateCells:{
+    range:{sheetId:42,startRowIndex:0,endRowIndex:5,
+      startColumnIndex:0,endColumnIndex:17},
+    rows:[{values:header.map(mk)},{values:first},{values:second}],
+    fields:'userEnteredValue'
+  }}]};
+  validateWrite('POST',':batchUpdate',body,project,42);
+  assert.throws(()=>validateWrite('POST',':batchUpdate',body,project,43),/TEST view/);
+  assert.throws(()=>validateWrite('POST',':batchUpdate',body,project,null),/TEST view/);
+  body.requests[0].updateCells.rows[2].values[13].userEnteredValue.formulaValue='=H2';
+  assert.throws(()=>validateWrite('POST',':batchUpdate',body,project,42),/balance formula/);
+  body.requests[0].updateCells.rows[2].values[13].userEnteredValue.formulaValue='=N2+G3-SUM(H3:M3)';
+  body.requests[0].updateCells.range.endColumnIndex=18;
+  assert.throws(()=>validateWrite('POST',':batchUpdate',body,project,42),/TEST view/);
+});
+test('fixed generated TEST view name is permitted but original PHU HUNG tab remains forbidden',()=>{
+  validateWrite('POST',':batchUpdate',{requests:[{addSheet:{
+    properties:{title:'PHU_HUNG_VIEW_TEST'}}}]},project);
+  fail('POST',':batchUpdate',{requests:[{addSheet:{
+    properties:{title:'PHU HUNG'}}}]});
+});
