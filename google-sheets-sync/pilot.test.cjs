@@ -502,8 +502,8 @@ test('read-only formula audit finds previous N, current G and H:M references',()
   assert.equal(outcome.formulaPriorReferences,1);
   assert.equal(outcome.formulaSelfIncomeReferences,2);
   assert.equal(outcome.formulaExpenseReferences,2);
-  assert.equal(outcome.formulaReview.length,1);
-  assert.equal(outcome.formulaReview[0].row,1);
+  assert.equal(outcome.formulaReview.length,0,'first transaction is an opening seed');
+  assert.equal(outcome.openingFormulaRow,1);
   assert.equal(f.state.postCalls,0);
 });
 test('read-only formula audit flags hardcoded balances despite matching current values',()=>{
