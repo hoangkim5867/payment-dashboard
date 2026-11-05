@@ -27,12 +27,11 @@ module.exports=async function handler(req,res){
        JSON.stringify(payload).length>600000)
       return res.status(413).json({error:'Request is too large or invalid.'});
     const {method,path,body}=payload;
-    validateWrite(method,path,body,config.project);
     const googleAuth={Authorization:bearer};
     // Independent server-side check of spreadsheet ID/title and historical tab.
     // The ID is a constant, never taken from client input.
     const base='https://sheets.googleapis.com/v4/spreadsheets/'+TEST_SPREADSHEET_ID;
-    const metadata=await fetch(base+'?fields=spreadsheetId,properties(title),sheets(properties(title))',{
+    const metadata=await fetch(base+'?fields=spreadsheetId,properties(title),sheets(properties(title,sheetId))',{
       headers:googleAuth,signal:AbortSignal.timeout(9000)
     });
     if(!metadata.ok)
@@ -42,6 +41,8 @@ module.exports=async function handler(req,res){
        !/TEST/i.test(info.properties?.title||'')||
        !info.sheets?.some(x=>x.properties?.title==='PHU HUNG'))
       return res.status(403).json({error:'Not the allowlisted PHU HUNG TEST copy.'});
+    const stable=info.sheets?.find(x=>x.properties?.title==='PHU_HUNG_VIEW_TEST');
+    validateWrite(method,path,body,config.project,stable?.properties?.sheetId??null);
     const response=await fetch(base+path,{
       method,headers:{...googleAuth,'Content-Type':'application/json'},
       body:JSON.stringify(body),signal:AbortSignal.timeout(15000)
