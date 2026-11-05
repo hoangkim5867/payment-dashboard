@@ -19571,7 +19571,7 @@ async function openEditModal(
 
     const syncBankBtn = document.getElementById("syncContractBankBtn");
     if(syncBankBtn){
-        const sourceContract = !editingMEP && allContracts.find(item =>
+        const sourceContract = payment.paymentType !== "other" && allContracts.find(item =>
             normalize(item.project) === normalize(payment.project) &&
             normalize(item.contractNo) === normalize(payment.contractNo)
         );
@@ -19792,7 +19792,7 @@ syncContractBankBtn?.addEventListener("click",async()=>{
         alert("Không được cập nhật ngân hàng của Payment đã khóa.");
         return;
     }
-    if(payment.paymentType==="other" || normalizeMEP(payment.contractNo)){
+    if(payment.paymentType==="other"){
         alert("Chức năng này chỉ áp dụng Payment theo hợp đồng trong Contract Master.");
         return;
     }
