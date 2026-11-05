@@ -5575,7 +5575,7 @@ function cashPhuHungInitSourceExporter(){
   const button=$('cashPhuHungExportSource');
   if(!button)return;
   // Owner auth state may be initialized asynchronously after page load.
-  button.hidden=false;
+  button.hidden=true;
   button.addEventListener('click',async()=>{
     if(!isCashControlOwner())return alert('Chỉ Admin được xuất nguồn.');
     button.disabled=true;
@@ -10900,6 +10900,8 @@ function clearCashAccessState(){
 
 onAuthStateChanged(auth,async user=>{
     currentAuthUser=user||null;
+    const pilotExportButton=$('cashPhuHungExportSource');
+    if(pilotExportButton)pilotExportButton.hidden=!isCashControlOwner();
     updateCashAuthUI();
 
     if(!user || !isCashControlOwner()){
