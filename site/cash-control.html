@@ -5868,7 +5868,7 @@ async function ccGoogleSyncComparePilot(internal=false){
     ?' | Nguồn JSON nhập vào: '+source.length+' dòng ('+month+').':'';
   const demoDiagnostic=ccGoogleSyncDemoActive
     ?' | DEMO đích '+CC_SYNC_PILOT_TAB+': '+(remote.exists?'đã có tab, '+remote.rows.length+' dòng':'CHƯA CÓ TAB')+
-       ' | Dòng đã tìm thấy: '+source.filter(r=>old.has(r.id)).length+'/2.'
+       ' | Dòng đã tìm thấy: '+source.filter(r=>old.has(r.id)).length+'/'+source.length+'.'
     :'';
   ccGoogleSyncStatus('Bản TEST: '+source.length+' dòng Cash Control · '+changes.filter(r=>r.op==='new').length+
     ' mới · '+changes.filter(r=>r.op==='update').length+' sửa · '+
