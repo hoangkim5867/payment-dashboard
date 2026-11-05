@@ -5916,10 +5916,9 @@ async function ccGoogleSyncCorrectLegacyTest(){
       throw Error('Không phải file Sheets TEST đã chỉ định.');
     const sheet=meta.sheets?.find(x=>x.properties?.title==='PHU HUNG');
     if(!sheet||!Number.isInteger(sheet.properties?.sheetId))throw Error('Không tìm thấy tab PHU HUNG của bản sao.');
-    // Read both displayed values and formulas. If balances are static, adjust
-    // the running balance by +0.3 VND after the smaller expense. Fail closed
-    // unless every affected row is an October transaction and old balances
-    // reconcile numerically before any write.
+    // A historical ledger may contain blank separators and later months.
+    // Walk actual transaction rows only, preserving the original row numbers.
+    // No rows are modified unless their running balances reconcile first.
     const ledger=await ccGoogleSyncApi('/values/'+encodeURIComponent(
       "'PHU HUNG'!A1:N")+
       '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER');
@@ -5929,41 +5928,52 @@ async function ccGoogleSyncCorrectLegacyTest(){
     const last=rows.reduce((m,row,i)=>row.some(v=>String(v??'').trim())?i+1:m,0);
     if(candidate.row>last||last>300)
       throw Error('Bảng dài hoặc vị trí ngoài phạm vi an toàn, chưa sửa.');
-    const relevant=rows.slice(candidate.row-1,last);
-    const balanceCells=Array.from({length:relevant.length},(_,i)=>
-      String(balances[candidate.row-1+i]?.[0]??'').trim());
-    if(relevant.some((row,i)=>
-      !ccGoogleSyncNormDate(row[0]).startsWith('2026-10-')||
-      !balanceCells[i]))
-      throw Error('Sau khoản cần sửa có dòng trống hoặc khác kỳ; không tự cập nhật số dư.');
-    const allFormulas=balanceCells.every(x=>x.startsWith('='));
-    const allStatic=balanceCells.every(x=>!x.startsWith('=')&&Number.isFinite(ccGoogleSyncMoney(x)));
+    const relevant=[];
+    for(let sheetRow=candidate.row;sheetRow<=last;sheetRow++){
+      const row=rows[sheetRow-1]||[];
+      const values=row.slice(0,14);
+      if(!values.some(v=>String(v??'').trim()))continue; // harmless blank separator
+      const date=ccGoogleSyncNormDate(row[0]);
+      const balanceText=String(balances[sheetRow-1]?.[0]??'').trim();
+      if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||!balanceText)
+        throw Error('Có dòng tiêu đề, tổng cộng hoặc thiếu số dư tại hàng '+sheetRow+
+          '. Chưa sửa để tránh sai số dư.');
+      relevant.push({sheetRow,row,balanceText});
+    }
+    if(!relevant.length||relevant[0].sheetRow!==candidate.row)
+      throw Error('Không xác định được chuỗi số dư từ dòng sửa.');
+    const allFormulas=relevant.every(x=>x.balanceText.startsWith('='));
+    const allStatic=relevant.every(x=>!x.balanceText.startsWith('=')&&
+      Number.isFinite(ccGoogleSyncMoney(x.balanceText)));
     if(!allFormulas&&!allStatic)
-      throw Error('Cột số dư N trộn công thức và giá trị, chặn sửa để giữ an toàn.');
+      throw Error('Số dư trộn công thức và giá trị: không tự sửa.');
     const delta=candidate.oldValue-candidate.newValue;
     const staticBalances=[];
     if(allStatic){
-      const previous=rows[candidate.row-2];
-      if(!previous||!Number.isFinite(ccGoogleSyncMoney(previous[13])))
-        throw Error('Không xác minh được số dư ngay trước dòng cần sửa.');
-      let running=ccGoogleSyncMoney(previous[13]);
-      for(let i=0;i<relevant.length;i++){
-        const row=relevant[i];
-        const amounts=row.slice(6,13).map(ccGoogleSyncMoney);
+      // The preceding populated row must carry the actual running balance.
+      let prevRow=candidate.row-2;
+      while(prevRow>=0&&!String(rows[prevRow]?.[13]??'').trim())prevRow--;
+      if(prevRow<0||!Number.isFinite(ccGoogleSyncMoney(rows[prevRow][13])))
+        throw Error('Không xác minh được số dư ngay trước dòng sửa.');
+      let running=ccGoogleSyncMoney(rows[prevRow][13]);
+      for(const entry of relevant){
+        const amounts=entry.row.slice(6,13).map(ccGoogleSyncMoney);
         if(amounts.length!==7||amounts.some(n=>!Number.isFinite(n)))
-          throw Error('Số tiền không hợp lệ trong chuỗi số dư.');
+          throw Error('Có số tiền không hợp lệ ở hàng '+entry.sheetRow);
+        const oldBalance=ccGoogleSyncMoney(entry.row[13]);
         const expected=running+amounts[0]-amounts.slice(1).reduce((a,b)=>a+b,0);
-        const oldBalance=ccGoogleSyncMoney(row[13]);
         if(!Number.isFinite(oldBalance)||Math.abs(expected-oldBalance)>0.005)
-          throw Error('Số dư cũ không khớp phép cộng dồn tại hàng '+(candidate.row+i)+'. Chưa sửa.');
+          throw Error('Số dư đang không khớp cộng dồn tại hàng '+entry.sheetRow+
+            '. Chưa sửa số tiền để tránh lan sai.');
         running=oldBalance;
-        staticBalances.push(Math.round((oldBalance+delta)*1e6)/1e6);
+        staticBalances.push({sheetRow:entry.sheetRow,
+          amount:Math.round((oldBalance+delta)*1e6)/1e6});
       }
     }
     if(!confirm('XÁC NHẬN SỬA CHỈ TRÊN GOOGLE SHEETS TEST: PHU HUNG!K'+candidate.row+
       '\\nLương Trung Quốc 27/10/2026\\n350.945.181,3 → 350.945.181 VND'+
       '\\nSao lưu nguyên tab trước khi sửa. '+(allStatic?
-        'Sẽ cập nhật ô tiền và '+staticBalances.length+' số dư cộng dồn.':
+        'Sẽ cập nhật ô tiền và '+staticBalances.length+' số dư cộng dồn qua các tháng liên quan.':
         'Chỉ sửa ô tiền, cột số dư có công thức sẽ tự tính lại.')+
       '\\nKhông sửa Firebase hay Google Sheets gốc. Tiếp tục?'))return;
     // Backup the whole historical tab BEFORE any amount mutation.
@@ -5979,8 +5989,9 @@ async function ccGoogleSyncCorrectLegacyTest(){
     if(ccGoogleSyncMoneyKey(before.values?.[0]?.[0])!=='350945181.3')
       throw Error('Giá trị vừa thay đổi: đã sao lưu nhưng chưa sửa.');
     const data=[{range:"'PHU HUNG'!K"+candidate.row,values:[[candidate.newValue]]}];
-    if(allStatic)data.push({range:"'PHU HUNG'!N"+candidate.row+":N"+last,
-      values:staticBalances.map(n=>[n])});
+    if(allStatic)data.push(...staticBalances.map(x=>({
+      range:"'PHU HUNG'!N"+x.sheetRow,values:[[x.amount]]
+    })));
     await ccGoogleSyncApi('/values:batchUpdate',{method:'POST',body:{
       valueInputOption:'RAW',data
     }});
@@ -5989,8 +6000,9 @@ async function ccGoogleSyncCorrectLegacyTest(){
       '?valueRenderOption=UNFORMATTED_VALUE');
     if(ccGoogleSyncMoneyKey(after.values?.[0]?.[0])!=='350945181')
       throw Error('Đã gửi lệnh sửa nhưng đọc lại chưa đúng. Kiểm tra bản sao lưu '+backupName);
-    if(allStatic && staticBalances.some((n,i)=>
-        ccGoogleSyncMoneyKey(after.values?.[i]?.[3])!==ccGoogleSyncMoneyKey(n)))
+    if(allStatic && staticBalances.some(x=>
+        ccGoogleSyncMoneyKey(after.values?.[x.sheetRow-candidate.row]?.[3])!==
+        ccGoogleSyncMoneyKey(x.amount)))
       throw Error('Chưa xác minh được toàn bộ số dư đã sửa. Bản sao lưu: '+backupName);
     const checked=await ccGoogleSyncAuditLegacy('2026-10',source);
     if(!checked.exact||checked.matchedSourceIds.length!==30)
