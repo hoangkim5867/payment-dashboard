@@ -79,3 +79,22 @@ These checks are **not** end-to-end browser, Google OAuth, Vercel or real-data a
 - Separators, summaries, headers and month transitions are **not** automatically bridged. A passing result is a partial consistency check, not an approval to insert rows or change the ledger.
 - Node mock tests cover matching and mismatching balances, headings/month boundaries, and missing balances. **CI outcome not yet confirmed** for the new head; Vercel Preview is READY but that only confirms deployment.
 - The validated direct mirror flow remains separate from the historical running-balance ledger. No automatic posting into PHU HUNG has been enabled. A trusted server-side Admin authorization gate, complete historical opening/closing balance verification, transaction ordering, safe row insertion/formula handling, backup/rollback and user acceptance are still required before production release.
+
+## Calculated PHU HUNG consolidated TEST ledger (November 5, 2026)
+
+**Purpose:** Avoid modifying historical rows/formulas when new Cash Control payments must appear in a continuously balanced ledger.
+
+- The Google Sheets TEST copy is the **only authorized destination**.
+- New button: **Tạo sổ tự tính TEST (tab riêng)**. Requires signed-in Admin, active Google token and explicit confirmation. It creates a new timestamped AUTO_PHU_HUNG_TEST tab; it never writes, deletes or inserts any row in the original PHU HUNG tab.
+- Each run reads the original PHU HUNG history A:N (values and separate formulas) and the existing DATA_CASHCONTROL mirror. It does **not** query Firebase, so no extra Firestore reads.
+- Before generating: confirm all historical arithmetic transitions, N/G/H:M formula-reference coverage, historic transaction order and stable Cash Control IDs. The first dated transaction N5 is an **opening seed**, not a missing previous transaction.
+- Infer the opening numeric anchor from the first historic closing balance and net flow; independently replay **every** historic balance. Reject mismatch, gap, broken formula references or decreasing original date order. No historical row is moved.
+- Validate mirror project, month, stable IDs and row hashes; reject manual mirror edits and collisions with historical transaction fingerprints. Merge historical and mirror rows in an independent, date-sorted TEST view.
+- Only generated N-column formulas are sent as USER_ENTERED: first row uses opening anchor in Q2, subsequent rows use previous N + current G - SUM(current H:M). All descriptions and other cells use RAW, preventing formula injection.
+- Read back the whole new tab and its formulas, verifying row count, source IDs, formulas and every computed closing balance. On partial write failure, leave the incomplete TEST tab for inspection; never claim success and never overwrite another tab.
+- **Not yet continuous real-time synchronization:** the generated TEST tab updates its own running balances automatically when its inputs change, but the full view is rebuilt only when the Admin triggers the button. New transactions must first reach DATA_CASHCONTROL via the existing pilot. There is no background Firebase listener and no deployment to main.
+- Regression tests cover the opening seed, historical balance mismatch, formula drift, mirror tampering, duplicate protection, reordered historic dates and backdated new transactions. A mocked API write/readback path was exercised, but GitHub CI remains unconfirmed.
+
+**Reported live TEST read-only checks:** 151 same-month pairs correct; 8/8 month transitions arithmetically correct; 160 dated formulas with 159 references to a prior dated balance (first dated row N5 is the opening seed); 178 formula cells total.
+
+Passing those checks authorizes an **isolated generated TEST tab**, not modifying the original financial ledger or launching production synchronization.
