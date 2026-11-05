@@ -1442,6 +1442,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
       </div>
       <p id="ccGoogleSyncGoogleStatus" style="font-size:12px;color:#475569;margin:8px 0">Chưa kết nối Google. Không có thao tác ghi tự động.</p>
     </div>
+    <div id="ccGoogleSyncAuditDetails" aria-live="polite" style="margin:12px 0"></div>
     <div id="ccGoogleSyncPreviewResult" aria-live="polite"></div>
     <div class="mfoot">
       <span style="color:#6d7890;font-size:12px">Chỉ ghi vào tab DATA_CASHCONTROL của bản TEST khi nguồn đầy đủ và không có xung đột. Không sửa tab PHU HUNG lịch sử.</span>
@@ -5626,51 +5627,133 @@ const ccGoogleSyncFingerprint=(date,amounts,contractNo,ipc,company)=>
   '|'+ccGoogleSyncNormalizeLabel(contractNo)+
   '|'+ccGoogleSyncNormalizeLabel(ipc)+
   '|'+ccGoogleSyncNormalizeLabel(company);
+// Read-only historical reconciliation. Never infer duplicates from total sums.
+// Exact matches are one-to-one. Remaining rows are shown as diagnostic hints,
+// not automatically treated as equivalent or synchronized.
 async function ccGoogleSyncAuditLegacy(month,source){
-  // Synthetic data is never reconciled against or written into the historical
-  // PHU HUNG ledger. It uses only DATA_CASHCONTROL_DEMO.
   if(ccGoogleSyncDemoActive){
     if(!CC_SYNC_DEMO_ALLOWED||CC_SYNC_PILOT_TAB!==ccGoogleSyncDemoTab)throw Error('Demo tab mismatch');
     return {ledgerCount:0,sourceCount:source.length,matchedSourceIds:[],
       missingSourceIds:source.map(x=>x.id),unmatchedSource:source.length,
-      unmatchedLedger:0,invalidAmounts:0,exact:false,scope:'DEMO ISOLATED'};
+      unmatchedLedger:0,invalidAmounts:0,exact:false,details:[],
+      scope:'DEMO ISOLATED'};
   }
   const read=await ccGoogleSyncApi('/values/'+encodeURIComponent("'PHU HUNG'!A1:N")+
     '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER');
-  const counts=new Map(),badDates=[],invalidAmounts=[];
-  let ledgerCount=0;
+  const ledger=[],invalidAmounts=[];
   (read.values||[]).forEach((row,index)=>{
     const date=ccGoogleSyncNormDate(row[0]);
     if(!date.startsWith(month+'-'))return;
-    if(row[0]!=='' && !date)badDates.push(index+1);
-    const values=row.slice(6,13);
-    const signature=ccGoogleSyncFingerprint(date,values,row[2],row[4],row[1]);
+    const money=row.slice(6,13);
+    const signature=ccGoogleSyncFingerprint(date,money,row[2],row[4],row[1]);
     if(signature.includes('INVALID'))invalidAmounts.push(index+1);
-    counts.set(signature,(counts.get(signature)||0)+1);
-    ledgerCount++;
+    ledger.push({index:index+1,row,signature,matched:false});
   });
-  const matchedSourceIds=[],missingSourceIds=[];
-  for(const entry of source){
-    const signature=ccGoogleSyncFingerprint(
-      ccGoogleSyncNormDate(entry.values[0]),entry.values.slice(6,13),
-      entry.values[2],entry.values[4],entry.values[1]);
-    const count=counts.get(signature)||0;
-    if(count){
-      counts.set(signature,count-1);
-      matchedSourceIds.push(entry.id);
-    }else{
-      missingSourceIds.push(entry.id);
-    }
+  const ledgerBySignature=new Map();
+  for(const item of ledger){
+    if(!ledgerBySignature.has(item.signature))ledgerBySignature.set(item.signature,[]);
+    ledgerBySignature.get(item.signature).push(item);
   }
-  const unmatchedLedger=[...counts.values()].reduce((sum,n)=>sum+n,0);
-  return {
-    ledgerCount,sourceCount:source.length,
-    matchedSourceIds,missingSourceIds,
-    unmatchedSource:missingSourceIds.length,unmatchedLedger,
-    invalidAmounts:invalidAmounts.length,
-    exact:missingSourceIds.length===0&&unmatchedLedger===0&&invalidAmounts.length===0,
-    scope:'Date, seven money columns, contract number, IPC and company'
+  const matchedSourceIds=[],missingSource=[];
+  for(const entry of source){
+    const v=entry.values;
+    const signature=ccGoogleSyncFingerprint(
+      ccGoogleSyncNormDate(v[0]),v.slice(6,13),v[2],v[4],v[1]);
+    const found=(ledgerBySignature.get(signature)||[]).find(item=>!item.matched);
+    if(found){found.matched=true;matchedSourceIds.push(entry.id)}
+    else missingSource.push(entry);
+  }
+  const missingLedger=ledger.filter(x=>!x.matched);
+  const norm=ccGoogleSyncNormalizeLabel;
+  const moneyEqual=(a,b)=>a.every((v,i)=>ccGoogleSyncMoneyKey(v)===ccGoogleSyncMoneyKey(b[i]));
+  const detailFor=(entry,item)=>{
+    const a=entry.values,b=item.row;
+    const changes=[];
+    if(ccGoogleSyncNormDate(a[0])!==ccGoogleSyncNormDate(b[0]))changes.push('Ngày');
+    if(norm(a[1])!==norm(b[1]))changes.push('Đơn vị');
+    if(norm(a[2])!==norm(b[2]))changes.push('Hợp đồng');
+    if(norm(a[4])!==norm(b[4]))changes.push('IPC');
+    if(!moneyEqual(a.slice(6,13),b.slice(6,13)))changes.push('Số tiền / nhóm tiền');
+    return changes;
   };
+  const outstanding=[...missingLedger];
+  const details=[];
+  for(const entry of missingSource){
+    // Suggestions require >=2 matching independent anchors and never unblock writes.
+    const a=entry.values;
+    const ranked=outstanding.map(item=>{
+      const b=item.row;
+      const amount=moneyEqual(a.slice(6,13),b.slice(6,13));
+      const contract=Boolean(norm(a[2]))&&norm(a[2])===norm(b[2]);
+      const ipc=Boolean(norm(a[4]))&&norm(a[4])===norm(b[4]);
+      const company=Boolean(norm(a[1]))&&norm(a[1])===norm(b[1]);
+      const date=ccGoogleSyncNormDate(a[0])===ccGoogleSyncNormDate(b[0]);
+      const anchors=[amount,contract,ipc,company,date].filter(Boolean).length;
+      const score=(amount?9:0)+(contract?5:0)+(ipc?5:0)+(company?3:0)+(date?2:0);
+      return {item,anchors,score};
+    }).filter(x=>x.anchors>=2).sort((x,y)=>y.score-x.score||x.item.index-y.item.index);
+    const best=ranked[0];
+    if(best){
+      const candidate=best.item;
+      outstanding.splice(outstanding.indexOf(candidate),1);
+      details.push({source:entry,ledger:candidate,changes:detailFor(entry,candidate),
+        confidence:ranked.length>1&&ranked[1].score===best.score?'Cần chọn thủ công':'Gợi ý'});
+    }else details.push({source:entry,ledger:null,changes:['Chưa tìm được dòng tương ứng'],confidence:'Chưa ghép'});
+  }
+  for(const item of outstanding)details.push({source:null,ledger:item,
+    changes:['Chỉ có trong Google Sheets'],confidence:'Chưa ghép'});
+  return {
+    ledgerCount:ledger.length,sourceCount:source.length,
+    matchedSourceIds,missingSourceIds:missingSource.map(x=>x.id),
+    unmatchedSource:missingSource.length,unmatchedLedger:missingLedger.length,
+    invalidAmounts:invalidAmounts.length,
+    exact:missingSource.length===0&&missingLedger.length===0&&invalidAmounts.length===0,
+    details,scope:'Date, seven money columns, contract number, IPC and company'
+  };
+}
+function ccGoogleSyncRenderAudit(audit,month){
+  const out=$('ccGoogleSyncAuditDetails');
+  if(!out)return;
+  out.textContent='';
+  if(ccGoogleSyncDemoActive||!audit||!audit.details?.length)return;
+  const container=document.createElement('div');
+  container.className='note';
+  const headline=document.createElement('b');
+  headline.textContent='ĐỐI CHIẾU SỔ '+month+': '+audit.matchedSourceIds.length+
+    ' dòng khớp chính xác; '+audit.unmatchedSource+' dòng nguồn chưa khớp; '+
+    audit.unmatchedLedger+' dòng Google chưa khớp. Không ghi dữ liệu.';
+  container.append(headline);
+  const help=document.createElement('p');
+  help.textContent='Các cặp dưới đây chỉ là GỢI Ý theo ngày, số tiền, hợp đồng, IPC, đơn vị. Không tự ghép, không chỉnh sửa hay xác nhận trùng.';
+  container.append(help);
+  const wrap=document.createElement('div');
+  wrap.style.cssText='max-height:360px;overflow:auto;margin-top:8px';
+  const table=document.createElement('table');table.className='mep-table';
+  const thead=document.createElement('thead');
+  const tr=document.createElement('tr');
+  ['Nguồn Cash Control','Dòng Google gợi ý','Khác biệt','Đánh giá'].forEach(label=>{
+    const th=document.createElement('th');th.textContent=label;tr.append(th);
+  });
+  thead.append(tr);table.append(thead);
+  const tbody=document.createElement('tbody');
+  const fmt=r=>{
+    if(!r)return '—';
+    const money=r.values?r.values.slice(6,13):r.row.slice(6,13);
+    const v=r.values||r.row;
+    return [ccGoogleSyncNormDate(v[0]),v[1],v[2],v[4],
+      money.map((n,i)=>Number(ccGoogleSyncMoney(n)||0)?(['Thu','Thầu phụ','Vật tư','Khác trực tiếp','Gián tiếp','Tài chính','Khác'][i]+': '+Number(ccGoogleSyncMoney(n)).toLocaleString('vi-VN')):'').filter(Boolean).join('; ')
+    ].filter(Boolean).join(' | ');
+  };
+  for(const entry of audit.details){
+    const row=document.createElement('tr');
+    const source=document.createElement('td');source.textContent=fmt(entry.source);
+    const ledger=document.createElement('td');
+    ledger.textContent=entry.ledger?'Google hàng '+entry.ledger.index+' | '+fmt(entry.ledger):'Không tìm thấy';
+    const changes=document.createElement('td');changes.textContent=entry.changes.join(', ');
+    const confidence=document.createElement('td');confidence.textContent=entry.confidence;
+    row.append(source,ledger,changes,confidence);tbody.append(row);
+  }
+  table.append(tbody);wrap.append(table);container.append(wrap);out.append(container);
 }
 
 async function ccGoogleSyncComparePilot(internal=false){
@@ -5679,6 +5762,7 @@ async function ccGoogleSyncComparePilot(internal=false){
   if(ccGoogleSyncSelectedProjects().length!==1||ccGoogleSyncSelectedProjects()[0]!=='PHU HUNG')
     throw Error('Pilot chỉ cho chọn một dự án PHU HUNG.');
   const month=$('ccGoogleSyncMonth')?.value||'';
+  if(!internal){const details=$('ccGoogleSyncAuditDetails');if(details)details.textContent='Đang đọc sổ lịch sử để đối chiếu…';}
   if(ccGoogleSyncDemoActive && (CC_SYNC_PILOT_TAB!==ccGoogleSyncDemoTab||month!=='2026-11'))
     throw Error('DEMO chỉ cho dùng tab DATA_CASHCONTROL_DEMO và tháng 11/2026.');
   const source=await ccGoogleSyncCurrentRows('PHU HUNG',month);
@@ -5687,6 +5771,7 @@ async function ccGoogleSyncComparePilot(internal=false){
   // for October AND all later months. If the month has zero historical rows,
   // new Cash Control entries can be mirrored to the separate sync tab.
   const legacyAudit=await ccGoogleSyncAuditLegacy(month,source);
+  if(!internal)ccGoogleSyncRenderAudit(legacyAudit,month);
   const old=new Map(remote.rows.map((row,i)=>[String(row[0]),{row,index:i+2}]));
   const changes=[],blocked=[],unchanged=[];
   const historicalIds=new Set(legacyAudit.matchedSourceIds);
