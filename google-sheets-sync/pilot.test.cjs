@@ -23,8 +23,8 @@ function tx(month='2026-11',amount=100.3) {
     content:'IPC',ipc:'IPC01',type:'支出',income:0,subcontract:amount,material:0,
     otherDirect:0,indirect:0,financial:0,otherPayable:0,_syncIds:['expense:001']};
 }
-function fixture({month='2026-11',source=[tx(month)]}={}){
-  const state={rows:[],tab:false,postCalls:0,legacyValues:[],source};
+function fixture({month='2026-11',source=[tx(month)],demo=false}={}){
+  const state={rows:[],tab:false,tabName:demo?'DATA_CASHCONTROL_DEMO':'DATA_CASHCONTROL',postCalls:0,legacyValues:[],source};
   const nodes={
     ccGoogleSyncMonth:{value:month},
     ccGoogleSyncCommit:{disabled:true},
@@ -37,7 +37,7 @@ function fixture({month='2026-11',source=[tx(month)]}={}){
     if(method==='GET'&&url.includes('fields=spreadsheetId'))return ok({
       properties:{title:'PHU HUNG - TEST DONG BO'},
       sheets:[{properties:{title:'PHU HUNG'}},
-        ...(state.tab?[{properties:{title:'DATA_CASHCONTROL'}}]:[])]
+        ...(state.tab?[{properties:{title:state.tabName}}]:[])]
     });
     if(method==='GET'&&url.includes('valueRenderOption')&&url.includes('PHU%20HUNG'))
       return ok({values:state.legacyValues});
@@ -63,7 +63,7 @@ function fixture({month='2026-11',source=[tx(month)]}={}){
   function ok(data){return {ok:true,json:async()=>data}}
   const context={
     currentAuthUser:{uid:'admin'},
-    firebaseConfig:{projectId:'test-project'},
+    firebaseConfig:{projectId:demo?'cash-control-staging':'test-project'},
     isCashControlOwner:()=>true,
     paymentMonths:new Map([['PHU HUNG',[]]]),
     legacyCashExportRows:()=>state.source,
@@ -76,8 +76,9 @@ function fixture({month='2026-11',source=[tx(month)]}={}){
   vm.createContext(context);
   vm.runInContext(pilot+
     "\nccGoogleSyncToken='FAKE_TEST_TOKEN';"+
+    (demo?"\nccGoogleSyncDemoActive=true; CC_SYNC_PILOT_TAB=ccGoogleSyncDemoTab;":"")+
     "\nthis.pilotAPI={compare:ccGoogleSyncComparePilot,commit:ccGoogleSyncCommitPilot,audit:ccGoogleSyncAuditLegacy,currentRows:ccGoogleSyncCurrentRows};",context);
-  return {state,nodes,api:context.pilotAPI};
+  return {state,nodes,api:context.pilotAPI,context};
 }
 test('new transaction is written to isolated TEST tab and verified',async()=>{
   const f=fixture();
@@ -247,4 +248,34 @@ test('changed contract on historical row is not mistaken for matching IPC',async
   assert.equal(diff.legacyAudit.matchedSourceIds.length,0);
   assert.ok(diff.blocked.some(row=>row.id==='legacy'));
   assert.equal(f.state.postCalls,0);
+});
+
+test('staging DEMO generates two fake source records and never reads production data',async()=>{
+  const f=fixture({demo:true});
+  const diff=await f.api.compare();
+  assert.equal(diff.sourceCount,2);
+  assert.equal(diff.changes.length,2);
+  assert.equal(diff.blocked.length,0);
+  assert.equal(f.state.postCalls,0);
+  assert.deepEqual(diff.changes.map(x=>x.id),['DEMO-PHU-HUNG-001','DEMO-PHU-HUNG-002']);
+  await f.api.commit();
+  assert.equal(f.state.rows.length,2);
+  assert.equal(f.state.rows[0].length,19);
+  assert.equal(f.state.rows[0][0],'DEMO-PHU-HUNG-001');
+  const unchanged=await f.api.compare();
+  assert.equal(unchanged.unchanged.length,2);
+  assert.equal(unchanged.changes.length,0);
+  assert.equal(f.state.rows.length,2);
+});
+
+test('staging DEMO amount edit updates one fake row without duplication',async()=>{
+  const f=fixture({demo:true});
+  await f.api.compare();await f.api.commit();
+  vm.runInContext('ccGoogleSyncDemoEdited=true',f.context);
+  const diff=await f.api.compare();
+  assert.equal(diff.changes.length,1);
+  assert.equal(diff.changes[0].op,'update');
+  await f.api.commit();
+  assert.equal(f.state.rows.length,2);
+  assert.equal(f.state.rows[1][11],765432);
 });
