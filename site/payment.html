@@ -21441,7 +21441,11 @@ async function ensureImportDuplicateHistoryForRows(localRows){
         let ready=false;
         try{ready=await paymentIndexV2Ready();}
         catch(error){console.warn('V2 lookup marker unavailable, using safe legacy duplicate check',error);}
-        if(!ready)return ensureImportDuplicateHistory();
+        if(!ready){
+            // Never scan all Payment documents during Excel Preview.
+            // Without a verified index, duplicates cannot be safely checked.
+            throw new Error("Tra cứu trùng IPC V2 chưa sẵn sàng. Đã dừng Xem trước để tránh quét toàn bộ Payment và không cho nhập khi chưa kiểm tra trùng. Vui lòng báo Admin kiểm tra chỉ mục.");
+        }
         const keys=[...new Set((localRows||[])
             .filter(row=>!!row?.data)
             .map(row=>contractDigitsV2ForPreview(row.data.contractNo)))];
@@ -21462,7 +21466,7 @@ async function ensureImportDuplicateHistoryForRows(localRows){
     }
 
     if(!PAYMENT_INDEX_QUERY_CODE_ENABLED || !await paymentIndexV1Ready()){
-        return ensureImportDuplicateHistory();
+        throw new Error("Tra cứu trùng IPC chưa sẵn sàng. Đã dừng Xem trước để tránh quét toàn bộ Payment.");
     }
     // All comparisons still use the original findSameMonthDuplicateImport
     // and findCrossMonthDuplicateImport functions, including tie-breaking.
@@ -21476,7 +21480,7 @@ async function ensureImportDuplicateHistoryForRows(localRows){
     }
     if(keys.some(key=>!key || new TextEncoder().encode(key).length>1000)){
         // Firestore indexes truncate unusually long field values.
-        return ensureImportDuplicateHistory();
+        throw new Error("Khóa tra cứu trùng IPC quá dài; không thể kiểm tra an toàn mà không quét toàn bộ Payment.");
     }
     const fetched=new Map();
     // Firestore IN queries max 30 disjunctions; use 20 for headroom.
@@ -22983,17 +22987,11 @@ function smartDetectRow(row){
         project = canonicalProjectDisplay(pastedProject);
         projectDetectionSource = "safe-tail";
     }else{
-        const knownProjectMatch = cells.find(cell => {
-            const key=normalizeSmartProject(cell);
-            return !!key && allContracts.some(master =>
-                normalizeSmartProject(master.project)===key
-            );
-        });
-        if(knownProjectMatch){
-            pastedProject = canonicalProjectDisplay(knownProjectMatch);
-            project = pastedProject;
-            projectDetectionSource = "master-exact";
-        }
+        // No unambiguous project cell in the structural Excel tail.
+        // Do NOT pick any text that coincidentally matches a Master Project:
+        // it may actually be the Contract Name. A uniquely matched contract
+        // can supply a project below; otherwise manual mapping is required.
+        projectDetectionSource = "unresolved";
     }
 
     let contractMatches = [];
