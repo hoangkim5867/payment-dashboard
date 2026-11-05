@@ -5962,7 +5962,10 @@ async function ccGoogleSyncCorrectLegacyTest(){
     }
     if(!confirm('XÁC NHẬN SỬA CHỈ TRÊN GOOGLE SHEETS TEST: PHU HUNG!K'+candidate.row+
       '\\nLương Trung Quốc 27/10/2026\\n350.945.181,3 → 350.945.181 VND'+
-      '\\nHệ thống tạo bản sao lưu tab PHU HUNG trước, sau đó mới sửa đúng một ô. Không sửa Firebase hay Google Sheets gốc. Tiếp tục?'))return;
+      '\\nSao lưu nguyên tab trước khi sửa. '+(allStatic?
+        'Sẽ cập nhật ô tiền và '+staticBalances.length+' số dư cộng dồn.':
+        'Chỉ sửa ô tiền, cột số dư có công thức sẽ tự tính lại.')+
+      '\\nKhông sửa Firebase hay Google Sheets gốc. Tiếp tục?'))return;
     // Backup the whole historical tab BEFORE any amount mutation.
     const backupName='BACKUP_PHU_HUNG_'+new Date().toISOString().replace(/[-:TZ.]/g,'').slice(0,14);
     await ccGoogleSyncApi(':batchUpdate',{method:'POST',body:{requests:[{
