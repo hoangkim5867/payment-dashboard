@@ -78,7 +78,7 @@ function fixture({month='2026-11',source=[tx(month)],demo=false,staging=false}={
     "\nccGoogleSyncToken='FAKE_TEST_TOKEN';"+
     (demo?"\nccGoogleSyncDemoActive=true; CC_SYNC_PILOT_TAB=ccGoogleSyncDemoTab;":"")+
     (staging?"\nccGoogleSyncImportedRows=new Map();":"")+
-    "\nthis.pilotAPI={compare:ccGoogleSyncComparePilot,commit:ccGoogleSyncCommitPilot,audit:ccGoogleSyncAuditLegacy,currentRows:ccGoogleSyncCurrentRows,correctionCandidate:ccGoogleSyncLegacyCorrectionCandidate};",context);
+    "\nthis.pilotAPI={compare:ccGoogleSyncComparePilot,commit:ccGoogleSyncCommitPilot,audit:ccGoogleSyncAuditLegacy,currentRows:ccGoogleSyncCurrentRows,correctionCandidate:ccGoogleSyncLegacyCorrectionCandidate,balanceAudit:ccGoogleSyncAnalyzeRunningBalances};",context);
   return {state,nodes,api:context.pilotAPI,context};
 }
 test('new transaction is written to isolated TEST tab and verified',async()=>{
@@ -389,4 +389,61 @@ test('staging DEMO third transaction appends once and stays unchanged on retry',
   assert.equal(retry.blocked.length,0);
   assert.equal(f.state.postCalls,writes,'comparison must not issue writes');
   assert.equal(f.state.rows.length,3,'retry must not append duplicate');
+});
+
+test('historical balance audit reconciles adjacent dated rows and counts formulas',()=>{
+  const f=fixture();
+  const rows=[
+    ['Ngày','Nhà cung cấp'], // heading
+    ['2026-10-27','A','','','', '',0,100,0,0,0,0,0,900],
+    ['2026-10-28','B','','','', '',300,0,50,0,0,0,0,1150],
+    ['2026-10-29','C','','','', '',0,0,0,0,25,0,0,1125]
+  ];
+  const formulas=[[],['=N1+G2-SUM(H2:M2)'],['=N2+G3-SUM(H3:M3)'],['=N3+G4-SUM(H4:M4)']];
+  const check=f.api.balanceAudit(rows,formulas);
+  assert.equal(check.checked,2);
+  assert.equal(check.mismatches.length,0);
+  assert.equal(check.formulaCount,3);
+});
+
+test('historical balance audit flags a mismatched balance without writing',()=>{
+  const f=fixture();
+  const rows=[
+    ['2026-11-01','A','','','', '',0,0,0,0,0,0,0,1000],
+    ['2026-11-02','B','','','', '',0,0,40,0,0,0,0,965]
+  ];
+  const before=JSON.stringify(rows);
+  const check=f.api.balanceAudit(rows,[[],[]]);
+  assert.equal(check.checked,1);
+  assert.equal(check.mismatches.length,1);
+  assert.equal(check.mismatches[0].expected,960);
+  assert.equal(check.mismatches[0].actual,965);
+  assert.equal(f.state.postCalls,0);
+  assert.equal(JSON.stringify(rows),before);
+});
+
+test('historical balance audit does not bridge headers or months',()=>{
+  const f=fixture();
+  const rows=[
+    ['2026-10-31','A','','','', '',0,0,0,0,0,0,0,1000],
+    ['TỔNG CỘNG'],
+    ['2026-11-01','B','','','', '',0,100,0,0,0,0,0,900],
+    ['2026-11-02','C','','','', '',0,50,0,0,0,0,0,850]
+  ];
+  const check=f.api.balanceAudit(rows,[[],[],[],[]]);
+  assert.equal(check.checked,1);
+  assert.equal(check.mismatches.length,0);
+});
+
+test('historical balance audit refuses to infer a missing balance',()=>{
+  const f=fixture();
+  const rows=[
+    ['2026-11-01','A','','','', '',0,0,0,0,0,0,0,1000],
+    ['2026-11-02','B','','','', '',0,50,0,0,0,0,0,''],
+    ['2026-11-03','C','','','', '',0,10,0,0,0,0,0,940]
+  ];
+  const check=f.api.balanceAudit(rows,[[],[],[]]);
+  assert.equal(check.checked,0);
+  assert.equal(check.unverified.length,1);
+  assert.equal(check.unverified[0].row,2);
 });
