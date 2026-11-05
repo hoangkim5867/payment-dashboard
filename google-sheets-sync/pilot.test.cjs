@@ -63,6 +63,7 @@ function fixture({month='2026-11',source=[tx(month)]}={}){
   function ok(data){return {ok:true,json:async()=>data}}
   const context={
     currentAuthUser:{uid:'admin'},
+    firebaseConfig:{projectId:'test-project'},
     isCashControlOwner:()=>true,
     paymentMonths:new Map([['PHU HUNG',[]]]),
     legacyCashExportRows:()=>state.source,
