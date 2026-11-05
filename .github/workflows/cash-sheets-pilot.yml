@@ -7,6 +7,11 @@ on:
       - 'site/cash-control.html'
       - 'google-sheets-sync/pilot.test.cjs'
       - '.github/workflows/cash-sheets-pilot.yml'
+  pull_request:
+    paths:
+      - 'site/cash-control.html'
+      - 'google-sheets-sync/pilot.test.cjs'
+      - '.github/workflows/cash-sheets-pilot.yml'
   workflow_dispatch:
 
 permissions:
