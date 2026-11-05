@@ -83,6 +83,24 @@ export function createPaymentWriters(sdk, computeIndex, options={}) {
       return value;
     },options);
   }
+  // A workflow-only patch cannot change the V2 lookup index because none of
+  // its source or index fields are modified. Keep the native atomic write path:
+  // wrapping these patches in a transaction adds an unnecessary document read
+  // and fails when the Firestore read quota is exhausted.
+  function isIndexNeutralPatch(op) {
+    if(!isPayment(op.ref) || !['update','set'].includes(op.kind))return false;
+    const data=op.kind==='update'?patchFields(op.args):op.args[0];
+    if(!data || typeof data!=='object')return false;
+    if(op.kind==='set') {
+      const opts=op.args[1];
+      if(!opts?.merge && !Array.isArray(opts?.mergeFields))return false;
+      if(Array.isArray(opts.mergeFields)) {
+        const selected=opts.mergeFields.map(field=>topLevelField(field,Object.keys(data)));
+        return !selected.some(key=>sourceFields.includes(key)||indexFields.includes(key));
+      }
+    }
+    return !Object.keys(data).some(key=>sourceFields.includes(key)||indexFields.includes(key));
+  }
   function isPlainPaymentSet(op) {
     if(!isPayment(op.ref) || op.kind!=='set')return false;
     const options=op.args[1];
@@ -109,7 +127,7 @@ export function createPaymentWriters(sdk, computeIndex, options={}) {
       const paymentPaths=operations.filter(op=>isPayment(op.ref)).map(op=>op.ref.path);
       const hasRepeatedPaymentPath=new Set(paymentPaths).size!==paymentPaths.length;
       const needsPriorState=hasRepeatedPaymentPath ||
-        operations.some(op=>isPayment(op.ref)&&op.kind!=='delete'&&!isPlainPaymentSet(op));
+        operations.some(op=>isPayment(op.ref)&&op.kind!=='delete'&&!isPlainPaymentSet(op)&&!isIndexNeutralPatch(op));
       if(needsPriorState)return sdk.runTransaction(db,tx=>flush(tx,operations));
       const batch=sdk.writeBatch(db);
       for(const op of operations) {
@@ -125,6 +143,7 @@ export function createPaymentWriters(sdk, computeIndex, options={}) {
   }
   async function setDoc(ref,data,options) {
     if(!isPayment(ref))return options?sdk.setDoc(ref,data,options):sdk.setDoc(ref,data);
+    if(isIndexNeutralPatch({kind:'set',ref,args:[data,options]}))return sdk.setDoc(ref,data,options);
     if(!options?.merge&&!options?.mergeFields) {
       sourcePatch(data); // Reject unsupported transforms just as the transaction path does.
       return sdk.setDoc(ref,{...data,...computeIndex(data)});
@@ -133,6 +152,7 @@ export function createPaymentWriters(sdk, computeIndex, options={}) {
   }
   async function updateDoc(ref,...args) {
     if(!isPayment(ref))return sdk.updateDoc(ref,...args);
+    if(isIndexNeutralPatch({kind:'update',ref,args}))return sdk.updateDoc(ref,...args);
     return sdk.runTransaction(ref.firestore,tx=>flush(tx,[{kind:'update',ref,args}]));
   }
   async function addDoc(collection,data) {
