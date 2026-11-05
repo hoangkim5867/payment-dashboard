@@ -610,3 +610,19 @@ test('computed ledger refuses to reorder unsorted original transactions',async()
     /Ngày sổ lịch sử không tăng dần/);
   assert.equal(f.state.postCalls,0);
 });
+
+test('computed TEST historical-only preview works with no DATA_CASHCONTROL mirror',async()=>{
+  const f=fixture(),{history,formulas}=autoLedgerFixture();
+  const historyBefore=JSON.stringify(history),formulasBefore=JSON.stringify(formulas);
+  const plan=await f.api.buildAutoLedger(history,formulas,[]);
+  assert.equal(plan.mirroredCount,0);
+  assert.equal(plan.historicCount,3);
+  assert.equal(plan.rows.length,3);
+  assert.equal(plan.opening,0);
+  assert.equal(plan.closingBalance,930);
+  assert.equal(plan.rows[0].formula,'=$Q$2+G2-SUM(H2:M2)');
+  assert.equal(plan.rows[2].formula,'=N3+G4-SUM(H4:M4)');
+  assert.equal(JSON.stringify(history),historyBefore);
+  assert.equal(JSON.stringify(formulas),formulasBefore);
+  assert.equal(f.state.postCalls,0);
+});
