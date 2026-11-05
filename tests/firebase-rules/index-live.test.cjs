@@ -35,9 +35,16 @@ for(const page of ['payment.html','payment-mobile-renderer.html'])test(page+': a
  const indexed=await context.ensureImportDuplicateHistoryForRows(rows);
  assert.deepEqual(Array.from(indexed,x=>x.id).sort(),['cross-month','p1']);
  const optimized={queries,returnedDocuments};returnedDocuments=0;queries=0;context.paymentIndexV1Ready=async()=>false;
- const legacy=await context.ensureImportDuplicateHistoryForRows(rows);
- assert.deepEqual(Array.from(legacy).filter(x=>duplicateKeyV1(x)===duplicateKeyV1(rows[0].data)).map(x=>x.id).sort(),Array.from(indexed,x=>x.id).sort());
- evidence.scenarios.push({page,collectionDocuments:101,legacy:{queries,returnedDocuments},indexed:optimized,markerReadExcluded:true,billingMeasurement:false});
+ if(page==='payment.html'){
+  await assert.rejects(()=>context.ensureImportDuplicateHistoryForRows(rows),/Tra cứu trùng IPC chưa sẵn sàng/);
+  assert.equal(queries,0);
+  assert.equal(returnedDocuments,0);
+  evidence.scenarios.push({page,collectionDocuments:101,unreadyIndexBlocked:true,indexed:optimized,markerReadExcluded:true,billingMeasurement:false});
+ }else{
+  const legacy=await context.ensureImportDuplicateHistoryForRows(rows);
+  assert.deepEqual(Array.from(legacy).filter(x=>duplicateKeyV1(x)===duplicateKeyV1(rows[0].data)).map(x=>x.id).sort(),Array.from(indexed,x=>x.id).sort());
+  evidence.scenarios.push({page,collectionDocuments:101,legacy:{queries,returnedDocuments},indexed:optimized,markerReadExcluded:true,billingMeasurement:false});
+ }
 });
 test('synchronous indexed fixture: add/edit/change month/soft-delete/restore/delete',async()=>{
  const ref=db.collection('payments').doc('mutation');
