@@ -6165,7 +6165,9 @@ async function ccGoogleSyncCreateDemoComputedLedger(){
       throw Error('Sổ DEMO chưa đưa đủ 4 giao dịch giả vào phép tính.');
     const result=await ccGoogleSyncUpdateStableView(meta,plan,CC_SYNC_DEMO_VIEW);
     if(result==='updated'||result==='unchanged')
-      ccGoogleSyncStatus('SỔ DEMO TEST ĐÃ XÁC MINH: '+CC_SYNC_DEMO_VIEW+
+      ccGoogleSyncStatus((result==='unchanged'?
+        'SỔ DEMO TEST ĐÃ KHỚP SẴN — KHÔNG GHI THÊM: ':
+        'SỔ DEMO TEST VỪA CẬP NHẬT VÀ ĐỌC LẠI THÀNH CÔNG: ')+CC_SYNC_DEMO_VIEW+
         '; '+plan.historicCount+' lịch sử + 4 DEMO; số dư cuối '+plan.closingBalance.toLocaleString('vi-VN')+
         '. Không sửa PHU_HUNG_VIEW_TEST hoặc PHU HUNG lịch sử.');
     return result;
