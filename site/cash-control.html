@@ -1420,6 +1420,8 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <input id="ccGoogleSyncSourceFile" type="file" accept=".json,application/json" hidden>
         <button class="btn" type="button" id="ccGoogleSyncLoadSource">Làm mới nguồn PHU HUNG</button>
         <button class="btn" type="button" id="ccGoogleSyncSourceExport" hidden>Xuất nguồn PHU HUNG (JSON)</button>
+        <button class="btn" type="button" id="ccGoogleSyncStagingNew" hidden>TEST: thêm giao dịch tháng 11 (321.000đ)</button>
+        <button class="btn" type="button" id="ccGoogleSyncStagingEdit" hidden>TEST: sửa giao dịch tháng 11 (432.100đ)</button>
       </div>
       <small style="display:block;margin-top:6px;color:#64748b">Dữ liệu nhập chỉ ở bộ nhớ bản TEST. Không tải thêm Firestore tự động khi đối chiếu.</small>
     </div>
@@ -5443,6 +5445,37 @@ function ccGoogleSyncRequireFreshLiveSource(){
 // An imported production snapshot is in-memory only, admin-controlled and
 // never used for writes to Firestore. No file content is persisted to storage.
 let ccGoogleSyncImportedRows=null;
+const CC_SYNC_STAGING_TEST_ID='PHU HUNG:STAGING-NOV-TEST-20261106';
+async function ccGoogleSyncStagingTransaction(edited=false){
+  if(!CC_SYNC_DEMO_ALLOWED||ccGoogleSyncDemoActive||
+     !currentAuthUser||!isCashControlOwner()||ccGoogleSyncWriteInFlight)
+    throw Error('Chỉ Admin staging ngoài DEMO được thử giao dịch giả.');
+  if(!ccGoogleSyncImportedRows?.has('2026-10')||
+     !ccGoogleSyncImportedRows?.has('2026-11'))
+    throw Error('Nhập lại JSON nguồn tháng 10–11/2026 vào bộ nhớ TEST trước.');
+  const original=ccGoogleSyncImportedRows.get('2026-11');
+  if(original.some(row=>row.id!==CC_SYNC_STAGING_TEST_ID))
+    throw Error('Tháng 11 đã có giao dịch khác; không tự thêm giả vào nguồn này.');
+  if(edited&&!original.some(row=>row.id===CC_SYNC_STAGING_TEST_ID))
+    throw Error('Cần thêm giao dịch TEST 321.000đ trước khi sửa.');
+  const amount=edited?432100:321000;
+  const values=['2026-11-06','STAGING TEST ONLY','STAGING-TEST-CONTRACT-001',
+    'Giao dịch giả chỉ dành cho kiểm thử Google Sheets TEST',
+    'STAGING-IPC001','支出',0,0,0,0,amount,0,0];
+  const row={id:CC_SYNC_STAGING_TEST_ID,project:'PHU HUNG',month:'2026-11',
+    values,hash:await ccGoogleSyncSha(ccGoogleSyncPayloadCells(values))};
+  ccGoogleSyncImportedRows.set('2026-11',[row]);
+  ccGoogleSyncPlan=null;
+  $('ccGoogleSyncCommit').disabled=true;
+  $('ccGoogleSyncMonth').value='2026-11';
+  const add=$('ccGoogleSyncStagingNew'),edit=$('ccGoogleSyncStagingEdit');
+  add.disabled=true;
+  edit.disabled=edited;
+  ccGoogleSyncStatus('NGUỒN TEST THÁNG 11: 1 giao dịch giả '+amount.toLocaleString('vi-VN')+
+    'đ, giữ nguyên ID '+CC_SYNC_STAGING_TEST_ID+
+    '. Chưa ghi Google; không sửa nguồn JSON gốc hay Firebase. '+
+    'Dùng Đối chiếu và cập nhật PHU HUNG TEST để kiểm thử tích hợp.');
+}
 const CC_SYNC_SOURCE_SNAPSHOT_SCHEMA='PHU_HUNG_CASH_SOURCE_V1';
 async function ccGoogleSyncExportSource(){
   if(!currentAuthUser||!isCashControlOwner())throw Error('Chỉ Admin được xuất nguồn.');
@@ -5505,6 +5538,10 @@ async function ccGoogleSyncImportSource(file){
   }
   if(loaded.size!==2)throw Error('Thiếu tháng trong bản chụp.');
   ccGoogleSyncImportedRows=loaded;
+  if($('ccGoogleSyncStagingNew')){
+    $('ccGoogleSyncStagingNew').disabled=loaded.get('2026-11').length!==0;
+    $('ccGoogleSyncStagingEdit').disabled=true;
+  }
   ccGoogleSyncDemoActive=false;CC_SYNC_PILOT_TAB='DATA_CASHCONTROL';
   ccGoogleSyncPlan=null;$('ccGoogleSyncCommit').disabled=true;
   $('ccGoogleSyncMonth').value='2026-10';
@@ -6756,7 +6793,10 @@ function ccGoogleSyncInitializeGooglePilot(){
     demoToggle.hidden=false;
     demoToggle.addEventListener('click',()=>{
       ccGoogleSyncDemoActive=!ccGoogleSyncDemoActive;
-      if(ccGoogleSyncDemoActive)ccGoogleSyncImportedRows=null;
+      if(ccGoogleSyncDemoActive){
+        ccGoogleSyncImportedRows=null;
+        stagingNew.disabled=true;stagingEdit.disabled=true;
+      }
       CC_SYNC_PILOT_TAB=ccGoogleSyncDemoActive?ccGoogleSyncDemoTab:'DATA_CASHCONTROL';
       ccGoogleSyncDemoEdited=false;ccGoogleSyncDemoAdded=false;
       ccGoogleSyncDemoFourthAdded=false;ccGoogleSyncDemoFourthEdited=false;ccGoogleSyncPlan=null;
@@ -6870,6 +6910,19 @@ function ccGoogleSyncInitializeGooglePilot(){
   const sourceExport=$('ccGoogleSyncSourceExport');
   const sourceImport=$('ccGoogleSyncSourceImport');
   const sourceFile=$('ccGoogleSyncSourceFile');
+  const stagingNew=$('ccGoogleSyncStagingNew'),stagingEdit=$('ccGoogleSyncStagingEdit');
+  if(CC_SYNC_DEMO_ALLOWED){
+    stagingNew.hidden=false;stagingEdit.hidden=false;
+    stagingNew.disabled=true;stagingEdit.disabled=true;
+    stagingNew.addEventListener('click',async()=>{
+      try{await ccGoogleSyncStagingTransaction(false)}
+      catch(error){ccGoogleSyncStatus('CHƯA THÊM TEST: '+error.message)}
+    });
+    stagingEdit.addEventListener('click',async()=>{
+      try{await ccGoogleSyncStagingTransaction(true)}
+      catch(error){ccGoogleSyncStatus('CHƯA SỬA TEST: '+error.message)}
+    });
+  }
   if(firebaseConfig.projectId!=='cash-control-staging'){
     sourceExport.hidden=false;
     sourceExport.addEventListener('click',async()=>{
