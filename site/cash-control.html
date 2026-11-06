@@ -1455,6 +1455,8 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <button class="btn" type="button" id="ccGoogleSyncDemoToggle" hidden>Thử 2 giao dịch giả</button>
         <button class="btn" type="button" id="ccGoogleSyncDemoChange" hidden>Sửa số tiền giả</button>
         <button class="btn" type="button" id="ccGoogleSyncDemoAdd" hidden>Thêm giao dịch giả thứ 3</button>
+        <button class="btn" type="button" id="ccGoogleSyncDemoFourth" hidden>Kiểm thử giao dịch mới #4 (DEMO)</button>
+        <button class="btn" type="button" id="ccGoogleSyncDemoFourthEdit" hidden>Sửa số tiền #4 (DEMO)</button>
       </div>
     </details>
     <div class="note" style="margin:10px 0">
@@ -5324,6 +5326,7 @@ let CC_SYNC_PILOT_TAB='DATA_CASHCONTROL';
 // This is never enabled on production or inferred to be real Payment data.
 const CC_SYNC_DEMO_ALLOWED=firebaseConfig.projectId==='cash-control-staging';
 let ccGoogleSyncDemoActive=false,ccGoogleSyncDemoEdited=false,ccGoogleSyncDemoAdded=false;
+let ccGoogleSyncDemoFourth=false,ccGoogleSyncDemoFourthEdited=false;
 const ccGoogleSyncDemoTab='DATA_CASHCONTROL_DEMO';
 async function ccGoogleSyncDemoRows(month){
   if(!CC_SYNC_DEMO_ALLOWED||!ccGoogleSyncDemoActive||month!=='2026-11')
@@ -5333,6 +5336,7 @@ async function ccGoogleSyncDemoRows(month){
     {id:'DEMO-PHU-HUNG-002',values:['2026-11-04','DEMO VENDOR B','DEMO-CONTRACT-002','Giao dịch kiểm thử, không phải thanh toán thật','DEMO-IPC002','支出',0,0,ccGoogleSyncDemoEdited?765432:567890,0,0,0,0]}
   ];
   if(ccGoogleSyncDemoAdded)samples.push({id:'DEMO-PHU-HUNG-003',values:['2026-11-05','DEMO VENDOR C','DEMO-CONTRACT-003','Giao dịch thêm mới giả, không phải thanh toán thật','DEMO-IPC003','支出',0,0,0,345678,0,0,0]});
+  if(ccGoogleSyncDemoFourth)samples.push({id:'DEMO-PHU-HUNG-004',values:['2026-11-06','DEMO VENDOR D','DEMO-CONTRACT-004','Thử nghiệm riêng - giao dịch mới, không phải thanh toán thật','DEMO-IPC004','支出',0,0,0,0,ccGoogleSyncDemoFourthEdited?432100:321000,0,0]});
   return Promise.all(samples.map(async r=>({
     id:r.id,project:'PHU HUNG',month,values:r.values,
     hash:await ccGoogleSyncSha(ccGoogleSyncPayloadCells(r.values))
@@ -6619,13 +6623,15 @@ function ccGoogleSyncInitializeGooglePilot(){
   const oauth=$('ccGoogleSyncOAuthClient');
   if(!oauth)return;
   const demoToggle=$('ccGoogleSyncDemoToggle'),demoChange=$('ccGoogleSyncDemoChange'),demoAdd=$('ccGoogleSyncDemoAdd');
+  const demoFourth=$('ccGoogleSyncDemoFourth'),demoFourthEdit=$('ccGoogleSyncDemoFourthEdit');
   if(CC_SYNC_DEMO_ALLOWED){
     demoToggle.hidden=false;
     demoToggle.addEventListener('click',()=>{
       ccGoogleSyncDemoActive=!ccGoogleSyncDemoActive;
       if(ccGoogleSyncDemoActive)ccGoogleSyncImportedRows=null;
       CC_SYNC_PILOT_TAB=ccGoogleSyncDemoActive?ccGoogleSyncDemoTab:'DATA_CASHCONTROL';
-      ccGoogleSyncDemoEdited=false;ccGoogleSyncDemoAdded=false;ccGoogleSyncPlan=null;
+      ccGoogleSyncDemoEdited=false;ccGoogleSyncDemoAdded=false;
+      ccGoogleSyncDemoFourth=false;ccGoogleSyncDemoFourthEdited=false;ccGoogleSyncPlan=null;
       demoChange.disabled=false;demoChange.textContent='Sửa số tiền giả';
       demoAdd.disabled=false;demoAdd.textContent='Thêm giao dịch giả thứ 3';
       $('ccGoogleSyncCommit').disabled=true;
@@ -6633,6 +6639,9 @@ function ccGoogleSyncInitializeGooglePilot(){
       demoToggle.textContent=ccGoogleSyncDemoActive?'Thoát chế độ DEMO':'Thử 2 giao dịch giả';
       demoChange.hidden=!ccGoogleSyncDemoActive;
       demoAdd.hidden=!ccGoogleSyncDemoActive;
+      demoFourth.hidden=!ccGoogleSyncDemoActive;
+      demoFourthEdit.hidden=!ccGoogleSyncDemoActive;
+      demoFourth.disabled=false;demoFourthEdit.disabled=true;
       ccGoogleSyncStatus(ccGoogleSyncDemoActive?
         'DEMO ĐANG BẬT: 2 giao dịch giả chỉ tồn tại trong bộ nhớ. Đích: DATA_CASHCONTROL_DEMO. Bấm So sánh trước khi ghi.':
         'Đã thoát DEMO. Không có dữ liệu thật trên staging; chặn ghi nếu thiếu nguồn.');
@@ -6645,6 +6654,22 @@ function ccGoogleSyncInitializeGooglePilot(){
       demoChange.textContent='Đã sửa: 567.890 → 765.432';
       ccGoogleSyncPlan=null;$('ccGoogleSyncCommit').disabled=true;
       ccGoogleSyncStatus('DEMO: Giao dịch DEMO-PHU-HUNG-002 đã đổi số tiền từ 567.890 thành 765.432. Bấm So sánh bản TEST; dự kiến 1 sửa, 1 không đổi nếu 2 dòng đã ghi thành công.');
+    });
+    demoFourth.addEventListener('click',()=>{
+      if(!ccGoogleSyncDemoActive||ccGoogleSyncDemoFourth)return;
+      // Restore the known existing 3 DEMO samples before adding the fourth.
+      // The user already verified these on the isolated TEST tab in an earlier round.
+      ccGoogleSyncDemoEdited=true;ccGoogleSyncDemoAdded=true;
+      ccGoogleSyncDemoFourth=true;ccGoogleSyncDemoFourthEdited=false;
+      ccGoogleSyncPlan=null;$('ccGoogleSyncCommit').disabled=true;
+      demoFourth.disabled=true;demoFourthEdit.disabled=false;
+      ccGoogleSyncStatus('DEMO chỉ tại DATA_CASHCONTROL_DEMO: đã chuẩn bị khoản mới #4, 321.000 VND. Bấm So sánh dữ liệu rồi Ghi thay đổi vào tab TEST nếu chỉ có 1 mới và 0 xung đột. Không ảnh hưởng 160 khoản lịch sử.');
+    });
+    demoFourthEdit.addEventListener('click',()=>{
+      if(!ccGoogleSyncDemoActive||!ccGoogleSyncDemoFourth||ccGoogleSyncDemoFourthEdited)return;
+      ccGoogleSyncDemoFourthEdited=true;demoFourthEdit.disabled=true;
+      ccGoogleSyncPlan=null;$('ccGoogleSyncCommit').disabled=true;
+      ccGoogleSyncStatus('DEMO: số tiền khoản #4 đổi 321.000 → 432.100. Bấm So sánh dữ liệu, dự kiến 1 sửa và 0 xung đột.');
     });
     demoAdd.addEventListener('click',()=>{
       if(!ccGoogleSyncDemoActive||ccGoogleSyncDemoAdded)return;
