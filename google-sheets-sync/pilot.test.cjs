@@ -79,7 +79,7 @@ function fixture({month='2026-11',source=[tx(month)],demo=false,staging=false}={
   };
   vm.createContext(context);
   vm.runInContext(pilot+
-    "\nccGoogleSyncToken='FAKE_TEST_TOKEN';"+
+    "\nccGoogleSyncToken='FAKE_TEST_TOKEN'; ccGoogleSyncLiveSourceRefreshedAt=Date.now();"+
     (demo?"\nccGoogleSyncDemoActive=true; CC_SYNC_PILOT_TAB=ccGoogleSyncDemoTab;":"")+
     (staging?"\nccGoogleSyncImportedRows=new Map();":"")+
     "\nthis.pilotAPI={compare:ccGoogleSyncComparePilot,commit:ccGoogleSyncCommitPilot,audit:ccGoogleSyncAuditLegacy,currentRows:ccGoogleSyncCurrentRows,correctionCandidate:ccGoogleSyncLegacyCorrectionCandidate,balanceAudit:ccGoogleSyncAnalyzeRunningBalances,buildAutoLedger:ccGoogleSyncBuildConsolidatedLedger,mergeCachedSource:ccGoogleSyncMergeCachedSource,verifyComputedTab:ccGoogleSyncVerifyComputedTab,sha:ccGoogleSyncSha,payload:ccGoogleSyncPayloadCells};",context);
@@ -830,4 +830,27 @@ test('computed TEST view requests Google sheetId in initial metadata',()=>{
   const fn=pilot.slice(start,end);
   assert.match(fn,/sheets\(properties\(title,sheetId\)\)/,
     'existing PHU_HUNG_VIEW_TEST must include sheetId before update');
+});
+
+test('live-source write is blocked if Admin has not explicitly refreshed Payment',async()=>{
+  const f=fixture();
+  const preview=await f.api.compare();
+  assert.equal(preview.changes.length,1);
+  vm.runInContext('ccGoogleSyncLiveSourceRefreshedAt=0',f.context);
+  const writes=f.state.postCalls;
+  await assert.rejects(f.api.commit(),/Làm mới nguồn PHU HUNG/);
+  assert.equal(f.state.postCalls,writes,'no Google writes when source is stale');
+});
+test('live-source freshness expires and TEST staging must never fetch production',()=>{
+  const f=fixture();
+  vm.runInContext('ccGoogleSyncLiveSourceRefreshedAt=Date.now()-16*60*1000',f.context);
+  assert.throws(()=>vm.runInContext('ccGoogleSyncRequireFreshLiveSource()',f.context),
+    /Làm mới nguồn PHU HUNG/);
+  const start=pilot.indexOf("  $('ccGoogleSyncLoadSource')?.addEventListener('click',async()=>{");
+  const end=pilot.indexOf("  $('ccGoogleSyncCompare')?.addEventListener('click',async()=>{",start);
+  assert.ok(start>=0&&end>start);
+  const handler=pilot.slice(start,end);
+  assert.match(handler,/CC_SYNC_DEMO_ALLOWED/);
+  assert.match(handler,/force:true,quiet:true,refresh:true/);
+  assert.match(handler,/ccGoogleSyncLiveSourceRefreshedAt=Date.now()/);
 });
