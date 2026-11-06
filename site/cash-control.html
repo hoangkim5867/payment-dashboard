@@ -6341,7 +6341,10 @@ async function ccGoogleSyncComparePilot(internal=false){
   const plan={month,sourceCount:source.length,remoteExists:remote.exists,
     changes,blocked,unchanged,legacyAudit,created:Date.now()};
   ccGoogleSyncPlan=plan;
-  $('ccGoogleSyncCommit').disabled=blocked.length>0||!changes.length;
+  const commitButton=$('ccGoogleSyncCommit');
+  commitButton.disabled=blocked.length>0||!changes.length;
+  commitButton.textContent=blocked.length?'Chặn ghi: có xung đột':
+    !changes.length?'Đã khớp · không cần ghi':'Ghi thay đổi vào tab TEST';
   const fixButton=$('ccGoogleSyncCorrectLegacy');
   if(fixButton){
     fixButton.hidden=true;fixButton.disabled=true;
@@ -6362,7 +6365,9 @@ async function ccGoogleSyncComparePilot(internal=false){
     unchanged.length+' không đổi · '+blocked.length+' xung đột. '+
     ('Sổ lịch sử '+month+': '+(!legacyAudit.ledgerCount?'chưa có giao dịch':legacyAudit.exact?'khớp các khóa giao dịch':'CHƯA KHỚP')+
     ' ('+legacyAudit.ledgerCount+' dòng). ')+
-    (blocked.length?'Chặn ghi, cần xử lý xung đột.':'Có thể xác nhận ghi tab TEST.')+
+    (blocked.length?'Chặn ghi, cần xử lý xung đột.':
+      !changes.length?'ĐÃ ĐỒNG BỘ ĐỦ: không có thay đổi cần ghi; nút Ghi đã vô hiệu hóa.':
+      'Có thể xác nhận ghi tab TEST.')+
     demoDiagnostic+snapshotDiagnostic+
     (ccGoogleSyncDemoActive && !source.some(r=>old.has(r.id))
       ?' ĐỂ THỬ SỬA: trước tiên phải GHI THÀNH CÔNG 2 DÒNG DEMO và thấy thông báo ĐÃ XÁC MINH; khi đó so sánh lại phải có 2 không đổi.':'')
