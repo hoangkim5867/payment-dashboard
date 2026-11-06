@@ -27,7 +27,7 @@ test('Google Sheets inspector is read-only, bounded, and never opens arbitrary t
   assert.equal(values.length,2);
   assert.equal(calls.length,2);
   assert.ok(calls.every(x=>x.startsWith('https://sheets.googleapis.com/v4/spreadsheets/'+TEST_ID)));
-  assert.ok(Object.keys(inspector).sort().join(',')==='metadata,read');
+  assert.ok(Object.keys(inspector).sort().join(',')==='metadata,read,readFormulas');
   assert.throws(()=>safeRange('PHU HUNG','K99:K99'),/not allowed/);
   assert.throws(()=>safeRange('production','A1:N10001'),/not allowed/);
 });
