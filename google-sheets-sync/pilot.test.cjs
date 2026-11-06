@@ -1067,3 +1067,63 @@ test('auto sync is blocked in production and stops on a failed staging write',as
   assert.equal(vm.runInContext('ccGoogleSyncAutoEnabled',f.context),false);
   assert.equal(f.state.postCalls,0);
 });
+
+test('Cash Control saved event materializes staging manual payment only after save and skips no-ops',async()=>{
+  const f=fixture({staging:true,source:[tx('2026-11',321000)]});
+  f.context.autoRuns=0;
+  vm.runInContext(`
+    ccGoogleSyncImportedBaseline=new Map([
+      ['2026-10',[]],['2026-11',[]]
+    ]);
+    ccGoogleSyncImportedRows=new Map([
+      ['2026-10',[]],['2026-11',[]]
+    ]);
+    ccGoogleSyncAutoEnabled=true;
+    ccGoogleSyncDirectSyncTest=async({automatic}={})=>{
+      if(!automatic)throw Error('No manual sync from a save');
+      autoRuns++;
+      return 'verified';
+    };
+  `,f.context);
+  await vm.runInContext("ccGoogleSyncOnCashCloudSaved('saved payment')",f.context);
+  assert.equal(f.context.autoRuns,1,'one saved source change triggers one sync');
+  const saved=vm.runInContext("ccGoogleSyncImportedRows.get('2026-11')",f.context);
+  assert.equal(saved.length,1);
+  assert.equal(saved[0].id,'PHU HUNG:expense:001');
+  assert.equal(saved[0].values[10],0);
+  assert.equal(saved[0].values[7],321000);
+  assert.equal(vm.runInContext("ccGoogleSyncImportedBaseline.get('2026-11').length",f.context),0,
+    'the uploaded JSON baseline remains untouched');
+  await vm.runInContext("ccGoogleSyncOnCashCloudSaved('repeated save')",f.context);
+  assert.equal(f.context.autoRuns,1,'unchanged source requires no more Google operations');
+  f.state.source[0].subcontract=432100;
+  await vm.runInContext("ccGoogleSyncOnCashCloudSaved('edited payment')",f.context);
+  assert.equal(f.context.autoRuns,2);
+  const after=vm.runInContext("ccGoogleSyncImportedRows.get('2026-11')",f.context);
+  assert.equal(after.length,1,'edit must preserve the same sourceId');
+  assert.equal(after[0].id,saved[0].id);
+  assert.notEqual(after[0].hash,saved[0].hash);
+  assert.equal(f.state.postCalls,0,'event coordinator does not write to Google itself');
+});
+test('saved-event sync cannot write in production or without explicit staging opt-in',async()=>{
+  const prod=fixture({source:[tx('2026-11',321000)]});
+  vm.runInContext('ccGoogleSyncAutoEnabled=true',prod.context);
+  assert.equal(await vm.runInContext('ccGoogleSyncOnCashCloudSaved()',prod.context),false);
+  assert.equal(prod.state.postCalls,0);
+  const staging=fixture({staging:true});
+  assert.equal(await vm.runInContext('ccGoogleSyncOnCashCloudSaved()',staging.context),false);
+  assert.equal(staging.state.postCalls,0);
+});
+test('actual Cash Control save only notifies after successful Firestore setDoc',()=>{
+  const fnStart=html.indexOf('async function persistCashCloud(');
+  const fnEnd=html.indexOf('async function ensureCashCloudDocument(',fnStart);
+  assert.ok(fnStart>=0&&fnEnd>fnStart);
+  const fn=html.slice(fnStart,fnEnd);
+  const write=fn.indexOf('await setDoc(');
+  const notification=fn.indexOf('ccGoogleSyncOnCashCloudSaved(action)');
+  const catchIndex=fn.indexOf('}catch(error)');
+  assert.ok(write>=0&&write<notification&&notification<catchIndex,
+    'must signal only after a successful Firestore write inside the try block');
+  assert.ok(fn.includes('void ccGoogleSyncOnCashCloudSaved(action).catch('),
+    'Google failures must not change the result of a successful Cash Control save');
+});
