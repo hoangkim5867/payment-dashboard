@@ -1005,3 +1005,27 @@ test('December TEST sync checks intervening November and blocks if it is pending
   assert.equal(f.nodes.ccGoogleSyncMonth.value,'2026-12');
   assert.equal(f.state.postCalls,0);
 });
+
+test('retry after VIEW failure preserves mirror exactly once and recovers',async()=>{
+  const f=fixture({staging:true});
+  const normalized=vm.runInContext('ccGoogleSyncRowValues',f.context)(tx('2026-11',280000));
+  const entry={id:'PHU HUNG:expense:001',project:'PHU HUNG',month:'2026-11',
+    values:normalized,hash:await f.api.sha(f.api.payload(normalized))};
+  f.context.viewAttempts=0;
+  vm.runInContext(`
+    ccGoogleSyncImportedRows.set('2026-10', []);
+    ccGoogleSyncImportedRows.set('2026-11', recoverySource);
+    ccGoogleSyncCreateComputedLedgerTest=async()=>{
+      viewAttempts++;
+      if(viewAttempts===1)throw Error('TEST simulated view failure after mirror write');
+    };
+  `.replace('recoverySource','recoverySource'),Object.assign(f.context,{recoverySource:[entry]}));
+  await assert.rejects(vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context),/simulated view failure/);
+  assert.equal(f.state.rows.length,1,'mirror was committed');
+  assert.equal(f.state.rows[0][10],280000);
+  const afterFailedView=f.state.postCalls;
+  await vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context);
+  assert.equal(f.state.rows.length,1,'retry must not duplicate the mirror');
+  assert.equal(f.state.postCalls,afterFailedView,'retry must not rewrite unchanged mirror rows');
+  assert.equal(f.context.viewAttempts,2,'retry resumes the failed VIEW step');
+});
