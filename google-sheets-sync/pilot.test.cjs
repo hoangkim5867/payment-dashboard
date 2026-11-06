@@ -822,3 +822,12 @@ test('no-op DEMO comparison shows completed status and disables misleading commi
   assert.match(f.nodes.ccGoogleSyncCommit.textContent,/không cần ghi/);
   assert.match(f.nodes.ccGoogleSyncGoogleStatus.textContent,/ĐÃ ĐỒNG BỘ ĐỦ/);
 });
+
+test('computed TEST view requests Google sheetId in initial metadata',()=>{
+  const start=pilot.indexOf('async function ccGoogleSyncCreateComputedLedgerTest()');
+  const end=pilot.indexOf('async function ccGoogleSyncAuditLegacy(',start);
+  assert.ok(start>=0&&end>start);
+  const fn=pilot.slice(start,end);
+  assert.match(fn,/sheets\(properties\(title,sheetId\)\)/,
+    'existing PHU_HUNG_VIEW_TEST must include sheetId before update');
+});
