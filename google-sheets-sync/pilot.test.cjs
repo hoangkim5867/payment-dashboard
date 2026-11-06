@@ -864,7 +864,7 @@ test('one-click TEST sync refuses staging without imported source and makes no w
   assert.equal(f.state.postCalls,before,'staging cannot fetch or write real data');
 });
 test('one-click TEST workflow includes explicit refresh and baseline reconciliation',()=>{
-  const start=pilot.indexOf('async function ccGoogleSyncDirectSyncTest()');
+  const start=pilot.indexOf('async function ccGoogleSyncDirectSyncTest(');
   const end=pilot.indexOf('async function ccGoogleSyncAuditLegacy(',start);
   assert.ok(start>=0&&end>start);
   const fn=pilot.slice(start,end);
@@ -872,7 +872,7 @@ test('one-click TEST workflow includes explicit refresh and baseline reconciliat
   assert.match(fn,/const months=\[\]/);
   assert.match(fn,/months\.push\(year\+'-'\+String\(m\)\.padStart\(2,'0'\)\)/);
   assert.match(fn,/if\(diff.blocked.length\)/);
-  assert.ok(fn.indexOf('if(diff.blocked.length)')<fn.indexOf('await ccGoogleSyncCreateComputedLedgerTest()'));
+  assert.ok(fn.indexOf('if(diff.blocked.length)')<fn.indexOf('await ccGoogleSyncCreateComputedLedgerTest({automatic})'));
   assert.match(fn,/finally\{monthControl.value=currentMonth\}/);
 });
 
