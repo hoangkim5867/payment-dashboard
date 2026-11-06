@@ -6206,10 +6206,20 @@ async function ccGoogleSyncDirectSyncTest(){
       const diff=await ccGoogleSyncComparePilot(true);
       if(diff.blocked.length)
         throw Error('Tháng '+month+' có '+diff.blocked.length+' xung đột; không cập nhật VIEW.');
-      // Never automatically append to the mirror: the derived view safely
-      // reconciles the source with history and carries stable source IDs.
     }
   }finally{monthControl.value=currentMonth}
+  // Persist new/edited source transactions to the machine-owned TEST mirror,
+  // then verify each Google row by its ID+SHA before rebuilding the VIEW.
+  // Without this step a later month could silently lose previously unsaved rows.
+  const selectedPlan=await ccGoogleSyncComparePilot(true);
+  if(selectedPlan.blocked.length)
+    throw Error('Có xung đột mới phát sinh; không ghi dữ liệu.');
+  if(selectedPlan.changes.length){
+    await ccGoogleSyncCommitPilot();
+    const after=await ccGoogleSyncComparePilot(true);
+    if(after.blocked.length||after.changes.length)
+      throw Error('Ghi mirror TEST chưa xác minh hoàn toàn; không cập nhật sổ tổng hợp.');
+  }
   ccGoogleSyncPlan=null;
   $('ccGoogleSyncCommit').disabled=true;
   await ccGoogleSyncCreateComputedLedgerTest();
