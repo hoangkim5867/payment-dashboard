@@ -49,9 +49,21 @@ function createAccumulator(){
       reasons:[...reasons].sort()}}
   };
 }
+// Ignore Payment metadata/progress-only saves. Only changes capable of
+// affecting the actual Cash Control export should enqueue a Sheets update.
+const paymentCashFields=['project','processPaymentDate','processActualAmount',
+  'amount','costType','company','contractNo','contractName','ipcNo',
+  'contractType','paymentMonth','monthOutcome','carryForwardToMonth',
+  'carryForwardFromPaymentId','carriedForwardAt','note','remark','remarks',
+  'description','content','bankAccount','deleted'];
+function cashRelevantPaymentState(row){
+  if(!row||typeof row!=='object'||!row.processPaymentDate)return null;
+  return paymentCashFields.map(key=>[key,row[key]===undefined?null:row[key]]);
+}
 function affectedForPayment(before,after){
   const acc=createAccumulator();
-  if(stable(before)===stable(after))return emptyResult();
+  if(stable(cashRelevantPaymentState(before))===
+     stable(cashRelevantPaymentState(after)))return emptyResult();
   if(recordRelevant(before)||recordRelevant(after)){
     // Include both old and new months to handle dates moved across periods.
     acc.add(before,'payment-changed');
@@ -96,7 +108,7 @@ function makeJob({eventId,source,affected,createdAt}){
   const id=createHash('sha256').update(source+'\0'+eventId).digest('hex');
   return {id,source,project:PROJECT,months:affected.months,
     needsReview:affected.requiresReview,reasons:affected.reasons,
-    status:affected.requiresReview?'needs-review':'pending',
+    status:affected.requiresReview?'needs-review':'awaiting-reconciler',
     schemaVersion:1,eventId,createdAt:createdAt||new Date().toISOString()};
 }
 function enabledForStaging(env){
