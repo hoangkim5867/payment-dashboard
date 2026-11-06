@@ -44,13 +44,24 @@ function createTestSheetsInspector({request}={}){
   async function read(tab,range){
     await metadata();
     const name=safeRange(tab,range);
-    const url='/values/'+encodeURIComponent(name)+'?valueRenderOption=UNFORMATTED_VALUE';
+    const url='/values/'+encodeURIComponent(name)+
+      '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER';
     const data=await get(url);
     if(!Array.isArray(data.values)||data.values.length>10001)
       throw Error('Sheet data missing or exceeds verified range.');
     return data.values;
   }
-  return {metadata,read};
+  async function readFormulas(tab,range){
+    if(tab!=='PHU HUNG'||range!=='N1:N10001')
+      throw Error('Only historical balance formulas may be inspected.');
+    await metadata();
+    const name=safeRange(tab,range);
+    const data=await get('/values/'+encodeURIComponent(name)+'?valueRenderOption=FORMULA');
+    if(!Array.isArray(data.values)||data.values.length>10001)
+      throw Error('Historical formula data missing or oversized.');
+    return data.values;
+  }
+  return {metadata,read,readFormulas};
 }
 async function createAdcInspector(){
   // Lazy import: pure regression tests and Vercel code never load credentials.
