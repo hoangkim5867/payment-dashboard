@@ -810,3 +810,15 @@ test('fixed-view commit refuses a concurrent edit before Google batchUpdate',asy
   assert.equal(state.reads,3);
   assert.equal(state.writes,0,'must stop before any Google write');
 });
+
+test('no-op DEMO comparison shows completed status and disables misleading commit',async()=>{
+  const f=fixture({demo:true});
+  await f.api.compare();
+  await f.api.commit();
+  const result=await f.api.compare();
+  assert.equal(result.changes.length,0);
+  assert.equal(result.blocked.length,0);
+  assert.equal(f.nodes.ccGoogleSyncCommit.disabled,true);
+  assert.match(f.nodes.ccGoogleSyncCommit.textContent,/không cần ghi/);
+  assert.match(f.nodes.ccGoogleSyncGoogleStatus.textContent,/ĐÃ ĐỒNG BỘ ĐỦ/);
+});
