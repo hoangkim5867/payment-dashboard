@@ -85,7 +85,7 @@ function verifyHistory(rows,formulas){
     const flow=round(amounts[0]-amounts.slice(1).reduce((x,y)=>x+y,0));
     const formula=String(formulas[i]?.[0]??'').trim();
     if(!formula.startsWith('='))throw Error('Missing historical balance formula at N'+(i+1));
-    const refs=[...formula.matchAll(/(?:^|[^A-Z0-9_])\\$?([A-N])\\$?(\\d+)/gi)]
+    const refs=[...formula.matchAll(/(?:^|[^A-Z0-9_])\$?([A-N])\$?(\d+)/gi)]
       .map(hit=>({column:hit[1].toUpperCase(),row:Number(hit[2])}));
     if(!refs.some(ref=>ref.column==='G'&&ref.row===i+1)||
        !refs.some(ref=>'HIJKLM'.includes(ref.column)&&ref.row===i+1))
