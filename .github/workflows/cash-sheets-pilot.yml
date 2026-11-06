@@ -10,6 +10,7 @@ on:
       - 'tests/cash-sync-worker.test.cjs'
       - 'tests/cash-sync-sheets-service.test.cjs'
       - 'tests/cash-sync-three-way.test.cjs'
+      - 'tests/cash-sync-verified-mirror.test.cjs'
       - 'functions/cash-sync/**'
       - 'server/cash-sync-outbox.cjs'
       - 'functions/cash-sync/**'
@@ -34,4 +35,4 @@ jobs:
         with:
           node-version: '22'
       - name: Test Google Sheets pilot logic without cloud credentials
-        run: node --test google-sheets-sync/pilot.test.cjs tests/cash-sync-outbox.test.cjs tests/cash-sync-worker.test.cjs tests/cash-sync-sheets-service.test.cjs tests/cash-sync-three-way.test.cjs
+        run: node --test google-sheets-sync/pilot.test.cjs tests/cash-sync-outbox.test.cjs tests/cash-sync-worker.test.cjs tests/cash-sync-sheets-service.test.cjs tests/cash-sync-three-way.test.cjs tests/cash-sync-verified-mirror.test.cjs
