@@ -49,7 +49,7 @@ exports.capturePaymentChange=onDocumentWritten(
  * before claiming a job. No source is fabricated from the event alone.
  */
 exports.processCashSyncOutbox=onDocumentCreated(
-  {...options,document:'cash_sync_outbox/{jobId}'},
+  {...options,timeoutSeconds:90,document:'cash_sync_outbox/{jobId}'},
   async event=>{
     if(!stageEnabled(process.env))return {status:'disabled'};
     const jobId=String(event.params?.jobId||'');
