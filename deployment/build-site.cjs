@@ -41,7 +41,8 @@ if(require.main===module){
    path.join(__dirname,'../google-sheets-sync/pilot.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-outbox.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-worker.test.cjs'),
-   path.join(__dirname,'../tests/cash-sync-sheets-service.test.cjs')
+   path.join(__dirname,'../tests/cash-sync-sheets-service.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-three-way.test.cjs')
  ],{stdio:'inherit',timeout:60000});
  const target=process.env.VERCEL_ENV==='production'?'production':'staging';
  const stagingConfig=target==='staging'?JSON.parse(process.env.PAYMENT_FIREBASE_STAGING_CONFIG||'null'):null;
