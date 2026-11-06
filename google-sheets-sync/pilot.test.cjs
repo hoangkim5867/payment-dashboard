@@ -943,3 +943,42 @@ test('later-month one-click sync blocks pending October transactions without wri
   assert.equal(f.nodes.ccGoogleSyncMonth.value,'2026-11');
   assert.equal(f.state.postCalls,0);
 });
+
+test('one-click integration writes new transaction, edits it, and repeated click is a no-op',async()=>{
+  const f=fixture({staging:true});
+  // Keep every operation inside mocked Google; actual comparison, mirror commit,
+  // readback hashes and conflict detection all run unmodified.
+  f.state.legacyValues=[];
+  f.context.steps=[];
+  vm.runInContext(`
+    ccGoogleSyncImportedRows.set('2026-10', []);
+    ccGoogleSyncCreateComputedLedgerTest=async()=>{
+      steps.push('view');
+      const remote=await ccGoogleSyncReadSheet();
+      if(remote.rows.length!==1)throw Error('Expected one verified mirror row.');
+      const row=remote.rows[0];
+      if(row[0]!=='PHU HUNG:expense:001')throw Error('Unexpected source ID');
+      if(await ccGoogleSyncSha(ccGoogleSyncPayloadCells(row.slice(3,16)))!==row[17])
+        throw Error('Source integrity failed before view update');
+    };
+  `,f.context);
+  const makeSource=async(amount)=>{
+    f.state.source=[tx('2026-11',amount)];
+    const v=vm.runInContext('ccGoogleSyncRowValues',f.context)(f.state.source[0]);
+    const hash=await f.api.sha(f.api.payload(v));
+    const entry={id:'PHU HUNG:expense:001',project:'PHU HUNG',month:'2026-11',values:v,hash};
+    vm.runInContext('ccGoogleSyncImportedRows',f.context).set('2026-11',[entry]);
+  };
+  await makeSource(100.3);
+  await vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context);
+  assert.equal(f.state.rows.length,1);
+  assert.equal(f.state.rows[0][10],100.3);
+  const afterFirst=f.state.postCalls;
+  await vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context);
+  assert.equal(f.state.postCalls,afterFirst,'repeated run must not write to Google');
+  await makeSource(155.3);
+  await vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context);
+  assert.equal(f.state.rows.length,1,'edited transaction must preserve ID');
+  assert.equal(f.state.rows[0][10],155.3);
+  assert.equal(f.context.steps.filter(x=>x==='view').length,3);
+});
