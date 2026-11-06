@@ -38,7 +38,8 @@ if(require.main===module){
  // Cash Sync is financial software: deploy only if isolated no-network tests pass.
  require('node:child_process').execFileSync(process.execPath,[
    '--test',path.join(__dirname,'../tests/cash-sync-gate.test.cjs'),
-   path.join(__dirname,'../google-sheets-sync/pilot.test.cjs')
+   path.join(__dirname,'../google-sheets-sync/pilot.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-outbox.test.cjs')
  ],{stdio:'inherit',timeout:60000});
  const target=process.env.VERCEL_ENV==='production'?'production':'staging';
  const stagingConfig=target==='staging'?JSON.parse(process.env.PAYMENT_FIREBASE_STAGING_CONFIG||'null'):null;
