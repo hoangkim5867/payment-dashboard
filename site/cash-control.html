@@ -6206,6 +6206,9 @@ async function ccGoogleSyncDirectSyncTest(){
       const diff=await ccGoogleSyncComparePilot(true);
       if(diff.blocked.length)
         throw Error('Tháng '+month+' có '+diff.blocked.length+' xung đột; không cập nhật VIEW.');
+      if(month!==currentMonth&&diff.changes.length)
+        throw Error('Tháng '+month+' còn '+diff.changes.length+
+          ' giao dịch mới/sửa chưa lưu. Hãy đồng bộ tháng đó trước; không bỏ sót giao dịch cũ.');
     }
   }finally{monthControl.value=currentMonth}
   // Persist new/edited source transactions to the machine-owned TEST mirror,
