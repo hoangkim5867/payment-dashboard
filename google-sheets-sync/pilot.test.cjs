@@ -1029,3 +1029,41 @@ test('retry after VIEW failure preserves mirror exactly once and recovers',async
   assert.equal(f.state.postCalls,afterFailedView,'retry must not rewrite unchanged mirror rows');
   assert.equal(f.context.viewAttempts,2,'retry resumes the failed VIEW step');
 });
+
+test('staging auto sync reacts to a source change once, then skips unchanged content',async()=>{
+  const f=fixture({staging:true});
+  f.context.autoRuns=0;
+  vm.runInContext(`
+    ccGoogleSyncImportedRows.set('2026-10',[]);
+    ccGoogleSyncImportedRows.set('2026-11',[{id:'STAGING-TEST-1',hash:'hash-1'}]);
+    ccGoogleSyncAutoEnabled=true;
+    ccGoogleSyncDirectSyncTest=async({automatic}={})=>{
+      if(!automatic)throw Error('Must never invoke manual mode');
+      autoRuns++;
+      return 'verified';
+    };
+  `,f.context);
+  await vm.runInContext('ccGoogleSyncAutoSourceChanged()',f.context);
+  await vm.runInContext('ccGoogleSyncAutoSourceChanged()',f.context);
+  assert.equal(f.context.autoRuns,1,'unchanged source must not re-write');
+  assert.equal(f.state.postCalls,0,'the auto coordinator itself never queries Google');
+  vm.runInContext("ccGoogleSyncImportedRows.get('2026-11')[0].hash='hash-2'",f.context);
+  await vm.runInContext('ccGoogleSyncAutoSourceChanged()',f.context);
+  assert.equal(f.context.autoRuns,2,'an edited source schedules one new reconciliation');
+});
+test('auto sync is blocked in production and stops on a failed staging write',async()=>{
+  const prod=fixture();
+  vm.runInContext('ccGoogleSyncAutoEnabled=true',prod.context);
+  await vm.runInContext('ccGoogleSyncAutoSourceChanged()',prod.context);
+  assert.equal(prod.state.postCalls,0);
+  const f=fixture({staging:true});
+  vm.runInContext(`
+    ccGoogleSyncImportedRows.set('2026-10',[]);
+    ccGoogleSyncImportedRows.set('2026-11',[]);
+    ccGoogleSyncAutoEnabled=true;
+    ccGoogleSyncDirectSyncTest=async()=>{throw Error('TEST write interrupted')};
+  `,f.context);
+  await vm.runInContext('ccGoogleSyncAutoSourceChanged()',f.context);
+  assert.equal(vm.runInContext('ccGoogleSyncAutoEnabled',f.context),false);
+  assert.equal(f.state.postCalls,0);
+});
