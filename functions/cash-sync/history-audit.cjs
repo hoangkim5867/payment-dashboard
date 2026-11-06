@@ -26,7 +26,7 @@ function normalizeDate(input){
   }else{
     const text=String(input??'').trim();
     const iso=text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    const local=text.match(/^(\d{1,2})[\/-\.](\d{1,2})[\/-\.](\d{4})$/);
+    const local=text.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/);
     if(iso)value=text;
     else if(local)value=local[3]+'-'+local[2].padStart(2,'0')+'-'+local[1].padStart(2,'0');
     else return null;
