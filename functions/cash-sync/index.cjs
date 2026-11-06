@@ -9,6 +9,9 @@
  * is required before any unattended financial sheet mutation.
  */
 const {onDocumentWritten,onDocumentCreated}=require('firebase-functions/v2/firestore');
+const {onCall,HttpsError}=require('firebase-functions/v2/https');
+const {runReadProbe,validateCaller}=require('./service-probe.cjs');
+const {createAdcInspector}=require('./sheets-inspector.cjs');
 const {initializeApp,getApps}=require('firebase-admin/app');
 const {getFirestore}=require('firebase-admin/firestore');
 const {enqueueEvent}=require('./core.cjs');
@@ -53,6 +56,27 @@ exports.processCashSyncOutbox=onDocumentCreated(
     return runWorker({
       jobId,env:process.env,store:createJobStore(getFirestore()),
       reconcile:undefined
+    });
+  }
+);
+
+/*
+ * Opt-in read-only TEST diagnostic. A browser/Admin ID token is required.
+ * This never returns spreadsheet rows and cannot write anything. Disabled
+ * until the isolated staging Firebase project's env and Google sharing
+ * have been explicitly configured and verified.
+ */
+exports.checkCashSheetsTestAccess=onCall(
+  {region,maxInstances:1},
+  async request=>{
+    try{validateCaller({env:process.env,auth:request.auth})}
+    catch(error){
+      throw new HttpsError(error?.code==='permission-denied'
+        ?'permission-denied':'failed-precondition','TEST Sheets probe unavailable.');
+    }
+    return runReadProbe({
+      env:process.env,auth:request.auth,
+      inspectorFactory:createAdcInspector
     });
   }
 );
