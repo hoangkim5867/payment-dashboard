@@ -7311,6 +7311,11 @@ function excelProjectCostBucket(txn){
     const text=(cat+' '+String(txn.description||'')+' '+String(txn.contractType||'')).toLowerCase();
 
     if(source==='legacy_salary') return 'indirect';
+    // Keep the production bonus export fix (PR #69) when the TEST sync branch
+    // is eventually merged. Bonus is indirect personnel cost, not payable.
+    if((source==='payroll'||txn.linkedModule==='payroll')&&
+       excelPayrollTypeFromCash(txn,excelLinkedPayrollRecord(txn))==='bonus')
+        return 'indirect';
     if(source==='history_cash') return 'taxDeposit';
 
     if(/材料|vật tư|vat tu/.test(text)) return 'material';
