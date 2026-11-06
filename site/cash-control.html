@@ -5731,6 +5731,12 @@ function excelProjectCostBucket(txn){
     const text=(cat+' '+String(txn.description||'')+' '+String(txn.contractType||'')).toLowerCase();
 
     if(source==='legacy_salary') return 'indirect';
+    // Bonus paid through Lương & thuế is an indirect personnel expense.
+    // Never infer its bucket solely from the free-text label "Thưởng":
+    // legacy Excel rows and payroll-linked transactions need the same rule.
+    if((source==='payroll'||txn.linkedModule==='payroll')&&
+       excelPayrollTypeFromCash(txn,excelLinkedPayrollRecord(txn))==='bonus')
+        return 'indirect';
     if(source==='history_cash') return 'taxDeposit';
 
     if(/材料|vật tư|vat tu/.test(text)) return 'material';
