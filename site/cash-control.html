@@ -6196,11 +6196,20 @@ async function ccGoogleSyncDirectSyncTest(){
     if(!ok||!paymentMonths.has('PHU HUNG'))throw Error('Không lấy đủ nguồn PHU HUNG; không ghi.');
     ccGoogleSyncLiveSourceRefreshedAt=Date.now();
   }
-  // Verify both the baseline month and the selected month before rebuilding.
-  // This comparison is read-only; a mismatch blocks all downstream writes.
+  // Verify EVERY month since the October 2026 baseline. A later sync must
+  // never skip unsynced changes from an intervening month (e.g. November).
+  // This is read-only Google reconciliation with the already-loaded source,
+  // not an extra Firestore query for each month.
   const monthControl=$('ccGoogleSyncMonth');
   try{
-    const months=[...new Set(['2026-10',currentMonth])];
+    const months=[];
+    const endYear=Number(currentMonth.slice(0,4));
+    const endMonth=Number(currentMonth.slice(5,7));
+    for(let year=2026;year<=endYear;year++){
+      for(let m=year===2026?10:1;m<=(year===endYear?endMonth:12);m++){
+        months.push(year+'-'+String(m).padStart(2,'0'));
+      }
+    }
     for(const month of months){
       monthControl.value=month;
       const diff=await ccGoogleSyncComparePilot(true);
