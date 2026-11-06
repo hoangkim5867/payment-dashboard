@@ -23,7 +23,7 @@ function stageEnabled(env){
 function validateJob(job){
   if(!job||job.schemaVersion!==1||!ID.test(job.id||'')||
      job.project!==PROJECT||!['payment','cash-private'].includes(job.source)||
-     !Array.isArray(job.months)||job.months.length>12||
+     !Array.isArray(job.months)||job.months.length===0||job.months.length>12||
      !job.months.every(m=>/^20\d\d-(0[1-9]|1[0-2])$/.test(m)&&m>=FIRST_MONTH)||
      new Set(job.months).size!==job.months.length)
     return {ok:false,reason:'Invalid event or month scope'};
