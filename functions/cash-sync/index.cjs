@@ -17,6 +17,10 @@ const {getFirestore}=require('firebase-admin/firestore');
 const {enqueueEvent}=require('./core.cjs');
 const {stageEnabled,runWorker}=require('./worker.cjs');
 const {createJobStore}=require('./worker-store.cjs');
+const {assertCanEnableWorker}=require('./release-gate.cjs');
+// No server-side canonical projector or TEST writer is connected yet.
+// Refuse to deploy a misleading active worker; TEST read probe is separate.
+assertCanEnableWorker({env:process.env});
 if(!getApps().length)initializeApp();
 const region='asia-southeast1';
 const options={region,retry:true,maxInstances:2,concurrency:1};
