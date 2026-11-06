@@ -1214,6 +1214,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           </div>
         </div>
       </div>
+      <button class="btn" id="ccGoogleSyncPreviewOpen" type="button" title="Chỉ Admin; bản thử PHU HUNG, ghi được vào file Google Sheets TEST sau khi xác nhận">↗ Đồng bộ Google Sheets (thử)</button>
       <div class="hidden" aria-hidden="true">
         <button id="exportCashExcelBtn">⇩ Excel quản trị</button>
         <button id="exportActiveCashExcelBtn">Excel QT phát sinh</button>
@@ -1395,6 +1396,80 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
 <div class="modal" id="transferModal"><div class="mbox loan-modal-box"><div class="mhead"><div><h3>Giao dịch nội bộ</h3><div class="csub">Nhập một lần, hệ thống tự ghi tiền ra ở dự án chuyển và tiền vào ở dự án nhận.</div></div><button class="btn" data-close="transferModal">✕</button></div><div class="fg loan-form-grid"><div class="field full"><label>Loại giao dịch</label><select id="tType"><option value="loan">Cho vay</option><option value="repayment">Hoàn vay</option><option value="transfer">Điều chuyển</option></select></div><div class="field"><label>Ngày</label><input type="date" id="tDate"></div><div class="field"><label>Số tiền</label><input type="number" id="tAmount" min="0" placeholder="0"></div><div class="field"><label>Dự án chuyển tiền</label><input id="tFrom" list="projectList" placeholder="Chọn dự án"></div><div class="field"><label>Dự án nhận tiền</label><input id="tTo" list="projectList" placeholder="Chọn dự án"></div><div class="field full"><label>Ghi chú</label><input id="tDesc" placeholder="Không bắt buộc"></div></div><div class="mfoot"><button class="btn" data-close="transferModal">Hủy</button><button class="btn danger hidden" id="deleteTransferInModal">Xóa giao dịch</button><button class="btn primary" id="saveTransfer">Lưu giao dịch</button></div></div></div>
 <div class="modal" id="openingModal"><div class="mbox"><div class="mhead"><h3>Số dư đầu kỳ tại 01/08/2026</h3><button class="btn" data-close="openingModal">✕</button></div><div class="note">Nhập số dư cuối ngày 31/07/2026 của từng dự án. Chỉ nhập một lần; từ tháng 09/2026 trở đi hệ thống tự chuyển số dư cuối tháng trước sang đầu tháng sau.</div><div id="openingSaveStatus" class="note hidden" style="margin-top:10px;border-color:#abefc6;background:#ecfdf3;color:#027a48"></div><div class="fg" id="openingFields" style="margin-top:10px"></div><div class="mfoot"><button class="btn" data-close="openingModal">Hủy</button><button class="btn primary" id="saveOpening">Lưu số dư</button></div></div></div>
 
+
+<div class="modal" id="ccGoogleSyncPreviewModal">
+  <div class="mbox" style="max-width:980px;width:calc(100% - 24px);max-height:90vh;overflow:auto">
+    <div class="mhead">
+      <div><h3>Đồng bộ Google Sheets · Kiểm tra trước</h3>
+        <div class="csub">Thử trực tiếp PHU HUNG → Google Sheets TEST; có đối chiếu trước khi ghi vào tab riêng.</div></div>
+      <button type="button" class="btn" data-close="ccGoogleSyncPreviewModal">✕</button>
+    </div>
+    <div style="margin:12px 0;padding:12px;border:1px solid #dbe4f0;border-radius:12px;background:#f8fbff">
+      <div style="font-weight:700;margin-bottom:8px">1. Chọn dữ liệu cần đồng bộ</div>
+      <div class="fg" style="display:flex;gap:12px;flex-wrap:wrap">
+        <div class="field" style="min-width:170px;flex:1">
+          <label>Tháng</label><input type="month" id="ccGoogleSyncMonth" class="btn" style="width:100%">
+        </div>
+        <div class="field" style="min-width:210px;flex:2">
+          <label>Dự án</label>
+          <div id="ccGoogleSyncProjects" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px;padding:10px;border:1px solid #dce4ef;border-radius:8px;background:white"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn" type="button" id="ccGoogleSyncSourceImport" hidden>Nhập file nguồn PHU HUNG</button>
+        <input id="ccGoogleSyncSourceFile" type="file" accept=".json,application/json" hidden>
+        <button class="btn" type="button" id="ccGoogleSyncLoadSource">Làm mới nguồn PHU HUNG</button>
+        <button class="btn" type="button" id="ccGoogleSyncSourceExport" hidden>Xuất nguồn PHU HUNG (JSON)</button>
+      </div>
+      <small style="display:block;margin-top:6px;color:#64748b">Dữ liệu nhập chỉ ở bộ nhớ bản TEST. Không tải thêm Firestore tự động khi đối chiếu.</small>
+    </div>
+    <div style="margin:12px 0;padding:12px;border:1px solid #dbe4f0;border-radius:12px">
+      <div style="font-weight:700;margin-bottom:8px">2. Kết nối và đối chiếu</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" type="button" id="ccGoogleSyncAuthorize">Kết nối Google</button>
+        <button class="btn primary" type="button" id="ccGoogleSyncCompare">So sánh dữ liệu</button>
+      </div>
+      <p id="ccGoogleSyncGoogleStatus" aria-live="polite" style="font-size:13px;color:#475569;margin:10px 0 0">Chưa kết nối Google. Không có thao tác ghi tự động.</p>
+    </div>
+    <div style="margin:12px 0;padding:12px;border:1px solid #dbe4f0;border-radius:12px">
+      <div style="font-weight:700;margin-bottom:6px">3. Xử lý kết quả</div>
+      <small style="display:block;color:#64748b;margin-bottom:10px">Chỉ cho ghi khi đã so sánh, không có xung đột. Mọi thay đổi cần xác nhận.</small>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" type="button" id="ccGoogleSyncCorrectLegacy" disabled hidden>Sửa 1 số tiền lịch sử trên bản TEST</button>
+        <button class="btn primary" type="button" id="ccGoogleSyncCommit" disabled>Ghi thay đổi vào tab TEST</button>
+      </div>
+    </div>
+    <details style="margin:12px 0;border:1px solid #dbe4f0;border-radius:12px;padding:10px 12px">
+      <summary style="cursor:pointer;font-weight:600">Công cụ nâng cao và cấu hình OAuth</summary>
+      <div class="field" style="margin:10px 0">
+        <label>Google OAuth Client ID</label>
+        <input id="ccGoogleSyncOAuthClient" autocomplete="off" placeholder="...apps.googleusercontent.com" style="width:100%">
+        <small>Chỉ lưu Client ID trên trình duyệt; không lưu access token.</small>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn" id="ccGoogleSyncInspect">Kiểm tra dữ liệu hiện có</button>
+        <button type="button" class="btn" id="ccGoogleSyncBalanceAudit">Kiểm tra số dư PHU HUNG (chỉ đọc)</button>
+        <button type="button" class="btn primary" id="ccGoogleSyncDirectSync">Đối chiếu và cập nhật PHU HUNG TEST</button>
+        <button type="button" class="btn" id="ccGoogleSyncBuildLedger">Tạo/cập nhật sổ tổng hợp TEST (1 tab)</button>
+        <small style="display:block;color:#64748b;width:100%">Sổ tổng hợp cố định PHU_HUNG_VIEW_TEST được cập nhật lại sau khi đối chiếu; PHU HUNG lịch sử không bị sửa.</small>
+        <button class="btn" type="button" id="ccGoogleSyncDemoToggle" hidden>Thử 2 giao dịch giả</button>
+        <button class="btn" type="button" id="ccGoogleSyncDemoChange" hidden>Sửa số tiền giả</button>
+        <button class="btn" type="button" id="ccGoogleSyncDemoAdd" hidden>Thêm giao dịch giả thứ 3</button>
+      </div>
+    </details>
+    <div class="note" style="margin:10px 0">
+      <b>Bản TEST PHU HUNG:</b> Dữ liệu được đối chiếu với tab PHU HUNG lịch sử.
+      Các giao dịch mới chỉ được ghi vào DATA_CASHCONTROL sau khi kiểm tra sạch.
+      Không ghi Firebase, không tự ghi Google Sheets, không sửa Google Sheets gốc.
+    </div>
+    <div id="ccGoogleSyncAuditDetails" aria-live="polite" style="margin:12px 0"></div>
+    <div id="ccGoogleSyncPreviewResult" aria-live="polite"></div>
+    <div class="mfoot">
+      <span style="color:#6d7890;font-size:12px">Chỉ ghi vào tab DATA_CASHCONTROL của bản TEST khi nguồn đầy đủ và không có xung đột. Không sửa tab PHU HUNG lịch sử.</span>
+      <button type="button" class="btn" data-close="ccGoogleSyncPreviewModal">Đóng</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal" id="exportRangeModal">
   <div class="mbox" style="max-width:620px">
@@ -5239,6 +5314,1493 @@ function buildLegacyCashFlowMergedSheet(project,monthsList){
 
     return ws;
 }
+
+/* Google Sheets API pilot. PHU HUNG TEST COPY only. Never touch historical PHU HUNG tab.
+   Google OAuth is obtained via an explicit click and is kept only in memory. */
+const CC_SYNC_PILOT_ID='1bxY6jQ3qHJ0oTiWDmbH4eeFgZR7goqX3_s1Kz9UlfD4';
+const CC_SYNC_OAUTH_CLIENT_ID='781332326791-s033knic9cmpf3h20altttsqmhjbot1t.apps.googleusercontent.com';
+let CC_SYNC_PILOT_TAB='DATA_CASHCONTROL';
+// Demo transactions exist only in JS memory and a separate TEST tab.
+// This is never enabled on production or inferred to be real Payment data.
+const CC_SYNC_DEMO_ALLOWED=firebaseConfig.projectId==='cash-control-staging';
+let ccGoogleSyncDemoActive=false,ccGoogleSyncDemoEdited=false,ccGoogleSyncDemoAdded=false;
+const ccGoogleSyncDemoTab='DATA_CASHCONTROL_DEMO';
+async function ccGoogleSyncDemoRows(month){
+  if(!CC_SYNC_DEMO_ALLOWED||!ccGoogleSyncDemoActive||month!=='2026-11')
+    throw Error('Demo chỉ có trên staging, tháng 11/2026.');
+  const samples=[
+    {id:'DEMO-PHU-HUNG-001',values:['2026-11-03','DEMO VENDOR A','DEMO-CONTRACT-001','Giao dịch kiểm thử, không phải thanh toán thật','DEMO-IPC001','支出',0,1234567,0,0,0,0,0]},
+    {id:'DEMO-PHU-HUNG-002',values:['2026-11-04','DEMO VENDOR B','DEMO-CONTRACT-002','Giao dịch kiểm thử, không phải thanh toán thật','DEMO-IPC002','支出',0,0,ccGoogleSyncDemoEdited?765432:567890,0,0,0,0]}
+  ];
+  if(ccGoogleSyncDemoAdded)samples.push({id:'DEMO-PHU-HUNG-003',values:['2026-11-05','DEMO VENDOR C','DEMO-CONTRACT-003','Giao dịch thêm mới giả, không phải thanh toán thật','DEMO-IPC003','支出',0,0,0,345678,0,0,0]});
+  return Promise.all(samples.map(async r=>({
+    id:r.id,project:'PHU HUNG',month,values:r.values,
+    hash:await ccGoogleSyncSha(ccGoogleSyncPayloadCells(r.values))
+  })));
+}
+const CC_SYNC_HEADER=['sourceId','projectKey','month','date','company','contractNo',
+    'content','ipc','type','income','subcontract','material','otherDirect','indirect',
+    'financial','otherPayable','balance','sourceHash','syncStatus'];
+let ccGoogleSyncToken='',ccGoogleSyncTokenClient=null,ccGoogleSyncPlan=null;
+let ccGoogleSyncWriteInFlight=false;
+// A live source is eligible for writes only after Admin explicitly refreshes
+// this project's Payment data. Never silently query Firestore or trust old cache.
+let ccGoogleSyncLiveSourceRefreshedAt=0;
+const CC_SYNC_SOURCE_FRESH_MS=15*60*1000;
+function ccGoogleSyncRequireFreshLiveSource(){
+  if(CC_SYNC_DEMO_ALLOWED)return;
+  if(!paymentMonths.has('PHU HUNG')||
+     !ccGoogleSyncLiveSourceRefreshedAt||
+     Date.now()-ccGoogleSyncLiveSourceRefreshedAt>CC_SYNC_SOURCE_FRESH_MS)
+    throw Error('Nguồn PHU HUNG chưa được làm mới gần đây. Admin bấm Làm mới nguồn PHU HUNG trước khi ghi; thao tác này có Firestore reads.');
+}
+// An imported production snapshot is in-memory only, admin-controlled and
+// never used for writes to Firestore. No file content is persisted to storage.
+let ccGoogleSyncImportedRows=null;
+const CC_SYNC_SOURCE_SNAPSHOT_SCHEMA='PHU_HUNG_CASH_SOURCE_V1';
+async function ccGoogleSyncExportSource(){
+  if(!currentAuthUser||!isCashControlOwner())throw Error('Chỉ Admin được xuất nguồn.');
+  if(firebaseConfig.projectId==='cash-control-staging')throw Error('Chỉ xuất nguồn từ Cash Control chính.');
+  if(ccGoogleSyncDemoActive)throw Error('Thoát DEMO trước khi xuất.');
+  if(!paymentMonths.has('PHU HUNG'))throw Error('Chưa tải đủ Payment PHU HUNG. Bấm Tải PHU HUNG trước.');
+  const months=['2026-10','2026-11'];
+  const snapshots=[];
+  for(const month of months){
+    const rows=await ccGoogleSyncCurrentRows('PHU HUNG',month);
+    snapshots.push({month,rows:rows.map(({id,project,month,values,hash})=>
+      ({id,project,month,values,hash}))});
+  }
+  const payload={schema:CC_SYNC_SOURCE_SNAPSHOT_SCHEMA,project:'PHU HUNG',
+    createdAt:new Date().toISOString(),sourceProject:firebaseConfig.projectId,
+    months:snapshots};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  try{
+    const a=document.createElement('a');a.href=url;
+    a.download='PHU_HUNG_CASH_SOURCE_TEST_'+new Date().toISOString().slice(0,10)+'.json';
+    a.click();
+  }finally{setTimeout(()=>URL.revokeObjectURL(url),1500)}
+  ccGoogleSyncStatus('Đã xuất bản chụp nguồn PHU HUNG tháng 10–11/2026 về máy. Không ghi Firebase hoặc Google.');
+}
+async function ccGoogleSyncImportSource(file){
+  if(!CC_SYNC_DEMO_ALLOWED||!currentAuthUser||!isCashControlOwner())
+    throw Error('Chỉ Admin tại Firebase staging mới được nhập bản chụp nguồn.');
+  if(ccGoogleSyncWriteInFlight)throw Error('Đang ghi Google. Không nhập nguồn lúc này.');
+  if(file.size>3_000_000)throw Error('File nguồn quá lớn, dừng nhập.');
+  const payload=JSON.parse(await file.text());
+  if(payload?.schema!==CC_SYNC_SOURCE_SNAPSHOT_SCHEMA||
+      payload.project!=='PHU HUNG'||
+      payload.sourceProject==='cash-control-staging'||
+      !Array.isArray(payload.months))throw Error('Không đúng bản chụp nguồn Cash Control PHU HUNG.');
+  if(payload.months.length!==2)throw Error('Phải có đầy đủ hai tháng 2026-10 và 2026-11.');
+  const loaded=new Map(),ids=new Set();
+  for(const bundle of payload.months){
+    if(!['2026-10','2026-11'].includes(bundle.month)||
+        loaded.has(bundle.month)||!Array.isArray(bundle.rows))
+      throw Error('Tháng trùng hoặc ngoài phạm vi.');
+    const clean=[];
+    for(const row of bundle.rows){
+      if(!row||row.project!=='PHU HUNG'||row.month!==bundle.month||
+          typeof row.id!=='string'||!row.id||ids.has(row.id)||
+          !Array.isArray(row.values)||row.values.length!==13)
+        throw Error('Dòng nguồn thiếu ID, trùng hoặc sai cấu trúc.');
+      if(ccGoogleSyncNormDate(row.values[0]).slice(0,7)!==bundle.month)
+        throw Error('Ngày giao dịch không thuộc tháng nguồn.');
+      if(row.values.slice(6).some(x=>!Number.isFinite(Number(x))))
+        throw Error('Dữ liệu tiền không hợp lệ.');
+      const normalized=ccGoogleSyncPayloadCells(row.values);
+      const digest=await ccGoogleSyncSha(normalized);
+      if(digest!==row.hash)throw Error('Sai mã kiểm tra nội dung giao dịch '+row.id);
+      ids.add(row.id);
+      clean.push({id:row.id,project:'PHU HUNG',month:bundle.month,
+        values:row.values.slice(),hash:row.hash});
+    }
+    loaded.set(bundle.month,clean);
+  }
+  if(loaded.size!==2)throw Error('Thiếu tháng trong bản chụp.');
+  ccGoogleSyncImportedRows=loaded;
+  ccGoogleSyncDemoActive=false;CC_SYNC_PILOT_TAB='DATA_CASHCONTROL';
+  ccGoogleSyncPlan=null;$('ccGoogleSyncCommit').disabled=true;
+  $('ccGoogleSyncMonth').value='2026-10';
+  $('ccGoogleSyncDemoChange').hidden=true;
+  $('ccGoogleSyncDemoToggle').textContent='Thử 2 giao dịch giả';
+  ccGoogleSyncStatus('ĐÃ NẠP NGUỒN VÀO BỘ NHỚ TEST: '+
+    loaded.get('2026-10').length+' dòng tháng 10, '+
+    loaded.get('2026-11').length+' dòng tháng 11. Chưa ghi Google. Bấm So sánh bản TEST.');
+}
+
+const ccGoogleSyncStatus=message=>{
+  const el=$('ccGoogleSyncGoogleStatus');if(el)el.textContent=message;
+};
+const ccGoogleSyncNumber=n=>Number(n||0);
+const ccGoogleSyncCellValue=x=>x==null?'':String(x);
+const ccGoogleSyncRowValues=r=>[
+  r.date,r.company,r.contractNo,r.content,r.ipc,r.type,
+  ccGoogleSyncNumber(r.income),ccGoogleSyncNumber(r.subcontract),
+  ccGoogleSyncNumber(r.material),ccGoogleSyncNumber(r.otherDirect),
+  ccGoogleSyncNumber(r.indirect),ccGoogleSyncNumber(r.financial),
+  ccGoogleSyncNumber(r.otherPayable)
+];
+const ccGoogleSyncPayloadCells=values=>values.map((v,i)=>
+  i>=6?Number(String(v??'0').replace(/,/g,''))||0:String(v??'')
+);
+async function ccGoogleSyncSha(v){
+  const bytes=new TextEncoder().encode(JSON.stringify(v));
+  const digest=await crypto.subtle.digest('SHA-256',bytes);
+  return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function ccGoogleSyncCurrentRows(project,month){
+  if(project!=='PHU HUNG')throw Error('Pilot chỉ cho phép dự án PHU HUNG.');
+  if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)||month<'2026-10')
+    throw Error('Chỉ thử từ tháng 10/2026 trở đi.');
+  if(ccGoogleSyncDemoActive)return ccGoogleSyncDemoRows(month);
+  if(ccGoogleSyncImportedRows && CC_SYNC_DEMO_ALLOWED){
+    if(!ccGoogleSyncImportedRows.has(month))throw Error('Bản chụp nguồn không có tháng '+month);
+    return ccGoogleSyncImportedRows.get(month);
+  }
+  if(!paymentMonths.has(project))throw Error(
+    'Firebase staging chưa xác minh đủ Payment PHU HUNG. Không dùng 30 dòng Google Sheets làm dữ liệu nguồn, không tự đọc Firebase chính.'
+  );
+  const src=legacyCashExportRows(month,project);
+  const results=[],seen=new Set();
+  for(const row of src){
+    const ids=row._syncIds||[];
+    if(!ids.length)throw Error('Có giao dịch thiếu ID nguồn, dừng để tránh trùng.');
+    const id=row._taxQuarter
+       ?'tax:'+project+':'+row.date+':'+row._taxQuarter+':'+(row._taxDirection||'out')
+       :project+':'+ids.slice().sort().join('+');
+    if(seen.has(id))throw Error('ID nguồn trùng trong kỳ: '+id);
+    seen.add(id);
+    const values=ccGoogleSyncRowValues(row);
+    const hash=await ccGoogleSyncSha(ccGoogleSyncPayloadCells(values));
+    results.push({id,project,month,values,hash});
+  }
+  return results;
+}
+async function ccGoogleSyncAuth(){
+  if(!currentAuthUser||!isCashControlOwner())throw Error('Cần đăng nhập Admin Cash Control.');
+  const clientId=String($('ccGoogleSyncOAuthClient')?.value||'').trim();
+  if(!/^[\w-]+\.apps\.googleusercontent\.com$/.test(clientId))
+    throw Error('Chưa nhập Google OAuth Client ID hợp lệ.');
+  if(!window.google?.accounts?.oauth2)throw Error('Google Identity Services chưa tải.');
+  localStorage.setItem('cashGoogleSheetsOAuthClientId',clientId);
+  ccGoogleSyncToken='';
+  ccGoogleSyncPlan=null;
+  $('ccGoogleSyncCommit').disabled=true;
+  ccGoogleSyncStatus('Đang xin cấp quyền Google Sheets…');
+  ccGoogleSyncToken=await new Promise((resolve,reject)=>{
+    ccGoogleSyncTokenClient=google.accounts.oauth2.initTokenClient({
+      client_id:clientId,
+      scope:'https://www.googleapis.com/auth/spreadsheets',
+      callback:response=>response?.access_token
+        ?resolve(response.access_token):reject(Error(response?.error||'Không được cấp quyền')),
+      error_callback:error=>reject(Error(error?.message||'Không thể đăng nhập Google'))
+    });
+    ccGoogleSyncTokenClient.requestAccessToken({prompt:'consent'});
+  });
+  ccGoogleSyncStatus('Google đã cấp quyền tạm thời. Chỉ có thể ghi vào Sheets mà tài khoản Google có quyền sửa.');
+}
+async function ccGoogleSyncApi(path,{method='GET',body}={}){
+  if(!ccGoogleSyncToken)throw Error('Chưa kết nối Google hoặc phiên đã hết hạn.');
+  let res,serverWrite=false;
+  if(method!=='GET'&&firebaseConfig.projectId==='cscecmep-payment'){
+    // Production cannot mutate Google Sheets directly from browser code.
+    // A Vercel function verifies Firebase ID token + the Admin UID allowlist,
+    // then independently restricts the write to the PHU HUNG TEST copy.
+    // Firebase Auth getIdToken does not issue Firestore document reads.
+    if(!currentAuthUser||!isCashControlOwner()||
+       typeof currentAuthUser.getIdToken!=='function')
+      throw Error('Chỉ Admin có phiên Firebase hợp lệ mới được ghi Google.');
+    const firebaseToken=await currentAuthUser.getIdToken();
+    serverWrite=true;
+    res=await fetch('/api/cash-sync-write',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',
+        'X-Firebase-ID-Token':firebaseToken,
+        Authorization:'Bearer '+ccGoogleSyncToken},
+      body:JSON.stringify({path,method,body})
+    });
+  }else{
+    // The isolated Firebase staging Preview retains its existing TEST-only
+    // flow until its own server UID and project settings are configured.
+    // No branch mode may target an arbitrary spreadsheet ID.
+    res=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+
+      encodeURIComponent(CC_SYNC_PILOT_ID)+path,{
+        method,
+        headers:{Authorization:'Bearer '+ccGoogleSyncToken,
+          ...(body?{'Content-Type':'application/json'}:{})},
+        ...(body?{body:JSON.stringify(body)}:{})
+      });
+  }
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok){
+    if(res.status===401){ccGoogleSyncToken='';ccGoogleSyncPlan=null;}
+    throw Error((serverWrite?'Admin server / Google Sheets ':'Google Sheets API ')+
+      res.status+': '+String(data.error?.message||data.error||'Không thể truy cập'));
+  }
+  return data;
+}
+async function ccGoogleSyncReadSheet(){
+  const metadata=await ccGoogleSyncApi('?fields=spreadsheetId,properties(title),sheets(properties(title,sheetId))');
+  if(!/TEST/i.test(metadata.properties?.title||''))throw Error('Chặn ghi: file Google không có chữ TEST.');
+  const historical=metadata.sheets?.find(x=>x.properties?.title==='PHU HUNG');
+  if(!historical)throw Error('Không tìm thấy tab PHU HUNG gốc của bản sao.');
+  const test=metadata.sheets?.find(x=>x.properties?.title===CC_SYNC_PILOT_TAB);
+  if(!test)return {exists:false,rows:[],title:metadata.properties.title};
+  const result=await ccGoogleSyncApi('/values/'+encodeURIComponent("'"+CC_SYNC_PILOT_TAB+"'!A1:S")+
+    '?valueRenderOption=UNFORMATTED_VALUE');
+  const values=result.values||[];
+  // An existing but blank tab may be left by an interrupted setup. Fail closed.
+  // Only a freshly created tab in commitPilot is eligible for header initialization.
+  if(!values.length)throw Error('Tab DATA_CASHCONTROL đang trống, cần khởi tạo header riêng trước khi ghi.');
+  if(values.length && (values[0].length!==CC_SYNC_HEADER.length ||
+      CC_SYNC_HEADER.some((name,i)=>values[0][i]!==name))) {
+    throw Error('Tab thử có cấu trúc khác; không ghi đè.');
+  }
+  const seen=new Set();
+  for(const row of values.slice(1)){
+    const id=String(row[0]||'');
+    if(!id||seen.has(id))throw Error('Tab thử có ID trùng/rỗng; dừng đồng bộ.');
+    seen.add(id);
+  }
+  return {exists:true,rows:values.slice(1),title:metadata.properties.title};
+}
+
+// Verify the existing PHU HUNG ledger before adding any October mirror rows.
+// This check is READ ONLY and works with Google Sheets' numeric date serials,
+// ISO date text and Vietnamese dd/MM/yyyy date text.
+const ccGoogleSyncNormDate=value=>{
+  if(typeof value==='number' && Number.isFinite(value)){
+    const iso=new Date(Date.UTC(1899,11,30)+Math.floor(value)*86400000)
+      .toISOString().slice(0,10);
+    return iso;
+  }
+  const raw=String(value||'').trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(raw))return raw.slice(0,10);
+  const m=raw.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
+  if(m)return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+  return '';
+};
+const ccGoogleSyncMoney=n=>{
+  if(typeof n==='number')return n;
+  const s=String(n||'').trim().replace(/\s/g,'');
+  if(!s)return 0;
+  const comma=s.lastIndexOf(','),dot=s.lastIndexOf('.');
+  const normalized=comma>dot?s.replace(/\./g,'').replace(',','.') : s.replace(/,/g,'');
+  const out=Number(normalized);
+  return Number.isFinite(out)?out:NaN;
+};
+const ccGoogleSyncMoneyKey=n=>{
+  const value=ccGoogleSyncMoney(n);
+  return Number.isFinite(value)?String(Math.round(value*1e6)/1e6):'INVALID';
+};
+const ccGoogleSyncNormalizeLabel=value=>
+  String(value??'').normalize('NFKC').trim().toUpperCase()
+    .replace(/\s+/g,'').replace(/[‐‑‒–—−]/g,'-');
+// Historical payroll descriptions can be Vietnamese in Cash Control and
+// Chinese in PHU HUNG's manually maintained ledger. Only exact, preapproved
+// payroll labels with blank contract AND IPC are equivalent; other payees
+// remain strictly distinct. Monetary values are NEVER rounded or tolerated.
+const CC_SYNC_PAYROLL_LABEL_ALIASES=new Map([
+  ['LƯƠNGTRUNGQUỐC','PAYROLL_CN'],['中方员工工资','PAYROLL_CN'],
+  ['TIỀNĂN','PAYROLL_MEAL'],['伙食费','PAYROLL_MEAL'],
+  ['LƯƠNGVIỆTNAM','PAYROLL_VN'],['越籍员工工资','PAYROLL_VN'],
+  ['BẢOHIỂMTQ','PAYROLL_CN_INSURANCE'],['中国社保','PAYROLL_CN_INSURANCE'],
+  ['BẢOHIỂMVN','PAYROLL_VN_INSURANCE'],['越南社保','PAYROLL_VN_INSURANCE'],
+  ['PHÍCÔNGĐOÀN','PAYROLL_UNION'],['工会经费','PAYROLL_UNION']
+]);
+const ccGoogleSyncLedgerCompanyKey=(company,contractNo,ipc)=>{
+  const name=ccGoogleSyncNormalizeLabel(company);
+  if(ccGoogleSyncNormalizeLabel(contractNo)||ccGoogleSyncNormalizeLabel(ipc))
+    return name;
+  return CC_SYNC_PAYROLL_LABEL_ALIASES.get(name)||name;
+};
+const ccGoogleSyncFingerprint=(date,amounts,contractNo,ipc,company)=>
+  date+'|'+amounts.map(ccGoogleSyncMoneyKey).join('|')+
+  '|'+ccGoogleSyncNormalizeLabel(contractNo)+
+  '|'+ccGoogleSyncNormalizeLabel(ipc)+
+  '|'+ccGoogleSyncLedgerCompanyKey(company,contractNo,ipc);
+// Read-only historical reconciliation. Never infer duplicates from total sums.
+// Exact matches are one-to-one. Remaining rows are shown as diagnostic hints,
+// not automatically treated as equivalent or synchronized.
+// Read-only check of running balances in the historical PHU HUNG tab.
+// Verify only adjacent dated transaction rows inside the same month. Do not
+// infer that balance remains continuous over summary rows or month boundaries.
+async function ccGoogleSyncAuditRunningBalances(){
+  if(!currentAuthUser||!isCashControlOwner())throw Error('Cần đăng nhập Admin.');
+  if(ccGoogleSyncDemoActive)throw Error('Thoát DEMO trước khi kiểm tra số dư lịch sử.');
+  const meta=await ccGoogleSyncApi('?fields=spreadsheetId,properties(title),sheets(properties(title))');
+  if(meta.spreadsheetId!==CC_SYNC_PILOT_ID||!/TEST/i.test(meta.properties?.title||'')||
+      !meta.sheets?.some(s=>s.properties?.title==='PHU HUNG'))
+    throw Error('Không đúng bản sao PHU HUNG TEST đã chỉ định.');
+  const [values,formulas]=await Promise.all([
+    ccGoogleSyncApi('/values/'+encodeURIComponent("'PHU HUNG'!A1:N")+
+      '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER'),
+    ccGoogleSyncApi('/values/'+encodeURIComponent("'PHU HUNG'!N1:N")+
+      '?valueRenderOption=FORMULA')
+  ]);
+  return ccGoogleSyncAnalyzeRunningBalances(values.values||[],formulas.values||[]);
+}
+// Pure calculation: cash balance = previous balance + income - all six expenses.
+// If there is no reliable preceding dated row and a numeric balance at both
+// sides, report the gap instead of guessing an opening balance or formulas.
+function ccGoogleSyncAnalyzeRunningBalances(rows,formulaRows){
+  const result={checked:0,mismatches:[],unverified:[],monthBoundaries:[],formulaCount:0,
+    formulaRowsChecked:0,formulaPriorReferences:0,formulaSelfIncomeReferences:0,
+    formulaExpenseReferences:0,formulaReview:[]};
+  let previous=null;
+  const amount=row=>row.slice(6,13).map(ccGoogleSyncMoney);
+  for(let i=0;i<rows.length;i++){
+    const row=rows[i]||[],sheetRow=i+1;
+    const date=ccGoogleSyncNormDate(row[0]);
+    const balanceRaw=row[13];
+    const formula=String(formulaRows[i]?.[0]??'').trim();
+    if(formula.startsWith('='))result.formulaCount++;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){
+      // Headers, totals and separator rows are not transactions.
+      previous=null;
+      continue;
+    }
+    const nums=amount(row);
+    const balance=ccGoogleSyncMoney(balanceRaw);
+    const valid=nums.every(Number.isFinite)&&
+      balanceRaw!==undefined&&String(balanceRaw).trim()!==''&&Number.isFinite(balance);
+    if(!valid){
+      result.unverified.push({row:sheetRow,reason:'thiếu hoặc sai số tiền/số dư'});
+      previous=null;
+      continue;
+    }
+    const month=date.slice(0,7);
+    // Inspect references only. Cell references alone cannot prove the complete
+    // mathematical meaning of arbitrary Google Sheets formulas.
+    if(formula.startsWith('=')){
+      result.formulaRowsChecked++;
+      const refs=Array.from(formula.matchAll(/(?:^|[^A-Z0-9_])\$?([A-N])\$?(\d+)/gi),
+        x=>({column:x[1].toUpperCase(),row:Number(x[2])}));
+      const isFirstDatedTransaction=!previous;
+      const directPrevious=previous&&previous.row===sheetRow-1&&
+        refs.some(x=>x.column==='N'&&x.row===previous.row);
+      if(isFirstDatedTransaction)result.openingFormulaRow=sheetRow;
+      const incomeReferenced=refs.some(x=>x.column==='G'&&x.row===sheetRow);
+      const expenseReferenced=refs.some(x=>
+        'HIJKLM'.includes(x.column)&&x.row===sheetRow);
+      if(directPrevious)result.formulaPriorReferences++;
+      if(incomeReferenced)result.formulaSelfIncomeReferences++;
+      if(expenseReferenced)result.formulaExpenseReferences++;
+      // Store at most 12 examples to avoid displaying large sensitive formulas.
+      if(((!directPrevious&&!isFirstDatedTransaction)||!incomeReferenced||!expenseReferenced)&&
+          result.formulaReview.length<12)
+        result.formulaReview.push({row:sheetRow,
+          reason:!directPrevious&&!isFirstDatedTransaction?'không thấy N dòng trước':!incomeReferenced?
+            'không thấy ô thu G của dòng':'không thấy nhóm chi H:M'});
+    }
+    if(previous&&previous.month===month&&previous.row===sheetRow-1){
+      const expected=Math.round((previous.balance+nums[0]-nums.slice(1).reduce((s,n)=>s+n,0))*1e6)/1e6;
+      result.checked++;
+      if(Math.abs(expected-balance)>0.000001)
+        result.mismatches.push({row:sheetRow,expected,actual:balance});
+    }else if(previous){
+      if(previous.month!==month){
+        // Formula references are diagnostic only: a matching reference alone
+        // never proves the month-opening balance is correct.
+        const refs=[...formula.matchAll(/(?:^|[^A-Z0-9_])\$?N\$?(\d+)/gi)].map(x=>Number(x[1]));
+        const lastBalanceRow=previous.row;
+        const referencesPriorBalance=refs.includes(lastBalanceRow);
+        const naiveContinuity=Math.round((previous.balance+nums[0]-nums.slice(1).reduce((sum,n)=>sum+n,0))*1e6)/1e6;
+        result.monthBoundaries.push({row:sheetRow,from:previous.month,to:month,
+          firstBalanceFormula:formula.startsWith('='),
+          referencesPriorBalance,priorBalanceRow:lastBalanceRow,
+          formulaReferences:refs,continuityMatches:Math.abs(naiveContinuity-balance)<=0.000001});
+      }else result.unverified.push({row:sheetRow,reason:'có hàng ngăn cách'});
+    }
+    previous={row:sheetRow,month,balance};
+  }
+  return result;
+}
+
+// Auto-calculated consolidated TEST ledger: rebuild the presentation from
+// immutable historical transactions + already-confirmed mirror rows.
+// Never INSERT into the historic PHU HUNG sheet or overwrite its 178 formulas.
+const CC_SYNC_AUTO_LEDGER_HEADER=[
+  'date','company','contractNo','content','ipc','type','income','subcontract',
+  'material','otherDirect','indirect','financial','otherPayable','balance',
+  'origin','sourceId','openingBalance'
+];
+async function ccGoogleSyncBuildConsolidatedLedger(history,formulaRows,mirror){
+  const audit=ccGoogleSyncAnalyzeRunningBalances(history,formulaRows);
+  const historic=[];
+  const cleanValues=row=>{
+    const date=ccGoogleSyncNormDate(row[0]);
+    const amounts=row.slice(6,13).map(ccGoogleSyncMoney);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||amounts.length!==7||
+       !amounts.every(Number.isFinite))
+      throw Error('Không xác định được ngày hoặc nhóm thu/chi hợp lệ.');
+    return [date,...row.slice(1,6).map(x=>String(x??'')),...amounts];
+  };
+  const cashFlow=values=>values[6]-values.slice(7,13).reduce((a,b)=>a+b,0);
+  const round=x=>Math.round(x*1e6)/1e6;
+  for(let i=0;i<history.length;i++){
+    const row=history[i]||[],date=ccGoogleSyncNormDate(row[0]);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date))continue;
+    if(row[13]===undefined||String(row[13]).trim()===''||
+       !Number.isFinite(ccGoogleSyncMoney(row[13])))
+      throw Error('Sổ lịch sử thiếu số dư tại N'+(i+1)+'. Không lập sổ tự tính.');
+    historic.push({values:cleanValues(row),origin:'LỊCH SỬ',
+      sourceId:'HISTORIC_ROW_'+(i+1),sheetRow:i+1,
+      originalBalance:ccGoogleSyncMoney(row[13])});
+  }
+  if(!historic.length)throw Error('Không tìm thấy giao dịch lịch sử để xác định số dư mở đầu.');
+  for(let i=1;i<historic.length;i++){
+    if(historic[i].values[0]<historic[i-1].values[0])
+      throw Error('Ngày sổ lịch sử không tăng dần ở hàng '+historic[i].sheetRow+
+        '; không tự sắp lại giao dịch lịch sử.');
+  }
+  if(historic.length!==audit.checked+audit.monthBoundaries.length+1||
+     audit.mismatches.length||audit.unverified.length||
+     audit.monthBoundaries.some(x=>!x.continuityMatches))
+    throw Error('Chưa kiểm chứng liên tục toàn bộ số dư lịch sử; chặn lập sổ tự tính.');
+  if(audit.formulaRowsChecked!==historic.length||
+     audit.formulaPriorReferences!==historic.length-1||
+     audit.formulaSelfIncomeReferences!==historic.length||
+     audit.formulaExpenseReferences!==historic.length)
+    throw Error('Chưa kiểm chứng đủ tham chiếu công thức lịch sử; chặn lập sổ tự tính.');
+  // Infer the opening anchor from the first historic transaction, then verify
+  // every historic closing balance independently from that anchor.
+  const opening=round(historic[0].originalBalance-cashFlow(historic[0].values));
+  let originalRunning=opening;
+  for(const entry of historic){
+    originalRunning=round(originalRunning+cashFlow(entry.values));
+    if(Math.abs(originalRunning-entry.originalBalance)>0.000001)
+      throw Error('Tái tính sổ lịch sử lệch tại N'+entry.sheetRow+'. Không ghi.');
+  }
+  if(!Array.isArray(mirror))throw Error('Chưa đọc được tab dữ liệu đồng bộ.');
+  const signed=new Set(historic.map(x=>{
+    const v=x.values;
+    return ccGoogleSyncFingerprint(v[0],v.slice(6,13),v[2],v[4],v[1]);
+  }));
+  const seenIds=new Set(),extras=[];
+  for(const raw of mirror){
+    const id=String(raw[0]??'').trim(),project=String(raw[1]??'').trim();
+    const values=cleanValues(raw.slice(3,16));
+    if(!id||seenIds.has(id)||project!=='PHU HUNG'||
+       String(raw[2]??'')!==values[0].slice(0,7))
+      throw Error('Dữ liệu mirror thiếu ID, trùng hoặc sai dự án/tháng.');
+    seenIds.add(id);
+    if(await ccGoogleSyncSha(ccGoogleSyncPayloadCells(raw.slice(3,16)))!==String(raw[17]??''))
+      throw Error('Mirror đã bị sửa ngoài Cash Control: '+id+'. Không ghi.');
+    if(values[0]<historic[0].values[0])
+      throw Error('Có giao dịch mới sớm hơn ngày mở đầu sổ; chưa thể tự suy số dư.');
+    const fingerprint=ccGoogleSyncFingerprint(
+      values[0],values.slice(6,13),values[2],values[4],values[1]);
+    if(signed.has(fingerprint))
+      throw Error('Có giao dịch đồng bộ trùng nội dung với sổ hiện có: '+id+'. Không ghi.');
+    signed.add(fingerprint);
+    extras.push({values,origin:'CASH_CONTROL',sourceId:id});
+  }
+  if(historic.length+extras.length>10000)throw Error('Sổ quá 10.000 giao dịch; cần phân kỳ.');
+  const combined=[...historic,...extras].sort((a,b)=>
+    a.values[0].localeCompare(b.values[0])||
+    (a.origin===b.origin?0:a.origin==='LỊCH SỬ'?-1:1)||
+    (a.sheetRow||0)-(b.sheetRow||0)||
+    a.sourceId.localeCompare(b.sourceId));
+  let balance=opening;
+  const generated=combined.map((entry,i)=>{
+    const target=i+2;
+    balance=round(balance+cashFlow(entry.values));
+    return {...entry,balance,
+      // The only formulas we write; all user-controlled descriptions use RAW.
+      formula:i===0?'=$Q$2+G2-SUM(H2:M2)':
+        '=N'+(target-1)+'+G'+target+'-SUM(H'+target+':M'+target+')',
+      cells:[...entry.values,'',entry.origin,entry.sourceId,i===0?opening:'']
+    };
+  });
+  return {rows:generated,opening,historicCount:historic.length,
+    mirroredCount:extras.length,closingBalance:balance,audit};
+}
+// Combine the currently loaded Cash Control source with an existing Google
+// mirror in memory. Never fetch additional Firebase documents and never modify
+// the Google mirror. Source transactions already in history are one-to-one
+// matched and excluded; unmatched or changed cases fail closed.
+async function ccGoogleSyncMergeCachedSource(history,mirror,source,month){
+  if(!/^\d{4}-\d{2}$/.test(month)||month<'2026-10')
+    throw Error('Tháng ngoài phạm vi đồng bộ thử.');
+  if(!Array.isArray(history)||!Array.isArray(mirror)||!Array.isArray(source))
+    throw Error('Thiếu dữ liệu đầu vào để hợp nhất.');
+  const fingerprints=new Map(),matchedHistoric=new Set();
+  for(let i=0;i<history.length;i++){
+    const r=history[i]||[],date=ccGoogleSyncNormDate(r[0]);
+    if(!date.startsWith(month+'-'))continue;
+    const signature=ccGoogleSyncFingerprint(date,r.slice(6,13),r[2],r[4],r[1]);
+    if(signature.includes('INVALID'))throw Error('Số tiền lịch sử không hợp lệ ở hàng '+(i+1));
+    if(!fingerprints.has(signature))fingerprints.set(signature,[]);
+    fingerprints.get(signature).push(i+1);
+  }
+  const sourceIds=new Set(),mirrorMap=new Map(),sourceAdds=[];
+  for(const row of mirror){
+    const id=String(row[0]??'');
+    if(!id||mirrorMap.has(id))throw Error('Mirror thiếu ID hoặc trùng ID.');
+    mirrorMap.set(id,row);
+  }
+  let matchedCount=0,sourceNew=0,sourceUpdated=0;
+  const additions=[];
+  for(const entry of source){
+    if(!entry||entry.project!=='PHU HUNG'||entry.month!==month||
+       typeof entry.id!=='string'||!entry.id||sourceIds.has(entry.id)||
+       !Array.isArray(entry.values)||entry.values.length!==13)
+      throw Error('Nguồn Cash Control có ID/tháng/dự án không hợp lệ.');
+    sourceIds.add(entry.id);
+    const v=entry.values,day=ccGoogleSyncNormDate(v[0]);
+    if(!day.startsWith(month+'-'))throw Error('Ngày nguồn không thuộc tháng '+month);
+    if(v.slice(6).some(x=>!Number.isFinite(Number(x))))
+      throw Error('Nguồn có số tiền không hợp lệ: '+entry.id);
+    const computed=await ccGoogleSyncSha(ccGoogleSyncPayloadCells(v));
+    if(entry.hash!==computed)throw Error('Nguồn đã thay đổi trong lúc đối chiếu: '+entry.id);
+    const signature=ccGoogleSyncFingerprint(day,v.slice(6,13),v[2],v[4],v[1]);
+    const historicMatches=fingerprints.get(signature)||[];
+    const existing=mirrorMap.get(entry.id);
+    if(historicMatches.length){
+      if(existing)throw Error('Dữ liệu đã có đồng thời trong lịch sử và mirror: '+entry.id);
+      matchedHistoric.add(historicMatches.shift());
+      matchedCount++;
+      continue;
+    }
+    if(existing){
+      if(String(existing[1]??'')!=='PHU HUNG'||String(existing[2]??'')!==month)
+        throw Error('Mirror của ID sai dự án/tháng: '+entry.id);
+      if(await ccGoogleSyncSha(ccGoogleSyncPayloadCells(existing.slice(3,16)))!==
+         String(existing[17]??''))
+        throw Error('Mirror đã bị chỉnh sửa ngoài Cash Control: '+entry.id);
+      if(String(existing[17]??'')===entry.hash)continue;
+      sourceUpdated++;
+    }else sourceNew++;
+    additions.push([entry.id,entry.project,entry.month,...v,'',entry.hash,'synced']);
+  }
+  const stillUnmatched=[...fingerprints.values()].reduce((n,list)=>n+list.length,0);
+  if(stillUnmatched)throw Error('Thiếu '+stillUnmatched+
+    ' giao dịch lịch sử tháng '+month+' trong bộ nhớ Cash Control. Không suy đoán nguồn đầy đủ.');
+  for(const [id,row] of mirrorMap){
+    if(String(row[2]??'')===month&&!sourceIds.has(id))
+      throw Error('Mirror có ID không còn trong dữ liệu Cash Control: '+id+
+        '. Không tự xóa hoặc ẩn giao dịch.');
+  }
+  const overridden=new Set(additions.map(x=>x[0]));
+  // Keep all other months already synchronized in the mirror. The
+  // consolidated TEST tab gets the current source amounts directly.
+  const nextMirror=[...mirror.filter(x=>!overridden.has(String(x[0]))),...additions];
+  return {mirror:nextMirror,matchedHistoric:matchedCount,
+    sourceNew,sourceUpdated,sourceCount:source.length};
+}
+
+// Compare a generated TEST tab against a complete computed plan before
+// creating another tab. This is read-only and avoids identical duplicate tabs
+// when the owner clicks the button again with unchanged data.
+async function ccGoogleSyncVerifyComputedTab(title,plan){
+  if(title!==CC_SYNC_STABLE_VIEW&&!/^AUTO_PHU_HUNG_TEST_[A-Z0-9]+$/.test(title))
+    throw Error('Không đúng tên tab sổ tự tính TEST.');
+  // Read the ENTIRE generated range, not merely the new plan's length.
+  // Otherwise stale trailing transactions could masquerade as an exact match.
+  const sheet="'"+title+"'";
+  const [back,backFormulas]=await Promise.all([
+    ccGoogleSyncApi('/values/'+encodeURIComponent(sheet+'!A1:Q')+
+      '?valueRenderOption=UNFORMATTED_VALUE'),
+    ccGoogleSyncApi('/values/'+encodeURIComponent(sheet+'!N2:N')+
+      '?valueRenderOption=FORMULA')
+  ]);
+  const rows=(back.values||[]).slice(1),actualFormulas=backFormulas.values||[];
+  if(rows.length!==plan.rows.length||actualFormulas.length!==plan.rows.length||
+     (back.values||[])[0]?.join('|')!==CC_SYNC_AUTO_LEDGER_HEADER.join('|'))
+    return false;
+  for(let i=0;i<plan.rows.length;i++){
+    const actual=rows[i],expected=plan.rows[i];
+    const a=ccGoogleSyncPayloadCells(actual?.slice(0,13)||[]);
+    const b=ccGoogleSyncPayloadCells(expected.values);
+    if(a.length!==13||b.length!==13||
+       a.some((v,j)=>v!==b[j])||
+       String(actual?.[14]??'')!==expected.origin||
+       String(actual?.[15]??'')!==expected.sourceId||
+       (i===0&&Math.abs(Number(actual?.[16])-plan.opening)>0.000001)||
+       String(actualFormulas[i]?.[0]??'').replace(/\s+/g,'')!==
+         expected.formula.replace(/\s+/g,'')||
+       !Number.isFinite(Number(actual?.[13]))||
+       Math.abs(Number(actual[13])-expected.balance)>0.000001)
+      return false;
+  }
+  return true;
+}
+
+// One stable, independently generated user-facing TEST tab. Old timestamped
+// snapshots remain intact until the owner decides how to archive them.
+const CC_SYNC_STABLE_VIEW='PHU_HUNG_VIEW_TEST';
+function ccGoogleSyncGridCell(value){
+  if(value===null||value===undefined||value==='')return {};
+  if(typeof value==='number'&&Number.isFinite(value))
+    return {userEnteredValue:{numberValue:value}};
+  if(typeof value==='boolean')return {userEnteredValue:{boolValue:value}};
+  return {userEnteredValue:{stringValue:String(value)}};
+}
+function ccGoogleSyncAtomicGridRows(plan){
+  const rows=[CC_SYNC_AUTO_LEDGER_HEADER.map(ccGoogleSyncGridCell)];
+  for(const x of plan.rows){
+    const vals=[...x.cells];
+    const cells=vals.map(ccGoogleSyncGridCell);
+    cells[13]={userEnteredValue:{formulaValue:x.formula}};
+    rows.push({values:cells});
+  }
+  rows[0]={values:rows[0]};
+  return rows;
+}
+async function ccGoogleSyncReadStableView(){
+  const title=CC_SYNC_STABLE_VIEW,sheet="'"+title+"'";
+  const [data,formulas]=await Promise.all([
+    ccGoogleSyncApi('/values/'+encodeURIComponent(sheet+'!A1:Q')+
+      '?valueRenderOption=UNFORMATTED_VALUE'),
+    ccGoogleSyncApi('/values/'+encodeURIComponent(sheet+'!N2:N')+
+      '?valueRenderOption=FORMULA')
+  ]);
+  const rows=data.values||[],fm=formulas.values||[];
+  if(JSON.stringify(rows[0])!==JSON.stringify(CC_SYNC_AUTO_LEDGER_HEADER)||
+     rows.length<2||rows.length>10001||fm.length!==rows.length-1)
+    throw Error('Tab tổng hợp cố định có header/cấu trúc không hợp lệ; không ghi đè.');
+  if(!Number.isFinite(Number(rows[1]?.[16])))
+    throw Error('Thiếu số dư mở đầu tại Q2 của tab tổng hợp.');
+  let running=Number(rows[1][16]);
+  for(let i=1;i<rows.length;i++){
+    const row=rows[i],r=i+1,expected=i===1?'=$Q$2+G2-SUM(H2:M2)':
+      '=N'+(r-1)+'+G'+r+'-SUM(H'+r+':M'+r+')';
+    if(String(fm[i-1]?.[0]??'').replace(/\s+/g,'')!==expected||
+       !/^\d{4}-\d{2}-\d{2}$/.test(ccGoogleSyncNormDate(row[0]))||
+       !['LỊCH SỬ','CASH_CONTROL'].includes(String(row[14]||''))||
+       !String(row[15]||'')||
+       (i>1&&row[16]!==undefined&&String(row[16]).trim()!==''))
+      throw Error('Tab tổng hợp đã thay đổi định dạng/công thức tại hàng '+r+'. Dừng.');
+    const values=row.slice(6,13).map(ccGoogleSyncMoney);
+    if(values.length!==7||values.some(x=>!Number.isFinite(x)))
+      throw Error('Tab tổng hợp có số tiền không hợp lệ tại hàng '+r+'.');
+    running=Math.round((running+values[0]-values.slice(1).reduce((a,b)=>a+b,0))*1e6)/1e6;
+    if(!Number.isFinite(Number(row[13]))||Math.abs(Number(row[13])-running)>0.000001)
+      throw Error('Tab tổng hợp sai số dư tại N'+r+'. Không ghi đè.');
+  }
+  return {rowCount:rows.length,balance:running,signature:JSON.stringify({rows,formulas:fm})};
+}
+// Update only the derived VIEW, in one atomic updateCells request. The
+// historic PHU HUNG tab, mirror tab and old timestamped views are untouched.
+async function ccGoogleSyncUpdateStableView(meta,plan){
+  const title=CC_SYNC_STABLE_VIEW;
+  const match=meta.sheets?.find(x=>x.properties?.title===title);
+  let confirmedViewSignature=null;
+  if(!match){
+    if(!confirm('TẠO DUY NHẤT TAB PHU_HUNG_VIEW_TEST: '+plan.rows.length+
+      ' giao dịch, số dư cuối '+plan.closingBalance.toLocaleString('vi-VN')+
+      '. Không sửa PHU HUNG lịch sử. Tiếp tục?'))return 'cancelled';
+    await ccGoogleSyncApi(':batchUpdate',{method:'POST',body:{
+      requests:[{addSheet:{properties:{title}}}]}});
+    // A fixed tab is populated using a single batchUpdate after creation.
+  }else{
+    if(!Number.isInteger(match.properties?.sheetId))
+      throw Error('Không lấy được ID tab VIEW để cập nhật.');
+    const old=await ccGoogleSyncReadStableView();
+    if(await ccGoogleSyncVerifyComputedTab(title,plan)){
+      ccGoogleSyncStatus('TAB CHÍNH TEST ĐÃ CẬP NHẬT SẴN: '+title+
+        '; không ghi thêm. Số dư cuối '+plan.closingBalance.toLocaleString('vi-VN'));
+      return 'unchanged';
+    }
+    if(!confirm('CẬP NHẬT TAB TỔNG HỢP TEST HIỆN CÓ: từ '+(old.rowCount-1)+
+      ' lên '+plan.rows.length+' giao dịch. Sổ PHU HUNG lịch sử KHÔNG bị sửa. Tiếp tục?'))
+      return 'cancelled';
+    const second=await ccGoogleSyncReadStableView();
+    if(second.signature!==old.signature)
+      throw Error('Tab tổng hợp thay đổi trong khi xác nhận; không ghi.');
+    confirmedViewSignature=second.signature;
+  }
+  const fresh=await ccGoogleSyncApi('?fields=spreadsheetId,properties(title),sheets(properties(title,sheetId))');
+  if(fresh.spreadsheetId!==CC_SYNC_PILOT_ID||!/TEST/i.test(fresh.properties?.title||''))
+    throw Error('Không phải file TEST hợp lệ.');
+  const sheet=fresh.sheets?.find(x=>x.properties?.title===title);
+  if(!Number.isInteger(sheet?.properties?.sheetId))
+    throw Error('Tab cố định chưa được tạo; chưa ghi dữ liệu.');
+  let last=Math.max(plan.rows.length+1,2);
+  if(match){
+    const latest=await ccGoogleSyncReadStableView();
+    if(latest.signature!==confirmedViewSignature)
+      throw Error('Tab tổng hợp thay đổi sau khi xác nhận; dừng ghi để tránh ghi đè.');
+    last=Math.max(last,latest.rowCount);
+  }
+  const request={updateCells:{
+    range:{sheetId:sheet.properties.sheetId,startRowIndex:0,endRowIndex:last,
+      startColumnIndex:0,endColumnIndex:17},
+    rows:ccGoogleSyncAtomicGridRows(plan),
+    fields:'userEnteredValue'
+  }};
+  await ccGoogleSyncApi(':batchUpdate',{method:'POST',body:{requests:[request]}});
+  if(!await ccGoogleSyncVerifyComputedTab(title,plan))
+    throw Error('Đã gửi cập nhật tab VIEW nhưng đọc lại chưa khớp. Không bấm lại trước khi kiểm tra.');
+  ccGoogleSyncStatus('ĐÃ XÁC MINH TAB TỔNG HỢP CỐ ĐỊNH: '+title+'; '+
+    plan.rows.length+' giao dịch; số dư cuối '+plan.closingBalance.toLocaleString('vi-VN')+
+    '. Không tạo tab mới mỗi lần, không sửa PHU HUNG lịch sử.');
+  return 'updated';
+}
+
+// The user explicitly confirms a new, timestamped TEST tab. No existing tab is
+// cleared, deleted or modified, and the historical PHU HUNG sheet is untouched.
+async function ccGoogleSyncCreateComputedLedgerTest(){
+  if(ccGoogleSyncWriteInFlight)throw Error('Đang có thao tác ghi khác.');
+  if(!currentAuthUser||!isCashControlOwner()||ccGoogleSyncDemoActive||
+     CC_SYNC_PILOT_TAB!=='DATA_CASHCONTROL')
+    throw Error('Chỉ Admin được tạo sổ tự tính từ DATA_CASHCONTROL; phải thoát DEMO.');
+  ccGoogleSyncWriteInFlight=true;
+  try{
+    const meta=await ccGoogleSyncApi('?fields=spreadsheetId,properties(title),sheets(properties(title,sheetId))');
+    if(meta.spreadsheetId!==CC_SYNC_PILOT_ID||!/TEST/i.test(meta.properties?.title||'')||
+       !meta.sheets?.some(x=>x.properties?.title==='PHU HUNG'))
+      throw Error('Không đúng file PHU HUNG TEST được phép.');
+    // Staging uses a validated imported snapshot; production requires an
+    // explicit fresh project load before any live-source consolidated write.
+    if(!CC_SYNC_DEMO_ALLOWED)ccGoogleSyncRequireFreshLiveSource();
+    const mirror=await ccGoogleSyncReadSheet();
+    // Missing mirror is a valid HISTORY-ONLY preview, not a reason to block
+    // checking the original ledger's running-balance formulas. Never create
+    // placeholder Cash Control transactions or claim they have been synced.
+    const mirroredRows=mirror.exists?mirror.rows:[];
+    const [legacy,formulas]=await Promise.all([
+      ccGoogleSyncApi('/values/'+encodeURIComponent("'PHU HUNG'!A1:N")+
+        '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER'),
+      ccGoogleSyncApi('/values/'+encodeURIComponent("'PHU HUNG'!N1:N")+
+        '?valueRenderOption=FORMULA')
+    ]);
+    // On the real app, reuse only the already-loaded Payment/Cash Control
+    // cache. On staging, use only explicitly imported snapshots (if any).
+    // Missing test source means history-only; NEVER fetch production Firebase.
+    const month=$('ccGoogleSyncMonth')?.value||'';
+    const hasImportedSource=CC_SYNC_DEMO_ALLOWED&&ccGoogleSyncImportedRows?.has(month);
+    const hasLiveCache=!CC_SYNC_DEMO_ALLOWED&&paymentMonths.has('PHU HUNG');
+    let mergedSource=null,nextMirror=mirroredRows;
+    if(hasImportedSource||hasLiveCache){
+      const source=await ccGoogleSyncCurrentRows('PHU HUNG',month);
+      mergedSource=await ccGoogleSyncMergeCachedSource(
+        legacy.values||[],mirroredRows,source,month);
+      nextMirror=mergedSource.mirror;
+    }
+    const plan=await ccGoogleSyncBuildConsolidatedLedger(
+      legacy.values||[],formulas.values||[],nextMirror);
+    await ccGoogleSyncUpdateStableView(meta,plan);
+  }finally{ccGoogleSyncWriteInFlight=false}
+}
+
+
+/* Admin-initiated, one-shot TEST update. This is deliberately NOT a background
+ * listener: production reads one PHU HUNG project only after approval.
+ * Staging uses an already-imported snapshot and never reads production Firebase.
+ * Existing historical transactions are matched before the derived view changes.
+ */
+async function ccGoogleSyncDirectSyncTest(){
+  if(!currentAuthUser||!isCashControlOwner())throw Error('Chỉ Admin được đồng bộ.');
+  if(ccGoogleSyncWriteInFlight)throw Error('Đang có lượt ghi khác.');
+  if(ccGoogleSyncDemoActive||CC_SYNC_PILOT_TAB!=='DATA_CASHCONTROL')
+    throw Error('Hãy thoát DEMO trước khi đồng bộ dữ liệu.');
+  if(!ccGoogleSyncToken)throw Error('Bấm Kết nối Google trước.');
+  const currentMonth=$('ccGoogleSyncMonth')?.value||'';
+  if(currentMonth<'2026-10'||!/^20\d{2}-(0[1-9]|1[0-2])$/.test(currentMonth))
+    throw Error('Tháng nguồn không hợp lệ.');
+  if(CC_SYNC_DEMO_ALLOWED&&!ccGoogleSyncImportedRows?.has(currentMonth))
+    throw Error('Staging cần bản chụp nguồn đã nhập, không thể đọc Firebase thật.');
+  if(!confirm('ĐỐI CHIẾU VÀ CẬP NHẬT PHU HUNG TEST tháng '+currentMonth+
+      '? Chỉ thao tác theo yêu cầu Admin. Bản thật và sổ PHU HUNG lịch sử không bị sửa. '+
+      (CC_SYNC_DEMO_ALLOWED?'Nguồn JSON đã nhập.':'Một lượt làm mới PHU HUNG sẽ phát sinh Firestore reads.')))
+    return 'cancelled';
+  ccGoogleSyncPlan=null;
+  $('ccGoogleSyncCommit').disabled=true;
+  if(!CC_SYNC_DEMO_ALLOWED){
+    ccGoogleSyncLiveSourceRefreshedAt=0;
+    const ok=await loadProjectPayments('PHU HUNG',{force:true,quiet:true,refresh:true});
+    if(!ok||!paymentMonths.has('PHU HUNG'))throw Error('Không lấy đủ nguồn PHU HUNG; không ghi.');
+    ccGoogleSyncLiveSourceRefreshedAt=Date.now();
+  }
+  // Verify EVERY month since the October 2026 baseline. A later sync must
+  // never skip unsynced changes from an intervening month (e.g. November).
+  // This is read-only Google reconciliation with the already-loaded source,
+  // not an extra Firestore query for each month.
+  const monthControl=$('ccGoogleSyncMonth');
+  try{
+    const months=[];
+    const endYear=Number(currentMonth.slice(0,4));
+    const endMonth=Number(currentMonth.slice(5,7));
+    for(let year=2026;year<=endYear;year++){
+      for(let m=year===2026?10:1;m<=(year===endYear?endMonth:12);m++){
+        months.push(year+'-'+String(m).padStart(2,'0'));
+      }
+    }
+    for(const month of months){
+      monthControl.value=month;
+      const diff=await ccGoogleSyncComparePilot(true);
+      if(diff.blocked.length)
+        throw Error('Tháng '+month+' có '+diff.blocked.length+' xung đột; không cập nhật VIEW.');
+      if(month!==currentMonth&&diff.changes.length)
+        throw Error('Tháng '+month+' còn '+diff.changes.length+
+          ' giao dịch mới/sửa chưa lưu. Hãy đồng bộ tháng đó trước; không bỏ sót giao dịch cũ.');
+    }
+  }finally{monthControl.value=currentMonth}
+  // Persist new/edited source transactions to the machine-owned TEST mirror,
+  // then verify each Google row by its ID+SHA before rebuilding the VIEW.
+  // Without this step a later month could silently lose previously unsaved rows.
+  const selectedPlan=await ccGoogleSyncComparePilot(true);
+  if(selectedPlan.blocked.length)
+    throw Error('Có xung đột mới phát sinh; không ghi dữ liệu.');
+  if(selectedPlan.changes.length){
+    await ccGoogleSyncCommitPilot();
+    const after=await ccGoogleSyncComparePilot(true);
+    if(after.blocked.length||after.changes.length)
+      throw Error('Ghi mirror TEST chưa xác minh hoàn toàn; không cập nhật sổ tổng hợp.');
+  }
+  ccGoogleSyncPlan=null;
+  $('ccGoogleSyncCommit').disabled=true;
+  await ccGoogleSyncCreateComputedLedgerTest();
+  return 'verified';
+}
+
+async function ccGoogleSyncAuditLegacy(month,source){
+  if(ccGoogleSyncDemoActive){
+    if(!CC_SYNC_DEMO_ALLOWED||CC_SYNC_PILOT_TAB!==ccGoogleSyncDemoTab)throw Error('Demo tab mismatch');
+    return {ledgerCount:0,sourceCount:source.length,matchedSourceIds:[],
+      missingSourceIds:source.map(x=>x.id),unmatchedSource:source.length,
+      unmatchedLedger:0,invalidAmounts:0,exact:false,details:[],
+      scope:'DEMO ISOLATED'};
+  }
+  const read=await ccGoogleSyncApi('/values/'+encodeURIComponent("'PHU HUNG'!A1:N")+
+    '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER');
+  const ledger=[],invalidAmounts=[];
+  (read.values||[]).forEach((row,index)=>{
+    const date=ccGoogleSyncNormDate(row[0]);
+    if(!date.startsWith(month+'-'))return;
+    const money=row.slice(6,13);
+    const signature=ccGoogleSyncFingerprint(date,money,row[2],row[4],row[1]);
+    if(signature.includes('INVALID'))invalidAmounts.push(index+1);
+    ledger.push({index:index+1,row,signature,matched:false});
+  });
+  const ledgerBySignature=new Map();
+  for(const item of ledger){
+    if(!ledgerBySignature.has(item.signature))ledgerBySignature.set(item.signature,[]);
+    ledgerBySignature.get(item.signature).push(item);
+  }
+  const matchedSourceIds=[],missingSource=[];
+  for(const entry of source){
+    const v=entry.values;
+    const signature=ccGoogleSyncFingerprint(
+      ccGoogleSyncNormDate(v[0]),v.slice(6,13),v[2],v[4],v[1]);
+    const found=(ledgerBySignature.get(signature)||[]).find(item=>!item.matched);
+    if(found){found.matched=true;matchedSourceIds.push(entry.id)}
+    else missingSource.push(entry);
+  }
+  const missingLedger=ledger.filter(x=>!x.matched);
+  const norm=ccGoogleSyncNormalizeLabel;
+  const moneyEqual=(a,b)=>a.every((v,i)=>ccGoogleSyncMoneyKey(v)===ccGoogleSyncMoneyKey(b[i]));
+  const detailFor=(entry,item)=>{
+    const a=entry.values,b=item.row;
+    const changes=[];
+    if(ccGoogleSyncNormDate(a[0])!==ccGoogleSyncNormDate(b[0]))changes.push('Ngày');
+    if(ccGoogleSyncLedgerCompanyKey(a[1],a[2],a[4])!==
+       ccGoogleSyncLedgerCompanyKey(b[1],b[2],b[4]))
+      changes.push('Đơn vị');
+    if(norm(a[2])!==norm(b[2]))changes.push('Hợp đồng');
+    if(norm(a[4])!==norm(b[4]))changes.push('IPC');
+    if(!moneyEqual(a.slice(6,13),b.slice(6,13)))changes.push('Số tiền / nhóm tiền');
+    return changes;
+  };
+  const outstanding=[...missingLedger];
+  const details=[];
+  for(const entry of missingSource){
+    // Suggestions require >=2 matching independent anchors and never unblock writes.
+    const a=entry.values;
+    const ranked=outstanding.map(item=>{
+      const b=item.row;
+      const amount=moneyEqual(a.slice(6,13),b.slice(6,13));
+      const contract=Boolean(norm(a[2]))&&norm(a[2])===norm(b[2]);
+      const ipc=Boolean(norm(a[4]))&&norm(a[4])===norm(b[4]);
+      const company=Boolean(norm(a[1]))&&
+        ccGoogleSyncLedgerCompanyKey(a[1],a[2],a[4])===
+        ccGoogleSyncLedgerCompanyKey(b[1],b[2],b[4]);
+      const date=ccGoogleSyncNormDate(a[0])===ccGoogleSyncNormDate(b[0]);
+      const anchors=[amount,contract,ipc,company,date].filter(Boolean).length;
+      const score=(amount?9:0)+(contract?5:0)+(ipc?5:0)+(company?3:0)+(date?2:0);
+      return {item,anchors,score};
+    }).filter(x=>x.anchors>=2).sort((x,y)=>y.score-x.score||x.item.index-y.item.index);
+    const best=ranked[0];
+    if(best){
+      const candidate=best.item;
+      outstanding.splice(outstanding.indexOf(candidate),1);
+      details.push({source:entry,ledger:candidate,changes:detailFor(entry,candidate),
+        confidence:ranked.length>1&&ranked[1].score===best.score?'Cần chọn thủ công':'Gợi ý'});
+    }else details.push({source:entry,ledger:null,changes:['Chưa tìm được dòng tương ứng'],confidence:'Chưa ghép'});
+  }
+  for(const item of outstanding)details.push({source:null,ledger:item,
+    changes:['Chỉ có trong Google Sheets'],confidence:'Chưa ghép'});
+  return {
+    ledgerCount:ledger.length,sourceCount:source.length,
+    matchedSourceIds,missingSourceIds:missingSource.map(x=>x.id),
+    unmatchedSource:missingSource.length,unmatchedLedger:missingLedger.length,
+    invalidAmounts:invalidAmounts.length,
+    exact:missingSource.length===0&&missingLedger.length===0&&invalidAmounts.length===0,
+    details,scope:'Date, seven money columns, contract number, IPC and company'
+  };
+}
+function ccGoogleSyncRenderAudit(audit,month){
+  const out=$('ccGoogleSyncAuditDetails');
+  if(!out)return;
+  out.textContent='';
+  if(ccGoogleSyncDemoActive||!audit||!audit.details?.length)return;
+  const container=document.createElement('div');
+  container.className='note';
+  const headline=document.createElement('b');
+  headline.textContent='ĐỐI CHIẾU SỔ '+month+': '+audit.matchedSourceIds.length+
+    ' dòng khớp chính xác; '+audit.unmatchedSource+' dòng nguồn chưa khớp; '+
+    audit.unmatchedLedger+' dòng Google chưa khớp. Không ghi dữ liệu.';
+  container.append(headline);
+  const help=document.createElement('p');
+  help.textContent='Các cặp dưới đây chỉ là GỢI Ý theo ngày, số tiền, hợp đồng, IPC, đơn vị. Không tự ghép, không chỉnh sửa hay xác nhận trùng.';
+  container.append(help);
+  const wrap=document.createElement('div');
+  wrap.style.cssText='max-height:360px;overflow:auto;margin-top:8px';
+  const table=document.createElement('table');table.className='mep-table';
+  const thead=document.createElement('thead');
+  const tr=document.createElement('tr');
+  ['Nguồn Cash Control','Dòng Google gợi ý','Khác biệt','Đánh giá'].forEach(label=>{
+    const th=document.createElement('th');th.textContent=label;tr.append(th);
+  });
+  thead.append(tr);table.append(thead);
+  const tbody=document.createElement('tbody');
+  const fmt=r=>{
+    if(!r)return '—';
+    const money=r.values?r.values.slice(6,13):r.row.slice(6,13);
+    const v=r.values||r.row;
+    return [ccGoogleSyncNormDate(v[0]),v[1],v[2],v[4],
+      money.map((n,i)=>Number(ccGoogleSyncMoney(n)||0)?(['Thu','Thầu phụ','Vật tư','Khác trực tiếp','Gián tiếp','Tài chính','Khác'][i]+': '+Number(ccGoogleSyncMoney(n)).toLocaleString('vi-VN')):'').filter(Boolean).join('; ')
+    ].filter(Boolean).join(' | ');
+  };
+  for(const entry of audit.details){
+    const row=document.createElement('tr');
+    const source=document.createElement('td');source.textContent=fmt(entry.source);
+    const ledger=document.createElement('td');
+    ledger.textContent=entry.ledger?'Google hàng '+entry.ledger.index+' | '+fmt(entry.ledger):'Không tìm thấy';
+    const changes=document.createElement('td');changes.textContent=entry.changes.join(', ');
+    const confidence=document.createElement('td');confidence.textContent=entry.confidence;
+    row.append(source,ledger,changes,confidence);tbody.append(row);
+  }
+  table.append(tbody);wrap.append(table);container.append(wrap);out.append(container);
+}
+
+async function ccGoogleSyncComparePilot(internal=false){
+  if(ccGoogleSyncWriteInFlight&&!internal)throw Error('Đang ghi, chờ hoàn tất trước khi so sánh lại.');
+  if(!currentAuthUser||!isCashControlOwner())throw Error('Cần đăng nhập Admin.');
+  if(ccGoogleSyncSelectedProjects().length!==1||ccGoogleSyncSelectedProjects()[0]!=='PHU HUNG')
+    throw Error('Pilot chỉ cho chọn một dự án PHU HUNG.');
+  const month=$('ccGoogleSyncMonth')?.value||'';
+  if(!internal){const details=$('ccGoogleSyncAuditDetails');if(details)details.textContent='Đang đọc sổ lịch sử để đối chiếu…';}
+  if(ccGoogleSyncDemoActive && (CC_SYNC_PILOT_TAB!==ccGoogleSyncDemoTab||month!=='2026-11'))
+    throw Error('DEMO chỉ cho dùng tab DATA_CASHCONTROL_DEMO và tháng 11/2026.');
+  const source=await ccGoogleSyncCurrentRows('PHU HUNG',month);
+  const remote=await ccGoogleSyncReadSheet();
+  // Never duplicate records already copied into the historical PHU HUNG sheet,
+  // for October AND all later months. If the month has zero historical rows,
+  // new Cash Control entries can be mirrored to the separate sync tab.
+  const legacyAudit=await ccGoogleSyncAuditLegacy(month,source);
+  if(!internal)ccGoogleSyncRenderAudit(legacyAudit,month);
+  const old=new Map(remote.rows.map((row,i)=>[String(row[0]),{row,index:i+2}]));
+  const changes=[],blocked=[],unchanged=[];
+  const historicalIds=new Set(legacyAudit.matchedSourceIds);
+  for(const r of source){
+    const oldRow=old.get(r.id);
+    // Never count one transaction twice if it now exists in both the historic
+    // ledger and the mirror (for example after someone pastes a new row manually).
+    if(oldRow&&historicalIds.has(r.id)){
+      blocked.push({id:r.id,reason:'Giao dịch đồng thời nằm trong sổ cũ và tab đồng bộ'});
+      continue;
+    }
+    // A historic row already exists; do not copy it into the mirror again.
+    if(!oldRow&&historicalIds.has(r.id)){unchanged.push(r.id);continue}
+    if(!oldRow){changes.push({...r,op:'new'});continue}
+    const row=oldRow.row;
+    if(String(row[1]||'')!==r.project || String(row[2]||'')!==r.month){
+      blocked.push({id:r.id,reason:'Sai dự án/tháng'});continue;
+    }
+    // Protect the unmanaged balance and status columns too: neither may contain
+    // handwritten data in this machine-managed mirror.
+    if(String(row[16]??'').trim()!=='' || String(row[18]??'synced')!=='synced'){
+      blocked.push({id:r.id,reason:'Có chỉnh sửa ngoài vùng đồng bộ (số dư/trạng thái)'});continue;
+    }
+    const currentValues=ccGoogleSyncPayloadCells(row.slice(3,16));
+    const remoteHash=await ccGoogleSyncSha(currentValues);
+    if(remoteHash!==String(row[17]||'')){
+      blocked.push({id:r.id,reason:'Dữ liệu trên Google Sheets đã được sửa tay'});continue;
+    }
+    if(r.hash===String(row[17]||'')){unchanged.push(r.id);continue}
+    changes.push({...r,op:'update',sheetRow:oldRow.index});
+  }
+  const sourceIds=new Set(source.map(r=>r.id));
+  const orphan=remote.rows.filter(row=>String(row[2]||'')===month&&!sourceIds.has(String(row[0]||'')));
+  if(orphan.length)blocked.push({id:'*',reason:orphan.length+' dòng cũ không còn trong Cash Control; không tự xóa'});
+  if(legacyAudit.unmatchedLedger>0||legacyAudit.invalidAmounts>0){
+    blocked.push({id:'legacy',reason:'Sổ PHU HUNG đang có '+
+      legacyAudit.unmatchedLedger+' giao dịch chưa tìm được trong Cash Control hoặc dữ liệu tiền lỗi. '+
+      'Không tự ghi đè hoặc xóa.'});
+  }
+  // Read-only evidence, never use these amounts as balances.
+  const plan={month,sourceCount:source.length,remoteExists:remote.exists,
+    changes,blocked,unchanged,legacyAudit,created:Date.now()};
+  ccGoogleSyncPlan=plan;
+  const commitButton=$('ccGoogleSyncCommit');
+  commitButton.disabled=blocked.length>0||!changes.length;
+  commitButton.textContent=blocked.length?'Chặn ghi: có xung đột':
+    !changes.length?'Đã khớp · không cần ghi':'Ghi thay đổi vào tab TEST';
+  const fixButton=$('ccGoogleSyncCorrectLegacy');
+  if(fixButton){
+    fixButton.hidden=true;fixButton.disabled=true;
+    const candidate=await ccGoogleSyncLegacyCorrectionCandidate(legacyAudit,source,month);
+    if(candidate && blocked.length===1 && !remote.rows.length){
+      fixButton.hidden=false;fixButton.disabled=false;
+      fixButton.textContent='Sửa khoản lương 0,3 VND trên Google TEST (có sao lưu)';
+    }
+  }
+  const snapshotDiagnostic=ccGoogleSyncImportedRows&&!ccGoogleSyncDemoActive
+    ?' | Nguồn JSON nhập vào: '+source.length+' dòng ('+month+').':'';
+  const demoDiagnostic=ccGoogleSyncDemoActive
+    ?' | DEMO đích '+CC_SYNC_PILOT_TAB+': '+(remote.exists?'đã có tab, '+remote.rows.length+' dòng':'CHƯA CÓ TAB')+
+       ' | Dòng đã tìm thấy: '+source.filter(r=>old.has(r.id)).length+'/'+source.length+'.'
+    :'';
+  ccGoogleSyncStatus('Bản TEST: '+source.length+' dòng Cash Control · '+changes.filter(r=>r.op==='new').length+
+    ' mới · '+changes.filter(r=>r.op==='update').length+' sửa · '+
+    unchanged.length+' không đổi · '+blocked.length+' xung đột. '+
+    ('Sổ lịch sử '+month+': '+(!legacyAudit.ledgerCount?'chưa có giao dịch':legacyAudit.exact?'khớp các khóa giao dịch':'CHƯA KHỚP')+
+    ' ('+legacyAudit.ledgerCount+' dòng). ')+
+    (blocked.length?'Chặn ghi, cần xử lý xung đột.':
+      !changes.length?'ĐÃ ĐỒNG BỘ ĐỦ: không có thay đổi cần ghi; nút Ghi đã vô hiệu hóa.':
+      'Có thể xác nhận ghi tab TEST.')+
+    demoDiagnostic+snapshotDiagnostic+
+    (ccGoogleSyncDemoActive && !source.some(r=>old.has(r.id))
+      ?' ĐỂ THỬ SỬA: trước tiên phải GHI THÀNH CÔNG 2 DÒNG DEMO và thấy thông báo ĐÃ XÁC MINH; khi đó so sánh lại phải có 2 không đổi.':'')
+  );
+  return plan;
+}
+// Narrow, owner-confirmed financial correction on the TEST spreadsheet COPY.
+// Does not change Cash Control or production Google Sheets. Only permitted for
+// the previously verified October payroll adjustment and no other record.
+const CC_SYNC_LEGACY_FIX_ID='PHU HUNG:expense:manual_salary_payroll_1793330653912_rzk8d';
+async function ccGoogleSyncLegacyCorrectionCandidate(audit,source,month){
+  if(month!=='2026-10'||!CC_SYNC_DEMO_ALLOWED||ccGoogleSyncDemoActive||
+      !ccGoogleSyncImportedRows) return null;
+  if(audit.ledgerCount!==30||source.length!==30||
+      audit.matchedSourceIds.length!==29||audit.unmatchedSource!==1||
+      audit.unmatchedLedger!==1||audit.invalidAmounts) return null;
+  const item=audit.details?.find(x=>x.source?.id===CC_SYNC_LEGACY_FIX_ID);
+  if(!item||!item.ledger||item.confidence!=='Gợi ý'||
+      item.changes.length!==1||item.changes[0]!=='Số tiền / nhóm tiền')return null;
+  const v=item.source.values,b=item.ledger.row;
+  if(ccGoogleSyncNormDate(v[0])!=='2026-10-27'||
+      ccGoogleSyncNormDate(b[0])!=='2026-10-27'||
+      ccGoogleSyncLedgerCompanyKey(v[1],v[2],v[4])!=='PAYROLL_CN'||
+      ccGoogleSyncLedgerCompanyKey(b[1],b[2],b[4])!=='PAYROLL_CN'||
+      ccGoogleSyncNormalizeLabel(v[2])||ccGoogleSyncNormalizeLabel(v[4])||
+      ccGoogleSyncNormalizeLabel(b[2])||ccGoogleSyncNormalizeLabel(b[4]))return null;
+  if(v.slice(6,13).some((n,i)=>i!==4&&ccGoogleSyncMoneyKey(n)!==ccGoogleSyncMoneyKey(b[6+i])))return null;
+  if(ccGoogleSyncMoneyKey(v[10])!=='350945181'||
+      ccGoogleSyncMoneyKey(b[10])!=='350945181.3')return null;
+  // Verify the imported content hash is still correct, never treat edited
+  // local JS values as the authorized source.
+  if(await ccGoogleSyncSha(ccGoogleSyncPayloadCells(v))!==item.source.hash)return null;
+  return {id:item.source.id,row:item.ledger.index,oldValue:350945181.3,newValue:350945181};
+}
+async function ccGoogleSyncCorrectLegacyTest(){
+  if(ccGoogleSyncWriteInFlight)throw Error('Đang ghi, không được ghi đồng thời.');
+  ccGoogleSyncWriteInFlight=true;
+  const button=$('ccGoogleSyncCorrectLegacy');
+  if(button)button.disabled=true;
+  try{
+    if(firebaseConfig.projectId!=='cash-control-staging'||!isCashControlOwner()||
+       !currentAuthUser||!ccGoogleSyncImportedRows||ccGoogleSyncDemoActive||
+       $('ccGoogleSyncMonth')?.value!=='2026-10')throw Error('Chỉ Admin tại TEST với nguồn JSON tháng 10.');
+    if(!ccGoogleSyncPlan||Date.now()-ccGoogleSyncPlan.created>120000)
+      throw Error('Bản kiểm tra đã cũ. Bấm So sánh lại trước.');
+    // Compare source and destination one more time before any modification.
+    const source=await ccGoogleSyncCurrentRows('PHU HUNG','2026-10');
+    const preAudit=await ccGoogleSyncAuditLegacy('2026-10',source);
+    const candidate=await ccGoogleSyncLegacyCorrectionCandidate(preAudit,source,'2026-10');
+    if(!candidate)throw Error('Nguồn/sổ vừa thay đổi hoặc không còn đúng một sai lệch 0,3 VND.');
+    const meta=await ccGoogleSyncApi('?fields=spreadsheetId,properties(title),sheets(properties(title,sheetId))');
+    if(!/TEST/i.test(meta.properties?.title||'')||
+        meta.spreadsheetId!==CC_SYNC_PILOT_ID)
+      throw Error('Không phải file Sheets TEST đã chỉ định.');
+    const sheet=meta.sheets?.find(x=>x.properties?.title==='PHU HUNG');
+    if(!sheet||!Number.isInteger(sheet.properties?.sheetId))throw Error('Không tìm thấy tab PHU HUNG của bản sao.');
+    // A historical ledger may contain blank separators and later months.
+    // Walk actual transaction rows only, preserving the original row numbers.
+    // No rows are modified unless their running balances reconcile first.
+    const ledger=await ccGoogleSyncApi('/values/'+encodeURIComponent(
+      "'PHU HUNG'!A1:N")+
+      '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER');
+    const formula=await ccGoogleSyncApi('/values/'+encodeURIComponent(
+      "'PHU HUNG'!N1:N")+'?valueRenderOption=FORMULA');
+    const rows=ledger.values||[],balances=formula.values||[];
+    const last=rows.reduce((m,row,i)=>row.some(v=>String(v??'').trim())?i+1:m,0);
+    if(candidate.row>last||last>300)
+      throw Error('Bảng dài hoặc vị trí ngoài phạm vi an toàn, chưa sửa.');
+    // Classify the whole downstream N column before touching any balance.
+    // Formulas in summary and later-month rows are allowed: Google recomputes
+    // them when the single source amount in K changes. Static/mixed sheets
+    // require a separately validated running-balance sequence.
+    const balanceEntries=[];
+    for(let r=candidate.row;r<=last;r++){
+      const cell=String(balances[r-1]?.[0]??'').trim();
+      if(cell)balanceEntries.push({sheetRow:r,cell});
+    }
+    const noBalances=balanceEntries.length===0;
+    const allFormulas=!noBalances&&balanceEntries.every(x=>x.cell.startsWith('='));
+    const allStatic=!noBalances&&balanceEntries.every(x=>
+      !x.cell.startsWith('=')&&Number.isFinite(ccGoogleSyncMoney(x.cell)));
+    if(!noBalances&&!allFormulas&&!allStatic)
+      throw Error('Cột số dư N có công thức xen với giá trị tĩnh; không tự sửa.');
+    if(allFormulas&&balanceEntries[0].sheetRow!==candidate.row)
+      throw Error('N'+candidate.row+' trống trong khi số dư phía sau có công thức. Chưa ghi.');
+    const delta=candidate.oldValue-candidate.newValue;
+    const staticBalances=[];
+    if(allStatic){
+      // Only static running balances need a strict transaction-by-transaction
+      // audit. A summary/header would make their propagation ambiguous.
+      const relevant=[];
+      for(let sheetRow=candidate.row;sheetRow<=last;sheetRow++){
+        const row=rows[sheetRow-1]||[];
+        if(!row.slice(0,14).some(v=>String(v??'').trim()))continue;
+        const date=ccGoogleSyncNormDate(row[0]);
+        const balanceText=String(balances[sheetRow-1]?.[0]??'').trim();
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!balanceText)
+          throw Error('Có tiêu đề/tổng cộng hoặc thiếu số dư tại hàng '+
+            sheetRow+'; chặn sửa giá trị tĩnh.');
+        relevant.push({sheetRow,row,balanceText});
+      }
+      if(!relevant.length||relevant[0].sheetRow!==candidate.row)
+        throw Error('Không xác định được dãy số dư tĩnh bắt đầu tại dòng sửa.');
+      let prevRow=candidate.row-2;
+      while(prevRow>=0&&!String(rows[prevRow]?.[13]??'').trim())prevRow--;
+      if(prevRow<0||!Number.isFinite(ccGoogleSyncMoney(rows[prevRow][13])))
+        throw Error('Không xác minh được số dư ngay trước dòng sửa.');
+      let running=ccGoogleSyncMoney(rows[prevRow][13]);
+      for(const entry of relevant){
+        const amounts=entry.row.slice(6,13).map(ccGoogleSyncMoney);
+        if(amounts.length!==7||amounts.some(n=>!Number.isFinite(n)))
+          throw Error('Số tiền không hợp lệ tại hàng '+entry.sheetRow);
+        const oldBalance=ccGoogleSyncMoney(entry.row[13]);
+        const expected=running+amounts[0]-amounts.slice(1).reduce((a,b)=>a+b,0);
+        if(!Number.isFinite(oldBalance)||Math.abs(expected-oldBalance)>0.005)
+          throw Error('Số dư cũ không khớp tại hàng '+entry.sheetRow+'. Chưa sửa.');
+        running=oldBalance;
+        staticBalances.push({sheetRow:entry.sheetRow,
+          amount:Math.round((oldBalance+delta)*1e6)/1e6});
+      }
+    }
+    if(!confirm('XÁC NHẬN SỬA CHỈ TRÊN GOOGLE SHEETS TEST: PHU HUNG!K'+candidate.row+
+      '\\nLương Trung Quốc 27/10/2026\\n350.945.181,3 → 350.945.181 VND'+
+      '\\nSao lưu nguyên tab trước khi sửa. '+(allStatic?
+        'Sẽ cập nhật ô tiền và '+staticBalances.length+' số dư cộng dồn qua các tháng liên quan.':
+        (noBalances?'Chỉ sửa ô tiền; cột N hiện không có số dư hoặc công thức phía sau.':
+        'Chỉ sửa ô tiền, cột số dư có công thức sẽ tự tính lại.'))+
+      '\\nKhông sửa Firebase hay Google Sheets gốc. Tiếp tục?'))return;
+    // Backup the whole historical tab BEFORE any amount mutation.
+    const backupName='BACKUP_PHU_HUNG_'+new Date().toISOString().replace(/[-:TZ.]/g,'').slice(0,14);
+    await ccGoogleSyncApi(':batchUpdate',{method:'POST',body:{requests:[{
+      duplicateSheet:{sourceSheetId:sheet.properties.sheetId,insertSheetIndex:meta.sheets.length,
+        newSheetName:backupName}
+    }]}});
+    // Recheck the precise cell immediately after creating the backup.
+    const before=await ccGoogleSyncApi('/values/'+encodeURIComponent(
+      "'PHU HUNG'!K"+candidate.row)+
+      '?valueRenderOption=UNFORMATTED_VALUE');
+    if(ccGoogleSyncMoneyKey(before.values?.[0]?.[0])!=='350945181.3')
+      throw Error('Giá trị vừa thay đổi: đã sao lưu nhưng chưa sửa.');
+    const data=[{range:"'PHU HUNG'!K"+candidate.row,values:[[candidate.newValue]]}];
+    if(allStatic)data.push(...staticBalances.map(x=>({
+      range:"'PHU HUNG'!N"+x.sheetRow,values:[[x.amount]]
+    })));
+    await ccGoogleSyncApi('/values:batchUpdate',{method:'POST',body:{
+      valueInputOption:'RAW',data
+    }});
+    const after=await ccGoogleSyncApi('/values/'+encodeURIComponent(
+      "'PHU HUNG'!K"+candidate.row+":N"+last)+
+      '?valueRenderOption=UNFORMATTED_VALUE');
+    if(ccGoogleSyncMoneyKey(after.values?.[0]?.[0])!=='350945181')
+      throw Error('Đã gửi lệnh sửa nhưng đọc lại chưa đúng. Kiểm tra bản sao lưu '+backupName);
+    if(allStatic && staticBalances.some(x=>
+        ccGoogleSyncMoneyKey(after.values?.[x.sheetRow-candidate.row]?.[3])!==
+        ccGoogleSyncMoneyKey(x.amount)))
+      throw Error('Chưa xác minh được toàn bộ số dư đã sửa. Bản sao lưu: '+backupName);
+    const checked=await ccGoogleSyncAuditLegacy('2026-10',source);
+    if(!checked.exact||checked.matchedSourceIds.length!==30)
+      throw Error('Đã sửa ô tiền nhưng đối chiếu còn khác. Kiểm tra thủ công, bản sao lưu '+backupName);
+    ccGoogleSyncPlan=null;
+    ccGoogleSyncStatus('ĐÃ XÁC MINH: 30/30 khớp trong Google Sheets TEST. Đã cập nhật K'+candidate.row+
+      ' từ 350.945.181,3 thành 350.945.181 VND; '+
+      (allStatic?'đã điều chỉnh '+staticBalances.length+' số dư tĩnh liên quan.':
+       noBalances?'không có dữ liệu số dư cột N cần sửa.':'số dư công thức tự tính lại.')+
+      ' Sao lưu: '+backupName+'. Firebase và file Google gốc không đổi.');
+    ccGoogleSyncRenderAudit(checked,'2026-10');
+  }finally{
+    ccGoogleSyncWriteInFlight=false;
+    if(button)button.disabled=true;
+  }
+}
+async function ccGoogleSyncCommitPilot(){
+  if(ccGoogleSyncWriteInFlight)throw Error('Đang có lượt ghi khác, đã chặn thao tác đồng thời.');
+  ccGoogleSyncWriteInFlight=true;
+  try{
+  if(!currentAuthUser||!isCashControlOwner())throw Error('Chỉ Admin Cash Control.');
+  if(!ccGoogleSyncPlan||!ccGoogleSyncPlan.changes.length||ccGoogleSyncPlan.blocked.length)
+    throw Error('Chưa có bản so sánh sạch.');
+  if(Date.now()-ccGoogleSyncPlan.created>120000)throw Error('Bản so sánh quá 2 phút. So sánh lại.');
+  const selected=ccGoogleSyncSelectedProjects();
+  const month=$('ccGoogleSyncMonth')?.value||'';
+  if(selected.length!==1||selected[0]!=='PHU HUNG'||month!==ccGoogleSyncPlan.month)
+    throw Error('Dự án/tháng đã thay đổi. So sánh lại.');
+  // Re-evaluate live source + destination immediately before writing.
+  if(!CC_SYNC_DEMO_ALLOWED)ccGoogleSyncRequireFreshLiveSource();
+  const oldPlan=ccGoogleSyncPlan;
+  const check=await ccGoogleSyncComparePilot(true);
+  if(check.blocked.length)throw Error('Dữ liệu thay đổi hoặc có xung đột; dừng.');
+  const signature=p=>JSON.stringify(p.changes.map(x=>[x.id,x.hash,x.op,x.sheetRow]));
+  if(signature(check)!==signature(oldPlan) || check.sourceCount!==oldPlan.sourceCount ||
+      check.remoteExists!==oldPlan.remoteExists)
+    throw Error('Dữ liệu vừa thay đổi, cần xác nhận lại.');
+  if(!confirm('CHỈ GHI VÀO PHU HUNG TEST / '+CC_SYNC_PILOT_TAB+': '+
+    check.changes.length+' giao dịch. Tab PHU HUNG lịch sử không bị sửa. Tiếp tục?'))return;
+  $('ccGoogleSyncCommit').disabled=true;
+  const changes=check.changes;
+  const sheetName="'"+CC_SYNC_PILOT_TAB+"'";
+  if(!check.remoteExists){
+    await ccGoogleSyncApi(':batchUpdate',{method:'POST',body:{
+      requests:[{addSheet:{properties:{title:CC_SYNC_PILOT_TAB}}}]
+    }});
+    await ccGoogleSyncApi('/values/'+encodeURIComponent(sheetName+'!A1:S1')+
+      '?valueInputOption=RAW',{method:'PUT',body:{values:[CC_SYNC_HEADER]}});
+  }
+  const pack=r=>[r.id,r.project,r.month,...r.values,'',r.hash,'synced'];
+  const updates=changes.filter(r=>r.op==='update');
+  const additions=changes.filter(r=>r.op==='new');
+  if(updates.length){
+    await ccGoogleSyncApi('/values:batchUpdate',{method:'POST',body:{
+      valueInputOption:'RAW',data:updates.map(r=>({
+        range:sheetName+'!A'+r.sheetRow+':S'+r.sheetRow,values:[pack(r)]
+      }))
+    }});
+  }
+  if(additions.length){
+    await ccGoogleSyncApi('/values/'+encodeURIComponent(sheetName+'!A:S')+
+      ':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS',{
+      method:'POST',body:{values:additions.map(pack)}
+    });
+  }
+  // Trust only data read back from Google, never a successful HTTP write alone.
+  // This does not touch Firestore.
+  const verified=await ccGoogleSyncReadSheet();
+  const verifiedById=new Map(verified.rows.map(row=>[String(row[0]),row]));
+  for(const entry of changes){
+    const candidate=verifiedById.get(entry.id);
+    if(!candidate ||
+       String(candidate[1]||'')!==entry.project ||
+       String(candidate[2]||'')!==entry.month ||
+       String(candidate[17]||'')!==entry.hash ||
+       await ccGoogleSyncSha(ccGoogleSyncPayloadCells(candidate.slice(3,16)))!==entry.hash){
+      throw Error('Đã gửi lệnh ghi nhưng không xác minh được dòng '+entry.id+
+        '. Không bấm ghi lại ngay; bấm So sánh để kiểm tra trạng thái.');
+    }
+  }
+  ccGoogleSyncPlan=null;
+  ccGoogleSyncStatus('ĐÃ XÁC MINH Google Sheets TEST / '+CC_SYNC_PILOT_TAB+': '+additions.length+' dòng mới, '+
+    updates.length+' dòng cập nhật. Đã đọc lại '+verified.rows.length+' dòng ở tab đích. Không sửa tab PHU HUNG lịch sử.');
+  }finally{
+    ccGoogleSyncWriteInFlight=false;
+  }
+}
+function ccGoogleSyncInitializeGooglePilot(){
+  const oauth=$('ccGoogleSyncOAuthClient');
+  if(!oauth)return;
+  const demoToggle=$('ccGoogleSyncDemoToggle'),demoChange=$('ccGoogleSyncDemoChange'),demoAdd=$('ccGoogleSyncDemoAdd');
+  if(CC_SYNC_DEMO_ALLOWED){
+    demoToggle.hidden=false;
+    demoToggle.addEventListener('click',()=>{
+      ccGoogleSyncDemoActive=!ccGoogleSyncDemoActive;
+      if(ccGoogleSyncDemoActive)ccGoogleSyncImportedRows=null;
+      CC_SYNC_PILOT_TAB=ccGoogleSyncDemoActive?ccGoogleSyncDemoTab:'DATA_CASHCONTROL';
+      ccGoogleSyncDemoEdited=false;ccGoogleSyncDemoAdded=false;ccGoogleSyncPlan=null;
+      demoChange.disabled=false;demoChange.textContent='Sửa số tiền giả';
+      demoAdd.disabled=false;demoAdd.textContent='Thêm giao dịch giả thứ 3';
+      $('ccGoogleSyncCommit').disabled=true;
+      $('ccGoogleSyncMonth').value=ccGoogleSyncDemoActive?'2026-11':'2026-10';
+      demoToggle.textContent=ccGoogleSyncDemoActive?'Thoát chế độ DEMO':'Thử 2 giao dịch giả';
+      demoChange.hidden=!ccGoogleSyncDemoActive;
+      demoAdd.hidden=!ccGoogleSyncDemoActive;
+      ccGoogleSyncStatus(ccGoogleSyncDemoActive?
+        'DEMO ĐANG BẬT: 2 giao dịch giả chỉ tồn tại trong bộ nhớ. Đích: DATA_CASHCONTROL_DEMO. Bấm So sánh trước khi ghi.':
+        'Đã thoát DEMO. Không có dữ liệu thật trên staging; chặn ghi nếu thiếu nguồn.');
+    });
+    demoChange.addEventListener('click',()=>{
+      if(!ccGoogleSyncDemoActive)return;
+      // One-way edit: a second click must never silently undo the demonstration.
+      ccGoogleSyncDemoEdited=true;
+      demoChange.disabled=true;
+      demoChange.textContent='Đã sửa: 567.890 → 765.432';
+      ccGoogleSyncPlan=null;$('ccGoogleSyncCommit').disabled=true;
+      ccGoogleSyncStatus('DEMO: Giao dịch DEMO-PHU-HUNG-002 đã đổi số tiền từ 567.890 thành 765.432. Bấm So sánh bản TEST; dự kiến 1 sửa, 1 không đổi nếu 2 dòng đã ghi thành công.');
+    });
+    demoAdd.addEventListener('click',()=>{
+      if(!ccGoogleSyncDemoActive||ccGoogleSyncDemoAdded)return;
+      // The existing second DEMO row has already been updated in the preceding edit test.
+      // Keep the edited sample value, and add only a new, uniquely identified row.
+      ccGoogleSyncDemoEdited=true;ccGoogleSyncDemoAdded=true;
+      demoAdd.disabled=true;demoAdd.textContent='Đã thêm giao dịch giả thứ 3';
+      demoChange.disabled=true;demoChange.textContent='Đã sửa: 567.890 → 765.432';
+      ccGoogleSyncPlan=null;$('ccGoogleSyncCommit').disabled=true;
+      ccGoogleSyncStatus('DEMO: thêm DEMO-PHU-HUNG-003 (345.678 VND) trong bộ nhớ; đích duy nhất DATA_CASHCONTROL_DEMO. Bấm So sánh dữ liệu, dự kiến 1 mới và 2 không đổi nếu DEMO-002 đã lưu 765.432.');
+    });
+  }
+  const directSyncButton=$('ccGoogleSyncDirectSync');
+  directSyncButton?.addEventListener('click',async()=>{
+    directSyncButton.disabled=true;
+    try{await ccGoogleSyncDirectSyncTest()}
+    catch(error){ccGoogleSyncStatus('DỪNG ĐỒNG BỘ TEST: '+error.message)}
+    finally{directSyncButton.disabled=false}
+  });
+  const computedLedgerButton=$('ccGoogleSyncBuildLedger');
+  computedLedgerButton?.addEventListener('click',async()=>{
+    computedLedgerButton.disabled=true;
+    try{await ccGoogleSyncCreateComputedLedgerTest()}
+    catch(error){ccGoogleSyncStatus('CHƯA HOÀN TẤT SỔ TỰ TÍNH TEST: '+error.message)}
+    finally{computedLedgerButton.disabled=false}
+  });
+  const balanceAuditButton=$('ccGoogleSyncBalanceAudit');
+  balanceAuditButton?.addEventListener('click',async()=>{
+    if(ccGoogleSyncWriteInFlight){ccGoogleSyncStatus('Đang ghi TEST; không kiểm tra số dư đồng thời.');return}
+    balanceAuditButton.disabled=true;
+    try{
+      ccGoogleSyncStatus('Đang kiểm tra số dư cột N từ Google Sheets TEST (chỉ đọc)…');
+      const audit=await ccGoogleSyncAuditRunningBalances();
+      ccGoogleSyncStatus('SỔ PHU HUNG TEST — CHỈ ĐỌC: '+audit.checked+' cặp giao dịch liên tiếp cùng tháng đã kiểm tra, '+
+        audit.mismatches.length+' số dư lệch; '+audit.monthBoundaries.length+
+        ' điểm chuyển tháng (không kết luận liên tục); '+audit.unverified.length+
+        ' đoạn bất thường chưa xác minh; '+audit.formulaCount+' ô số dư có công thức. '+
+        (audit.monthBoundaries.length?'Đầu kỳ có công thức: '+audit.monthBoundaries.filter(x=>x.firstBalanceFormula).length+
+          '/'+audit.monthBoundaries.length+'. Tham chiếu trực tiếp số dư giao dịch cuối kỳ trước: '+
+          audit.monthBoundaries.filter(x=>x.referencesPriorBalance).length+'/'+audit.monthBoundaries.length+
+          '. Số dư đầu tháng khớp phép tính nối kỳ: '+audit.monthBoundaries.filter(x=>x.continuityMatches).length+
+          '/'+audit.monthBoundaries.length+' (chỉ là đối chiếu số học, chưa xác nhận nghiệp vụ kết chuyển). '+
+          'Ví dụ: '+audit.monthBoundaries.slice(0,4).map(x=>'N'+x.row+
+            (x.referencesPriorBalance?' có':' không có')+' tham chiếu N'+x.priorBalanceRow+
+            (x.continuityMatches?', số học khớp':', số học khác')).join('; ')+'. ':'')+
+        (audit.mismatches.length?'Ví dụ lệch: '+audit.mismatches.slice(0,3).map(x=>'N'+x.row+' dự kiến '+x.expected+' nhưng Google '+x.actual).join('; ')+'. ':'')+
+        (audit.unverified.length?'Ví dụ chưa xác minh: '+audit.unverified.slice(0,3).map(x=>'hàng '+x.row+' ('+x.reason+')').join('; ')+'. ':'')+
+        'Kiểm tra tham chiếu công thức (chỉ kiểm tra cấu trúc): '+audit.formulaRowsChecked+
+        ' dòng giao dịch có công thức; '+audit.formulaPriorReferences+' tham chiếu N dòng ngay trước; '+
+        audit.formulaSelfIncomeReferences+' tham chiếu G cùng dòng; '+audit.formulaExpenseReferences+
+        ' tham chiếu nhóm H:M cùng dòng. '+
+        (audit.openingFormulaRow?'Dòng giao dịch mở đầu N'+audit.openingFormulaRow+
+          ' được xử lý riêng, không bắt buộc tham chiếu giao dịch trước. ':'')+
+        (audit.formulaReview.length?'Cần xem lại ví dụ: '+audit.formulaReview.slice(0,4).map(x=>
+          'N'+x.row+' ('+x.reason+')').join('; ')+'. ':'')+
+        'Không ghi dữ liệu. Kết quả này không chứng nhận đủ điều kiện ghi sổ.');
+    }catch(error){ccGoogleSyncStatus('CHƯA KIỂM TRA ĐƯỢC SỐ DƯ: '+error.message)}
+    finally{balanceAuditButton.disabled=false}
+  });
+  const sourceExport=$('ccGoogleSyncSourceExport');
+  const sourceImport=$('ccGoogleSyncSourceImport');
+  const sourceFile=$('ccGoogleSyncSourceFile');
+  if(firebaseConfig.projectId!=='cash-control-staging'){
+    sourceExport.hidden=false;
+    sourceExport.addEventListener('click',async()=>{
+      try{await ccGoogleSyncExportSource()}catch(error){ccGoogleSyncStatus('Chưa xuất nguồn: '+error.message)}
+    });
+  }
+  if(CC_SYNC_DEMO_ALLOWED){
+    sourceImport.hidden=false;
+    sourceImport.addEventListener('click',()=>sourceFile.click());
+    sourceFile.addEventListener('change',async()=>{
+      const selected=sourceFile.files?.[0];
+      sourceFile.value='';
+      if(!selected)return;
+      try{await ccGoogleSyncImportSource(selected)}catch(error){
+        ccGoogleSyncImportedRows=null;ccGoogleSyncPlan=null;
+        $('ccGoogleSyncCommit').disabled=true;
+        ccGoogleSyncStatus('Không nạp nguồn: '+error.message);
+      }
+    });
+  }
+  oauth.value=localStorage.getItem('cashGoogleSheetsOAuthClientId')||CC_SYNC_OAUTH_CLIENT_ID;
+  $('ccGoogleSyncAuthorize')?.addEventListener('click',async()=>{
+    try{await ccGoogleSyncAuth()}catch(error){ccGoogleSyncStatus('Lỗi kết nối: '+error.message)}
+  });
+  $('ccGoogleSyncLoadSource')?.addEventListener('click',async()=>{
+    if(!currentAuthUser||!isCashControlOwner()){
+      ccGoogleSyncStatus('Chỉ Admin được làm mới dữ liệu nguồn.');
+      return;
+    }
+    if(CC_SYNC_DEMO_ALLOWED){
+      ccGoogleSyncStatus('Preview staging không đọc Firebase thật. Hãy nhập file nguồn JSON đã xác minh.');
+      return;
+    }
+    const selected=ccGoogleSyncSelectedProjects();
+    if(selected.length!==1||selected[0]!=='PHU HUNG'){
+      ccGoogleSyncStatus('Chỉ chọn PHU HUNG cho bản thử này.');
+      return;
+    }
+    if(ccGoogleSyncWriteInFlight){
+      ccGoogleSyncStatus('Đang có thao tác ghi Google Sheets. Không làm mới nguồn đồng thời.');
+      return;
+    }
+    if(!confirm('Làm mới Payment PHU HUNG từ Firestore đúng 1 lần? Có phát sinh reads. Không tự quét liên tục, không ghi Firebase.'))return;
+    const button=$('ccGoogleSyncLoadSource');
+    button.disabled=true;
+    ccGoogleSyncLiveSourceRefreshedAt=0;
+    ccGoogleSyncPlan=null;
+    $('ccGoogleSyncCommit').disabled=true;
+    try{
+      // force:true is critical: an existing project cache may predate Staff edits.
+      const ok=await loadProjectPayments('PHU HUNG',{force:true,quiet:true,refresh:true});
+      if(ok&&paymentMonths.has('PHU HUNG')){
+        ccGoogleSyncLiveSourceRefreshedAt=Date.now();
+        ccGoogleSyncStatus('ĐÃ LÀM MỚI nguồn PHU HUNG một lần. Không tự đọc tiếp. Có thể so sánh và cập nhật tab TEST trong 15 phút.');
+      }else ccGoogleSyncStatus('Không xác minh được nguồn PHU HUNG mới. Chặn ghi Google Sheets.');
+    }catch(error){
+      ccGoogleSyncStatus('Làm mới nguồn thất bại, chặn ghi: '+error.message);
+    }finally{button.disabled=false}
+  });
+  $('ccGoogleSyncCompare')?.addEventListener('click',async()=>{
+    try{await ccGoogleSyncComparePilot()}catch(error){
+      ccGoogleSyncPlan=null;$('ccGoogleSyncCommit').disabled=true;
+      ccGoogleSyncStatus('Không thể so sánh: '+error.message);
+    }
+  });
+  $('ccGoogleSyncCorrectLegacy')?.addEventListener('click',async()=>{
+    try{await ccGoogleSyncCorrectLegacyTest()}catch(error){
+      ccGoogleSyncStatus('CHƯA HOÀN TẤT SỬA SỔ TEST: '+error.message);
+    }
+  });
+  $('ccGoogleSyncCommit')?.addEventListener('click',async()=>{
+    try{await ccGoogleSyncCommitPilot()}catch(error){
+      ccGoogleSyncPlan=null;$('ccGoogleSyncCommit').disabled=true;
+      ccGoogleSyncStatus('Dừng ghi TEST: '+error.message);
+    }
+  });
+}
+
+function ccGoogleSyncInitializePreview(){
+  const button=$('ccGoogleSyncPreviewOpen');
+  if(!button)return;
+  button.addEventListener('click',()=>{
+    if(!currentAuthUser||!isCashControlOwner()){
+      alert('Chỉ Admin Cash Control được xem công cụ đồng bộ.');return;
+    }
+    $('ccGoogleSyncMonth').value=ccGoogleSyncDemoActive?'2026-11':($('rMonth')?.value||CURRENT);
+    ccGoogleSyncBuildSelector();
+    $('ccGoogleSyncPreviewResult').textContent='Chưa kiểm tra. Không có dữ liệu nào được gửi đi.';
+    openModal('ccGoogleSyncPreviewModal');
+  });
+  $('ccGoogleSyncInspect')?.addEventListener('click',ccGoogleSyncInspectOnly);
+}
+ccGoogleSyncInitializePreview();
+ccGoogleSyncInitializeGooglePilot();
 
 function exportLegacyCashFlowMerged(monthList,selectedProject){
     const wb=XLSX.utils.book_new();
