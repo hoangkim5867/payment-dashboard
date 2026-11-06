@@ -1029,3 +1029,32 @@ test('retry after VIEW failure preserves mirror exactly once and recovers',async
   assert.equal(f.state.postCalls,afterFailedView,'retry must not rewrite unchanged mirror rows');
   assert.equal(f.context.viewAttempts,2,'retry resumes the failed VIEW step');
 });
+
+test('fourth isolated DEMO row is a new transaction, edited once and repeat-safe',async()=>{
+  const f=fixture({demo:true});
+  vm.runInContext('ccGoogleSyncDemoEdited=true;ccGoogleSyncDemoAdded=true;',f.context);
+  await f.api.compare();await f.api.commit();
+  assert.equal(f.state.rows.length,3);
+  vm.runInContext('ccGoogleSyncDemoFourth=true;',f.context);
+  let plan=await f.api.compare();
+  assert.equal(plan.changes.length,1);
+  assert.equal(plan.changes[0].id,'DEMO-PHU-HUNG-004');
+  assert.equal(plan.blocked.length,0);
+  assert.equal(plan.changes[0].values[10],321000);
+  await f.api.commit();
+  assert.equal(f.state.rows.length,4);
+  plan=await f.api.compare();
+  assert.equal(plan.changes.length,0);
+  vm.runInContext('ccGoogleSyncDemoFourthEdited=true;',f.context);
+  plan=await f.api.compare();
+  assert.equal(plan.changes.length,1);
+  assert.equal(plan.changes[0].op,'update');
+  assert.equal(plan.changes[0].values[10],432100);
+  await f.api.commit();
+  assert.equal(f.state.rows.length,4);
+  assert.equal(f.state.rows.find(x=>x[0]==='DEMO-PHU-HUNG-004')[13],432100);
+  plan=await f.api.compare();
+  assert.equal(plan.changes.length,0);
+  assert.equal(f.state.rows.length,4);
+  assert.equal(f.state.legacyValues.length,0,'historical PHU HUNG unaffected');
+});
