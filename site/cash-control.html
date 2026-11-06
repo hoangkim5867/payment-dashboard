@@ -1449,6 +1449,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button type="button" class="btn" id="ccGoogleSyncInspect">Kiểm tra dữ liệu hiện có</button>
         <button type="button" class="btn" id="ccGoogleSyncBalanceAudit">Kiểm tra số dư PHU HUNG (chỉ đọc)</button>
+        <button type="button" class="btn primary" id="ccGoogleSyncDirectSync">Đối chiếu và cập nhật PHU HUNG TEST</button>
         <button type="button" class="btn" id="ccGoogleSyncBuildLedger">Tạo/cập nhật sổ tổng hợp TEST (1 tab)</button>
         <small style="display:block;color:#64748b;width:100%">Sổ tổng hợp cố định PHU_HUNG_VIEW_TEST được cập nhật lại sau khi đối chiếu; PHU HUNG lịch sử không bị sửa.</small>
         <button class="btn" type="button" id="ccGoogleSyncDemoToggle" hidden>Thử 2 giao dịch giả</button>
@@ -6166,6 +6167,55 @@ async function ccGoogleSyncCreateComputedLedgerTest(){
   }finally{ccGoogleSyncWriteInFlight=false}
 }
 
+
+/* Admin-initiated, one-shot TEST update. This is deliberately NOT a background
+ * listener: production reads one PHU HUNG project only after approval.
+ * Staging uses an already-imported snapshot and never reads production Firebase.
+ * Existing historical transactions are matched before the derived view changes.
+ */
+async function ccGoogleSyncDirectSyncTest(){
+  if(!currentAuthUser||!isCashControlOwner())throw Error('Chỉ Admin được đồng bộ.');
+  if(ccGoogleSyncWriteInFlight)throw Error('Đang có lượt ghi khác.');
+  if(ccGoogleSyncDemoActive||CC_SYNC_PILOT_TAB!=='DATA_CASHCONTROL')
+    throw Error('Hãy thoát DEMO trước khi đồng bộ dữ liệu.');
+  if(!ccGoogleSyncToken)throw Error('Bấm Kết nối Google trước.');
+  const currentMonth=$('ccGoogleSyncMonth')?.value||'';
+  if(currentMonth<'2026-10'||!/^20\d{2}-(0[1-9]|1[0-2])$/.test(currentMonth))
+    throw Error('Tháng nguồn không hợp lệ.');
+  if(CC_SYNC_DEMO_ALLOWED&&!ccGoogleSyncImportedRows?.has(currentMonth))
+    throw Error('Staging cần bản chụp nguồn đã nhập, không thể đọc Firebase thật.');
+  if(!confirm('ĐỐI CHIẾU VÀ CẬP NHẬT PHU HUNG TEST tháng '+currentMonth+
+      '? Chỉ thao tác theo yêu cầu Admin. Bản thật và sổ PHU HUNG lịch sử không bị sửa. '+
+      (CC_SYNC_DEMO_ALLOWED?'Nguồn JSON đã nhập.':'Một lượt làm mới PHU HUNG sẽ phát sinh Firestore reads.')))
+    return 'cancelled';
+  ccGoogleSyncPlan=null;
+  $('ccGoogleSyncCommit').disabled=true;
+  if(!CC_SYNC_DEMO_ALLOWED){
+    ccGoogleSyncLiveSourceRefreshedAt=0;
+    const ok=await loadProjectPayments('PHU HUNG',{force:true,quiet:true,refresh:true});
+    if(!ok||!paymentMonths.has('PHU HUNG'))throw Error('Không lấy đủ nguồn PHU HUNG; không ghi.');
+    ccGoogleSyncLiveSourceRefreshedAt=Date.now();
+  }
+  // Verify both the baseline month and the selected month before rebuilding.
+  // This comparison is read-only; a mismatch blocks all downstream writes.
+  const monthControl=$('ccGoogleSyncMonth');
+  try{
+    const months=[...new Set(['2026-10',currentMonth])];
+    for(const month of months){
+      monthControl.value=month;
+      const diff=await ccGoogleSyncComparePilot(true);
+      if(diff.blocked.length)
+        throw Error('Tháng '+month+' có '+diff.blocked.length+' xung đột; không cập nhật VIEW.');
+      // Never automatically append to the mirror: the derived view safely
+      // reconciles the source with history and carries stable source IDs.
+    }
+  }finally{monthControl.value=currentMonth}
+  ccGoogleSyncPlan=null;
+  $('ccGoogleSyncCommit').disabled=true;
+  await ccGoogleSyncCreateComputedLedgerTest();
+  return 'verified';
+}
+
 async function ccGoogleSyncAuditLegacy(month,source){
   if(ccGoogleSyncDemoActive){
     if(!CC_SYNC_DEMO_ALLOWED||CC_SYNC_PILOT_TAB!==ccGoogleSyncDemoTab)throw Error('Demo tab mismatch');
@@ -6666,6 +6716,13 @@ function ccGoogleSyncInitializeGooglePilot(){
       ccGoogleSyncStatus('DEMO: thêm DEMO-PHU-HUNG-003 (345.678 VND) trong bộ nhớ; đích duy nhất DATA_CASHCONTROL_DEMO. Bấm So sánh dữ liệu, dự kiến 1 mới và 2 không đổi nếu DEMO-002 đã lưu 765.432.');
     });
   }
+  const directSyncButton=$('ccGoogleSyncDirectSync');
+  directSyncButton?.addEventListener('click',async()=>{
+    directSyncButton.disabled=true;
+    try{await ccGoogleSyncDirectSyncTest()}
+    catch(error){ccGoogleSyncStatus('DỪNG ĐỒNG BỘ TEST: '+error.message)}
+    finally{directSyncButton.disabled=false}
+  });
   const computedLedgerButton=$('ccGoogleSyncBuildLedger');
   computedLedgerButton?.addEventListener('click',async()=>{
     computedLedgerButton.disabled=true;
