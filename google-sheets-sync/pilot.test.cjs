@@ -771,7 +771,7 @@ test('fixed TEST view checks the confirmed snapshot again immediately before wri
   assert.ok(fnStart>=0&&fnEnd>fnStart,'stable-view write function is present');
   const fn=pilot.slice(fnStart,fnEnd);
   const checkpoint=fn.indexOf('confirmedViewSignature=second.signature;');
-  const finalRead=fn.indexOf('const latest=await ccGoogleSyncReadStableView();');
+  const finalRead=fn.indexOf('const latest=await ccGoogleSyncReadStableView(title);');
   const finalGuard=fn.indexOf('latest.signature!==confirmedViewSignature');
   const write=fn.indexOf("await ccGoogleSyncApi(':batchUpdate',{method:'POST',body:{requests:[request]}});");
   assert.ok(checkpoint>=0&&checkpoint<finalRead,'record confirmed snapshot');
