@@ -1422,6 +1422,8 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <button class="btn" type="button" id="ccGoogleSyncSourceExport" hidden>Xuất nguồn PHU HUNG (JSON)</button>
         <button class="btn" type="button" id="ccGoogleSyncStagingNew" hidden>TEST: thêm giao dịch tháng 11 (321.000đ)</button>
         <button class="btn" type="button" id="ccGoogleSyncStagingEdit" hidden>TEST: sửa giao dịch tháng 11 (432.100đ)</button>
+        <button class="btn" type="button" id="ccGoogleSyncAutoToggle" hidden>Bật tự đồng bộ TEST khi nguồn đổi</button>
+        <small id="ccGoogleSyncAutoStatus" style="color:#64748b;width:100%" hidden>Tắt · Không chạy ngầm khi đóng trang</small>
       </div>
       <small style="display:block;margin-top:6px;color:#64748b">Dữ liệu nhập chỉ ở bộ nhớ bản TEST. Không tải thêm Firestore tự động khi đối chiếu.</small>
     </div>
@@ -5445,6 +5447,51 @@ function ccGoogleSyncRequireFreshLiveSource(){
 // An imported production snapshot is in-memory only, admin-controlled and
 // never used for writes to Firestore. No file content is persisted to storage.
 let ccGoogleSyncImportedRows=null;
+// Explicit, per-page staging-only autopilot. No extra Firestore listener, query,
+// interval, credential persistence or production write. Queued source changes
+// use the already imported JSON; a single-flight guard coalesces repeated edits.
+let ccGoogleSyncAutoEnabled=false,ccGoogleSyncAutoBusy=false;
+let ccGoogleSyncAutoPending=false,ccGoogleSyncAutoLastSignature='';
+const ccGoogleSyncAutoStatus=message=>{
+  const el=$('ccGoogleSyncAutoStatus');if(el)el.textContent=message;
+};
+async function ccGoogleSyncAutoSourceChanged(){
+  if(!CC_SYNC_DEMO_ALLOWED||!ccGoogleSyncAutoEnabled)return;
+  ccGoogleSyncAutoPending=true;
+  if(ccGoogleSyncAutoBusy)return;
+  ccGoogleSyncAutoBusy=true;
+  try{
+    while(ccGoogleSyncAutoPending&&ccGoogleSyncAutoEnabled){
+      ccGoogleSyncAutoPending=false;
+      if(ccGoogleSyncDemoActive||CC_SYNC_PILOT_TAB!=='DATA_CASHCONTROL'||
+         !ccGoogleSyncImportedRows?.has('2026-10')||
+         !ccGoogleSyncImportedRows?.has('2026-11'))
+        throw Error('Nguồn TEST chưa đầy đủ hoặc đang bật DEMO.');
+      if(!ccGoogleSyncToken)throw Error('Google hết quyền tạm thời; kết nối lại rồi bật tự đồng bộ.');
+      const signature=JSON.stringify([...ccGoogleSyncImportedRows.entries()]
+        .sort((a,b)=>a[0].localeCompare(b[0]))
+        .map(([month,rows])=>[month,rows.map(row=>[row.id,row.hash])]));
+      if(signature===ccGoogleSyncAutoLastSignature){
+        ccGoogleSyncAutoStatus('ĐÃ KHỚP SẴN: nguồn không đổi; không gọi Google, không đọc Firebase.');
+        continue;
+      }
+      const monthControl=$('ccGoogleSyncMonth'),previous=monthControl.value;
+      try{
+        monthControl.value='2026-11';
+        ccGoogleSyncAutoStatus('Đang đối chiếu thay đổi nguồn TEST, không đọc Firebase…');
+        const outcome=await ccGoogleSyncDirectSyncTest({automatic:true});
+        if(outcome!=='verified')throw Error('Chưa xác nhận đồng bộ thành công.');
+        ccGoogleSyncAutoLastSignature=signature;
+        ccGoogleSyncAutoStatus('ĐÃ TỰ ĐỒNG BỘ VÀ ĐỌC LẠI GOOGLE TEST · 0 Firestore reads phát sinh từ thao tác này.');
+      }finally{monthControl.value=previous}
+    }
+  }catch(error){
+    ccGoogleSyncAutoEnabled=false;
+    const toggle=$('ccGoogleSyncAutoToggle');
+    if(toggle)toggle.textContent='Bật tự đồng bộ TEST khi nguồn đổi';
+    ccGoogleSyncAutoStatus('ĐÃ DỪNG TỰ ĐỒNG BỘ (không ghi tiếp): '+error.message);
+  }finally{ccGoogleSyncAutoBusy=false}
+}
 const CC_SYNC_STAGING_TEST_ID='PHU HUNG:STAGING-NOV-TEST-20261106';
 async function ccGoogleSyncStagingTransaction(edited=false){
   if(!CC_SYNC_DEMO_ALLOWED||ccGoogleSyncDemoActive||
@@ -5475,6 +5522,7 @@ async function ccGoogleSyncStagingTransaction(edited=false){
     'đ, giữ nguyên ID '+CC_SYNC_STAGING_TEST_ID+
     '. Chưa ghi Google; không sửa nguồn JSON gốc hay Firebase. '+
     'Dùng Đối chiếu và cập nhật PHU HUNG TEST để kiểm thử tích hợp.');
+  if(ccGoogleSyncAutoEnabled)void ccGoogleSyncAutoSourceChanged();
 }
 const CC_SYNC_SOURCE_SNAPSHOT_SCHEMA='PHU_HUNG_CASH_SOURCE_V1';
 async function ccGoogleSyncExportSource(){
@@ -5538,6 +5586,10 @@ async function ccGoogleSyncImportSource(file){
   }
   if(loaded.size!==2)throw Error('Thiếu tháng trong bản chụp.');
   ccGoogleSyncImportedRows=loaded;
+  ccGoogleSyncAutoEnabled=false;
+  ccGoogleSyncAutoLastSignature='';
+  if($('ccGoogleSyncAutoToggle'))$('ccGoogleSyncAutoToggle').textContent='Bật tự đồng bộ TEST khi nguồn đổi';
+  ccGoogleSyncAutoStatus('Nguồn JSON vừa thay đổi; chế độ tự đồng bộ được tắt để tránh ghi nhầm.');
   if($('ccGoogleSyncStagingNew')){
     $('ccGoogleSyncStagingNew').disabled=loaded.get('2026-11').length!==0;
     $('ccGoogleSyncStagingEdit').disabled=true;
@@ -6109,13 +6161,15 @@ async function ccGoogleSyncReadStableView(title=CC_SYNC_STABLE_VIEW){
 }
 // Update only the derived VIEW, in one atomic updateCells request. The
 // historic PHU HUNG tab, mirror tab and old timestamped views are untouched.
-async function ccGoogleSyncUpdateStableView(meta,plan,title=CC_SYNC_STABLE_VIEW){
+async function ccGoogleSyncUpdateStableView(meta,plan,title=CC_SYNC_STABLE_VIEW,{automatic=false}={}){
   if(title!==CC_SYNC_STABLE_VIEW&&title!==CC_SYNC_DEMO_VIEW)throw Error('Không phải tab TEST được phép.');
   if(title===CC_SYNC_DEMO_VIEW&&(!CC_SYNC_DEMO_ALLOWED||!ccGoogleSyncDemoActive))throw Error('DEMO view chỉ chạy trên staging khi bật DEMO.');
   const match=meta.sheets?.find(x=>x.properties?.title===title);
   let confirmedViewSignature=null;
   if(!match){
-    if(!confirm('TẠO DUY NHẤT TAB '+title+': '+plan.rows.length+
+    if(automatic&&(!CC_SYNC_DEMO_ALLOWED||!ccGoogleSyncAutoEnabled||title!==CC_SYNC_STABLE_VIEW))
+      throw Error('Tự tạo tab chỉ dành cho VIEW TEST trên staging.');
+    if(!automatic&&!confirm('TẠO DUY NHẤT TAB '+title+': '+plan.rows.length+
       ' giao dịch, số dư cuối '+plan.closingBalance.toLocaleString('vi-VN')+
       '. Không sửa PHU HUNG lịch sử. Tiếp tục?'))return 'cancelled';
     await ccGoogleSyncApi(':batchUpdate',{method:'POST',body:{
@@ -6130,7 +6184,9 @@ async function ccGoogleSyncUpdateStableView(meta,plan,title=CC_SYNC_STABLE_VIEW)
         '; không ghi thêm. Số dư cuối '+plan.closingBalance.toLocaleString('vi-VN'));
       return 'unchanged';
     }
-    if(!confirm('CẬP NHẬT TAB TỔNG HỢP TEST HIỆN CÓ: từ '+(old.rowCount-1)+
+    if(automatic&&(!CC_SYNC_DEMO_ALLOWED||!ccGoogleSyncAutoEnabled||title!==CC_SYNC_STABLE_VIEW))
+      throw Error('Tự cập nhật tab chỉ dành cho VIEW TEST trên staging.');
+    if(!automatic&&!confirm('CẬP NHẬT TAB TỔNG HỢP TEST HIỆN CÓ: từ '+(old.rowCount-1)+
       ' lên '+plan.rows.length+' giao dịch. Sổ PHU HUNG lịch sử KHÔNG bị sửa. Tiếp tục?'))
       return 'cancelled';
     const second=await ccGoogleSyncReadStableView(title);
@@ -6210,7 +6266,7 @@ async function ccGoogleSyncCreateDemoComputedLedger(){
     return result;
   }finally{ccGoogleSyncWriteInFlight=false}
 }
-async function ccGoogleSyncCreateComputedLedgerTest(){
+async function ccGoogleSyncCreateComputedLedgerTest({automatic=false}={}){
   if(ccGoogleSyncWriteInFlight)throw Error('Đang có thao tác ghi khác.');
   if(!currentAuthUser||!isCashControlOwner()||ccGoogleSyncDemoActive||
      CC_SYNC_PILOT_TAB!=='DATA_CASHCONTROL')
@@ -6250,7 +6306,7 @@ async function ccGoogleSyncCreateComputedLedgerTest(){
     }
     const plan=await ccGoogleSyncBuildConsolidatedLedger(
       legacy.values||[],formulas.values||[],nextMirror);
-    await ccGoogleSyncUpdateStableView(meta,plan);
+    await ccGoogleSyncUpdateStableView(meta,plan,CC_SYNC_STABLE_VIEW,{automatic});
   }finally{ccGoogleSyncWriteInFlight=false}
 }
 
@@ -6260,7 +6316,7 @@ async function ccGoogleSyncCreateComputedLedgerTest(){
  * Staging uses an already-imported snapshot and never reads production Firebase.
  * Existing historical transactions are matched before the derived view changes.
  */
-async function ccGoogleSyncDirectSyncTest(){
+async function ccGoogleSyncDirectSyncTest({automatic=false}={}){
   if(!currentAuthUser||!isCashControlOwner())throw Error('Chỉ Admin được đồng bộ.');
   if(ccGoogleSyncWriteInFlight)throw Error('Đang có lượt ghi khác.');
   if(ccGoogleSyncDemoActive||CC_SYNC_PILOT_TAB!=='DATA_CASHCONTROL')
@@ -6271,7 +6327,9 @@ async function ccGoogleSyncDirectSyncTest(){
     throw Error('Tháng nguồn không hợp lệ.');
   if(CC_SYNC_DEMO_ALLOWED&&!ccGoogleSyncImportedRows?.has(currentMonth))
     throw Error('Staging cần bản chụp nguồn đã nhập, không thể đọc Firebase thật.');
-  if(!confirm('ĐỐI CHIẾU VÀ CẬP NHẬT PHU HUNG TEST tháng '+currentMonth+
+  if(automatic&&(!CC_SYNC_DEMO_ALLOWED||!ccGoogleSyncAutoEnabled))
+    throw Error('Chưa bật tự đồng bộ an toàn trên Firebase staging.');
+  if(!automatic&&!confirm('ĐỐI CHIẾU VÀ CẬP NHẬT PHU HUNG TEST tháng '+currentMonth+
       '? Chỉ thao tác theo yêu cầu Admin. Bản thật và sổ PHU HUNG lịch sử không bị sửa. '+
       (CC_SYNC_DEMO_ALLOWED?'Nguồn JSON đã nhập.':'Một lượt làm mới PHU HUNG sẽ phát sinh Firestore reads.')))
     return 'cancelled';
@@ -6314,14 +6372,14 @@ async function ccGoogleSyncDirectSyncTest(){
   if(selectedPlan.blocked.length)
     throw Error('Có xung đột mới phát sinh; không ghi dữ liệu.');
   if(selectedPlan.changes.length){
-    await ccGoogleSyncCommitPilot();
+    await ccGoogleSyncCommitPilot({automatic});
     const after=await ccGoogleSyncComparePilot(true);
     if(after.blocked.length||after.changes.length)
       throw Error('Ghi mirror TEST chưa xác minh hoàn toàn; không cập nhật sổ tổng hợp.');
   }
   ccGoogleSyncPlan=null;
   $('ccGoogleSyncCommit').disabled=true;
-  await ccGoogleSyncCreateComputedLedgerTest();
+  await ccGoogleSyncCreateComputedLedgerTest({automatic});
   return 'verified';
 }
 
@@ -6712,7 +6770,7 @@ async function ccGoogleSyncCorrectLegacyTest(){
     if(button)button.disabled=true;
   }
 }
-async function ccGoogleSyncCommitPilot(){
+async function ccGoogleSyncCommitPilot({automatic=false}={}){
   if(ccGoogleSyncWriteInFlight)throw Error('Đang có lượt ghi khác, đã chặn thao tác đồng thời.');
   ccGoogleSyncWriteInFlight=true;
   try{
@@ -6733,7 +6791,9 @@ async function ccGoogleSyncCommitPilot(){
   if(signature(check)!==signature(oldPlan) || check.sourceCount!==oldPlan.sourceCount ||
       check.remoteExists!==oldPlan.remoteExists)
     throw Error('Dữ liệu vừa thay đổi, cần xác nhận lại.');
-  if(!confirm('CHỈ GHI VÀO PHU HUNG TEST / '+CC_SYNC_PILOT_TAB+': '+
+  if(automatic&&(!CC_SYNC_DEMO_ALLOWED||!ccGoogleSyncAutoEnabled))
+    throw Error('Tự ghi chỉ được phép khi Admin bật chế độ TEST staging.');
+  if(!automatic&&!confirm('CHỈ GHI VÀO PHU HUNG TEST / '+CC_SYNC_PILOT_TAB+': '+
     check.changes.length+' giao dịch. Tab PHU HUNG lịch sử không bị sửa. Tiếp tục?'))return;
   $('ccGoogleSyncCommit').disabled=true;
   const changes=check.changes;
@@ -6794,6 +6854,8 @@ function ccGoogleSyncInitializeGooglePilot(){
     demoToggle.addEventListener('click',()=>{
       ccGoogleSyncDemoActive=!ccGoogleSyncDemoActive;
       if(ccGoogleSyncDemoActive){
+        ccGoogleSyncAutoEnabled=false;
+        if(autoToggle)autoToggle.textContent='Bật tự đồng bộ TEST khi nguồn đổi';
         ccGoogleSyncImportedRows=null;
         stagingNew.disabled=true;stagingEdit.disabled=true;
       }
@@ -6911,7 +6973,27 @@ function ccGoogleSyncInitializeGooglePilot(){
   const sourceImport=$('ccGoogleSyncSourceImport');
   const sourceFile=$('ccGoogleSyncSourceFile');
   const stagingNew=$('ccGoogleSyncStagingNew'),stagingEdit=$('ccGoogleSyncStagingEdit');
+  const autoToggle=$('ccGoogleSyncAutoToggle'),autoStatus=$('ccGoogleSyncAutoStatus');
   if(CC_SYNC_DEMO_ALLOWED){
+    autoToggle.hidden=false;autoStatus.hidden=false;
+    autoToggle.addEventListener('click',()=>{
+      if(ccGoogleSyncAutoEnabled){
+        ccGoogleSyncAutoEnabled=false;
+        autoToggle.textContent='Bật tự đồng bộ TEST khi nguồn đổi';
+        ccGoogleSyncAutoStatus('Đã tắt; không có việc nền.');
+        return;
+      }
+      if(!ccGoogleSyncToken||!ccGoogleSyncImportedRows?.has('2026-10')||
+         !ccGoogleSyncImportedRows?.has('2026-11')||ccGoogleSyncDemoActive){
+        ccGoogleSyncAutoStatus('Hãy nhập JSON tháng 10–11, kết nối Google và thoát DEMO trước.');
+        return;
+      }
+      ccGoogleSyncAutoEnabled=true;
+      autoToggle.textContent='Tắt tự đồng bộ TEST';
+      ccGoogleSyncAutoLastSignature='';
+      ccGoogleSyncAutoStatus('Đã bật trong phiên này. Chỉ đồng bộ khi nguồn TEST đổi, không polling Firebase.');
+      void ccGoogleSyncAutoSourceChanged();
+    });
     stagingNew.hidden=false;stagingEdit.hidden=false;
     stagingNew.disabled=true;stagingEdit.disabled=true;
     stagingNew.addEventListener('click',async()=>{
