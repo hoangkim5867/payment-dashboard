@@ -824,7 +824,7 @@ test('no-op DEMO comparison shows completed status and disables misleading commi
 });
 
 test('computed TEST view requests Google sheetId in initial metadata',()=>{
-  const start=pilot.indexOf('async function ccGoogleSyncCreateComputedLedgerTest()');
+  const start=pilot.indexOf('async function ccGoogleSyncCreateComputedLedgerTest(');
   const end=pilot.indexOf('async function ccGoogleSyncAuditLegacy(',start);
   assert.ok(start>=0&&end>start);
   const fn=pilot.slice(start,end);
