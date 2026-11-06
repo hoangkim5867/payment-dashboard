@@ -874,3 +874,55 @@ test('one-click TEST workflow includes explicit refresh and baseline reconciliat
   assert.ok(fn.indexOf('if(diff.blocked.length)')<fn.indexOf('await ccGoogleSyncCreateComputedLedgerTest()'));
   assert.match(fn,/finally\{monthControl.value=currentMonth\}/);
 });
+
+test('direct TEST workflow persists and verifies mirror before rebuilding view',async()=>{
+  const f=fixture({staging:true});
+  f.nodes.ccGoogleSyncMonth.value='2026-11';
+  f.context.steps=[];
+  vm.runInContext(`
+    ccGoogleSyncImportedRows.set('2026-10', []);
+    ccGoogleSyncImportedRows.set('2026-11', []);
+    let comparisonNumber=0;
+    ccGoogleSyncComparePilot=async()=>{
+      comparisonNumber++;
+      steps.push('compare:'+ccGoogleSyncMonthValue());
+      return {blocked:[],changes:comparisonNumber===4?[]:[{id:'TEST-1'}]};
+    };
+    function ccGoogleSyncMonthValue(){return $('ccGoogleSyncMonth').value}
+    ccGoogleSyncCommitPilot=async()=>{steps.push('commit')};
+    ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view')};
+  `,f.context);
+  await vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context);
+  assert.deepEqual(Array.from(f.context.steps),[
+    'compare:2026-10','compare:2026-11',
+    'compare:2026-11','commit','compare:2026-11','view'
+  ]);
+  assert.equal(f.nodes.ccGoogleSyncMonth.value,'2026-11');
+});
+test('direct TEST workflow never updates view when mirror verification fails',async()=>{
+  const f=fixture({staging:true});
+  f.context.steps=[];
+  vm.runInContext(`
+    ccGoogleSyncImportedRows.set('2026-10', []);
+    ccGoogleSyncImportedRows.set('2026-11', []);
+    ccGoogleSyncComparePilot=async()=>{steps.push('compare');return {blocked:[],changes:[{id:'still-pending'}]}};
+    ccGoogleSyncCommitPilot=async()=>{steps.push('commit')};
+    ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view')};
+  `,f.context);
+  await assert.rejects(vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context),/mirror TEST chưa xác minh/);
+  assert.ok(f.context.steps.includes('commit'));
+  assert.ok(!f.context.steps.includes('view'),'invalid mirror cannot change consolidated view');
+});
+test('direct TEST workflow stops at conflicts before any write',async()=>{
+  const f=fixture({staging:true});
+  f.context.steps=[];
+  vm.runInContext(`
+    ccGoogleSyncImportedRows.set('2026-10', []);
+    ccGoogleSyncImportedRows.set('2026-11', []);
+    ccGoogleSyncComparePilot=async()=>{steps.push('compare');return {blocked:[{reason:'conflict'}],changes:[]}};
+    ccGoogleSyncCommitPilot=async()=>{steps.push('commit')};
+    ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view')};
+  `,f.context);
+  await assert.rejects(vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context),/xung đột/);
+  assert.deepEqual(Array.from(f.context.steps),['compare']);
+});
