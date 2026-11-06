@@ -14,18 +14,25 @@ function fakeFirestore(job){
   const data=new Map([[job.id,{...job}]]);
   const stats={reads:0,writes:0,scans:0};
   const db={collection(name){
-    assert.equal(name,'cash_sync_outbox');
-    return {doc(id){return {id}}};
+    assert.ok(['cash_sync_outbox','cash_sync_project_leases'].includes(name));
+    return {doc(id){return {id:name==='cash_sync_outbox'?id:'lock:'+id}}};
   },async runTransaction(fn){
     const staged=[];
     const tx={
       async get(ref){stats.reads++;return {
         exists:data.has(ref.id),data:()=>({...data.get(ref.id)})
       }},
-      update(ref,patch){staged.push([ref.id,patch])}
+      update(ref,patch){staged.push(['update',ref.id,patch])},
+      set(ref,value){staged.push(['set',ref.id,value])},
+      delete(ref){staged.push(['delete',ref.id])}
     };
     const result=await fn(tx);
-    for(const [id,patch] of staged){data.set(id,{...data.get(id),...patch});stats.writes++}
+    for(const [op,id,payload] of staged){
+      if(op==='delete')data.delete(id);
+      else if(op==='set')data.set(id,{...payload});
+      else data.set(id,{...data.get(id),...payload});
+      stats.writes++;
+    }
     return result;
   }};
   return {db,stats,data};
@@ -50,7 +57,7 @@ test('verified read-back completes exactly one job, repeated deliveries do not w
   assert.deepEqual(months,['2026-11']);
   assert.equal(f.data.get(j.id).status,'synced');
   assert.equal((await runWorker(args)).status,'already-processing-or-completed');
-  assert.equal(f.stats.writes,2,'claim plus completion only');
+  assert.equal(f.stats.writes,4,'job + project lock claims and releases without scans');
   assert.equal(f.stats.scans,0,'no query/list/polling');
 });
 test('moving a payment month must verify both months before completion',async()=>{
@@ -94,6 +101,40 @@ test('active lease blocks concurrent workers; subsequent retry may reclaim expir
     /lease lost/);
   await store.finish(j.id,{token:reclaimed.token,status:'synced',attempt:2,completedAt:123000});
   assert.equal(f.data.get(j.id).status,'synced');
+});
+test('two different PHU HUNG events cannot write to Sheets concurrently',async()=>{
+  const first=exampleJob();
+  const second=makeJob({eventId:'second-event',source:'payment',
+    affected:{changed:true,months:['2026-11'],requiresReview:false,reasons:['payment-changed']}});
+  const f=fakeFirestore(first);
+  f.data.set(second.id,{...second});
+  const store=createJobStore(f.db);
+  const one=await store.claim(first.id,{now:1000,maxAttempts:MAX_ATTEMPTS});
+  assert.equal(f.data.get('lock:PHU_HUNG').ownerJobId,first.id);
+  await assert.rejects(store.claim(second.id,{now:2000,maxAttempts:MAX_ATTEMPTS}),
+    /another in-flight/);
+  assert.equal(f.data.get(second.id).status,'awaiting-reconciler');
+  await store.finish(first.id,{token:one.token,status:'synced',attempt:1,completedAt:3000});
+  assert.equal(f.data.has('lock:PHU_HUNG'),false);
+  const two=await store.claim(second.id,{now:4000,maxAttempts:MAX_ATTEMPTS});
+  assert.equal(two.attempt,1,'lock contention does not burn a retry attempt');
+  await store.finish(second.id,{token:two.token,status:'synced',attempt:1,completedAt:5000});
+  assert.equal(f.data.get(second.id).status,'synced');
+  assert.equal(f.stats.scans,0);
+});
+test('stale owner cannot release newer project lock after lease expiration',async()=>{
+  const first=exampleJob();
+  const second=makeJob({eventId:'next-event',source:'cash-private',
+    affected:{changed:true,months:['2026-11'],requiresReview:false,reasons:['manualRecords-changed']}});
+  const f=fakeFirestore(first);f.data.set(second.id,{...second});
+  const store=createJobStore(f.db);
+  const old=await store.claim(first.id,{now:0,maxAttempts:MAX_ATTEMPTS});
+  const next=await store.claim(second.id,{now:120001,maxAttempts:MAX_ATTEMPTS});
+  await assert.rejects(store.finish(first.id,{
+    token:old.token,status:'synced',attempt:1}),/lease lost/);
+  assert.equal(f.data.get('lock:PHU_HUNG').ownerJobId,second.id);
+  await store.finish(second.id,{token:next.token,status:'synced',attempt:1});
+  assert.equal(f.data.get(first.id).status,'processing','stale event cannot claim completed');
 });
 test('bad IDs, missing month scope, manual-review jobs never reach Google',async()=>{
   const j=exampleJob();
