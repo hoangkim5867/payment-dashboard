@@ -6056,6 +6056,7 @@ async function ccGoogleSyncReadStableView(){
 async function ccGoogleSyncUpdateStableView(meta,plan){
   const title=CC_SYNC_STABLE_VIEW;
   const match=meta.sheets?.find(x=>x.properties?.title===title);
+  let confirmedViewSignature=null;
   if(!match){
     if(!confirm('TẠO DUY NHẤT TAB PHU_HUNG_VIEW_TEST: '+plan.rows.length+
       ' giao dịch, số dư cuối '+plan.closingBalance.toLocaleString('vi-VN')+
@@ -6078,6 +6079,7 @@ async function ccGoogleSyncUpdateStableView(meta,plan){
     const second=await ccGoogleSyncReadStableView();
     if(second.signature!==old.signature)
       throw Error('Tab tổng hợp thay đổi trong khi xác nhận; không ghi.');
+    confirmedViewSignature=second.signature;
   }
   const fresh=await ccGoogleSyncApi('?fields=spreadsheetId,properties(title),sheets(properties(title,sheetId))');
   if(fresh.spreadsheetId!==CC_SYNC_PILOT_ID||!/TEST/i.test(fresh.properties?.title||''))
@@ -6087,8 +6089,10 @@ async function ccGoogleSyncUpdateStableView(meta,plan){
     throw Error('Tab cố định chưa được tạo; chưa ghi dữ liệu.');
   let last=Math.max(plan.rows.length+1,2);
   if(match){
-    const old=await ccGoogleSyncReadStableView();
-    last=Math.max(last,old.rowCount);
+    const latest=await ccGoogleSyncReadStableView();
+    if(latest.signature!==confirmedViewSignature)
+      throw Error('Tab tổng hợp thay đổi sau khi xác nhận; dừng ghi để tránh ghi đè.');
+    last=Math.max(last,latest.rowCount);
   }
   const request={updateCells:{
     range:{sheetId:sheet.properties.sheetId,startRowIndex:0,endRowIndex:last,
