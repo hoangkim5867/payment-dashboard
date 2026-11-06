@@ -6118,7 +6118,7 @@ async function ccGoogleSyncCreateComputedLedgerTest(){
     throw Error('Chỉ Admin được tạo sổ tự tính từ DATA_CASHCONTROL; phải thoát DEMO.');
   ccGoogleSyncWriteInFlight=true;
   try{
-    const meta=await ccGoogleSyncApi('?fields=spreadsheetId,properties(title),sheets(properties(title))');
+    const meta=await ccGoogleSyncApi('?fields=spreadsheetId,properties(title),sheets(properties(title,sheetId))');
     if(meta.spreadsheetId!==CC_SYNC_PILOT_ID||!/TEST/i.test(meta.properties?.title||'')||
        !meta.sheets?.some(x=>x.properties?.title==='PHU HUNG'))
       throw Error('Không đúng file PHU HUNG TEST được phép.');
