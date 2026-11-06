@@ -905,7 +905,7 @@ test('direct TEST workflow never updates view when mirror verification fails',as
   vm.runInContext(`
     ccGoogleSyncImportedRows.set('2026-10', []);
     ccGoogleSyncImportedRows.set('2026-11', []);
-    ccGoogleSyncComparePilot=async()=>{steps.push('compare');return {blocked:[],changes:[{id:'still-pending'}]}};
+    let n=0;ccGoogleSyncComparePilot=async()=>{steps.push('compare');n++;return {blocked:[],changes:n===1?[]:[{id:'still-pending'}]}};
     ccGoogleSyncCommitPilot=async()=>{steps.push('commit')};
     ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view')};
   `,f.context);
