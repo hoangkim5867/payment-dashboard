@@ -6991,8 +6991,7 @@ function ccGoogleSyncInitializeGooglePilot(){
       ccGoogleSyncAutoEnabled=true;
       autoToggle.textContent='Tắt tự đồng bộ TEST';
       ccGoogleSyncAutoLastSignature='';
-      ccGoogleSyncAutoStatus('Đã bật trong phiên này. Chỉ đồng bộ khi nguồn TEST đổi, không polling Firebase.');
-      void ccGoogleSyncAutoSourceChanged();
+      ccGoogleSyncAutoStatus('Đã bật trong phiên này. Chờ thao tác thêm/sửa nguồn TEST; chưa gọi Google hoặc Firebase.');
     });
     stagingNew.hidden=false;stagingEdit.hidden=false;
     stagingNew.disabled=true;stagingEdit.disabled=true;
