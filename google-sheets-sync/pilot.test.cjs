@@ -764,3 +764,17 @@ test('fixed-view plan: new Cash Control payment then edit updates same sourceId 
   assert.equal(JSON.stringify(history),before,'legacy tab must remain unchanged');
   assert.equal(f.state.postCalls,0,'pure comparison must not write anything');
 });
+
+test('fixed TEST view checks the confirmed snapshot again immediately before write',()=>{
+  const fnStart=pilot.indexOf('async function ccGoogleSyncUpdateStableView(');
+  const fnEnd=pilot.indexOf('async function ccGoogleSyncCreateComputedLedgerTest(',fnStart);
+  assert.ok(fnStart>=0&&fnEnd>fnStart,'stable-view write function is present');
+  const fn=pilot.slice(fnStart,fnEnd);
+  const checkpoint=fn.indexOf('confirmedViewSignature=second.signature;');
+  const finalRead=fn.indexOf('const latest=await ccGoogleSyncReadStableView();');
+  const finalGuard=fn.indexOf('latest.signature!==confirmedViewSignature');
+  const write=fn.indexOf("await ccGoogleSyncApi(':batchUpdate',{method:'POST',body:{requests:[request]}});");
+  assert.ok(checkpoint>=0&&checkpoint<finalRead,'record confirmed snapshot');
+  assert.ok(finalRead>=0&&finalRead<finalGuard&&finalGuard<write,
+    'reject an intervening edit before the write API call');
+});
