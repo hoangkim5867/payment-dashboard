@@ -1418,7 +1418,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
         <button class="btn" type="button" id="ccGoogleSyncSourceImport" hidden>Nhập file nguồn PHU HUNG</button>
         <input id="ccGoogleSyncSourceFile" type="file" accept=".json,application/json" hidden>
-        <button class="btn" type="button" id="ccGoogleSyncLoadSource">Tải nguồn PHU HUNG</button>
+        <button class="btn" type="button" id="ccGoogleSyncLoadSource">Làm mới nguồn PHU HUNG</button>
         <button class="btn" type="button" id="ccGoogleSyncSourceExport" hidden>Xuất nguồn PHU HUNG (JSON)</button>
       </div>
       <small style="display:block;margin-top:6px;color:#64748b">Dữ liệu nhập chỉ ở bộ nhớ bản TEST. Không tải thêm Firestore tự động khi đối chiếu.</small>
@@ -5423,6 +5423,17 @@ const CC_SYNC_HEADER=['sourceId','projectKey','month','date','company','contract
     'financial','otherPayable','balance','sourceHash','syncStatus'];
 let ccGoogleSyncToken='',ccGoogleSyncTokenClient=null,ccGoogleSyncPlan=null;
 let ccGoogleSyncWriteInFlight=false;
+// A live source is eligible for writes only after Admin explicitly refreshes
+// this project's Payment data. Never silently query Firestore or trust old cache.
+let ccGoogleSyncLiveSourceRefreshedAt=0;
+const CC_SYNC_SOURCE_FRESH_MS=15*60*1000;
+function ccGoogleSyncRequireFreshLiveSource(){
+  if(CC_SYNC_DEMO_ALLOWED)return;
+  if(!paymentMonths.has('PHU HUNG')||
+     !ccGoogleSyncLiveSourceRefreshedAt||
+     Date.now()-ccGoogleSyncLiveSourceRefreshedAt>CC_SYNC_SOURCE_FRESH_MS)
+    throw Error('Nguồn PHU HUNG chưa được làm mới gần đây. Admin bấm Làm mới nguồn PHU HUNG trước khi ghi; thao tác này có Firestore reads.');
+}
 // An imported production snapshot is in-memory only, admin-controlled and
 // never used for writes to Firestore. No file content is persisted to storage.
 let ccGoogleSyncImportedRows=null;
@@ -6122,6 +6133,9 @@ async function ccGoogleSyncCreateComputedLedgerTest(){
     if(meta.spreadsheetId!==CC_SYNC_PILOT_ID||!/TEST/i.test(meta.properties?.title||'')||
        !meta.sheets?.some(x=>x.properties?.title==='PHU HUNG'))
       throw Error('Không đúng file PHU HUNG TEST được phép.');
+    // Staging uses a validated imported snapshot; production requires an
+    // explicit fresh project load before any live-source consolidated write.
+    if(!CC_SYNC_DEMO_ALLOWED)ccGoogleSyncRequireFreshLiveSource();
     const mirror=await ccGoogleSyncReadSheet();
     // Missing mirror is a valid HISTORY-ONLY preview, not a reason to block
     // checking the original ledger's running-balance formulas. Never create
@@ -6552,6 +6566,7 @@ async function ccGoogleSyncCommitPilot(){
   if(selected.length!==1||selected[0]!=='PHU HUNG'||month!==ccGoogleSyncPlan.month)
     throw Error('Dự án/tháng đã thay đổi. So sánh lại.');
   // Re-evaluate live source + destination immediately before writing.
+  if(!CC_SYNC_DEMO_ALLOWED)ccGoogleSyncRequireFreshLiveSource();
   const oldPlan=ccGoogleSyncPlan;
   const check=await ccGoogleSyncComparePilot(true);
   if(check.blocked.length)throw Error('Dữ liệu thay đổi hoặc có xung đột; dừng.');
@@ -6720,7 +6735,11 @@ function ccGoogleSyncInitializeGooglePilot(){
   });
   $('ccGoogleSyncLoadSource')?.addEventListener('click',async()=>{
     if(!currentAuthUser||!isCashControlOwner()){
-      ccGoogleSyncStatus('Chỉ Admin được tải dữ liệu.');
+      ccGoogleSyncStatus('Chỉ Admin được làm mới dữ liệu nguồn.');
+      return;
+    }
+    if(CC_SYNC_DEMO_ALLOWED){
+      ccGoogleSyncStatus('Preview staging không đọc Firebase thật. Hãy nhập file nguồn JSON đã xác minh.');
       return;
     }
     const selected=ccGoogleSyncSelectedProjects();
@@ -6728,27 +6747,26 @@ function ccGoogleSyncInitializeGooglePilot(){
       ccGoogleSyncStatus('Chỉ chọn PHU HUNG cho bản thử này.');
       return;
     }
-    if(paymentMonths.has('PHU HUNG')){
-      ccGoogleSyncStatus('PHU HUNG đã có trong bộ nhớ, không đọc thêm Firestore. Có thể bấm So sánh.');
+    if(ccGoogleSyncWriteInFlight){
+      ccGoogleSyncStatus('Đang có thao tác ghi Google Sheets. Không làm mới nguồn đồng thời.');
       return;
     }
-    if(!confirm('Tải toàn bộ Payment dự án PHU HUNG một lần từ Firestore? Thao tác này có phát sinh reads; không tự chạy khi so sánh.')){
-      return;
-    }
+    if(!confirm('Làm mới Payment PHU HUNG từ Firestore đúng 1 lần? Có phát sinh reads. Không tự quét liên tục, không ghi Firebase.'))return;
     const button=$('ccGoogleSyncLoadSource');
     button.disabled=true;
+    ccGoogleSyncLiveSourceRefreshedAt=0;
     ccGoogleSyncPlan=null;
     $('ccGoogleSyncCommit').disabled=true;
     try{
-      const ok=await loadProjectPayments('PHU HUNG',{quiet:true,refresh:true});
-      ccGoogleSyncStatus(ok&&paymentMonths.has('PHU HUNG')
-        ?'Đã tải dữ liệu PHU HUNG vào bộ nhớ. Bấm So sánh bản TEST.'
-        :'Không tải đủ dữ liệu PHU HUNG. Không cho ghi Google Sheets.');
+      // force:true is critical: an existing project cache may predate Staff edits.
+      const ok=await loadProjectPayments('PHU HUNG',{force:true,quiet:true,refresh:true});
+      if(ok&&paymentMonths.has('PHU HUNG')){
+        ccGoogleSyncLiveSourceRefreshedAt=Date.now();
+        ccGoogleSyncStatus('ĐÃ LÀM MỚI nguồn PHU HUNG một lần. Không tự đọc tiếp. Có thể so sánh và cập nhật tab TEST trong 15 phút.');
+      }else ccGoogleSyncStatus('Không xác minh được nguồn PHU HUNG mới. Chặn ghi Google Sheets.');
     }catch(error){
-      ccGoogleSyncStatus('Không tải được dữ liệu: '+error.message);
-    }finally{
-      button.disabled=false;
-    }
+      ccGoogleSyncStatus('Làm mới nguồn thất bại, chặn ghi: '+error.message);
+    }finally{button.disabled=false}
   });
   $('ccGoogleSyncCompare')?.addEventListener('click',async()=>{
     try{await ccGoogleSyncComparePilot()}catch(error){
