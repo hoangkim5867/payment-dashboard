@@ -15,6 +15,13 @@ test('payment edit requires only changed months; no global payment scan',()=>{
     months:[],requiresReview:false,changed:false,reasons:[]
   });
 });
+test('Payment metadata-only and unpaid-plan edits generate no Google invalidation',()=>{
+  const paid=payment(100);
+  assert.equal(affectedForPayment({...paid,updatedAt:'t1'},{...paid,updatedAt:'t2'}).changed,false);
+  const unpaid={project:'PHU HUNG',processPaymentDate:'',amount:100};
+  assert.equal(affectedForPayment(unpaid,{...unpaid,amount:200}).changed,false);
+  assert.equal(affectedForPayment(unpaid,{...unpaid,processPaymentDate:'2026-11-06'}).changed,true);
+});
 test('unrelated Payment never creates a PHU HUNG outbox job',()=>{
   assert.equal(affectedForPayment(payment(1,'2026-11-06','EATON'),payment(2,'2026-11-06','EATON')).changed,false);
 });
@@ -63,7 +70,7 @@ test('event retries are idempotent, one private Firestore write and zero reads p
   assert.equal(b.status,'duplicate');
   assert.equal(jobs.size,1);
   assert.equal(reads,0);
-  assert.equal(jobs.values().next().value.status,'pending');
+  assert.equal(jobs.values().next().value.status,'awaiting-reconciler');
   assert.equal(writes,2,'duplicate create attempts are rejected atomically by Firestore');
   assert.equal((await enqueueEvent({...args,env:{...staging,GCLOUD_PROJECT:'cscecmep-payment'}})).status,'disabled');
   assert.equal(jobs.size,1);
