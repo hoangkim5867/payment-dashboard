@@ -1457,6 +1457,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <button class="btn" type="button" id="ccGoogleSyncDemoAdd" hidden>Thêm giao dịch giả thứ 3</button>
         <button class="btn" type="button" id="ccGoogleSyncDemoFourth" hidden>Thử thêm giao dịch giả thứ 4</button>
         <button class="btn" type="button" id="ccGoogleSyncDemoFourthEdit" hidden>Sửa số tiền giao dịch giả thứ 4</button>
+        <button class="btn" type="button" id="ccGoogleSyncDemoView" hidden>Kiểm thử số dư trên sổ DEMO riêng</button>
       </div>
     </details>
     <div class="note" style="margin:10px 0">
@@ -5980,7 +5981,7 @@ async function ccGoogleSyncMergeCachedSource(history,mirror,source,month){
 // creating another tab. This is read-only and avoids identical duplicate tabs
 // when the owner clicks the button again with unchanged data.
 async function ccGoogleSyncVerifyComputedTab(title,plan){
-  if(title!==CC_SYNC_STABLE_VIEW&&!/^AUTO_PHU_HUNG_TEST_[A-Z0-9]+$/.test(title))
+  if(title!==CC_SYNC_STABLE_VIEW&&title!==CC_SYNC_DEMO_VIEW&&!/^AUTO_PHU_HUNG_TEST_[A-Z0-9]+$/.test(title))
     throw Error('Không đúng tên tab sổ tự tính TEST.');
   // Read the ENTIRE generated range, not merely the new plan's length.
   // Otherwise stale trailing transactions could masquerade as an exact match.
@@ -6016,6 +6017,7 @@ async function ccGoogleSyncVerifyComputedTab(title,plan){
 // One stable, independently generated user-facing TEST tab. Old timestamped
 // snapshots remain intact until the owner decides how to archive them.
 const CC_SYNC_STABLE_VIEW='PHU_HUNG_VIEW_TEST';
+const CC_SYNC_DEMO_VIEW='PHU_HUNG_DEMO_VIEW_TEST';
 function ccGoogleSyncGridCell(value){
   if(value===null||value===undefined||value==='')return {};
   if(typeof value==='number'&&Number.isFinite(value))
@@ -6034,8 +6036,9 @@ function ccGoogleSyncAtomicGridRows(plan){
   rows[0]={values:rows[0]};
   return rows;
 }
-async function ccGoogleSyncReadStableView(){
-  const title=CC_SYNC_STABLE_VIEW,sheet="'"+title+"'";
+async function ccGoogleSyncReadStableView(title=CC_SYNC_STABLE_VIEW){
+  if(title!==CC_SYNC_STABLE_VIEW&&title!==CC_SYNC_DEMO_VIEW)throw Error('Không phải sổ TEST được phép.');
+  const sheet="'"+title+"'";
   const [data,formulas]=await Promise.all([
     ccGoogleSyncApi('/values/'+encodeURIComponent(sheet+'!A1:Q')+
       '?valueRenderOption=UNFORMATTED_VALUE'),
@@ -6069,12 +6072,13 @@ async function ccGoogleSyncReadStableView(){
 }
 // Update only the derived VIEW, in one atomic updateCells request. The
 // historic PHU HUNG tab, mirror tab and old timestamped views are untouched.
-async function ccGoogleSyncUpdateStableView(meta,plan){
-  const title=CC_SYNC_STABLE_VIEW;
+async function ccGoogleSyncUpdateStableView(meta,plan,title=CC_SYNC_STABLE_VIEW){
+  if(title!==CC_SYNC_STABLE_VIEW&&title!==CC_SYNC_DEMO_VIEW)throw Error('Không phải tab TEST được phép.');
+  if(title===CC_SYNC_DEMO_VIEW&&(!CC_SYNC_DEMO_ALLOWED||!ccGoogleSyncDemoActive))throw Error('DEMO view chỉ chạy trên staging khi bật DEMO.');
   const match=meta.sheets?.find(x=>x.properties?.title===title);
   let confirmedViewSignature=null;
   if(!match){
-    if(!confirm('TẠO DUY NHẤT TAB PHU_HUNG_VIEW_TEST: '+plan.rows.length+
+    if(!confirm('TẠO DUY NHẤT TAB '+title+': '+plan.rows.length+
       ' giao dịch, số dư cuối '+plan.closingBalance.toLocaleString('vi-VN')+
       '. Không sửa PHU HUNG lịch sử. Tiếp tục?'))return 'cancelled';
     await ccGoogleSyncApi(':batchUpdate',{method:'POST',body:{
@@ -6083,7 +6087,7 @@ async function ccGoogleSyncUpdateStableView(meta,plan){
   }else{
     if(!Number.isInteger(match.properties?.sheetId))
       throw Error('Không lấy được ID tab VIEW để cập nhật.');
-    const old=await ccGoogleSyncReadStableView();
+    const old=await ccGoogleSyncReadStableView(title);
     if(await ccGoogleSyncVerifyComputedTab(title,plan)){
       ccGoogleSyncStatus('TAB CHÍNH TEST ĐÃ CẬP NHẬT SẴN: '+title+
         '; không ghi thêm. Số dư cuối '+plan.closingBalance.toLocaleString('vi-VN'));
@@ -6092,7 +6096,7 @@ async function ccGoogleSyncUpdateStableView(meta,plan){
     if(!confirm('CẬP NHẬT TAB TỔNG HỢP TEST HIỆN CÓ: từ '+(old.rowCount-1)+
       ' lên '+plan.rows.length+' giao dịch. Sổ PHU HUNG lịch sử KHÔNG bị sửa. Tiếp tục?'))
       return 'cancelled';
-    const second=await ccGoogleSyncReadStableView();
+    const second=await ccGoogleSyncReadStableView(title);
     if(second.signature!==old.signature)
       throw Error('Tab tổng hợp thay đổi trong khi xác nhận; không ghi.');
     confirmedViewSignature=second.signature;
@@ -6105,7 +6109,7 @@ async function ccGoogleSyncUpdateStableView(meta,plan){
     throw Error('Tab cố định chưa được tạo; chưa ghi dữ liệu.');
   let last=Math.max(plan.rows.length+1,2);
   if(match){
-    const latest=await ccGoogleSyncReadStableView();
+    const latest=await ccGoogleSyncReadStableView(title);
     if(latest.signature!==confirmedViewSignature)
       throw Error('Tab tổng hợp thay đổi sau khi xác nhận; dừng ghi để tránh ghi đè.');
     last=Math.max(last,latest.rowCount);
@@ -6127,6 +6131,46 @@ async function ccGoogleSyncUpdateStableView(meta,plan){
 
 // The user explicitly confirms a new, timestamped TEST tab. No existing tab is
 // cleared, deleted or modified, and the historical PHU HUNG sheet is untouched.
+// DEMO-only end-to-end integration: real Google TEST read and an isolated
+// derived ledger. Never touch the real-facing PHU_HUNG_VIEW_TEST or history.
+async function ccGoogleSyncCreateDemoComputedLedger(){
+  if(!CC_SYNC_DEMO_ALLOWED||!ccGoogleSyncDemoActive||
+     CC_SYNC_PILOT_TAB!=='DATA_CASHCONTROL_DEMO')throw Error('Cần bật DEMO trên Firebase staging.');
+  if(!currentAuthUser||!isCashControlOwner())throw Error('Chỉ Admin TEST được tạo sổ DEMO.');
+  if(!ccGoogleSyncToken)throw Error('Kết nối Google trước.');
+  if(ccGoogleSyncWriteInFlight)throw Error('Đang có lượt ghi khác.');
+  ccGoogleSyncWriteInFlight=true;
+  try{
+    const meta=await ccGoogleSyncApi('?fields=spreadsheetId,properties(title),sheets(properties(title,sheetId))');
+    if(meta.spreadsheetId!==CC_SYNC_PILOT_ID||!/TEST/i.test(meta.properties?.title||'')||
+       !meta.sheets?.some(x=>x.properties?.title==='PHU HUNG'))
+      throw Error('Không đúng file TEST được phép.');
+    const mirror=await ccGoogleSyncReadSheet();
+    if(!mirror.exists||mirror.rows.length!==4)throw Error('Chưa đủ đúng 4 giao dịch DEMO đã ghi. Không lập sổ.');
+    const ids=new Set(mirror.rows.map(x=>String(x[0]||'')));
+    if(ids.size!==4||[1,2,3,4].some(i=>!ids.has('DEMO-PHU-HUNG-00'+i)))
+      throw Error('4 mã giao dịch DEMO chưa khớp. Dừng.');
+    const fourth=mirror.rows.find(x=>x[0]==='DEMO-PHU-HUNG-004');
+    if(Number(fourth[13])!==450000)
+      throw Error('DEMO-004 chưa ghi số tiền sửa 450.000 vào Google Sheets. Dừng.');
+    const [legacy,formulas]=await Promise.all([
+      ccGoogleSyncApi('/values/'+encodeURIComponent("'PHU HUNG'!A1:N")+
+        '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER'),
+      ccGoogleSyncApi('/values/'+encodeURIComponent("'PHU HUNG'!N1:N")+
+        '?valueRenderOption=FORMULA')
+    ]);
+    const plan=await ccGoogleSyncBuildConsolidatedLedger(
+      legacy.values||[],formulas.values||[],mirror.rows);
+    if(plan.mirroredCount!==4)
+      throw Error('Sổ DEMO chưa đưa đủ 4 giao dịch giả vào phép tính.');
+    const result=await ccGoogleSyncUpdateStableView(meta,plan,CC_SYNC_DEMO_VIEW);
+    if(result==='updated'||result==='unchanged')
+      ccGoogleSyncStatus('SỔ DEMO TEST ĐÃ XÁC MINH: '+CC_SYNC_DEMO_VIEW+
+        '; '+plan.historicCount+' lịch sử + 4 DEMO; số dư cuối '+plan.closingBalance.toLocaleString('vi-VN')+
+        '. Không sửa PHU_HUNG_VIEW_TEST hoặc PHU HUNG lịch sử.');
+    return result;
+  }finally{ccGoogleSyncWriteInFlight=false}
+}
 async function ccGoogleSyncCreateComputedLedgerTest(){
   if(ccGoogleSyncWriteInFlight)throw Error('Đang có thao tác ghi khác.');
   if(!currentAuthUser||!isCashControlOwner()||ccGoogleSyncDemoActive||
@@ -6705,6 +6749,7 @@ function ccGoogleSyncInitializeGooglePilot(){
   if(!oauth)return;
   const demoToggle=$('ccGoogleSyncDemoToggle'),demoChange=$('ccGoogleSyncDemoChange'),demoAdd=$('ccGoogleSyncDemoAdd');
   const demoFourth=$('ccGoogleSyncDemoFourth'),demoFourthEdit=$('ccGoogleSyncDemoFourthEdit');
+  const demoView=$('ccGoogleSyncDemoView');
   if(CC_SYNC_DEMO_ALLOWED){
     demoToggle.hidden=false;
     demoToggle.addEventListener('click',()=>{
@@ -6724,6 +6769,7 @@ function ccGoogleSyncInitializeGooglePilot(){
       demoAdd.hidden=!ccGoogleSyncDemoActive;
       demoFourth.hidden=!ccGoogleSyncDemoActive;
       demoFourthEdit.hidden=!ccGoogleSyncDemoActive;
+      demoView.hidden=!ccGoogleSyncDemoActive;
       ccGoogleSyncStatus(ccGoogleSyncDemoActive?
         'DEMO ĐANG BẬT: 2 giao dịch giả chỉ tồn tại trong bộ nhớ. Đích: DATA_CASHCONTROL_DEMO. Bấm So sánh trước khi ghi.':
         'Đã thoát DEMO. Không có dữ liệu thật trên staging; chặn ghi nếu thiếu nguồn.');
@@ -6754,6 +6800,12 @@ function ccGoogleSyncInitializeGooglePilot(){
       demoFourthEdit.disabled=true;demoFourthEdit.textContent='Đã sửa: 400.000 → 450.000';
       ccGoogleSyncPlan=null;$('ccGoogleSyncCommit').disabled=true;
       ccGoogleSyncStatus('DEMO: đã sửa DEMO-PHU-HUNG-004 từ 400.000 lên 450.000 VND trong bộ nhớ, GIỮ NGUYÊN ID. Bấm So sánh dữ liệu trước khi ghi; dự kiến 1 sửa, không có dòng mới nếu lần ghi 400.000 đã hoàn tất.');
+    });
+    demoView.addEventListener('click',async()=>{
+      demoView.disabled=true;
+      try{await ccGoogleSyncCreateDemoComputedLedger()}
+      catch(error){ccGoogleSyncStatus('CHƯA TẠO SỔ DEMO TEST: '+error.message)}
+      finally{demoView.disabled=false}
     });
     demoAdd.addEventListener('click',()=>{
       if(!ccGoogleSyncDemoActive||ccGoogleSyncDemoAdded)return;
