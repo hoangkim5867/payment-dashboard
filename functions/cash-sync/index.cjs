@@ -11,7 +11,7 @@
 const {onDocumentWritten}=require('firebase-functions/v2/firestore');
 const {initializeApp,getApps}=require('firebase-admin/app');
 const {getFirestore}=require('firebase-admin/firestore');
-const {enqueueEvent}=require('../../server/cash-sync-outbox.cjs');
+const {enqueueEvent}=require('./core.cjs');
 if(!getApps().length)initializeApp();
 const region='asia-southeast1';
 const options={region,retry:true,maxInstances:2,concurrency:1};
