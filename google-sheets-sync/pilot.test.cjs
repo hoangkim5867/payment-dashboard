@@ -869,7 +869,8 @@ test('one-click TEST workflow includes explicit refresh and baseline reconciliat
   assert.ok(start>=0&&end>start);
   const fn=pilot.slice(start,end);
   assert.match(fn,/loadProjectPayments\('PHU HUNG',\{force:true,quiet:true,refresh:true\}\)/);
-  assert.match(fn,/new Set\(\['2026-10',currentMonth\]\)/);
+  assert.match(fn,/const months=\[\]/);
+  assert.match(fn,/months\.push\(year\+'-'\+String\(m\)\.padStart\(2,'0'\)\)/);
   assert.match(fn,/if\(diff.blocked.length\)/);
   assert.ok(fn.indexOf('if(diff.blocked.length)')<fn.indexOf('await ccGoogleSyncCreateComputedLedgerTest()'));
   assert.match(fn,/finally\{monthControl.value=currentMonth\}/);
@@ -981,4 +982,26 @@ test('one-click integration writes new transaction, edits it, and repeated click
   assert.equal(f.state.rows.length,1,'edited transaction must preserve ID');
   assert.equal(f.state.rows[0][10],155.3);
   assert.equal(f.context.steps.filter(x=>x==='view').length,3);
+});
+
+test('December TEST sync checks intervening November and blocks if it is pending',async()=>{
+  const f=fixture({staging:true,month:'2026-12'});
+  f.context.steps=[];
+  vm.runInContext(`
+    ccGoogleSyncImportedRows.set('2026-10', []);
+    ccGoogleSyncImportedRows.set('2026-11', []);
+    ccGoogleSyncImportedRows.set('2026-12', []);
+    ccGoogleSyncComparePilot=async()=>{
+      const month=$('ccGoogleSyncMonth').value;
+      steps.push(month);
+      return {blocked:[],changes:month==='2026-11'?[{id:'november-unwritten'}]:[]};
+    };
+    ccGoogleSyncCommitPilot=async()=>{steps.push('commit')};
+    ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view')};
+  `,f.context);
+  await assert.rejects(vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context),
+    /Tháng 2026-11 còn 1 giao dịch/);
+  assert.deepEqual(Array.from(f.context.steps),['2026-10','2026-11']);
+  assert.equal(f.nodes.ccGoogleSyncMonth.value,'2026-12');
+  assert.equal(f.state.postCalls,0);
 });
