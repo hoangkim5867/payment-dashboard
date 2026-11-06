@@ -886,7 +886,7 @@ test('direct TEST workflow persists and verifies mirror before rebuilding view',
     ccGoogleSyncComparePilot=async()=>{
       comparisonNumber++;
       steps.push('compare:'+ccGoogleSyncMonthValue());
-      return {blocked:[],changes:comparisonNumber===4?[]:[{id:'TEST-1'}]};
+      return {blocked:[],changes:comparisonNumber===1||comparisonNumber===4?[]:[{id:'TEST-1'}]};
     };
     function ccGoogleSyncMonthValue(){return $('ccGoogleSyncMonth').value}
     ccGoogleSyncCommitPilot=async()=>{steps.push('commit')};
@@ -925,4 +925,21 @@ test('direct TEST workflow stops at conflicts before any write',async()=>{
   `,f.context);
   await assert.rejects(vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context),/xung đột/);
   assert.deepEqual(Array.from(f.context.steps),['compare']);
+});
+
+test('later-month one-click sync blocks pending October transactions without writing',async()=>{
+  const f=fixture({staging:true});
+  f.context.steps=[];
+  vm.runInContext(`
+    ccGoogleSyncImportedRows.set('2026-10', []);
+    ccGoogleSyncImportedRows.set('2026-11', []);
+    ccGoogleSyncComparePilot=async()=>{steps.push('compare:'+ $('ccGoogleSyncMonth').value);
+      return {blocked:[],changes:[{id:'october-unsynced'}]};};
+    ccGoogleSyncCommitPilot=async()=>{steps.push('commit')};
+    ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view')};
+  `,f.context);
+  await assert.rejects(vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context),/Hãy đồng bộ tháng đó trước/);
+  assert.deepEqual(Array.from(f.context.steps),['compare:2026-10']);
+  assert.equal(f.nodes.ccGoogleSyncMonth.value,'2026-11');
+  assert.equal(f.state.postCalls,0);
 });
