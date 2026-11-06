@@ -730,3 +730,37 @@ test('generated TEST tab comparison avoids repeating identical write or tab crea
     'changed company/amount column in existing tab must not be silently reused');
   assert.equal(f.state.postCalls,0);
 });
+
+test('fixed-view plan: new Cash Control payment then edit updates same sourceId without duplication',async()=>{
+  const f=fixture(),{history,formulas}=autoLedgerFixture();
+  const before=JSON.stringify(history);
+  const knownNov=await cachedSourceRow(f.api,history[3].slice(0,13),'PHU HUNG:old3');
+  const initial=await f.api.buildAutoLedger(history,formulas,[]);
+  assert.equal(initial.rows.length,3);
+  assert.equal(initial.closingBalance,930);
+  const newValue=['2026-11-02','Vendor TEST','C4','IPC','IPC04','支出',0,0,100,0,0,0,0];
+  const newSource=await cachedSourceRow(f.api,newValue,'PHU HUNG:payment:fixed-001');
+  const added=await f.api.mergeCachedSource(history,[],[knownNov,newSource],'2026-11');
+  assert.equal(added.sourceNew,1);
+  const newPlan=await f.api.buildAutoLedger(history,formulas,added.mirror);
+  assert.equal(newPlan.rows.length,4);
+  assert.equal(newPlan.rows.filter(x=>x.sourceId===newSource.id).length,1);
+  assert.equal(newPlan.closingBalance,830);
+  const modified=[...newValue];modified[8]=125;
+  const changed=await cachedSourceRow(f.api,modified,newSource.id);
+  const revised=await f.api.mergeCachedSource(history,added.mirror,[knownNov,changed],'2026-11');
+  assert.equal(revised.sourceNew,0);
+  assert.equal(revised.sourceUpdated,1);
+  const revisedPlan=await f.api.buildAutoLedger(history,formulas,revised.mirror);
+  assert.equal(revisedPlan.rows.length,4,'editing must not append a second transaction');
+  assert.equal(revisedPlan.rows.filter(x=>x.sourceId===changed.id).length,1);
+  assert.equal(revisedPlan.closingBalance,805);
+  const repeated=await f.api.mergeCachedSource(history,revised.mirror,[knownNov,changed],'2026-11');
+  assert.equal(repeated.sourceNew,0);
+  assert.equal(repeated.sourceUpdated,0);
+  const same=await f.api.buildAutoLedger(history,formulas,repeated.mirror);
+  assert.equal(same.closingBalance,805);
+  assert.equal(same.rows.length,4);
+  assert.equal(JSON.stringify(history),before,'legacy tab must remain unchanged');
+  assert.equal(f.state.postCalls,0,'pure comparison must not write anything');
+});
