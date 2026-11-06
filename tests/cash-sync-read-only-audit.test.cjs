@@ -92,8 +92,11 @@ test('orphan in existing TEST mirror blocks automatic deletion',()=>{
 test('history running balance mismatch or broken formula cannot pass',()=>{
   const incorrect=historic.map(row=>row.slice());incorrect[2][13]=800;
   assert.throws(()=>verifyHistory(incorrect,formula),/balance mismatch/);
-  const wrongFormula=formula.map(row=>row.slice());wrongFormula[3][0]='=N1+G4';
+  const wrongFormula=formula.map(row=>row.slice());wrongFormula[3][0]='=N1+G4-SUM(H4:M4)';
   assert.throws(()=>verifyHistory(historic,wrongFormula),/does not reference/);
+  const missingExpenses=formula.map(row=>row.slice());
+  missingExpenses[3][0]='=N3+G4';
+  assert.throws(()=>verifyHistory(historic,missingExpenses),/own G and H:M/);
   const badDate=historic.map(row=>row.slice());badDate[3][0]='2026-02-30';
   assert.throws(()=>verifyHistory(badDate,formula),/Impossible date/);
 });
