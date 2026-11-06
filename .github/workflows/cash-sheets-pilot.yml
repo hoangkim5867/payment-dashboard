@@ -6,6 +6,9 @@ on:
     paths:
       - 'site/cash-control.html'
       - 'google-sheets-sync/pilot.test.cjs'
+      - 'tests/cash-sync-outbox.test.cjs'
+      - 'server/cash-sync-outbox.cjs'
+      - 'functions/cash-sync/**'
       - '.github/workflows/cash-sheets-pilot.yml'
   pull_request:
     paths:
@@ -27,4 +30,4 @@ jobs:
         with:
           node-version: '22'
       - name: Test Google Sheets pilot logic without cloud credentials
-        run: node --test google-sheets-sync/pilot.test.cjs
+        run: node --test google-sheets-sync/pilot.test.cjs tests/cash-sync-outbox.test.cjs
