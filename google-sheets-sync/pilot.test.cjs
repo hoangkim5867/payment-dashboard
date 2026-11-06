@@ -854,3 +854,23 @@ test('live-source freshness expires and TEST staging must never fetch production
   assert.match(handler,/force:true,quiet:true,refresh:true/);
   assert.match(handler,/ccGoogleSyncLiveSourceRefreshedAt=Date.now()/);
 });
+
+test('one-click TEST sync refuses staging without imported source and makes no writes',async()=>{
+  const f=fixture({staging:true});
+  const before=f.state.postCalls;
+  await assert.rejects(
+    vm.runInContext('ccGoogleSyncDirectSyncTest',f.context)(),
+    /bản chụp nguồn đã nhập/);
+  assert.equal(f.state.postCalls,before,'staging cannot fetch or write real data');
+});
+test('one-click TEST workflow includes explicit refresh and baseline reconciliation',()=>{
+  const start=pilot.indexOf('async function ccGoogleSyncDirectSyncTest()');
+  const end=pilot.indexOf('async function ccGoogleSyncAuditLegacy(',start);
+  assert.ok(start>=0&&end>start);
+  const fn=pilot.slice(start,end);
+  assert.match(fn,/loadProjectPayments\('PHU HUNG',\{force:true,quiet:true,refresh:true\}\)/);
+  assert.match(fn,/new Set\(\['2026-10',currentMonth\]\)/);
+  assert.match(fn,/if\(diff.blocked.length\)/);
+  assert.ok(fn.indexOf('if(diff.blocked.length)')<fn.indexOf('await ccGoogleSyncCreateComputedLedgerTest()'));
+  assert.match(fn,/finally\{monthControl.value=currentMonth\}/);
+});
