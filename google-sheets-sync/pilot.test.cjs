@@ -778,3 +778,35 @@ test('fixed TEST view checks the confirmed snapshot again immediately before wri
   assert.ok(finalRead>=0&&finalRead<finalGuard&&finalGuard<write,
     'reject an intervening edit before the write API call');
 });
+
+test('fixed-view commit refuses a concurrent edit before Google batchUpdate',async()=>{
+  const f=fixture();
+  const state={reads:0,writes:0};
+  f.context.stableHarness={
+    read:async()=>{
+      state.reads++;
+      return {rowCount:2,signature:state.reads===3?'changed-after-confirm':'confirmed'};
+    },
+    verify:async()=>false,
+    api:async(path,options)=>{
+      if(path.startsWith('?fields='))return {
+        spreadsheetId:vm.runInContext('CC_SYNC_PILOT_ID',f.context),
+        properties:{title:'PHU HUNG TEST'},
+        sheets:[{properties:{title:'PHU_HUNG_VIEW_TEST',sheetId:123}}]
+      };
+      if(options?.method==='POST'){state.writes++;return {};}
+      throw Error('Unexpected request '+path);
+    }
+  };
+  vm.runInContext(
+    'ccGoogleSyncReadStableView=()=>stableHarness.read();'+
+    'ccGoogleSyncVerifyComputedTab=()=>stableHarness.verify();'+
+    'ccGoogleSyncApi=(path,options)=>stableHarness.api(path,options);',f.context);
+  const meta={sheets:[{properties:{title:'PHU_HUNG_VIEW_TEST',sheetId:123}}]};
+  const plan={rows:[{cells:Array(17).fill(''),balance:0,formula:'=$Q$2+G2-SUM(H2:M2)'}],closingBalance:0};
+  await assert.rejects(
+    vm.runInContext('ccGoogleSyncUpdateStableView',f.context)(meta,plan),
+    /thay đổi sau khi xác nhận/);
+  assert.equal(state.reads,3);
+  assert.equal(state.writes,0,'must stop before any Google write');
+});
