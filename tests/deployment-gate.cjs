@@ -32,6 +32,7 @@ function verifySiteHtml(siteDir=path.resolve(__dirname,'../site')){
  return {files,blocks};
 }
 // The Vercel build requires this module directly; validate before copying.
+require('./cash-bonus-export.cjs');
 const result=verifySiteHtml();
 if(require.main===module)console.log('PASS: '+result.blocks+' JS blocks in '+result.files+' HTML files; no frozen manifest required');
 module.exports={verifyInlineScripts,verifySiteHtml};
