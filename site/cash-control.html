@@ -2861,6 +2861,16 @@ async function persistCashCloud(action="Cập nhật Cash Control"){
 
         setCashCloudConnection('ok','Cash Control: đã lưu online');
         scheduleProjectBalanceSnapshot();
+        // Notify only after the Firestore write succeeds. The staging TEST
+        // coordinator uses in-memory rows; a failed Google sync never
+        // changes the success of this Cash Control save.
+        void ccGoogleSyncOnCashCloudSaved(action).catch(error=>{
+            console.warn('CASH TEST SYNC: not delivered',error);
+            ccGoogleSyncAutoStatus('Tự đồng bộ TEST đã dừng: '+error.message);
+            ccGoogleSyncAutoEnabled=false;
+            const toggle=$('ccGoogleSyncAutoToggle');
+            if(toggle)toggle.textContent='Bật tự đồng bộ TEST khi nguồn đổi';
+        });
         return true;
     }catch(error){
         console.error("CASH CLOUD SAVE ERROR",error);
@@ -5447,6 +5457,9 @@ function ccGoogleSyncRequireFreshLiveSource(){
 // An imported production snapshot is in-memory only, admin-controlled and
 // never used for writes to Firestore. No file content is persisted to storage.
 let ccGoogleSyncImportedRows=null;
+// Preserve the imported baseline separately. Stage-only Cash Control saves
+// are projected on top of this read-only baseline, never modifying the JSON.
+let ccGoogleSyncImportedBaseline=null;
 // Explicit, per-page staging-only autopilot. No extra Firestore listener, query,
 // interval, credential persistence or production write. Queued source changes
 // use the already imported JSON; a single-flight guard coalesces repeated edits.
@@ -5455,6 +5468,46 @@ let ccGoogleSyncAutoPending=false,ccGoogleSyncAutoLastSignature='';
 const ccGoogleSyncAutoStatus=message=>{
   const el=$('ccGoogleSyncAutoStatus');if(el)el.textContent=message;
 };
+// Invoked only after persistCashCloud has completed a successful Firestore
+// write. Never subscribes/queries Firestore, and never runs in production.
+// In staging, the imported history is immutable and manually saved Cash
+// Control rows are projected into the same existing source format.
+async function ccGoogleSyncOnCashCloudSaved(action='Cash Control saved'){
+  if(!CC_SYNC_DEMO_ALLOWED||!ccGoogleSyncAutoEnabled)return false;
+  if(ccGoogleSyncDemoActive||!ccGoogleSyncImportedRows?.has('2026-10')||
+     !ccGoogleSyncImportedBaseline?.has('2026-11'))
+    throw Error('Nguồn TEST thiếu bản chụp gốc, không tự ghi.');
+  const baseline=ccGoogleSyncImportedBaseline.get('2026-11');
+  const previous=ccGoogleSyncImportedRows.get('2026-11')||[];
+  const byId=new Map(baseline.map(row=>[row.id,row]));
+  const generated=legacyCashExportRows('2026-11','PHU HUNG');
+  for(const item of generated){
+    const ids=item?._syncIds||[];
+    if(!Array.isArray(ids)||!ids.length)throw Error('Khoản Cash Control thiếu ID nguồn.');
+    const id=item._taxQuarter
+      ?'tax:PHU HUNG:'+item.date+':'+item._taxQuarter+':'+(item._taxDirection||'out')
+      :'PHU HUNG:'+ids.slice().sort().join('+');
+    if(byId.has(id))throw Error('Nguồn TEST bị trùng ID '+id);
+    const values=ccGoogleSyncRowValues(item);
+    if(values.slice(6).some(v=>!Number.isFinite(Number(v)))||
+       ccGoogleSyncNormDate(values[0]).slice(0,7)!=='2026-11')
+      throw Error('Khoản Cash Control có ngày/số tiền không hợp lệ.');
+    const hash=await ccGoogleSyncSha(ccGoogleSyncPayloadCells(values));
+    byId.set(id,{id,project:'PHU HUNG',month:'2026-11',values,hash});
+  }
+  const next=[...byId.values()];
+  const signature=rows=>JSON.stringify(rows.map(r=>[r.id,r.hash]).sort((a,b)=>a[0].localeCompare(b[0])));
+  if(signature(next)===signature(previous)){
+    ccGoogleSyncAutoStatus('Cash Control đã lưu; nguồn PHU HUNG không đổi nên không gọi Google hoặc Firestore.');
+    return false;
+  }
+  ccGoogleSyncImportedRows.set('2026-11',next);
+  ccGoogleSyncPlan=null;
+  if($('ccGoogleSyncCommit'))$('ccGoogleSyncCommit').disabled=true;
+  ccGoogleSyncAutoStatus('Cash Control lưu thành công ('+action+'); nguồn PHU HUNG TEST đổi, đang đồng bộ...');
+  await ccGoogleSyncAutoSourceChanged();
+  return true;
+}
 async function ccGoogleSyncAutoSourceChanged(){
   if(!CC_SYNC_DEMO_ALLOWED||!ccGoogleSyncAutoEnabled)return;
   ccGoogleSyncAutoPending=true;
@@ -5586,6 +5639,8 @@ async function ccGoogleSyncImportSource(file){
   }
   if(loaded.size!==2)throw Error('Thiếu tháng trong bản chụp.');
   ccGoogleSyncImportedRows=loaded;
+  ccGoogleSyncImportedBaseline=new Map([...loaded.entries()].map(([month,rows])=>
+    [month,rows.map(row=>({...row,values:row.values.slice()}))]));
   ccGoogleSyncAutoEnabled=false;
   ccGoogleSyncAutoLastSignature='';
   if($('ccGoogleSyncAutoToggle'))$('ccGoogleSyncAutoToggle').textContent='Bật tự đồng bộ TEST khi nguồn đổi';
@@ -6857,6 +6912,7 @@ function ccGoogleSyncInitializeGooglePilot(){
         ccGoogleSyncAutoEnabled=false;
         if(autoToggle)autoToggle.textContent='Bật tự đồng bộ TEST khi nguồn đổi';
         ccGoogleSyncImportedRows=null;
+        ccGoogleSyncImportedBaseline=null;
         stagingNew.disabled=true;stagingEdit.disabled=true;
       }
       CC_SYNC_PILOT_TAB=ccGoogleSyncDemoActive?ccGoogleSyncDemoTab:'DATA_CASHCONTROL';
