@@ -47,7 +47,7 @@ test('unknown old-history overrides are flagged for review rather than guessed i
   assert.equal(diff.changed,true);
   assert.equal(diff.requiresReview,true);
   assert.deepEqual(diff.months,[]);
-  const missingDate=affectedForPayment({project:'PHU HUNG',amount:1},{project:'PHU HUNG',amount:2});
+  const missingDate=affectedForPayment({project:'PHU HUNG',processPaymentDate:'invalid-date',amount:1},{project:'PHU HUNG',processPaymentDate:'invalid-date',amount:2});
   assert.equal(missingDate.requiresReview,true);
 });
 test('stage and explicit switch are mandatory; production remains disabled',()=>{
