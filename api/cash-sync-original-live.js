@@ -281,3 +281,4 @@ async function run(req,res){
   }
 }
 module.exports=run;
+module.exports._internals={activateRequests,syncRequests,batchGrid};
