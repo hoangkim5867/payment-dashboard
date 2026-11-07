@@ -143,6 +143,32 @@ test('source cache can feed exact original Cash Control projector, but only afte
   assert.equal(projected.rows[0].values[10],321000);
   assert.equal(projected.authoritative,false,'read cache alone cannot activate writes');
 });
+test('verified cache survives actual financial edits but cannot self-certify an incomplete baseline',()=>{
+  const baseline=mutatePaymentCache(null,event('p1',payment('p1'),1)).state;
+  const verified={...baseline,complete:true,sourceVerified:true,
+    bootstrapCaptured:true,baselineReadTime:date(0),baselineDigest:'a'.repeat(64)};
+  const newer=mutatePaymentCache(verified,event('p1',
+    payment('p1',{amount:432100,processActualAmount:432100}),2,payment('p1')));
+  assert.equal(newer.state.complete,true);
+  assert.equal(newer.state.sourceVerified,true);
+  assert.equal(newer.state.bootstrapCaptured,true);
+  assert.equal(newer.state.baselineReadTime,date(0));
+  assert.equal(readCache(newer.state)[0].processActualAmount,432100);
+  const incomplete=mutatePaymentCache(baseline,event('p1',
+    payment('p1',{amount:432100,processActualAmount:432100}),2,payment('p1')));
+  assert.equal(incomplete.state.complete,false);
+  assert.throws(()=>readCache(incomplete.state),/Incomplete/);
+});
+test('a falsely marked complete cache without actual bootstrap provenance is rejected',()=>{
+  const baseline=mutatePaymentCache(null,event('p1',payment('p1'),1)).state;
+  for(const fake of [
+    {...baseline,complete:true,sourceVerified:true,baselineDigest:'a'.repeat(64)},
+    {...baseline,complete:true,sourceVerified:true,bootstrapCaptured:true,
+      baselineDigest:'a'.repeat(64)},
+    {...baseline,complete:true,sourceVerified:false,bootstrapCaptured:true,
+      baselineReadTime:date(0),baselineDigest:'a'.repeat(64)}
+  ])assert.throws(()=>readCache(fake),/Incomplete/);
+});
 test('atomic source-cache store reads and writes a single project doc, never scans payments',async()=>{
   const docs=new Map(),stats={reads:0,writes:0,queries:0};
   const db={
