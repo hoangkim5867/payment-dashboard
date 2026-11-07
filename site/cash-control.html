@@ -5796,7 +5796,10 @@ async function ccGoogleSyncAuditOriginalReadOnly(){
     ' (HTTP '+response.status+'). Chưa có dữ liệu nào được ghi.');
   const num=x=>Number(x).toLocaleString('vi-VN',{maximumFractionDigits:3});
   ccGoogleSyncStatus('FILE GỐC PHU HUNG — CHỈ ĐỌC: '+
-    (result.matched?'KHỚP TOÀN BỘ LỊCH SỬ VỚI TEST. ':'CHƯA KHỚP — DỪNG CHUYỂN ĐỔI. ')+
+    (result.matched?'KHỚP TOÀN BỘ LỊCH SỬ VỚI TEST. ':
+      result.approvedKnownCorrection?
+        'ĐẠT ĐỐI CHIẾU NGOẠI LỆ ĐÃ XÁC MINH: Cash Control làm chuẩn; lương K148 350.945.181,3 → 350.945.181 trên bản tổng hợp. Sổ lịch sử gốc giữ nguyên. ':
+        'CHƯA KHỚP — DỪNG CHUYỂN ĐỔI. ')+
     result.originalRows+' giao dịch gốc / '+result.testRows+' giao dịch TEST. '+
     'Số dư cuối gốc '+num(result.originalClosing)+
     '; số dư TEST '+num(result.testClosing)+'. '+
