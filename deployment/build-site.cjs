@@ -64,7 +64,8 @@ if(require.main===module){
    path.join(__dirname,'../tests/cash-sync-cross-project-relay.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-sheets-writer.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-export-kernel.test.cjs'),
-   path.join(__dirname,'../tests/cash-sync-full-projector.test.cjs')
+   path.join(__dirname,'../tests/cash-sync-full-projector.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-protected-history.test.cjs')
  ],{stdio:'inherit',timeout:60000});
  const target=process.env.VERCEL_ENV==='production'?'production':'staging';
  const stagingConfig=target==='staging'?JSON.parse(process.env.PAYMENT_FIREBASE_STAGING_CONFIG||'null'):null;
