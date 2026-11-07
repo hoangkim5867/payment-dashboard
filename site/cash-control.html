@@ -5088,7 +5088,8 @@ function modernCashExportRows(month,project){
             income:x.direction==='in'?amount:0,
             expense:x.direction==='out'?amount:0,
             _taxQuarter:x.direction==='out'?excelTaxQuarterCode(x):'',
-            _taxDirection:x.direction
+            _taxDirection:x.direction,
+            _syncIds:x.id?['expense:'+String(x.id)]:[]
         });
     });
 
