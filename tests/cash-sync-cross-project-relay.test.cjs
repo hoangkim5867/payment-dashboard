@@ -103,7 +103,9 @@ test('unknown fields, forged id, insecure month or review bypass never enqueue',
     await assert.rejects(ingestEnvelope({env:staging,envelope:bad,writer}));
   }
   const flagged=buildEnvelope({eventId:'unknown-legacy',source:'cash-private',
-    before:{legacyOverrides:{}},after:{legacyOverrides:{x:1}}});
+    before:{legacyOverrides:{},manualRecords:[]},
+    after:{legacyOverrides:{x:1},manualRecords:[
+      {id:'review-source',project:'PHU HUNG',actualDate:'2026-11-06'}]}});
   assert.equal(flagged.needsReview,true);
   await assert.rejects(ingestEnvelope({env:staging,
     envelope:{...flagged,needsReview:false},writer}),/review/);
