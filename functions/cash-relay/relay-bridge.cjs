@@ -50,6 +50,10 @@ function validateEnvelope(value){
      new Set(value.reasons).size!==value.reasons.length||
      (!value.months.length&&!value.needsReview))
     throw Error('Invalid relay months or reason codes.');
+  const reviewReasons=value.reasons.some(r=>r.startsWith('invalid-')||
+    r.endsWith('-requires-history'));
+  if(reviewReasons&&!value.needsReview)
+    throw Error('Unsafe relay event cannot bypass mandatory review.');
   const expected=makeJob({
     eventId:value.eventId,source:value.source,
     affected:{changed:true,months:value.months,
