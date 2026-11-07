@@ -5800,9 +5800,19 @@ async function ccGoogleSyncAuditOriginalReadOnly(){
     result.originalRows+' giao dịch gốc / '+result.testRows+' giao dịch TEST. '+
     'Số dư cuối gốc '+num(result.originalClosing)+
     '; số dư TEST '+num(result.testClosing)+'. '+
-    (result.mismatches?.length?
-      'Ví dụ hàng khác: '+result.mismatches.slice(0,3)
-        .map(x=>'gốc '+(x.originalRow??'—')+' / TEST '+(x.testRow??'—')).join('; ')+'. ':'')+
+    (result.mismatchCount?
+      'Số hàng lệch: '+result.mismatchCount+
+      '; chỉ lệch số dư N: '+result.balanceOnlyRows+
+      '; có khác cột giao dịch: '+result.transactionChangedRows+'. '+
+      'Các cột lệch: '+Object.entries(result.byColumn||{})
+        .map(([col,count])=>col+' ('+count+' hàng)').join(', ')+'. '+
+      'Chi tiết: '+(result.details||[]).slice(0,5)
+        .map(row=>'hàng '+(row.originalRow??'—')+' / '+(row.testRow??'—')+': '+
+          (row.fields||[]).slice(0,4).map(field=>
+            field.column+' '+field.name+' [gốc '+String(field.original).slice(0,48)+
+            ' | TEST '+String(field.test).slice(0,48)+
+            (field.delta!==undefined?' | lệch '+num(field.delta):'')+']').join(', '))
+        .join('; ')+'. ':'')+
     'Không sửa file gốc, không tải Firestore.');
   return result;
 }
