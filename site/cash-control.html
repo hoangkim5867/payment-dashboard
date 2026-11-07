@@ -6368,7 +6368,10 @@ async function ccGoogleSyncCreateComputedLedgerTest({automatic=false}={}){
     }
     const plan=await ccGoogleSyncBuildConsolidatedLedger(
       legacy.values||[],formulas.values||[],nextMirror);
-    await ccGoogleSyncUpdateStableView(meta,plan,CC_SYNC_STABLE_VIEW,{automatic});
+    const viewStatus=await ccGoogleSyncUpdateStableView(meta,plan,CC_SYNC_STABLE_VIEW,{automatic});
+    if(viewStatus!=='updated'&&viewStatus!=='unchanged')
+      throw Error('Sổ tổng hợp TEST chưa được cập nhật và đọc lại; không báo đồng bộ thành công.');
+    return viewStatus;
   }finally{ccGoogleSyncWriteInFlight=false}
 }
 
@@ -6442,7 +6445,9 @@ async function ccGoogleSyncDirectSyncTest({automatic=false}={}){
   }
   ccGoogleSyncPlan=null;
   $('ccGoogleSyncCommit').disabled=true;
-  await ccGoogleSyncCreateComputedLedgerTest({automatic});
+  const viewStatus=await ccGoogleSyncCreateComputedLedgerTest({automatic});
+  if(viewStatus!=='updated'&&viewStatus!=='unchanged')
+    throw Error('Chưa xác minh sổ tổng hợp TEST; chưa thể báo đồng bộ hoàn tất.');
   return 'verified';
 }
 
