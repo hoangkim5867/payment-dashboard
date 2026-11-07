@@ -72,6 +72,15 @@ function verifiedBaseline(cache){
     /^20\d\d-/.test(cache.baselineReadTime);
 }
 function eventVersion(date){
+  // Use the actual Firestore committed document version for writes, not
+  // arrival time. CloudEvents can be delayed and arrive out of order.
+  if(date&&typeof date==='object'&&
+     Number.isInteger(date.seconds)&&Number.isInteger(date.nanoseconds)&&
+     date.nanoseconds>=0&&date.nanoseconds<1e9){
+    const iso=new Date(date.seconds*1000).toISOString().slice(0,19);
+    if(!iso||iso==='Invalid Date')throw Error('Invalid Firestore commit time.');
+    return iso+'.'+String(date.nanoseconds).padStart(9,'0')+'Z';
+  }
   const d=String(date||'');
   // CloudEvent time is ISO UTC; equal timestamps across different event IDs
   // are a hard conflict rather than an arbitrary ordering decision.
