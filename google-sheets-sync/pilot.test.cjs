@@ -1056,100 +1056,38 @@ test('retry after VIEW failure preserves mirror exactly once and recovers',async
   assert.equal(f.context.viewAttempts,2,'retry resumes the failed VIEW step');
 });
 
-test('staging auto sync reacts to a source change once, then skips unchanged content',async()=>{
+test('manual-only: Cash Control save and auto coordinator cannot sync even if forced on',async()=>{
   const f=fixture({staging:true});
-  f.context.autoRuns=0;
+  const saved=vm.runInContext("ccGoogleSyncOnCashCloudSaved('saved')",f.context);
+  assert.equal(await saved,false);
   vm.runInContext(`
-    ccGoogleSyncImportedRows.set('2026-10',[]);
-    ccGoogleSyncImportedRows.set('2026-11',[{id:'STAGING-TEST-1',hash:'hash-1'}]);
     ccGoogleSyncAutoEnabled=true;
-    ccGoogleSyncDirectSyncTest=async({automatic}={})=>{
-      if(!automatic)throw Error('Must never invoke manual mode');
-      autoRuns++;
-      return 'verified';
-    };
+    ccGoogleSyncImportedRows=new Map([['2026-10',[]],['2026-11',[]]]);
   `,f.context);
-  await vm.runInContext('ccGoogleSyncAutoSourceChanged()',f.context);
-  await vm.runInContext('ccGoogleSyncAutoSourceChanged()',f.context);
-  assert.equal(f.context.autoRuns,1,'unchanged source must not re-write');
-  assert.equal(f.state.postCalls,0,'the auto coordinator itself never queries Google');
-  vm.runInContext("ccGoogleSyncImportedRows.get('2026-11')[0].hash='hash-2'",f.context);
-  await vm.runInContext('ccGoogleSyncAutoSourceChanged()',f.context);
-  assert.equal(f.context.autoRuns,2,'an edited source schedules one new reconciliation');
+  assert.equal(await vm.runInContext("ccGoogleSyncOnCashCloudSaved('changed')",f.context),false);
+  assert.equal(await vm.runInContext('ccGoogleSyncAutoSourceChanged()',f.context),undefined);
+  assert.equal(f.state.postCalls,0,'no Google write on a Cash Control save');
 });
-test('auto sync is blocked in production and stops on a failed staging write',async()=>{
-  const prod=fixture();
-  vm.runInContext('ccGoogleSyncAutoEnabled=true',prod.context);
-  await vm.runInContext('ccGoogleSyncAutoSourceChanged()',prod.context);
-  assert.equal(prod.state.postCalls,0);
+test('manual-only: every automatic Google write entry point fails before request',async()=>{
   const f=fixture({staging:true});
-  vm.runInContext(`
-    ccGoogleSyncImportedRows.set('2026-10',[]);
-    ccGoogleSyncImportedRows.set('2026-11',[]);
-    ccGoogleSyncAutoEnabled=true;
-    ccGoogleSyncDirectSyncTest=async()=>{throw Error('TEST write interrupted')};
-  `,f.context);
-  await vm.runInContext('ccGoogleSyncAutoSourceChanged()',f.context);
-  assert.equal(vm.runInContext('ccGoogleSyncAutoEnabled',f.context),false);
+  await assert.rejects(vm.runInContext('ccGoogleSyncDirectSyncTest({automatic:true})',f.context),
+    /Chỉ đồng bộ khi Admin bấm nút/);
+  await assert.rejects(vm.runInContext('ccGoogleSyncCommitPilot({automatic:true})',f.context),
+    /Chỉ đồng bộ khi Admin bấm nút/);
+  await assert.rejects(vm.runInContext('ccGoogleSyncCreateComputedLedgerTest({automatic:true})',f.context),
+    /Chỉ đồng bộ khi Admin bấm nút/);
   assert.equal(f.state.postCalls,0);
 });
-
-test('Cash Control saved event materializes staging manual payment only after save and skips no-ops',async()=>{
-  const f=fixture({staging:true,source:[tx('2026-11',321000)]});
-  f.context.autoRuns=0;
-  vm.runInContext(`
-    ccGoogleSyncImportedBaseline=new Map([
-      ['2026-10',[]],['2026-11',[]]
-    ]);
-    ccGoogleSyncImportedRows=new Map([
-      ['2026-10',[]],['2026-11',[]]
-    ]);
-    ccGoogleSyncAutoEnabled=true;
-    ccGoogleSyncDirectSyncTest=async({automatic}={})=>{
-      if(!automatic)throw Error('No manual sync from a save');
-      autoRuns++;
-      return 'verified';
-    };
-  `,f.context);
-  await vm.runInContext("ccGoogleSyncOnCashCloudSaved('saved payment')",f.context);
-  assert.equal(f.context.autoRuns,1,'one saved source change triggers one sync');
-  const saved=vm.runInContext("ccGoogleSyncImportedRows.get('2026-11')",f.context);
-  assert.equal(saved.length,1);
-  assert.equal(saved[0].id,'PHU HUNG:expense:001');
-  assert.equal(saved[0].values[10],0);
-  assert.equal(saved[0].values[7],321000);
-  assert.equal(vm.runInContext("ccGoogleSyncImportedBaseline.get('2026-11').length",f.context),0,
-    'the uploaded JSON baseline remains untouched');
-  await vm.runInContext("ccGoogleSyncOnCashCloudSaved('repeated save')",f.context);
-  assert.equal(f.context.autoRuns,1,'unchanged source requires no more Google operations');
-  f.state.source[0].subcontract=432100;
-  await vm.runInContext("ccGoogleSyncOnCashCloudSaved('edited payment')",f.context);
-  assert.equal(f.context.autoRuns,2);
-  const after=vm.runInContext("ccGoogleSyncImportedRows.get('2026-11')",f.context);
-  assert.equal(after.length,1,'edit must preserve the same sourceId');
-  assert.equal(after[0].id,saved[0].id);
-  assert.notEqual(after[0].hash,saved[0].hash);
-  assert.equal(f.state.postCalls,0,'event coordinator does not write to Google itself');
-});
-test('saved-event sync cannot write in production or without explicit staging opt-in',async()=>{
-  const prod=fixture({source:[tx('2026-11',321000)]});
-  vm.runInContext('ccGoogleSyncAutoEnabled=true',prod.context);
-  assert.equal(await vm.runInContext('ccGoogleSyncOnCashCloudSaved()',prod.context),false);
-  assert.equal(prod.state.postCalls,0);
-  const staging=fixture({staging:true});
-  assert.equal(await vm.runInContext('ccGoogleSyncOnCashCloudSaved()',staging.context),false);
-  assert.equal(staging.state.postCalls,0);
-});
-test('actual Cash Control save only notifies after successful Firestore setDoc',()=>{
-  const fnStart=html.indexOf('async function persistCashCloud(');
-  const fnEnd=html.indexOf('async function ensureCashCloudDocument(',fnStart);
-  assert.ok(fnStart>=0&&fnEnd>fnStart);
-  const fn=html.slice(fnStart,fnEnd);
-  const write=fn.indexOf('await setDoc(');
-  const notification=fn.indexOf('ccGoogleSyncOnCashCloudSaved(action)');
-  const catchIndex=fn.indexOf('}catch(error)');
-  assert.ok(write>=0&&write<notification&&notification<catchIndex,
-    'must signal only after a successful Firestore write inside the try block');
-  assert.ok(fn.includes('void ccGoogleSyncOnCashCloudSaved(action).catch('),
-    'Google failures must not change the result of a successful Cash Control save');
+test('manual-only: one visible Admin sync button, no auto sync toggle registration',()=>{
+  assert.equal((html.match(/id="ccGoogleSyncDirectSync"/g)||[]).length,1);
+  assert.match(html,/id="ccGoogleSyncDirectSync">Đồng bộ PHU HUNG/);
+  assert.match(html,/id="ccGoogleSyncAutoToggle" hidden/);
+  assert.ok(!html.includes("autoToggle.addEventListener('click'"));
+  const start=html.indexOf('async function persistCashCloud(');
+  const end=html.indexOf('async function ensureCashCloudDocument(',start);
+  assert.ok(start>=0&&end>start);
+  const fn=html.slice(start,end);
+  assert.ok(fn.includes('await setDoc('));
+  assert.ok(!fn.includes('ccGoogleSyncOnCashCloudSaved('),
+    'successful Cash Control saves must not schedule any Google sync');
 });
