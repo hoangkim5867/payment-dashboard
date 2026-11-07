@@ -143,6 +143,21 @@ test('source cache can feed exact original Cash Control projector, but only afte
   assert.equal(projected.rows[0].values[10],321000);
   assert.equal(projected.authoritative,false,'read cache alone cannot activate writes');
 });
+test('native Firestore commit timestamp retains nanosecond order, unlike delivery arrival',()=>{
+  const first=mutatePaymentCache(null,{paymentId:'p1',before:null,
+    after:payment('p1'),eventId:'e1',
+    time:{seconds:1793952000,nanoseconds:123456789}});
+  const late=mutatePaymentCache(first.state,{paymentId:'p1',
+    before:payment('p1'),after:payment('p1',{amount:100}),
+    eventId:'older-delivery',time:{seconds:1793952000,nanoseconds:123456788}});
+  assert.equal(late.changed,false);
+  assert.equal(late.reason,'older-event');
+  const newer=mutatePaymentCache(first.state,{paymentId:'p1',
+    before:payment('p1'),after:payment('p1',{amount:200}),
+    eventId:'newer-commit',time:{seconds:1793952000,nanoseconds:123456790}});
+  assert.equal(newer.changed,true);
+  assert.equal(Object.values(newer.state.rows)[0].value.amount,200);
+});
 test('verified cache survives actual financial edits but cannot self-certify an incomplete baseline',()=>{
   const baseline=mutatePaymentCache(null,event('p1',payment('p1'),1)).state;
   const verified={...baseline,complete:true,sourceVerified:true,
