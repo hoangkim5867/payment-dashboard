@@ -49,6 +49,28 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
 module.exports={buildSite,validateStagingConfig};
 if(require.main===module){
  require('../tests/deployment-gate.cjs');
+ // Test additive Cash Sync backend without touching current Cash Control/Payment code.
+ require('node:child_process').execFileSync(process.execPath,[
+   '--test',
+   path.join(__dirname,'../tests/cash-sync-outbox.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-worker.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-sheets-service.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-three-way.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-verified-mirror.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-source-snapshot.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-read-only-audit.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-service-probe.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-release-gate.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-cross-project-relay.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-sheets-writer.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-export-kernel.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-full-projector.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-protected-history.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-production-source-cache.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-one-time-bootstrap.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-canonical-source-reader.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-month-reconciler.test.cjs')
+ ],{stdio:'inherit',timeout:60000});
  const target=process.env.VERCEL_ENV==='production'?'production':'staging';
  const stagingConfig=target==='staging'?JSON.parse(process.env.PAYMENT_FIREBASE_STAGING_CONFIG||'null'):null;
  const enableIndexQueries=target==='production' && process.env.PAYMENT_INDEX_PROD_OPTIMIZATION_APPROVED==='YES' &&

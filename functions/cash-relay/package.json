@@ -1,0 +1,13 @@
+{
+  "name": "cash-control-sheets-event-relay",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": "22"
+  },
+  "main": "index.cjs",
+  "dependencies": {
+    "firebase-functions": "^6.4.0",
+    "google-auth-library": "^11.3.3"
+  }
+}

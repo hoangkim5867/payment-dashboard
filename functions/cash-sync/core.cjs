@@ -1,0 +1,177 @@
+'use strict';
+/*
+ * Cash Control → Sheets: event-driven invalidation outbox (TEST ONLY).
+ * No Google tokens, financial row payloads, timers or Firestore queries.
+ * This does NOT write Google Sheets; a separately authorized reconciler must
+ * consume these jobs after validating a complete source and ledger baseline.
+ */
+const {createHash}=require('node:crypto');
+const PROJECT='PHU HUNG';
+const FIRST_MONTH='2026-10';
+const COLLECTION='cash_sync_outbox';
+const sourceArrays=['manualRecords','salaryRecords'];
+const uncertainKeys=['legacyOverrides','deletedLegacy','openingStart'];
+const stable=x=>JSON.stringify(x===undefined?null:x);
+function projectKey(value){
+  const x=String(value??'').normalize('NFKC').replace(/[\s_\-]+/g,'').toUpperCase();
+  return x==='PHUHUNG'?PROJECT:null;
+}
+function dateMonth(value){
+  const raw=String(value??'').trim();
+  const m=/^(20\d\d)-(0[1-9]|1[0-2])(?:-([0-2]\d|3[01]))?/.exec(raw);
+  if(!m)return null;
+  const month=m[1]+'-'+m[2];
+  return month>=FIRST_MONTH?month:null;
+}
+function recordRelevant(record){
+  return record&&typeof record==='object'&&
+    [record.project,record.fromProject,record.toProject].some(projectKey);
+}
+function monthsOf(record){
+  return [...new Set([record?.actualDate,record?.processPaymentDate,
+    record?.paidDate,record?.paymentDate,record?.date]
+    .map(dateMonth).filter(Boolean))];
+}
+function emptyResult(){return {months:[],requiresReview:false,changed:false,reasons:[]}}
+function createAccumulator(){
+  const months=new Set(),reasons=new Set();
+  let changed=false,requiresReview=false;
+  return {
+    add(record,reason){
+      if(!recordRelevant(record))return;
+      changed=true;reasons.add(reason);
+      const found=monthsOf(record);
+      if(!found.length)requiresReview=true;
+      found.forEach(m=>months.add(m));
+    },
+    unknown(reason){changed=true;requiresReview=true;reasons.add(reason)},
+    result(){return {months:[...months].sort(),requiresReview,changed,
+      reasons:[...reasons].sort()}}
+  };
+}
+// Ignore Payment metadata/progress-only saves. Only changes capable of
+// affecting the actual Cash Control export should enqueue a Sheets update.
+const paymentCashFields=['project','processPaymentDate','processActualAmount',
+  'amount','costType','company','contractNo','contractName','ipcNo',
+  'contractType','paymentMonth','monthOutcome','carryForwardToMonth',
+  'carryForwardFromPaymentId','carriedForwardAt','note','remark','remarks',
+  'description','content','bankAccount','deleted'];
+function cashRelevantPaymentState(row){
+  if(!row||typeof row!=='object'||!row.processPaymentDate)return null;
+  return paymentCashFields.map(key=>[key,row[key]===undefined?null:row[key]]);
+}
+function affectedForPayment(before,after){
+  const acc=createAccumulator();
+  if(stable(cashRelevantPaymentState(before))===
+     stable(cashRelevantPaymentState(after)))return emptyResult();
+  if(recordRelevant(before)||recordRelevant(after)){
+    // Include both old and new months to handle dates moved across periods.
+    acc.add(before,'payment-changed');
+    acc.add(after,'payment-changed');
+  }
+  return acc.result();
+}
+function recordIndex(rows){
+  if(!Array.isArray(rows)||rows.length>10000)return null;
+  const map=new Map();
+  for(const row of rows){
+    const id=String(row?.id??'');
+    if(!id||id.length>256||map.has(id))return null;
+    map.set(id,row);
+  }
+  return map;
+}
+function affectedForCashPrivate(before,after){
+  const b=before||{},a=after||{},acc=createAccumulator();
+  for(const field of sourceArrays){
+    const oldIndex=recordIndex(b[field]||[]);
+    const newIndex=recordIndex(a[field]||[]);
+    if(!oldIndex||!newIndex){acc.unknown('invalid-'+field);continue}
+    for(const id of new Set([...oldIndex.keys(),...newIndex.keys()])){
+      const old=oldIndex.get(id),next=newIndex.get(id);
+      if(stable(old)===stable(next))continue;
+      acc.add(old,field+'-changed');
+      acc.add(next,field+'-changed');
+    }
+  }
+  // The exported cash label of an already-posted IPC receipt depends on
+  // inflowRecords[].number/type, not only on the linked manual transaction.
+  // Changing the IPC reference can therefore change Google Sheets text even
+  // when manualRecords did NOT change. Inspect the same before/after event
+  // payload; never query Firestore or recompute financial classifications.
+  if(stable(b.inflowRecords||[])!==stable(a.inflowRecords||[])){
+    const linked=[...(b.manualRecords||[]),...(a.manualRecords||[])]
+      .filter(x=>x?.linkedModule==='inflow'&&recordRelevant(x)&&
+        x.status==='paid'&&x.actualDate);
+    if(linked.length){
+      const oldInflows=recordIndex(b.inflowRecords||[]);
+      const newInflows=recordIndex(a.inflowRecords||[]);
+      if(!oldInflows||!newInflows){
+        acc.unknown('inflow-linked-reference-review');
+      }else{
+        const linkedByRecord=new Map();
+        for(const cash of linked){
+          const id=String(cash.linkedRecordId||'');
+          if(!id)continue;
+          if(!linkedByRecord.has(id))linkedByRecord.set(id,[]);
+          linkedByRecord.get(id).push(cash);
+        }
+        for(const id of new Set([...oldInflows.keys(),...newInflows.keys()])){
+          if(!linkedByRecord.has(id))continue;
+          const beforeInflow=oldInflows.get(id),afterInflow=newInflows.get(id);
+          const labelParts=entry=>[
+            entry?.number??null,
+            // When there is no number, the active inflow type determines the
+            // exported label. Conservatively detect the change.
+            entry?.type??null
+          ];
+          if(stable(labelParts(beforeInflow))===stable(labelParts(afterInflow)))continue;
+          for(const cash of linkedByRecord.get(id))
+            acc.add(cash,'inflow-linked-reference-changed');
+        }
+      }
+    }
+  }
+  // Overrides/deletions/opening balances refer to legacy data that is not
+  // included in this Firestore document. Do not guess its project/month.
+  for(const key of uncertainKeys){
+    if(stable(b[key])!==stable(a[key]))acc.unknown(key+'-requires-history');
+  }
+  return acc.result();
+}
+function makeJob({eventId,source,affected,createdAt}){
+  if(!['cash-private','payment'].includes(source)||
+     typeof eventId!=='string'||!eventId||eventId.length>512||
+     !affected?.changed)throw Error('No valid relevant change.');
+  const id=createHash('sha256').update(source+'\0'+eventId).digest('hex');
+  return {id,source,project:PROJECT,months:affected.months,
+    needsReview:affected.requiresReview,reasons:affected.reasons,
+    status:affected.requiresReview?'needs-review':'awaiting-reconciler',
+    schemaVersion:1,eventId,createdAt:createdAt||new Date().toISOString()};
+}
+function enabledForStaging(env){
+  return env?.CASH_SHEETS_OUTBOX_ENABLED==='YES'&&
+    (env?.GCLOUD_PROJECT||env?.GCP_PROJECT)==='cash-control-staging';
+}
+async function enqueueEvent({eventId,source,before,after,env,writer}){
+  if(!enabledForStaging(env))return {status:'disabled'};
+  const affected=source==='payment'
+    ?affectedForPayment(before,after)
+    :source==='cash-private'?affectedForCashPrivate(before,after)
+    :null;
+  if(!affected)throw Error('Unexpected source type.');
+  if(!affected.changed)return {status:'irrelevant'};
+  const job=makeJob({eventId,source,affected});
+  if(!writer||typeof writer.create!=='function')throw Error('Missing outbox writer.');
+  try{
+    await writer.create(COLLECTION,job.id,job);
+    return {status:'enqueued',job};
+  }catch(error){
+    // Firestore create() is atomic: retry of same event can safely no-op.
+    if(error?.code===6||error?.code==='already-exists')
+      return {status:'duplicate',id:job.id};
+    throw error; // trigger retries transient errors; never silently drop jobs
+  }
+}
+module.exports={COLLECTION,PROJECT,FIRST_MONTH,projectKey,dateMonth,
+  affectedForPayment,affectedForCashPrivate,makeJob,enabledForStaging,enqueueEvent};
