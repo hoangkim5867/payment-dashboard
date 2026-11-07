@@ -53,7 +53,14 @@ module.exports=async function handler(req,res){
       originalTitle:String(originalInfo.properties?.title||'').slice(0,120),
       originalRows:report.originalRows,testRows:report.testRows,
       originalClosing:report.originalClosing,testClosing:report.testClosing,
-      mismatches:report.mismatches
+      closingDifference:report.closingDifference,
+      mismatchCount:report.mismatchCount,
+      firstMismatch:report.firstMismatch,lastMismatch:report.lastMismatch,
+      balanceOnlyRows:report.balanceOnlyRows,
+      transactionChangedRows:report.transactionChangedRows,
+      onlyBalanceDifferences:report.onlyBalanceDifferences,
+      byColumn:report.byColumn,
+      details:report.details,mismatches:report.mismatches
     });
   }catch(error){
     if(error?.statusCode===403||error?.statusCode===503)
