@@ -148,6 +148,6 @@ test('bad prior row hash and duplicate source IDs reject entire TEST request',as
   }],current.signature),/previous source hash/);
   await assert.rejects(f.writer.writeMirror(MIRROR,[{
     kind:'append',id:before.id,row:remote(before),sheetRow:null
-  }],current.signature),/already exists/);
+  }],current.signature),/unexpectedly exists/);
   assert.equal(f.state.writes,0);
 });
