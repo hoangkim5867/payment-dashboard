@@ -38,23 +38,55 @@ function scanRows(input){
   if(rows.length>10000)throw Error('Lịch sử vượt giới hạn 10.000 dòng.');
   return rows;
 }
+const FIELD_NAMES=['Ngày','Đơn vị','Hợp đồng','Nội dung','IPC','Loại',
+  'Thu','Thầu phụ','Vật tư','Chi khác','Gián tiếp','Tài chính','Phải trả khác','Số dư'];
+function valuesDiffer(a,b,j){
+  if(typeof a==='number'||typeof b==='number')
+    return typeof a!=='number'||typeof b!=='number'||Math.abs(a-b)>0.000001;
+  return a!==b;
+}
 function compareOriginalWithTest(original,test){
   const orig=scanRows(original),copy=scanRows(test);
-  const mismatches=[];
+  const mismatches=[],details=[],byColumn={};
+  let mismatchCount=0,balanceOnlyRows=0,transactionChangedRows=0;
+  let firstMismatch=null,lastMismatch=null;
   for(let i=0;i<Math.max(orig.length,copy.length);i++){
-    const a=orig[i],b=copy[i];
-    if(!a||!b||a.values.some((v,j)=>typeof v==='number'
-        ?typeof b.values[j]!=='number'||Math.abs(v-b.values[j])>0.000001
-        :v!==b.values[j])){
-      if(mismatches.length<5)mismatches.push({originalRow:a?.sheetRow??null,testRow:b?.sheetRow??null});
+    const a=orig[i],b=copy[i],fields=[];
+    if(!a||!b){
+      fields.push({column:'ROW',name:'Dòng giao dịch',original:a?'Có':'Thiếu',
+        test:b?'Có':'Thiếu'});
+    }else{
+      for(let j=0;j<14;j++){
+        if(!valuesDiffer(a.values[j],b.values[j],j))continue;
+        const av=a.values[j],bv=b.values[j];
+        const diff={column:String.fromCharCode(65+j),name:FIELD_NAMES[j],
+          original:av,test:bv};
+        if(j>=6&&typeof av==='number'&&typeof bv==='number')
+          diff.delta=Math.round((bv-av)*1000000)/1000000;
+        fields.push(diff);
+      }
     }
+    if(!fields.length)continue;
+    mismatchCount++;
+    const meta={originalRow:a?.sheetRow??null,testRow:b?.sheetRow??null};
+    if(mismatches.length<5)mismatches.push(meta);
+    if(!firstMismatch)firstMismatch=meta;
+    lastMismatch=meta;
+    if(fields.length===1&&fields[0].column==='N')balanceOnlyRows++;
+    else transactionChangedRows++;
+    for(const f of fields)byColumn[f.column]=(byColumn[f.column]||0)+1;
+    if(details.length<8)details.push({...meta,fields});
   }
+  const originalClosing=orig.at(-1).values[13],testClosing=copy.at(-1).values[13];
   return {
-    matched:orig.length===copy.length&&mismatches.length===0,
+    matched:orig.length===copy.length&&mismatchCount===0,
     originalRows:orig.length,testRows:copy.length,
-    originalClosing:orig.at(-1).values[13],
-    testClosing:copy.at(-1).values[13],
-    mismatches
+    originalClosing,testClosing,
+    closingDifference:Math.round((testClosing-originalClosing)*1000000)/1000000,
+    mismatches,mismatchCount,firstMismatch,lastMismatch,
+    balanceOnlyRows,transactionChangedRows,
+    onlyBalanceDifferences:orig.length===copy.length&&mismatchCount>0&&transactionChangedRows===0,
+    byColumn,details
   };
 }
 module.exports={normDate,money,scanRows,compareOriginalWithTest};
