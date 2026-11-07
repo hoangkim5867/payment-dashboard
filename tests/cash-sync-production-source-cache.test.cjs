@@ -47,6 +47,25 @@ test('live event update and deletion preserve newest version, reject old and dup
   assert.equal(late.changed,false);
   assert.equal(Object.values(late.state.rows)[0].value,null);
 });
+test('verified bootstrap evidence survives a valid new Payment without a costly rescan',()=>{
+  const old=payment('p1'),seeded=mutatePaymentCache(null,event('p1',old,1)).state;
+  const verified={...seeded,sourceVerified:true,complete:true,
+    bootstrapCaptured:true,baselineReadTime:date(0),
+    baselineDigest:'b'.repeat(64)};
+  assert.equal(readCache(verified).length,1);
+  const changed=mutatePaymentCache(verified,event('p1',
+    payment('p1',{amount:432100,processActualAmount:432100}),3,old));
+  assert.equal(changed.changed,true);
+  assert.equal(changed.state.sourceVerified,true);
+  assert.equal(changed.state.complete,true);
+  assert.equal(changed.state.baselineReadTime,date(0));
+  assert.equal(readCache(changed.state)[0].processActualAmount,432100);
+  const unsafe={...verified,sourceVerified:false};
+  const needsReview=mutatePaymentCache(unsafe,event('p1',
+    payment('p1',{amount:432100,processActualAmount:432100}),3,old));
+  assert.equal(needsReview.state.complete,false,'CloudEvent cannot self-certify the cache');
+  assert.throws(()=>readCache(needsReview.state),/Incomplete/);
+});
 test('Payment description-only and hidden bank changes do not write source cache',()=>{
   const base=payment('p1'),initial=mutatePaymentCache(null,event('p1',base,1));
   const updated=mutatePaymentCache(initial.state,event('p1',{
@@ -112,7 +131,8 @@ test('source cache can feed exact original Cash Control projector, but only afte
   assert.throws(()=>readCache(unverified.state),/Incomplete/);
   // This manual completion in fixture is for calculator parity only;
   // no real production code may assert source complete without bootstrap audit.
-  const verified={...unverified.state,complete:true,
+  const verified={...unverified.state,complete:true,sourceVerified:true,
+    bootstrapCaptured:true,baselineReadTime:date(0),
     baselineDigest:'a'.repeat(64)};
   const rows=readCache(verified);
   assert.equal(rows.length,1);
