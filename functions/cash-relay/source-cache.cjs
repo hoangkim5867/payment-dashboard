@@ -32,8 +32,16 @@ function projectedPayment(id,raw){
     throw Error('Invalid Payment document identity.');
   const value={id:String(id)};
   for(const name of FIELDS){
-    const field=raw[name];
+    let field=raw[name];
     if(field!==undefined&&field!==null){
+      // Firebase Timestamp is safely normalized only for this known field.
+      // Browser snapshotIso() supports the exact resulting ISO form.
+      if(name==='carriedForwardAt'&&typeof field==='object'){
+        if(typeof field.toDate==='function')
+          field=field.toDate().toISOString();
+        else if(Number.isFinite(Number(field.seconds)))
+          field=new Date(Number(field.seconds)*1000).toISOString();
+      }
       // Only canonical primitive fields, no bank/account/large user blobs.
       if(typeof field!=='string'&&typeof field!=='number'&&typeof field!=='boolean')
         throw Error('Unexpected Payment source field '+name);
