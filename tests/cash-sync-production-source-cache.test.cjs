@@ -47,6 +47,18 @@ test('live event update and deletion preserve newest version, reject old and dup
   assert.equal(late.changed,false);
   assert.equal(Object.values(late.state.rows)[0].value,null);
 });
+test('Payment description-only and hidden bank changes do not write source cache',()=>{
+  const base=payment('p1'),initial=mutatePaymentCache(null,event('p1',base,1));
+  const updated=mutatePaymentCache(initial.state,event('p1',{
+    ...base,bankAccount:'NEW PRIVATE BANK',uncPdf:'MOVED DOC'
+  },2,base));
+  assert.equal(updated.changed,false);
+  assert.equal(updated.reason,'no-financial-source-change');
+  const noteUpdated=mutatePaymentCache(initial.state,event('p1',{
+    ...base,note:'投标保证金'
+  },2,base));
+  assert.equal(noteUpdated.changed,true,'notes can influence original accounting classification');
+});
 test('project movement removes one Payment without reading the entire company',()=>{
   const from=payment('p1'),to=payment('p1',{project:'EATON'});
   const old=mutatePaymentCache(null,event('p1',from,1));
