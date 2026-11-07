@@ -7,6 +7,8 @@
 const {onDocumentWritten}=require('firebase-functions/v2/firestore');
 const {sendProductionEvent,googleOidcSender,gate}=require('./outbound.cjs');
 const {scope,createCacheStore}=require('./source-cache.cjs');
+const {onRequest}=require('firebase-functions/v2/https');
+const {isSourceAuthorized,createCanonicalSourceReader}=require('./canonical-source-reader.cjs');
 const project=process.env.GCLOUD_PROJECT||process.env.GCP_PROJECT;
 if(process.env.CASH_SHEETS_PRODUCTION_RELAY_ENABLED==='YES'){
   gate(process.env);
@@ -49,5 +51,49 @@ exports.forwardPhuHungCashControl=onDocumentWritten(
   async event=>{
     if(event.params?.docId!=='lehoangoanh')return {status:'irrelevant'};
     return forward(event,'cash-private');
+  }
+);
+
+/*
+ * Separate IAM-PRIVATE canonical source endpoint for the TEST service
+ * identity. Never public. Only 13-column normalized Cash Control rows
+ * can leave production; raw Payment, bank data, protected history and
+ * Firestore credentials are never returned.
+ */
+exports.readPhuHungCanonicalSource=onRequest(
+  {region:'asia-southeast1',invoker:'private',maxInstances:1,
+    concurrency:1,timeoutSeconds:60},
+  async(req,res)=>{
+    if(!isSourceAuthorized(process.env)){
+      res.status(503).json({status:'disabled'});return;
+    }
+    if(req.method!=='POST'||
+       !String(req.headers['content-type']||'').startsWith('application/json')){
+      res.status(405).json({status:'rejected'});return;
+    }
+    const body=req.body;
+    if(!body||typeof body!=='object'||Array.isArray(body)||
+       Object.keys(body).sort().join(',')!=='month,project'||
+       JSON.stringify(body).length>128){
+      res.status(400).json({status:'invalid'});return;
+    }
+    try{
+      const {initializeApp,getApps}=require('firebase-admin/app');
+      const {getFirestore}=require('firebase-admin/firestore');
+      if(!getApps().length)initializeApp();
+      const reader=createCanonicalSourceReader({db:getFirestore()});
+      const source=await reader(body);
+      res.status(200).json(source);
+    }catch(error){
+      // Never disclose raw financial/source details or credentials.
+      const msg=String(error?.message||'');
+      if(/scope|request/.test(msg)){
+        res.status(400).json({status:'invalid'});return;
+      }
+      if(/bootstrap audit|Incomplete server source|revision\/records|Protected history/.test(msg)){
+        res.status(409).json({status:'source-not-yet-verified'});return;
+      }
+      res.status(503).json({status:'source-unavailable'});
+    }
   }
 );
