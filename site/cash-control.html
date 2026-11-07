@@ -6438,7 +6438,12 @@ async function ccGoogleSyncDirectSyncTest({automatic=false}={}){
   if(selectedPlan.blocked.length)
     throw Error('Có xung đột mới phát sinh; không ghi dữ liệu.');
   if(selectedPlan.changes.length){
-    await ccGoogleSyncCommitPilot({automatic});
+    const mirrorResult=await ccGoogleSyncCommitPilot({automatic});
+    // A cancelled confirmation must stop immediately. Do not spend additional
+    // Google calls or attempt to generate a VIEW from an unwritten mirror.
+    if(mirrorResult==='cancelled')return 'cancelled';
+    if(mirrorResult!=='verified')
+      throw Error('Chưa đọc lại và xác minh DATA_CASHCONTROL TEST; dừng đồng bộ.');
     const after=await ccGoogleSyncComparePilot(true);
     if(after.blocked.length||after.changes.length)
       throw Error('Ghi mirror TEST chưa xác minh hoàn toàn; không cập nhật sổ tổng hợp.');
@@ -6863,7 +6868,7 @@ async function ccGoogleSyncCommitPilot({automatic=false}={}){
   if(automatic&&(!CC_SYNC_DEMO_ALLOWED||!ccGoogleSyncAutoEnabled))
     throw Error('Tự ghi chỉ được phép khi Admin bật chế độ TEST staging.');
   if(!automatic&&!confirm('CHỈ GHI VÀO PHU HUNG TEST / '+CC_SYNC_PILOT_TAB+': '+
-    check.changes.length+' giao dịch. Tab PHU HUNG lịch sử không bị sửa. Tiếp tục?'))return;
+    check.changes.length+' giao dịch. Tab PHU HUNG lịch sử không bị sửa. Tiếp tục?'))return 'cancelled';
   $('ccGoogleSyncCommit').disabled=true;
   const changes=check.changes;
   const sheetName="'"+CC_SYNC_PILOT_TAB+"'";
@@ -6908,6 +6913,7 @@ async function ccGoogleSyncCommitPilot({automatic=false}={}){
   ccGoogleSyncPlan=null;
   ccGoogleSyncStatus('ĐÃ XÁC MINH Google Sheets TEST / '+CC_SYNC_PILOT_TAB+': '+additions.length+' dòng mới, '+
     updates.length+' dòng cập nhật. Đã đọc lại '+verified.rows.length+' dòng ở tab đích. Không sửa tab PHU HUNG lịch sử.');
+  return 'verified';
   }finally{
     ccGoogleSyncWriteInFlight=false;
   }
@@ -6995,7 +7001,11 @@ function ccGoogleSyncInitializeGooglePilot(){
   const directSyncButton=$('ccGoogleSyncDirectSync');
   directSyncButton?.addEventListener('click',async()=>{
     directSyncButton.disabled=true;
-    try{await ccGoogleSyncDirectSyncTest()}
+    try{
+      const result=await ccGoogleSyncDirectSyncTest();
+      if(result==='cancelled')
+        ccGoogleSyncStatus('Đã hủy đồng bộ theo yêu cầu. Không tự ghi tiếp lên Google Sheets TEST.');
+    }
     catch(error){ccGoogleSyncStatus('DỪNG ĐỒNG BỘ TEST: '+error.message)}
     finally{directSyncButton.disabled=false}
   });
