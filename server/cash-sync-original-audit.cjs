@@ -89,4 +89,48 @@ function compareOriginalWithTest(original,test){
     byColumn,details
   };
 }
-module.exports={normDate,money,scanRows,compareOriginalWithTest};
+// Exact, one-time reconciliation of the previously verified October 27 payroll
+// correction. The Cash Control amount (integer VND) is authoritative.
+// Never treat this as a generic tolerance or modify the original ledger.
+function auditKnownPayrollCorrection(original,test){
+  const orig=scanRows(original),copy=scanRows(test);
+  const fail=reason=>({approved:false,reason});
+  if(orig.length!==160||copy.length!==160)
+    return fail('Không đúng 160 giao dịch lịch sử đã nghiệm thu.');
+  const oldRow=orig.find(x=>x.sheetRow===148);
+  const newRow=copy.find(x=>x.sheetRow===148);
+  if(!oldRow||!newRow)
+    return fail('Không tìm thấy hàng lương gốc K148 trong cả hai file.');
+  if(oldRow.values[0]!=='2026-10-27'||newRow.values[0]!=='2026-10-27'||
+     Math.abs(oldRow.values[10]-350945181.3)>0.000001||
+     Math.abs(newRow.values[10]-350945181)>0.000001)
+    return fail('Ngày hoặc khoản lương K148 không đúng bằng chứng đã xác minh.');
+  let changes=0;
+  for(let i=0;i<orig.length;i++){
+    const a=orig[i],b=copy[i];
+    if(a.sheetRow!==b.sheetRow)
+      return fail('Cấu trúc dòng lịch sử đã thay đổi tại giao dịch '+(i+1));
+    for(let j=0;j<14;j++){
+      const before=a.values[j],after=b.values[j];
+      if(!valuesDiffer(before,after,j))continue;
+      const approvedAmount=a.sheetRow===148&&j===10 &&
+        Math.abs(before-after-0.3)<0.000005;
+      const approvedBalance=j===13&&a.sheetRow>=148&&
+        Math.abs(after-before-0.3)<0.000005;
+      if(!approvedAmount&&!approvedBalance)
+        return fail('Có khác biệt ngoài ngoại lệ lương tại '+String.fromCharCode(65+j)+a.sheetRow);
+      changes++;
+    }
+  }
+  if(changes<2)
+    return fail('Không tìm thấy đầy đủ chênh lệch tiền lương và số dư cộng dồn.');
+  const diff=copy.at(-1).values[13]-orig.at(-1).values[13];
+  if(Math.abs(diff-0.3)>0.000005)
+    return fail('Số dư cuối không đúng chênh lệch 0,3 VND đã xác minh.');
+  return {
+    approved:true,originalPayroll:350945181.3,cashControlPayroll:350945181,
+    originalBalance:orig.at(-1).values[13],cashControlBalance:copy.at(-1).values[13],
+    exceptionCell:'K148',delta:0.3,affectedCells:changes
+  };
+}
+module.exports={normDate,money,scanRows,compareOriginalWithTest,auditKnownPayrollCorrection};
