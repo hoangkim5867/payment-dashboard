@@ -113,3 +113,39 @@ test('mirror grid has exactly 19 columns and formula N cannot be overwritten wit
   assert.equal(view[1].values[13].userEnteredValue.formulaValue,'=$Q$2+G2-SUM(H2:M2)');
   assert.equal(view[2].values[13].userEnteredValue.formulaValue,'=N2+G3-SUM(H3:M3)');
 });
+
+test('one-tab activation is atomic, old history is hidden/renamed only, never overwritten',()=>{
+  const requests=require('../api/cash-sync-original-live.js')._internals;
+  const f=fixture(),h=C.correctedHistory(f.original);
+  const mirror=C.prepareNewMirror(f.sources,h),plan=C.buildLedger(h,mirror.newMirror);
+  const initial={meta:{sheets:[{properties:{sheetId:777,title:'PHU HUNG'}}]},
+    view:{sheetId:777},plan,combined:mirror};
+  const batch=requests.activateRequests(initial);
+  assert.ok(batch.requests.length>=7);
+  assert.ok(batch.requests.every(x=>!x.deleteSheet&&!x.deleteDimension&&!x.deleteRange));
+  const changes=batch.requests.filter(x=>x.updateCells);
+  assert.equal(changes.length,2);
+  assert.ok(changes.every(x=>x.updateCells.range.sheetId!==777));
+  const backup=batch.requests.find(x=>x.updateSheetProperties?.properties.sheetId===777);
+  assert.equal(backup.updateSheetProperties.properties.title,'PHU_HUNG_HISTORY_BACKUP');
+  assert.equal(backup.updateSheetProperties.properties.hidden,true);
+  const makeView=batch.requests.find(x=>x.updateSheetProperties?.properties.sheetId===batch.newViewId &&
+    x.updateSheetProperties.properties.title==='PHU HUNG');
+  assert.ok(makeView);
+  const mirrorSheet=batch.requests.find(x=>x.addSheet?.properties.sheetId===batch.newMirrorId);
+  assert.equal(mirrorSheet.addSheet.properties.hidden,true);
+});
+test('live monthly sync writes only current derived view and hidden mirror, never old history',()=>{
+  const requests=require('../api/cash-sync-original-live.js')._internals;
+  const f=fixture(),h=C.correctedHistory(f.original);
+  const mirror=C.prepareNewMirror(f.sources,h),plan=C.buildLedger(h,mirror.newMirror);
+  const changes=requests.syncRequests({
+    plan,combined:mirror,
+    view:{sheetId:3456,gridProperties:{rowCount:1000}},
+    mirrorSheet:{sheetId:3457,gridProperties:{rowCount:1000}},
+    oldPlan:plan,oldMirror:[]
+  });
+  assert.equal(changes.length,2);
+  assert.deepEqual(changes.map(r=>r.updateCells.range.sheetId),[3457,3456]);
+  assert.ok(!changes.some(r=>JSON.stringify(r).includes('PHU_HUNG_HISTORY_BACKUP')));
+});
