@@ -44,8 +44,14 @@ module.exports=async function handler(req,res){
       return res.status(409).json({error:'Original/TEST file identity or PHU HUNG tab mismatch.'});
     const history='/values/'+encodeURIComponent("'PHU HUNG'!A1:N")+
       '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER';
+    const backup='PHU_HUNG_HISTORY_BACKUP';
+    const activeBackup=originalInfo.sheets?.some(s=>s.properties?.title===backup);
+    const originalHistoryPath=activeBackup?
+      '/values/'+encodeURIComponent("'"+backup+"'!A1:N")+
+        '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER':
+      history;
     const [originalHistory,testHistory]=await Promise.all([
-      google(originalId,history),google(TEST_SPREADSHEET_ID,history)
+      google(originalId,originalHistoryPath),google(TEST_SPREADSHEET_ID,history)
     ]);
     const report=compareOriginalWithTest(originalHistory.values||[],testHistory.values||[]);
     const correction=auditKnownPayrollCorrection(originalHistory.values||[],testHistory.values||[]);
