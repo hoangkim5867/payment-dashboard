@@ -49,6 +49,12 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
 module.exports={buildSite,validateStagingConfig};
 if(require.main===module){
  require('../tests/deployment-gate.cjs');
+ // Preserve the current main Payment V2 safeguards while validating only
+ // the manually-triggered PHU HUNG Sheets code on this isolated release branch.
+ require('node:child_process').execFileSync(process.execPath,[
+   '--test',path.join(__dirname,'../tests/cash-sync-gate.test.cjs'),
+   path.join(__dirname,'../google-sheets-sync/pilot.test.cjs')
+ ],{stdio:'inherit',timeout:60000});
  const target=process.env.VERCEL_ENV==='production'?'production':'staging';
  const stagingConfig=target==='staging'?JSON.parse(process.env.PAYMENT_FIREBASE_STAGING_CONFIG||'null'):null;
  const enableIndexQueries=target==='production' && process.env.PAYMENT_INDEX_PROD_OPTIMIZATION_APPROVED==='YES' &&
