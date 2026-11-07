@@ -249,14 +249,25 @@ async function run(req,res){
       fetchSource(authorization,originalId,LIVE_TITLE,true),
       getGoogle(authorization,originalId,gridPath(MIRROR_TITLE,'A1:S'))
     ]);
-    if(!verifyView(viewBack.values,viewBack.formulas,report.plan)||
-       JSON.stringify(mirrorBack.values||[])!==JSON.stringify(
-         [HEAD_MIRROR,...report.combined.newMirror.map(x=>[
-           x.id,'PHU HUNG',x.month,...x.values,'',x.hash,x.status
-         ])].map(row=>{while(row.length&&row.at(-1)==='')row.pop();return row})
-       ))) {
-      // Google may omit trailing empty cells, so a direct JSON comparison above
-      // will be re-checked by the next preview. Do not claim successful verify.
+    const afterMirror=mirrorBack.values||[];
+    const expected=report.combined.newMirror;
+    let mirrorVerified=afterMirror.length===expected.length+1 &&
+      JSON.stringify(afterMirror[0])===JSON.stringify(HEAD_MIRROR);
+    if(mirrorVerified){
+      for(let i=0;i<expected.length;i++){
+        const actual=afterMirror[i+1]||[],item=expected[i];
+        if(String(actual[0])!==item.id||String(actual[1])!=='PHU HUNG'||
+           String(actual[2])!==item.month||String(actual[17])!==item.hash||
+           String(actual[18])!==item.status){mirrorVerified=false;break}
+        for(let j=0;j<13;j++){
+          const a=actual[3+j],b=item.values[j];
+          if(j<6?String(a??'')!==String(b):!Number.isFinite(Number(a))||
+             Math.abs(Number(a)-b)>0.000001){mirrorVerified=false;break}
+        }
+        if(!mirrorVerified)break;
+      }
+    }
+    if(!verifyView(viewBack.values,viewBack.formulas,report.plan)||!mirrorVerified){
       err('Tab đã cập nhật nhưng cần đọc lại/xác minh mirror trước khi đồng bộ tiếp.',502);
     }
     return res.status(200).json({mode:action==='activate'?'activated':'synced',
