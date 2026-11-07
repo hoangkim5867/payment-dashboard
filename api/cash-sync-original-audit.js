@@ -3,7 +3,7 @@
 // The original file ID lives only in a Vercel environment variable.
 const {TEST_SPREADSHEET_ID,readConfig,verifyFirebaseAdminToken}=
   require('../server/cash-sync-guard.cjs');
-const {compareOriginalWithTest}=require('../server/cash-sync-original-audit.cjs');
+const {compareOriginalWithTest,auditKnownPayrollCorrection}=require('../server/cash-sync-original-audit.cjs');
 
 module.exports=async function handler(req,res){
   res.setHeader('Cache-Control','no-store, max-age=0');
@@ -48,8 +48,12 @@ module.exports=async function handler(req,res){
       google(originalId,history),google(TEST_SPREADSHEET_ID,history)
     ]);
     const report=compareOriginalWithTest(originalHistory.values||[],testHistory.values||[]);
+    const correction=auditKnownPayrollCorrection(originalHistory.values||[],testHistory.values||[]);
     return res.status(200).json({
       readOnly:true,matched:report.matched,
+      approvedKnownCorrection:correction.approved,
+      readyForFurtherReview:report.matched||correction.approved,
+      correction:correction.approved?correction:null,
       originalTitle:String(originalInfo.properties?.title||'').slice(0,120),
       originalRows:report.originalRows,testRows:report.testRows,
       originalClosing:report.originalClosing,testClosing:report.testClosing,
