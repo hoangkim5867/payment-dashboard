@@ -916,7 +916,7 @@ test('direct TEST workflow persists and verifies mirror before rebuilding view',
       return {blocked:[],changes:comparisonNumber===1||comparisonNumber===4?[]:[{id:'TEST-1'}]};
     };
     function ccGoogleSyncMonthValue(){return $('ccGoogleSyncMonth').value}
-    ccGoogleSyncCommitPilot=async()=>{steps.push('commit')};
+    ccGoogleSyncCommitPilot=async()=>{steps.push('commit');return 'verified'};
     ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view');return 'updated'};
   `,f.context);
   await vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context);
@@ -933,7 +933,7 @@ test('direct TEST workflow never updates view when mirror verification fails',as
     ccGoogleSyncImportedRows.set('2026-10', []);
     ccGoogleSyncImportedRows.set('2026-11', []);
     let n=0;ccGoogleSyncComparePilot=async()=>{steps.push('compare');n++;return {blocked:[],changes:n===1?[]:[{id:'still-pending'}]}};
-    ccGoogleSyncCommitPilot=async()=>{steps.push('commit')};
+    ccGoogleSyncCommitPilot=async()=>{steps.push('commit');return 'verified'};
     ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view');return 'updated'};
   `,f.context);
   await assert.rejects(vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context),/mirror TEST chưa xác minh/);
@@ -947,7 +947,7 @@ test('direct TEST workflow stops at conflicts before any write',async()=>{
     ccGoogleSyncImportedRows.set('2026-10', []);
     ccGoogleSyncImportedRows.set('2026-11', []);
     ccGoogleSyncComparePilot=async()=>{steps.push('compare');return {blocked:[{reason:'conflict'}],changes:[]}};
-    ccGoogleSyncCommitPilot=async()=>{steps.push('commit')};
+    ccGoogleSyncCommitPilot=async()=>{steps.push('commit');return 'verified'};
     ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view');return 'updated'};
   `,f.context);
   await assert.rejects(vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context),/xung đột/);
@@ -962,7 +962,7 @@ test('later-month one-click sync blocks pending October transactions without wri
     ccGoogleSyncImportedRows.set('2026-11', []);
     ccGoogleSyncComparePilot=async()=>{steps.push('compare:'+ $('ccGoogleSyncMonth').value);
       return {blocked:[],changes:[{id:'october-unsynced'}]};};
-    ccGoogleSyncCommitPilot=async()=>{steps.push('commit')};
+    ccGoogleSyncCommitPilot=async()=>{steps.push('commit');return 'verified'};
     ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view');return 'updated'};
   `,f.context);
   await assert.rejects(vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context),/Hãy đồng bộ tháng đó trước/);
@@ -1023,7 +1023,7 @@ test('December TEST sync checks intervening November and blocks if it is pending
       steps.push(month);
       return {blocked:[],changes:month==='2026-11'?[{id:'november-unwritten'}]:[]};
     };
-    ccGoogleSyncCommitPilot=async()=>{steps.push('commit')};
+    ccGoogleSyncCommitPilot=async()=>{steps.push('commit');return 'verified'};
     ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view');return 'updated'};
   `,f.context);
   await assert.rejects(vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context),
@@ -1033,6 +1033,28 @@ test('December TEST sync checks intervening November and blocks if it is pending
   assert.equal(f.state.postCalls,0);
 });
 
+test('cancelled mirror confirmation stops manual sync before Google write or VIEW update',async()=>{
+  const f=fixture({staging:true});
+  const amount=321000;
+  const values=vm.runInContext('ccGoogleSyncRowValues',f.context)(tx('2026-11',amount));
+  const entry={id:'PHU HUNG:expense:001',project:'PHU HUNG',month:'2026-11',
+    values,hash:await f.api.sha(f.api.payload(values))};
+  vm.runInContext(`
+    ccGoogleSyncImportedRows.set('2026-10', []);
+    ccGoogleSyncImportedRows.set('2026-11', stagingCandidate);
+    ccGoogleSyncCreateComputedLedgerTest=async()=>{throw Error('VIEW must not be updated')};
+  `,Object.assign(f.context,{stagingCandidate:[entry]}));
+  const confirms=[];
+  f.context.confirm=msg=>{
+    confirms.push(msg);
+    return !msg.includes('CHỈ GHI VÀO PHU HUNG TEST');
+  };
+  const outcome=await vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context);
+  assert.equal(outcome,'cancelled');
+  assert.equal(f.state.postCalls,0,'declined mirror confirmation must not write');
+  assert.equal(f.state.rows.length,0);
+  assert.equal(confirms.length,2,'only the initial and mirror confirmation should appear');
+});
 test('cancelled or unverified VIEW never reports successful manual sync',async()=>{
   const f=fixture({staging:true});
   vm.runInContext(`
