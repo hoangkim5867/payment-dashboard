@@ -76,6 +76,12 @@ function mutatePaymentCache(state,{paymentId,before,after,eventId,time}){
   const relevant=scope(before)||scope(after)||Boolean(prior);
   if(!relevant)return {changed:false,state:cache,reason:'unrelated'};
   if(cache.blocked===true)return {changed:false,state:cache,reason:'cache-blocked'};
+  // A metadata-only Payment save changes no accounting source field;
+  // do not pay for a source-cache write just to store an unrelated event.
+  if(before&&after&&scope(before)&&scope(after)&&
+     JSON.stringify(projectedPayment(id,before))===
+       JSON.stringify(projectedPayment(id,after)))
+    return {changed:false,state:cache,reason:'no-financial-source-change'};
   const previousVersion=String(prior?.version||'');
   if(previousVersion>version)return {changed:false,state:cache,reason:'older-event'};
   if(previousVersion===version){
