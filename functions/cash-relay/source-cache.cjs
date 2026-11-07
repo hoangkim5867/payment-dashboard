@@ -56,6 +56,21 @@ function projectedPayment(id,raw){
     throw Error('Oversized Payment source entry.');
   return value;
 }
+function sameAccountingProjection(id,before,after){
+  if(!before||!after||!scope(before)||!scope(after))return false;
+  // Cache deliberately excludes bank accounts/UNC/files. Only real Cash
+  // Control source fields should trigger an incremental source write.
+  return JSON.stringify(projectedPayment(id,before))===
+    JSON.stringify(projectedPayment(id,after));
+}
+function verifiedBaseline(cache){
+  return cache?.schemaVersion===1&&cache?.project===PROJECT&&
+    cache.complete===true&&cache.sourceVerified===true&&
+    cache.bootstrapCaptured===true&&cache.blocked!==true&&
+    /^[a-f0-9]{64}$/.test(String(cache.baselineDigest||''))&&
+    typeof cache.baselineReadTime==='string'&&
+    /^20\d\d-/.test(cache.baselineReadTime);
+}
 function eventVersion(date){
   const d=String(date||'');
   // CloudEvent time is ISO UTC; equal timestamps across different event IDs
@@ -78,9 +93,7 @@ function mutatePaymentCache(state,{paymentId,before,after,eventId,time}){
   if(cache.blocked===true)return {changed:false,state:cache,reason:'cache-blocked'};
   // A metadata-only Payment save changes no accounting source field;
   // do not pay for a source-cache write just to store an unrelated event.
-  if(before&&after&&scope(before)&&scope(after)&&
-     JSON.stringify(projectedPayment(id,before))===
-       JSON.stringify(projectedPayment(id,after)))
+  if(sameAccountingProjection(id,before,after))
     return {changed:false,state:cache,reason:'no-financial-source-change'};
   const previousVersion=String(prior?.version||'');
   if(previousVersion>version)return {changed:false,state:cache,reason:'older-event'};
@@ -95,8 +108,15 @@ function mutatePaymentCache(state,{paymentId,before,after,eventId,time}){
     // A bounded tombstone protects against delayed older writes reappearing.
     rows[hashed]={value:null,version,eventId};
   }
+  // Keep the independent bootstrap certificate only if all its original
+  // evidence was already present and valid. Incomplete caches can NEVER be
+  // upgraded by an ordinary Payment CloudEvent.
+  const certified=verifiedBaseline(cache);
   const result={schemaVersion:1,project:PROJECT,rows,
-    complete:cache.complete===true,baselineDigest:cache.baselineDigest||null,
+    complete:certified,sourceVerified:certified,
+    bootstrapCaptured:cache.bootstrapCaptured===true,
+    baselineDigest:cache.baselineDigest||null,
+    baselineReadTime:cache.baselineReadTime||null,
     blocked:false,lastCloudEventId:eventId};
   if(Buffer.byteLength(JSON.stringify(result),'utf8')>MAX_CACHE_BYTES)
     return {changed:true,reason:'review',state:{
@@ -104,9 +124,7 @@ function mutatePaymentCache(state,{paymentId,before,after,eventId,time}){
   return {changed:true,state:result,reason:'applied'};
 }
 function readCache(state){
-  if(!state||state.schemaVersion!==1||state.project!==PROJECT||
-     state.complete!==true||state.blocked===true||
-     !/^[a-f0-9]{64}$/.test(String(state.baselineDigest||'')))
+  if(!verifiedBaseline(state))
     throw Error('Incomplete or unverified PHU HUNG source cache.');
   const payments=[];
   for(const [hash,entry] of Object.entries(state.rows||{})){
@@ -137,5 +155,5 @@ function createCacheStore(db){
   };
 }
 module.exports={COLLECTION,DOCUMENT,PROJECT,FIELDS,MAX_CACHE_BYTES,
-  key,scope,projectedPayment,eventVersion,mutatePaymentCache,readCache,
-  createCacheStore};
+  key,scope,projectedPayment,sameAccountingProjection,verifiedBaseline,
+  eventVersion,mutatePaymentCache,readCache,createCacheStore};
