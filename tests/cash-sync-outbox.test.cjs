@@ -50,6 +50,41 @@ test('unknown old-history overrides are flagged for review rather than guessed i
   const missingDate=affectedForPayment({project:'PHU HUNG',processPaymentDate:'invalid-date',amount:1},{project:'PHU HUNG',processPaymentDate:'invalid-date',amount:2});
   assert.equal(missingDate.requiresReview,true);
 });
+test('linked IPC receipt number changes update exported content without changing its amount',()=>{
+  const receipt={id:'cash-r1',project:'PHU HUNG',linkedModule:'inflow',
+    linkedRecordId:'r1',status:'paid',direction:'in',
+    actualDate:'2026-11-06',actualAmount:321000};
+  const before={manualRecords:[receipt],
+    inflowRecords:[{id:'r1',project:'PHU HUNG',number:'IPC001',type:'ipc'}]};
+  const after={manualRecords:[{...receipt}],
+    inflowRecords:[{id:'r1',project:'PHU HUNG',number:'IPC002',type:'ipc'}]};
+  const diff=affectedForCashPrivate(before,after);
+  assert.equal(diff.changed,true);
+  assert.equal(diff.requiresReview,false);
+  assert.deepEqual(diff.months,['2026-11']);
+  assert.ok(diff.reasons.includes('inflow-linked-reference-changed'));
+});
+test('pure inflow planning edit without a posted receipt creates no outbox write',()=>{
+  const before={manualRecords:[],
+    inflowRecords:[{id:'r1',project:'PHU HUNG',number:'IPC001',expectedDate:'2026-11-06'}]};
+  const after={manualRecords:[],
+    inflowRecords:[{id:'r1',project:'PHU HUNG',number:'IPC002',expectedDate:'2026-11-07'}]};
+  assert.equal(affectedForCashPrivate(before,after).changed,false);
+});
+test('malformed inflow master is reviewed only when changed and a linked paid receipt exists',()=>{
+  const receipt={id:'cash-r1',project:'PHU HUNG',linkedModule:'inflow',
+    linkedRecordId:'r1',status:'paid',actualDate:'2026-11-06'};
+  const before={manualRecords:[receipt],
+    inflowRecords:[{id:'r1',number:'IPC001'}]};
+  const after={manualRecords:[receipt],
+    inflowRecords:[{number:'IPC002'}]};
+  const diff=affectedForCashPrivate(before,after);
+  assert.equal(diff.changed,true);
+  assert.equal(diff.requiresReview,true);
+  assert.ok(diff.reasons.includes('inflow-linked-reference-review'));
+  assert.equal(affectedForCashPrivate(before,{...before,
+    projectMasters:[{id:'other'}]}).changed,false);
+});
 test('stage and explicit switch are mandatory; production remains disabled',()=>{
   assert.equal(enabledForStaging(staging),true);
   assert.equal(enabledForStaging({...staging,GCLOUD_PROJECT:'cscecmep-payment'}),false);
