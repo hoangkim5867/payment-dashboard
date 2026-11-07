@@ -94,6 +94,40 @@ function affectedForCashPrivate(before,after){
       acc.add(next,field+'-changed');
     }
   }
+  // The exported cash label of an already-posted IPC receipt depends on
+  // inflowRecords[].number/type, not only on the linked manual transaction.
+  // Changing the IPC reference can therefore change Google Sheets text even
+  // when manualRecords did NOT change. Inspect the same before/after event
+  // payload; never query Firestore or recompute financial classifications.
+  const oldInflows=recordIndex(b.inflowRecords||[]);
+  const newInflows=recordIndex(a.inflowRecords||[]);
+  if(!oldInflows||!newInflows){
+    acc.unknown('inflow-linked-reference-review');
+  }else{
+    const linked=[...(b.manualRecords||[]),...(a.manualRecords||[])]
+      .filter(x=>x?.linkedModule==='inflow'&&recordRelevant(x)&&
+        x.status==='paid'&&x.actualDate);
+    const linkedByRecord=new Map();
+    for(const cash of linked){
+      const id=String(cash.linkedRecordId||'');
+      if(!id)continue;
+      if(!linkedByRecord.has(id))linkedByRecord.set(id,[]);
+      linkedByRecord.get(id).push(cash);
+    }
+    for(const id of new Set([...oldInflows.keys(),...newInflows.keys()])){
+      if(!linkedByRecord.has(id))continue;
+      const beforeInflow=oldInflows.get(id),afterInflow=newInflows.get(id);
+      const labelParts=entry=>[
+        entry?.number??null,
+        // When there is no number, the active inflow type determines the
+        // exported label. Conservatively detect the change.
+        entry?.type??null
+      ];
+      if(stable(labelParts(beforeInflow))===stable(labelParts(afterInflow)))continue;
+      for(const cash of linkedByRecord.get(id))
+        acc.add(cash,'inflow-linked-reference-changed');
+    }
+  }
   // Overrides/deletions/opening balances refer to legacy data that is not
   // included in this Firestore document. Do not guess its project/month.
   for(const key of uncertainKeys){
