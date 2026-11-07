@@ -26,7 +26,10 @@ function scanRows(input){
     const raw=input[i]||[],date=normDate(raw[0]);
     if(!/^\d{4}-\d{2}-\d{2}$/.test(date))continue;
     if(raw.length<14)throw Error('Lịch sử thiếu cột tại hàng '+(i+1));
-    const amounts=raw.slice(6,14).map(money);
+    // Income/expense cells in the original manually-kept sheet may be blank (= 0).
+    // The running balance column N must be present and numeric.
+    const amounts=raw.slice(6,13).map(x=>String(x??'').trim()===''?0:money(x));
+    amounts.push(money(raw[13]));
     if(amounts.length!==8||amounts.some(x=>!Number.isFinite(x)))
       throw Error('Lịch sử có giá trị tiền/số dư không hợp lệ tại hàng '+(i+1));
     rows.push({sheetRow:i+1,values:[date,...raw.slice(1,6).map(x=>String(x??'').trim()),...amounts]});
