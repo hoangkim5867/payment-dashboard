@@ -33,7 +33,9 @@ async function forward(event,source){
     if(!getApps().length)initializeApp();
     await createCacheStore(getFirestore()).apply({
       paymentId:event.params?.paymentId,eventId:event.id,
-      time:event.time,before,after
+      // Native Firestore after.updateTime is authoritative for creations
+      // and edits; deletion must use CloudEvent time because no after doc.
+      time:event.data?.after?.updateTime||event.time,before,after
     });
     // If an event loses its lease or source cache is incomplete, the
     // downstream authoritative projector will fail closed.
