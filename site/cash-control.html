@@ -1434,6 +1434,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <button class="btn" type="button" id="ccGoogleSyncAuthorize">Kết nối Google</button>
         <button class="btn primary" type="button" id="ccGoogleSyncDirectSync">Đồng bộ PHU HUNG → Google Sheets TEST</button>
         <button class="btn" type="button" id="ccGoogleSyncCompare">So sánh dữ liệu (chỉ đọc)</button>
+        <button class="btn" type="button" id="ccGoogleSyncOriginalAudit" hidden>Đối chiếu file PHU HUNG gốc (chỉ đọc)</button>
       </div>
       <p id="ccGoogleSyncGoogleStatus" aria-live="polite" style="font-size:13px;color:#475569;margin:10px 0 0">Chưa kết nối Google. Không có thao tác ghi tự động.</p>
     </div>
@@ -5777,6 +5778,34 @@ async function ccGoogleSyncApi(path,{method='GET',body}={}){
   }
   return data;
 }
+async function ccGoogleSyncAuditOriginalReadOnly(){
+  if(firebaseConfig.projectId!=='cscecmep-payment')
+    throw Error('Chỉ thực hiện đối chiếu gốc trên Cash Control chính.');
+  if(!currentAuthUser||!isCashControlOwner()||typeof currentAuthUser.getIdToken!=='function')
+    throw Error('Chỉ Admin Cash Control được đối chiếu file gốc.');
+  if(!ccGoogleSyncToken)throw Error('Cần bấm Kết nối Google trước.');
+  const idToken=await currentAuthUser.getIdToken();
+  const response=await fetch('/api/cash-sync-original-audit',{
+    method:'POST',
+    headers:{'Content-Type':'application/json',
+      'X-Firebase-ID-Token':idToken,Authorization:'Bearer '+ccGoogleSyncToken},
+    body:'{}'
+  });
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok)throw Error(String(result.error||'Không thể đối chiếu file gốc')+
+    ' (HTTP '+response.status+'). Chưa có dữ liệu nào được ghi.');
+  const num=x=>Number(x).toLocaleString('vi-VN',{maximumFractionDigits:3});
+  ccGoogleSyncStatus('FILE GỐC PHU HUNG — CHỈ ĐỌC: '+
+    (result.matched?'KHỚP TOÀN BỘ LỊCH SỬ VỚI TEST. ':'CHƯA KHỚP — DỪNG CHUYỂN ĐỔI. ')+
+    result.originalRows+' giao dịch gốc / '+result.testRows+' giao dịch TEST. '+
+    'Số dư cuối gốc '+num(result.originalClosing)+
+    '; số dư TEST '+num(result.testClosing)+'. '+
+    (result.mismatches?.length?
+      'Ví dụ hàng khác: '+result.mismatches.slice(0,3)
+        .map(x=>'gốc '+(x.originalRow??'—')+' / TEST '+(x.testRow??'—')).join('; ')+'. ':'')+
+    'Không sửa file gốc, không tải Firestore.');
+  return result;
+}
 async function ccGoogleSyncReadSheet(){
   const metadata=await ccGoogleSyncApi('?fields=spreadsheetId,properties(title),sheets(properties(title,sheetId))');
   if(!/TEST/i.test(metadata.properties?.title||''))throw Error('Chặn ghi: file Google không có chữ TEST.');
@@ -6998,6 +7027,17 @@ function ccGoogleSyncInitializeGooglePilot(){
       demoChange.disabled=true;demoChange.textContent='Đã sửa: 567.890 → 765.432';
       ccGoogleSyncPlan=null;$('ccGoogleSyncCommit').disabled=true;
       ccGoogleSyncStatus('DEMO: thêm DEMO-PHU-HUNG-003 (345.678 VND) trong bộ nhớ; đích duy nhất DATA_CASHCONTROL_DEMO. Bấm So sánh dữ liệu, dự kiến 1 mới và 2 không đổi nếu DEMO-002 đã lưu 765.432.');
+    });
+  }
+  const originalAuditButton=$('ccGoogleSyncOriginalAudit');
+  if(originalAuditButton&&firebaseConfig.projectId==='cscecmep-payment'){
+    originalAuditButton.hidden=false;
+    originalAuditButton.addEventListener('click',async()=>{
+      originalAuditButton.disabled=true;
+      try{ccGoogleSyncStatus('Đang đối chiếu file PHU HUNG gốc và TEST (chỉ đọc, không đụng Firebase)…');
+        await ccGoogleSyncAuditOriginalReadOnly();
+      }catch(error){ccGoogleSyncStatus('CHƯA XÁC MINH FILE GỐC: '+error.message)}
+      finally{originalAuditButton.disabled=false}
     });
   }
   const directSyncButton=$('ccGoogleSyncDirectSync');

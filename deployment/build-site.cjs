@@ -53,6 +53,7 @@ if(require.main===module){
  // the manually-triggered PHU HUNG Sheets code on this isolated release branch.
  require('node:child_process').execFileSync(process.execPath,[
    '--test',path.join(__dirname,'../tests/cash-sync-gate.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-original-audit.test.cjs'),
    path.join(__dirname,'../google-sheets-sync/pilot.test.cjs')
  ],{stdio:'inherit',timeout:60000});
  const target=process.env.VERCEL_ENV==='production'?'production':'staging';
