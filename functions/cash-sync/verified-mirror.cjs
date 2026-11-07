@@ -85,8 +85,9 @@ async function synchronizeVerifiedDelta({
   // No deletion, no write to PHU HUNG or any calculated ledger.
   await google.writeMirror(MIRROR,authorized.writes.map(plan=>({
     kind:plan.kind,id:plan.id,row:pack(plan.row),
-    sheetRow:plan.kind==='update'?fresh.positions.get(plan.id):null
-  })));
+    sheetRow:plan.kind==='update'?fresh.positions.get(plan.id):null,
+    expectedHash:plan.kind==='update'?plan.expect.hash:null
+  })),fresh.signature);
   // Always read back even if Google returned 200 OK.
   const after=indexMirror(await google.readMirror(MIRROR));
   verifyReadback(authorized.plans,after.byId);
