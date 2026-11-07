@@ -17,7 +17,8 @@ function fixture({verified=true,missing=null}={}){
     time:'2026-11-06T01:02:03Z',eventId:'test-evt'};
   const initial=mutatePaymentCache(null,event).state;
   const cache={...initial,complete:verified,sourceVerified:verified,
-    bootstrapCaptured:verified,baselineDigest:'a'.repeat(64)};
+    bootstrapCaptured:verified,baselineReadTime:'2026-11-06T00:00:00.000000000Z',
+    baselineDigest:'a'.repeat(64)};
   const docs={
     'cash_sync_source_cache/PHU_HUNG':cache,
     'cash_control_private/lehoangoanh':{revision:3,manualRecords:[],
