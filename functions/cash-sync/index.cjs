@@ -18,10 +18,13 @@ const {enqueueEvent}=require('./core.cjs');
 const {stageEnabled,runWorker}=require('./worker.cjs');
 const {createJobStore}=require('./worker-store.cjs');
 const {assertCanEnableWorker}=require('./release-gate.cjs');
+const {createAdcLiveReconciler,gateWriter}=require('./live-reconciler.cjs');
 const {ingestEnvelope,DESTINATION}=require('./relay-bridge.cjs');
-// No server-side canonical projector or TEST writer is connected yet.
-// Refuse to deploy a misleading active worker; TEST read probe is separate.
-assertCanEnableWorker({env:process.env});
+// Backend plumbing now exists, but no live Firebase/GSheets IAM or source
+// baseline is certified by Preview tests. All TEST write/replay flags remain
+// OFF. Approval requires an independent real TEST readback acceptance run.
+assertCanEnableWorker({env:process.env,
+  sourceReconciler:createAdcLiveReconciler,googleWriteAdapter:gateWriter});
 if(!getApps().length)initializeApp();
 const region='asia-southeast1';
 const options={region,retry:true,maxInstances:2,concurrency:1};
@@ -48,19 +51,20 @@ exports.capturePaymentChange=onDocumentWritten(
 );
 
 /*
- * Separate, deliberately gated queue consumer. Cloud Functions deployment
- * does NOT imply it can write Sheets. Until an authoritative full-source
- * reconciler is implemented, the coordinator returns missing-reconciler
- * before claiming a job. No source is fabricated from the event alone.
+ * Separate gated queue consumer with the actual OIDC production source
+ * reader, Google Sheets TEST writer and historical formula audit.
+ * No worker starts without an explicitly approved, verified source baseline,
+ * IAM permissions and full TEST acceptance flags. No production Sheet writes.
  */
 exports.processCashSyncOutbox=onDocumentCreated(
   {...options,timeoutSeconds:90,document:'cash_sync_outbox/{jobId}'},
   async event=>{
     if(!stageEnabled(process.env))return {status:'disabled'};
     const jobId=String(event.params?.jobId||'');
+    const reconcile=await createAdcLiveReconciler(process.env);
     return runWorker({
       jobId,env:process.env,store:createJobStore(getFirestore()),
-      reconcile:undefined
+      reconcile
     });
   }
 );
