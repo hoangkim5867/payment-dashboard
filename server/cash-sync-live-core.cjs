@@ -101,11 +101,11 @@ function prepareNewMirror(source,history,previous=[]){
        String(row[2])!==value[0].slice(0,7)||
        String(row[17])!==sha(value))deny('Dữ liệu đã đồng bộ bị sửa ngoài hệ thống.');
     const status=String(row[18]??'');
-    if(status!=='synced'&&!/^history:\d+$/.test(status))
+    if(status!=='synced'&&!/^(history|historyUpdated):\d+$/.test(status))
       deny('Trạng thái dữ liệu đồng bộ không hợp lệ.');
     old.set(id,{id,month:row[2],values:value,hash:String(row[17]),status});
-    if(status.startsWith('history:')){
-      const sheetRow=Number(status.slice(8));
+    if(status.startsWith('history:')||status.startsWith('historyUpdated:')){
+      const sheetRow=Number(status.split(':')[1]);
       if(!historyIndex.has(sheetRow)||byId.has(sheetRow))
         deny('Ràng buộc giao dịch lịch sử không hợp lệ.');
       byId.set(sheetRow,id);
@@ -121,6 +121,8 @@ function prepareNewMirror(source,history,previous=[]){
   for(const entry of source){
     const before=old.get(entry.id);
     let status=before?.status;
+    if(status&&status.startsWith('history:')&&before.hash!==entry.hash)
+      status='historyUpdated:'+status.split(':')[1];
     if(!status){
       const matches=free.get(identity(entry.values))||[];
       if(matches.length){const index=matches.shift();status='history:'+index;
@@ -140,15 +142,15 @@ function prepareNewMirror(source,history,previous=[]){
 function buildLedger(history,mirror){
   const byHistory=new Map(),extras=[];
   for(const row of mirror){
-    if(row.status.startsWith('history:')){
-      const index=Number(row.status.slice(8));
+    if(row.status.startsWith('history:')||row.status.startsWith('historyUpdated:')){
+      const index=Number(row.status.split(':')[1]);
       if(byHistory.has(index))deny('Dòng lịch sử bị trùng ràng buộc.');
       byHistory.set(index,row);
     }else extras.push(row);
   }
   const entries=history.map(h=>{
     const source=byHistory.get(h.sheetRow);
-    if(source&&identity(source.values)!==identity(h.values)){
+    if(source&&(source.status.startsWith('historyUpdated:')||identity(source.values)!==identity(h.values))){
       // Cash Control explicitly overrides a previously linked historical amount.
       if(source.values[0]<history[0].values[0])
         deny('Nguồn sửa có ngày sớm hơn đầu sổ lịch sử.');
