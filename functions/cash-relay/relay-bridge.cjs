@@ -11,7 +11,8 @@ const ORIGIN='cscecmep-payment',DESTINATION='cash-control-staging';
 const ALLOWED_REASONS=new Set(['payment-changed','manualRecords-changed',
   'salaryRecords-changed','invalid-manualRecords','invalid-salaryRecords',
   'legacyOverrides-requires-history','deletedLegacy-requires-history',
-  'openingStart-requires-history']);
+  'openingStart-requires-history','inflow-linked-reference-changed',
+  'inflow-linked-reference-review']);
 const MONTH=/^20\d\d-(0[1-9]|1[0-2])$/;
 const eventIdOk=x=>typeof x==='string'&&x.length>=1&&x.length<=512&&
   /^[\x21-\x7e]+$/.test(x);
@@ -51,7 +52,7 @@ function validateEnvelope(value){
      (!value.months.length&&!value.needsReview))
     throw Error('Invalid relay months or reason codes.');
   const reviewReasons=value.reasons.some(r=>r.startsWith('invalid-')||
-    r.endsWith('-requires-history'));
+    r.endsWith('-requires-history')||r==='inflow-linked-reference-review');
   if(reviewReasons&&!value.needsReview)
     throw Error('Unsafe relay event cannot bypass mandatory review.');
   const expected=makeJob({
