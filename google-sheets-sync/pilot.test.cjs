@@ -1117,6 +1117,20 @@ test('manual-only: every automatic Google write entry point fails before request
     /Chỉ đồng bộ khi Admin bấm nút/);
   assert.equal(f.state.postCalls,0);
 });
+test('main-only PHU HUNG source export remains available and rejects nonnumeric finance data',()=>{
+  assert.equal((html.match(/id="cashPhuHungExportSource"/g)||[]).length,1);
+  assert.match(html,/pilotExportButton\.hidden=!isCashControlOwner\(\)/);
+  const begin=html.indexOf('async function cashPhuHungExportSourceSnapshot()');
+  const end=html.indexOf('function cashPhuHungInitSourceExporter()',begin);
+  assert.ok(begin>0&&end>begin,'existing main exporter must survive TEST preparation');
+  const exporter=html.slice(begin,end);
+  assert.match(exporter,/!currentAuthUser\|\|!isCashControlOwner\(\)/);
+  assert.match(exporter,/ccGoogleSyncPayloadCells\(values\)/,
+    'invalid money must fail rather than hash as zero');
+  assert.match(exporter,/PHU_HUNG_CASH_SOURCE_V1/);
+  assert.ok(!exporter.includes('ccGoogleSyncApi('),'JSON exporter must never send Google requests');
+  assert.ok(!exporter.includes('setDoc('),'JSON exporter must never modify Firebase data');
+});
 test('manual-only: one visible Admin sync button, no auto sync toggle registration',()=>{
   assert.equal((html.match(/id="ccGoogleSyncDirectSync"/g)||[]).length,1);
   assert.match(html,/id="ccGoogleSyncDirectSync">Đồng bộ PHU HUNG/);
