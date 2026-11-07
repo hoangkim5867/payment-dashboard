@@ -917,7 +917,7 @@ test('direct TEST workflow persists and verifies mirror before rebuilding view',
     };
     function ccGoogleSyncMonthValue(){return $('ccGoogleSyncMonth').value}
     ccGoogleSyncCommitPilot=async()=>{steps.push('commit')};
-    ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view')};
+    ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view');return 'updated'};
   `,f.context);
   await vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context);
   assert.deepEqual(Array.from(f.context.steps),[
@@ -934,7 +934,7 @@ test('direct TEST workflow never updates view when mirror verification fails',as
     ccGoogleSyncImportedRows.set('2026-11', []);
     let n=0;ccGoogleSyncComparePilot=async()=>{steps.push('compare');n++;return {blocked:[],changes:n===1?[]:[{id:'still-pending'}]}};
     ccGoogleSyncCommitPilot=async()=>{steps.push('commit')};
-    ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view')};
+    ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view');return 'updated'};
   `,f.context);
   await assert.rejects(vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context),/mirror TEST chưa xác minh/);
   assert.ok(f.context.steps.includes('commit'));
@@ -948,7 +948,7 @@ test('direct TEST workflow stops at conflicts before any write',async()=>{
     ccGoogleSyncImportedRows.set('2026-11', []);
     ccGoogleSyncComparePilot=async()=>{steps.push('compare');return {blocked:[{reason:'conflict'}],changes:[]}};
     ccGoogleSyncCommitPilot=async()=>{steps.push('commit')};
-    ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view')};
+    ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view');return 'updated'};
   `,f.context);
   await assert.rejects(vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context),/xung đột/);
   assert.deepEqual(Array.from(f.context.steps),['compare']);
@@ -963,7 +963,7 @@ test('later-month one-click sync blocks pending October transactions without wri
     ccGoogleSyncComparePilot=async()=>{steps.push('compare:'+ $('ccGoogleSyncMonth').value);
       return {blocked:[],changes:[{id:'october-unsynced'}]};};
     ccGoogleSyncCommitPilot=async()=>{steps.push('commit')};
-    ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view')};
+    ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view');return 'updated'};
   `,f.context);
   await assert.rejects(vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context),/Hãy đồng bộ tháng đó trước/);
   assert.deepEqual(Array.from(f.context.steps),['compare:2026-10']);
@@ -987,6 +987,7 @@ test('one-click integration writes new transaction, edits it, and repeated click
       if(row[0]!=='PHU HUNG:expense:001')throw Error('Unexpected source ID');
       if(await ccGoogleSyncSha(ccGoogleSyncPayloadCells(row.slice(3,16)))!==row[17])
         throw Error('Source integrity failed before view update');
+      return 'updated';
     };
   `,f.context);
   const makeSource=async(amount)=>{
@@ -1023,7 +1024,7 @@ test('December TEST sync checks intervening November and blocks if it is pending
       return {blocked:[],changes:month==='2026-11'?[{id:'november-unwritten'}]:[]};
     };
     ccGoogleSyncCommitPilot=async()=>{steps.push('commit')};
-    ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view')};
+    ccGoogleSyncCreateComputedLedgerTest=async()=>{steps.push('view');return 'updated'};
   `,f.context);
   await assert.rejects(vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context),
     /Tháng 2026-11 còn 1 giao dịch/);
@@ -1032,6 +1033,21 @@ test('December TEST sync checks intervening November and blocks if it is pending
   assert.equal(f.state.postCalls,0);
 });
 
+test('cancelled or unverified VIEW never reports successful manual sync',async()=>{
+  const f=fixture({staging:true});
+  vm.runInContext(`
+    ccGoogleSyncImportedRows.set('2026-10', []);
+    ccGoogleSyncImportedRows.set('2026-11', []);
+    ccGoogleSyncCreateComputedLedgerTest=async()=> 'cancelled';
+  `,f.context);
+  await assert.rejects(vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context),
+    /Chưa xác minh sổ tổng hợp TEST/);
+  assert.equal(f.state.postCalls,0,'cancelled VIEW cannot trigger a Google write');
+  vm.runInContext("ccGoogleSyncCreateComputedLedgerTest=async()=>undefined",f.context);
+  await assert.rejects(vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context),
+    /Chưa xác minh sổ tổng hợp TEST/);
+  assert.equal(f.state.postCalls,0);
+});
 test('retry after VIEW failure preserves mirror exactly once and recovers',async()=>{
   const f=fixture({staging:true});
   const normalized=vm.runInContext('ccGoogleSyncRowValues',f.context)(tx('2026-11',280000));
@@ -1044,6 +1060,7 @@ test('retry after VIEW failure preserves mirror exactly once and recovers',async
     ccGoogleSyncCreateComputedLedgerTest=async()=>{
       viewAttempts++;
       if(viewAttempts===1)throw Error('TEST simulated view failure after mirror write');
+      return 'updated';
     };
   `.replace('recoverySource','recoverySource'),Object.assign(f.context,{recoverySource:[entry]}));
   await assert.rejects(vm.runInContext('ccGoogleSyncDirectSyncTest()',f.context),/simulated view failure/);
