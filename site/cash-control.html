@@ -5671,9 +5671,20 @@ const ccGoogleSyncRowValues=r=>[
   ccGoogleSyncNumber(r.indirect),ccGoogleSyncNumber(r.financial),
   ccGoogleSyncNumber(r.otherPayable)
 ];
-const ccGoogleSyncPayloadCells=values=>values.map((v,i)=>
-  i>=6?Number(String(v??'0').replace(/,/g,''))||0:String(v??'')
-);
+const ccGoogleSyncPayloadCells=values=>values.map((v,i)=>{
+  if(i<6)return String(v??'');
+  // Google Sheets' UNFORMATTED_VALUE returns numeric cells as numbers. Never
+  // silently treat a deleted, non-numeric or corrupt mirror cell as zero.
+  if(v===null||v===undefined||typeof v==='boolean'||String(v).trim()==='')
+    throw Error('Ô tiền không hợp lệ tại cột '+(i+1)+'; dừng đồng bộ.');
+  const raw=String(v).trim();
+  if(typeof v!=='number'&&!/^-?(?:\d+(?:\.\d+)?|\.\d+)$/.test(raw))
+    throw Error('Ô tiền không hợp lệ tại cột '+(i+1)+'; dừng đồng bộ.');
+  const numeric=Number(raw);
+  if(!Number.isFinite(numeric))
+    throw Error('Ô tiền không hợp lệ tại cột '+(i+1)+'; dừng đồng bộ.');
+  return numeric;
+});
 async function ccGoogleSyncSha(v){
   const bytes=new TextEncoder().encode(JSON.stringify(v));
   const digest=await crypto.subtle.digest('SHA-256',bytes);
