@@ -121,6 +121,32 @@ test('manually altered target amount blocks all writes',async()=>{
   assert.equal(f.nodes.ccGoogleSyncCommit.disabled,true);
   assert.equal(f.state.postCalls,count);
 });
+test('a Google Sheets amount replaced with text never passes as zero',async()=>{
+  const f=fixture();
+  await f.api.compare();await f.api.commit();
+  const writes=f.state.postCalls;
+  f.state.rows[0][11]='not-a-number'; // material column was numeric zero
+  await assert.rejects(f.api.compare(),/Ô tiền không hợp lệ/);
+  assert.equal(f.state.postCalls,writes,'invalid remote data must never trigger a write');
+});
+test('a deleted zero-valued amount is rejected, not normalized to zero',async()=>{
+  const f=fixture();
+  await f.api.compare();await f.api.commit();
+  const writes=f.state.postCalls;
+  f.state.rows[0][11]=''; // user cleared a zero-valued cell
+  await assert.rejects(f.api.compare(),/Ô tiền không hợp lệ/);
+  assert.equal(f.state.postCalls,writes,'empty money cell must never be silently accepted');
+});
+test('money hashes retain numeric zero and fractional VND without rounding',()=>{
+  const f=fixture();
+  const values=['2026-11-03','Vendor','C1','IPC','IPC1','支出',
+    0,350945181.3,0,0,0,0,0];
+  assert.equal(f.api.payload(values)[7],350945181.3);
+  assert.equal(f.api.payload(values)[6],0);
+  assert.throws(()=>f.api.payload([...values.slice(0,9),null,...values.slice(10)]),
+    /Ô tiền không hợp lệ/);
+});
+
 test('removed source record triggers orphan block, not delete',async()=>{
   const f=fixture();
   await f.api.compare();await f.api.commit();
