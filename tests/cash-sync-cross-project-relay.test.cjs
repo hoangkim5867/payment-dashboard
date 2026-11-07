@@ -39,6 +39,18 @@ test('Payment change crosses projects as months and event identity, never money/
   assert.equal(buildEnvelope({eventId:'unrelated',source:'payment',
     before:pay(1,'2026-11-06','EATON'),after:pay(2,'2026-11-06','EATON')}),null);
 });
+test('a linked PHU HUNG IPC receipt label change crosses projects without cash values',()=>{
+  const receipt={id:'m1',linkedModule:'inflow',linkedRecordId:'receipt1',project:'PHU HUNG',
+    status:'paid',actualDate:'2026-11-06',actualAmount:432100};
+  const before={manualRecords:[receipt],inflowRecords:[{id:'receipt1',number:'IPC017'}]};
+  const after={manualRecords:[{...receipt}],inflowRecords:[{id:'receipt1',number:'IPC018'}]};
+  const envelope=buildEnvelope({eventId:'receipt-update-1',source:'cash-private',before,after});
+  assert.deepEqual(envelope.months,['2026-11']);
+  assert.ok(envelope.reasons.includes('inflow-linked-reference-changed'));
+  assert.equal(envelope.needsReview,false);
+  assert.equal(validateEnvelope(envelope).id,envelope.jobId);
+  assert.ok(!JSON.stringify(envelope).includes('432100'));
+});
 test('moves across months report both old and new periods',()=>{
   const envelope=buildEnvelope({eventId:'move-1',source:'payment',
     before:pay(321000,'2026-10-31'),after:pay(321000,'2026-11-01')});
