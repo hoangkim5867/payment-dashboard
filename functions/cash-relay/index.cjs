@@ -6,7 +6,7 @@
  */
 const {onDocumentWritten}=require('firebase-functions/v2/firestore');
 const {sendProductionEvent,googleOidcSender,gate}=require('./outbound.cjs');
-const {scope,createCacheStore}=require('./source-cache.cjs');
+const {scope,sameAccountingProjection,createCacheStore}=require('./source-cache.cjs');
 const {onRequest}=require('firebase-functions/v2/https');
 const {isSourceAuthorized,createCanonicalSourceReader}=require('./canonical-source-reader.cjs');
 const project=process.env.GCLOUD_PROJECT||process.env.GCP_PROJECT;
@@ -21,7 +21,8 @@ async function forward(event,source){
   const before=event.data?.before?.data?.()||null;
   const after=event.data?.after?.data?.()||null;
   if(process.env.CASH_SHEETS_PRODUCTION_RELAY_ENABLED==='YES'&&
-     source==='payment'&&(scope(before)||scope(after))){
+     source==='payment'&&(scope(before)||scope(after))&&
+     !sameAccountingProjection(event.params?.paymentId,before,after)){
     if(process.env.CASH_SHEETS_PRODUCTION_CACHE_ENABLED!=='YES')
       throw Error('Source cache must be explicitly enabled before relaying Payment.');
     // Cache only the one changed PHU HUNG Payment document. This costs
