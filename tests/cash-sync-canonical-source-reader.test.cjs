@@ -107,5 +107,6 @@ test('production and TEST exact financial source modules remain byte-for-byte id
   const relay=fs.readFileSync(path.join(root,'functions/cash-relay/index.cjs'),'utf8');
   assert.match(relay,/exports\.readPhuHungCanonicalSource=onRequest\(/);
   assert.match(relay,/invoker:'private'/);
-  assert.match(relay,/CASH_SHEETS_PRODUCTION_SOURCE_READ_ENABLED/);
+  const reader=fs.readFileSync(path.join(root,'functions/cash-relay/canonical-source-reader.cjs'),'utf8');
+  assert.match(reader,/CASH_SHEETS_PRODUCTION_SOURCE_READ_ENABLED/);
 });
