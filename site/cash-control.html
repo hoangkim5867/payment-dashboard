@@ -5890,14 +5890,14 @@ async function ccGoogleSyncRunOriginalManually(){
     ccGoogleSyncRequireFreshLiveSource();
     const first=preview.mode==='activate';
     const confirmation=first?
-      'KÍCH HOẠT FILE PHU HUNG GỐC – CHỈ 1 TAB CHÍNH\\n'+
-      'Tổng '+number(sum.rows)+' giao dịch, số dư '+number(sum.balance)+' VND.\\n'+
-      'Sổ PHU HUNG lịch sử được GIỮ NGUYÊN, đổi tên thành PHU_HUNG_HISTORY_BACKUP và ẩn.\\n'+
-      'Tạo PHU HUNG mới từ Cash Control và ẩn DATA_CASHCONTROL kỹ thuật.\\n'+
+      'KÍCH HOẠT FILE PHU HUNG GỐC – CHỈ 1 TAB CHÍNH\n'+
+      'Tổng '+number(sum.rows)+' giao dịch, số dư '+number(sum.balance)+' VND.\n'+
+      'Sổ PHU HUNG lịch sử được GIỮ NGUYÊN, đổi tên thành PHU_HUNG_HISTORY_BACKUP và ẩn.\n'+
+      'Tạo PHU HUNG mới từ Cash Control và ẩn DATA_CASHCONTROL kỹ thuật.\n'+
       'Không xóa giao dịch. Xác nhận chuyển đổi?':
-      'ĐỒNG BỘ THỦ CÔNG PHU HUNG THẬT\\n'+
+      'ĐỒNG BỘ THỦ CÔNG PHU HUNG THẬT\n'+
       'Tổng '+number(sum.rows)+' giao dịch ('+number(sum.extra)+' mới ngoài lịch sử), '+
-      'số dư cuối '+number(sum.balance)+' VND.\\n'+
+      'số dư cuối '+number(sum.balance)+' VND.\n'+
       'Giữ nguyên sổ lịch sử gốc, chỉ cập nhật tab chính và mirror kỹ thuật. Xác nhận ghi?';
     if(!confirm(confirmation)){
       ccGoogleSyncStatus('ĐÃ HỦY: chỉ kiểm tra và làm mới nguồn, không ghi file Google Sheets gốc.');
