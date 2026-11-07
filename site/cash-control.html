@@ -7154,7 +7154,7 @@ function ccGoogleSyncInitializeGooglePilot(){
   }
   const originalPanel=$('ccGoogleSyncOriginalPanel');
   const originalLiveButton=$('ccGoogleSyncManualOriginal');
-  if(originalPanel&&originalLiveButton&&
+  if(originalPanel&&originalLiveButton&&isCashControlOwner()&&
      firebaseConfig.projectId==='cscecmep-payment'){
     originalPanel.hidden=false;
     originalLiveButton.addEventListener('click',async()=>{
