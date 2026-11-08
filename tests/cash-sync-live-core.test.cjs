@@ -149,3 +149,25 @@ test('live monthly sync writes only current derived view and hidden mirror, neve
   assert.deepEqual(changes.map(r=>r.updateCells.range.sheetId),[3457,3456]);
   assert.ok(!changes.some(r=>JSON.stringify(r).includes('PHU_HUNG_HISTORY_BACKUP')));
 });
+
+test('post-write archive verification detects any change, including non-transaction rows',()=>{
+  const verify=require('../api/cash-sync-original-live.js')._internals.unchangedHistoricalSnapshot;
+  const initial=[['Ngày','Đơn vị','HĐ','Nội dung','IPC','Loại','Thu',
+    'SUBP','SUPL','Other','Indirect','Financial','OtherPayable','Balance'],
+    ['2026-10-27','VENDOR','CONTRACT','NOTE','IPC','支出',0,0,0,0,350945181.3,0,0,1234],
+    ['Tổng cộng','','','','','','','','','','','','',1234]];
+  const identical=structuredClone(initial);
+  assert.equal(verify(initial,identical),true);
+  const changedAmount=structuredClone(initial);
+  changedAmount[1][10]=350945181;
+  assert.equal(verify(initial,changedAmount),false);
+  const changedHeader=structuredClone(initial);
+  changedHeader[0][0]='Modified';
+  assert.equal(verify(initial,changedHeader),false);
+  const changedTotal=structuredClone(initial);
+  changedTotal[2][13]=1235;
+  assert.equal(verify(initial,changedTotal),false);
+  const missingRow=structuredClone(initial);
+  missingRow.splice(1,1);
+  assert.equal(verify(initial,missingRow),false);
+});
