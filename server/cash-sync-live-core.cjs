@@ -186,16 +186,36 @@ function buildLedger(history,mirror){
   return {rows,opening,closingBalance:balance,
     historicCount:history.length,extraCount:extras.length};
 }
-function viewCells(view){
-  const v=view||[],header=v[0]||[];
-  if(JSON.stringify(header)!==JSON.stringify(HEAD_VIEW))
-    deny('Cấu trúc tab tổng hợp đã thay đổi.');
-  return v.slice(1);
+function historicalDisplayHeader(original){
+  // Reuse the actual A:N labels stored in the immutable PHU HUNG archive.
+  const source=original?.[0];
+  if(!Array.isArray(source)||source.length<14||
+     typeof source[0]!=='string'||!source[0].trim())
+    deny('Không tìm thấy đủ tiêu đề A:N của sổ PHU HUNG lịch sử.');
+  return [...Array.from({length:14},(_,i)=>String(source[i]??'')),...HEAD_VIEW.slice(14)];
 }
-function verifyView(view,formulas,plan){
-  const cells=viewCells(view);
-  if(cells.length!==plan.rows.length||!Array.isArray(formulas)||
-     formulas.length!==plan.rows.length)return false;
+function totalRow(plan){
+  const end=plan.rows.length+1;
+  const cells=Array.from({length:17},()=>({}));
+  cells[0]=gridValue('合计');
+  for(let j=6;j<=12;j++){
+    const col=String.fromCharCode(65+j);
+    cells[j]={userEnteredValue:{formulaValue:'=SUM('+col+'2:'+col+end+')'}};
+  }
+  cells[13]={userEnteredValue:{formulaValue:'=N'+end}};
+  return {values:cells};
+}
+function verifyView(view,formulas,plan,displayHeader=null){
+  const header=view?.[0]||[];
+  const legacy=JSON.stringify(header)===JSON.stringify(HEAD_VIEW)&&
+    view.length===plan.rows.length+1;
+  const modern=!!displayHeader&&
+    JSON.stringify(header)===JSON.stringify(displayHeader)&&
+    view.length===plan.rows.length+2;
+  if(!legacy&&!modern)return false;
+  const cells=view.slice(1);
+  if(!Array.isArray(formulas)||
+     formulas.length!==plan.rows.length+(modern?1:0))return false;
   for(let i=0;i<plan.rows.length;i++){
     const a=cells[i]||[],b=plan.rows[i],expected=b.cells;
     for(let j=0;j<17;j++){
@@ -211,6 +231,20 @@ function verifyView(view,formulas,plan){
     }
     if(String(formulas[i]?.[0]??'').replace(/\s+/g,'')!==b.formula)return false;
   }
+  if(modern){
+    const total=cells.at(-1)||[];
+    if(String(total[0])!=='合计'||Math.abs(Number(total[13])-plan.closingBalance)>0.000001||
+       String(formulas.at(-1)?.[0]??'').replace(/\s+/g,'')!=='=N'+(plan.rows.length+1))
+      return false;
+    for(let j=6;j<=12;j++){
+      const col=String.fromCharCode(65+j);
+      const expected=plan.rows.reduce((sum,r)=>sum+r.values[j],0);
+      if(!Number.isFinite(Number(total[j]))||
+         Math.abs(Number(total[j])-expected)>0.000001)return false;
+      // Validate SUM expression using data values via a separate formula check
+      // in the output grid; computed values alone are validated here.
+    }
+  }
   return true;
 }
 function gridValue(v){
@@ -218,13 +252,14 @@ function gridValue(v){
   return {userEnteredValue:typeof v==='number'?{numberValue:v}:
     typeof v==='boolean'?{boolValue:v}:{stringValue:String(v)}};
 }
-function viewGrid(plan){
-  const result=[{values:HEAD_VIEW.map(gridValue)}];
+function viewGrid(plan,displayHeader=null){
+  const result=[{values:(displayHeader||HEAD_VIEW).map(gridValue)}];
   for(const row of plan.rows){
     const cells=row.cells.map(gridValue);
     cells[13]={userEnteredValue:{formulaValue:row.formula}};
     result.push({values:cells});
   }
+  if(displayHeader)result.push(totalRow(plan));
   return result;
 }
 function mirrorGrid(rows){
@@ -240,5 +275,5 @@ function planSignature(components){return sha(components)}
 module.exports={
   HEAD_VIEW,HEAD_MIRROR,HIST_BACKUP,LIVE_TITLE,MIRROR_TITLE,
   correctedHistory,sanitizeSource,prepareNewMirror,buildLedger,verifyView,
-  viewGrid,mirrorGrid,planSignature,deny,sha
+  historicalDisplayHeader,totalRow,viewGrid,mirrorGrid,planSignature,deny,sha
 };
