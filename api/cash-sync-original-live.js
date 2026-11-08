@@ -75,6 +75,11 @@ function unchangedHistoricalSnapshot(before,after){
   return Array.isArray(before)&&Array.isArray(after)&&
     JSON.stringify(before)===JSON.stringify(after);
 }
+function sameApprovedState(before,after,action){
+  return !!before&&!!after&&before.active===after.active&&
+    before.signature===after.signature&&
+    (action!=='sync'||after.changes===true);
+}
 async function state(authorization,originalId,source,action){
   const [meta,onlyTestMeta]=await Promise.all([
     getGoogle(authorization,originalId,'?fields=spreadsheetId,properties(title),sheets(properties(title,sheetId,hidden,gridProperties(rowCount,columnCount)))'),
@@ -255,8 +260,7 @@ async function run(req,res){
     // Refresh Google state immediately before writing: stale approval must never
     // overwrite a tab edited after the first preview/authorization read.
     const latest=await state(authorization,originalId,source,action);
-    if(latest.active!==report.active||latest.signature!==report.signature||
-       (action==='sync'&&!latest.changes))
+    if(!sameApprovedState(report,latest,action))
       err('Dữ liệu Google đã thay đổi trong lúc chuẩn bị ghi. DỪNG; kiểm tra lại trước khi đồng bộ.',409);
     const requests=action==='activate'?activateRequests(latest).requests:syncRequests(latest);
     await getGoogle(authorization,originalId,':batchUpdate','POST',{requests});
@@ -308,4 +312,4 @@ async function run(req,res){
   }
 }
 module.exports=run;
-module.exports._internals={activateRequests,syncRequests,batchGrid,unchangedHistoricalSnapshot,actionIsPreview};
+module.exports._internals={activateRequests,syncRequests,batchGrid,unchangedHistoricalSnapshot,actionIsPreview,sameApprovedState};
