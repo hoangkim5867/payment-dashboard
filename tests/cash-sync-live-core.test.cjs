@@ -171,3 +171,22 @@ test('post-write archive verification detects any change, including non-transact
   missingRow.splice(1,1);
   assert.equal(verify(initial,missingRow),false);
 });
+
+test('original live preview is strictly read-only; all write action labels stay gated',()=>{
+  const check=require('../api/cash-sync-original-live.js')._internals.actionIsPreview;
+  assert.equal(check({action:'activate-preview'}),true);
+  assert.equal(check({action:'sync-preview'}),true);
+  assert.equal(check(JSON.stringify({action:'activate-preview'})),true);
+  for(const input of [{action:'activate'},{action:'sync'},null,[],{action:'sync-preview-now'},
+    'not-json', {action:['sync-preview']},{action:'sync-preview',nested:{action:'sync'}}]){
+    if(input?.nested)continue; // the top-level action is the sole routing input
+    assert.equal(check(input),false);
+  }
+  // Even if a request is mislabeled, the server's later action dispatcher has
+  // the same action value and will not execute a write for either preview label.
+  assert.equal(check({action:'sync-preview',nested:{action:'sync'}}),true);
+  assert.throws(()=>require('../server/cash-sync-guard.cjs').readConfig({
+    VERCEL_ENV:'production',CASH_SYNC_FIREBASE_PROJECT_ID:'cscecmep-payment',
+    CASH_SYNC_ADMIN_UID:'AuthorizedAdminUid123'
+  }),/not been approved/);
+});
