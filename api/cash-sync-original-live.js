@@ -102,7 +102,7 @@ async function state(authorization,originalId,source,action){
     const combined=prepareNewMirror(source,historic,oldMirror);
     const plan=buildLedger(historic,combined.newMirror);
     const changes=compareOldAndNext(oldMirror,combined.newMirror);
-    return {active:true,meta,archived,view,mirrorSheet,oldMirror,
+    return {active:true,meta,archived,view,mirrorSheet,history,oldMirror,
       oldPlan,plan,combined,changes,
       signature:planSignature({original:history.values,view:viewData.values,
         formulas:viewData.formulas,mirror:mirrorData.values,source})};
@@ -245,10 +245,15 @@ async function run(req,res){
     if(!sheet(meta,HIST_BACKUP)?.hidden||sheet(meta,LIVE_TITLE)?.hidden||
        !sheet(meta,MIRROR_TITLE)?.hidden)
       err('Đã ghi, nhưng trạng thái tab chưa khớp. Không bấm lại.',502);
-    const [viewBack,mirrorBack]=await Promise.all([
+    const [viewBack,mirrorBack,historyBack]=await Promise.all([
       fetchSource(authorization,originalId,LIVE_TITLE,true),
-      getGoogle(authorization,originalId,gridPath(MIRROR_TITLE,'A1:S'))
+      getGoogle(authorization,originalId,gridPath(MIRROR_TITLE,'A1:S')),
+      fetchSource(authorization,originalId,HIST_BACKUP)
     ]);
+    // Audit the immutable historical ledger after Google applies the batch.
+    // Never declare success solely from the new calculated view/mirror.
+    if(!compareOriginalWithTest(report.history.values,historyBack.values).matched)
+      err('Đã ghi nhưng 160 giao dịch lịch sử không còn khớp nguyên bản. DỪNG; kiểm tra bản sao lưu trước khi tiếp tục.',502);
     const afterMirror=mirrorBack.values||[];
     const expected=report.combined.newMirror;
     let mirrorVerified=afterMirror.length===expected.length+1 &&
