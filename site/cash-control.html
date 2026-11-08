@@ -6832,6 +6832,8 @@ function ccGoogleSyncBuildSelector(){
   });
 }
 function ccGoogleSyncSelectedProjects(){
+  // The isolated Node pilot has no browser DOM. The only allowed project is PHU HUNG.
+  if(typeof document==='undefined')return ['PHU HUNG'];
   return [...document.querySelectorAll('#ccGoogleSyncProjects input:checked')].map(x=>x.value);
 }
 function ccGoogleSyncInspectOnly(){
