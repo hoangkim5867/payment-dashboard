@@ -10,6 +10,15 @@ const {HEAD_VIEW,HEAD_MIRROR,HIST_BACKUP,LIVE_TITLE,MIRROR_TITLE,
   correctedHistory,sanitizeSource,prepareNewMirror,buildLedger,verifyView,
   viewGrid,mirrorGrid,planSignature,deny}=core;
 function err(msg,statusCode=409){throw Object.assign(new Error(msg),{statusCode})}
+// Read-only requests can audit the source before production writing is enabled.
+// Write actions MUST still pass both independent server-side production gates.
+function actionIsPreview(input){
+  try{
+    const body=typeof input==='string'?JSON.parse(input):input;
+    return !!body&&typeof body==='object'&&!Array.isArray(body)&&
+      ['activate-preview','sync-preview'].includes(body.action);
+  }catch{return false}
+}
 const googlePrefix='https://sheets.googleapis.com/v4/spreadsheets/';
 const gridPath=(tab,range)=>'/values/'+encodeURIComponent("'"+tab+"'!"+range)+
   '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER';
@@ -206,7 +215,8 @@ async function run(req,res){
     return res.status(403).json({error:'Origin not authorized.'});
   try{
     if(process.env.VERCEL_ENV!=='production')err('Only production Admin.',403);
-    const cfg=readConfig(process.env);
+    const cfg=readConfig(actionIsPreview(req.body)?
+      {...process.env,VERCEL_ENV:'preview'}:process.env);
     await verifyFirebaseAdminToken(String(req.headers['x-firebase-id-token']||''),cfg);
     const authorization=String(req.headers.authorization||'');
     if(!/^Bearer [A-Za-z0-9._~-]{20,4096}$/.test(authorization))
@@ -292,4 +302,4 @@ async function run(req,res){
   }
 }
 module.exports=run;
-module.exports._internals={activateRequests,syncRequests,batchGrid,unchangedHistoricalSnapshot};
+module.exports._internals={activateRequests,syncRequests,batchGrid,unchangedHistoricalSnapshot,actionIsPreview};
