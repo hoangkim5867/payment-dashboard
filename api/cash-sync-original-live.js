@@ -252,7 +252,13 @@ async function run(req,res){
     if(action==='sync'&&!report.changes)
       return res.status(200).json({mode:'unchanged',summary,
         verified:true,message:'Đã khớp, không ghi Google.'});
-    const requests=action==='activate'?activateRequests(report).requests:syncRequests(report);
+    // Refresh Google state immediately before writing: stale approval must never
+    // overwrite a tab edited after the first preview/authorization read.
+    const latest=await state(authorization,originalId,source,action);
+    if(latest.active!==report.active||latest.signature!==report.signature||
+       (action==='sync'&&!latest.changes))
+      err('Dữ liệu Google đã thay đổi trong lúc chuẩn bị ghi. DỪNG; kiểm tra lại trước khi đồng bộ.',409);
+    const requests=action==='activate'?activateRequests(latest).requests:syncRequests(latest);
     await getGoogle(authorization,originalId,':batchUpdate','POST',{requests});
     // Verify final persisted state by reading the authoritative Google Sheet,
     // no extra Firestore work or background listener.
