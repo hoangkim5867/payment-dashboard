@@ -60,6 +60,12 @@ function fullViewReport(plan){return {
   historic:plan.historicCount,extra:plan.extraCount,rows:plan.rows.length,
   balance:plan.closingBalance
 }}
+// Compare the complete A:N Google values snapshot, including headings and non-date rows.
+// Numeric tolerance and scanRows alone would miss non-transaction changes.
+function unchangedHistoricalSnapshot(before,after){
+  return Array.isArray(before)&&Array.isArray(after)&&
+    JSON.stringify(before)===JSON.stringify(after);
+}
 async function state(authorization,originalId,source,action){
   const [meta,onlyTestMeta]=await Promise.all([
     getGoogle(authorization,originalId,'?fields=spreadsheetId,properties(title),sheets(properties(title,sheetId,hidden,gridProperties(rowCount,columnCount)))'),
@@ -252,8 +258,8 @@ async function run(req,res){
     ]);
     // Audit the immutable historical ledger after Google applies the batch.
     // Never declare success solely from the new calculated view/mirror.
-    if(!compareOriginalWithTest(report.history.values,historyBack.values).matched)
-      err('Đã ghi nhưng 160 giao dịch lịch sử không còn khớp nguyên bản. DỪNG; kiểm tra bản sao lưu trước khi tiếp tục.',502);
+    if(!unchangedHistoricalSnapshot(report.history.values,historyBack.values))
+      err('Đã ghi nhưng bản chụp toàn bộ A:N của lịch sử PHU HUNG đã thay đổi. DỪNG; kiểm tra sao lưu trước khi tiếp tục.',502);
     const afterMirror=mirrorBack.values||[];
     const expected=report.combined.newMirror;
     let mirrorVerified=afterMirror.length===expected.length+1 &&
@@ -286,4 +292,4 @@ async function run(req,res){
   }
 }
 module.exports=run;
-module.exports._internals={activateRequests,syncRequests,batchGrid};
+module.exports._internals={activateRequests,syncRequests,batchGrid,unchangedHistoricalSnapshot};
