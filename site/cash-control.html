@@ -6810,6 +6810,30 @@ function ccGoogleSyncInitializeGooglePilot(){
   });
 }
 
+function ccGoogleSyncSafeText(value){
+  return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function ccGoogleSyncBuildSelector(){
+  const container=$('ccGoogleSyncProjects');
+  if(!container)return;
+  // This pilot only supports PHU HUNG. Never offer a selectable project
+  // without its own audited destination spreadsheet and access policy.
+  const projects=['PHU HUNG'];
+  container.textContent='';
+  projects.forEach(project=>{
+    const label=document.createElement('label');
+    label.style.cssText='display:flex;gap:6px;align-items:center;font-size:12px';
+    const checkbox=document.createElement('input');
+    checkbox.type='checkbox'; checkbox.value=project;
+    checkbox.checked=true;
+    checkbox.disabled=true;
+    const span=document.createElement('span');span.textContent=project;
+    label.append(checkbox,span);container.append(label);
+  });
+}
+function ccGoogleSyncSelectedProjects(){
+  return [...document.querySelectorAll('#ccGoogleSyncProjects input:checked')].map(x=>x.value);
+}
 function ccGoogleSyncInspectOnly(){
   const out=$('ccGoogleSyncPreviewResult');
   const month=$('ccGoogleSyncMonth')?.value||'';
