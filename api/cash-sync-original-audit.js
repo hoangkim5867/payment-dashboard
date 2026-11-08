@@ -34,7 +34,7 @@ module.exports=async function handler(req,res){
         new Error('Cannot read spreadsheet with current Google account.'),{statusCode:502});
       return response.json();
     }
-    const metaQuery='?fields=spreadsheetId,properties(title),sheets(properties(title))';
+    const metaQuery='?fields=spreadsheetId,properties(title),sheets(properties(title,hidden))';
     const [originalInfo,testInfo]=await Promise.all([
       google(originalId,metaQuery),google(TEST_SPREADSHEET_ID,metaQuery)
     ]);
@@ -63,6 +63,12 @@ module.exports=async function handler(req,res){
       readyForFurtherReview:report.matched||correction.approved,
       correction:correction.approved?correction:null,
       originalTitle:String(originalInfo.properties?.title||'').slice(0,120),
+      // Diagnostic-only: no sheet IDs, user data, or mutations.
+      originalTabStates:['PHU HUNG','PHU_HUNG_HISTORY_BACKUP','DATA_CASHCONTROL']
+        .map(name=>{
+          const entry=originalInfo.sheets?.find(x=>x.properties?.title===name);
+          return {name,exists:!!entry,hidden:entry?entry.properties?.hidden===true:null};
+        }),
       originalRows:report.originalRows,testRows:report.testRows,
       originalClosing:report.originalClosing,testClosing:report.testClosing,
       closingDifference:report.closingDifference,
