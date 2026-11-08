@@ -223,3 +223,49 @@ test('unapproved K148 values still fail closed',()=>{
   bad[147][10]=350945180;
   assert.throws(()=>C.correctedHistory(bad),/Khoản lương K148/);
 });
+
+test('new visible PHU HUNG view reuses archived historical headings and adds formula totals',()=>{
+  const f=fixture(), history=C.correctedHistory(f.revised);
+  const data=C.prepareNewMirror(f.sources,history),plan=C.buildLedger(history,data.newMirror);
+  const header=C.historicalDisplayHeader(f.original);
+  assert.equal(header.length,17);
+  assert.deepEqual(header.slice(0,14),f.original[0]);
+  const grid=C.viewGrid(plan,header);
+  assert.equal(grid.length,plan.rows.length+2);
+  const values=grid.map(r=>r.values.map(c=>Object.values(c.userEnteredValue||{})[0]??''));
+  const sumrow=grid.at(-1).values;
+  assert.equal(sumrow[0].userEnteredValue.stringValue,'合计');
+  assert.equal(sumrow[6].userEnteredValue.formulaValue,'=SUM(G2:G161)');
+  assert.equal(sumrow[12].userEnteredValue.formulaValue,'=SUM(M2:M161)');
+  assert.equal(sumrow[13].userEnteredValue.formulaValue,'=N161');
+  // Google returns computed values in its UNFORMATTED_VALUE response.
+  for(let i=1;i<=plan.rows.length;i++)values[i][13]=plan.rows[i-1].balance;
+  for(let j=6;j<=12;j++)
+    values.at(-1)[j]=plan.rows.reduce((sum,r)=>sum+r.values[j],0);
+  values.at(-1)[13]=plan.closingBalance;
+  const formulas=plan.rows.map(r=>[r.formula]).concat([['=N161']]);
+  assert.equal(C.verifyView(values,formulas,plan,header),true);
+  values.at(-1)[6]++;
+  assert.equal(C.verifyView(values,formulas,plan,header),false);
+});
+test('visible zero hiding is formatting-only; no source amounts or formulas are modified',()=>{
+  const f=fixture(),history=C.correctedHistory(f.revised);
+  const data=C.prepareNewMirror(f.sources,history),plan=C.buildLedger(history,data.newMirror);
+  const api=require('../api/cash-sync-original-live.js')._internals;
+  const oldMirror=data.newMirror.map(x=>[x.id,'PHU HUNG',x.month,...x.values,'',x.hash,x.status]);
+  const state={plan,combined:data,displayHeader:C.historicalDisplayHeader(f.revised),
+    view:{sheetId:3456,gridProperties:{rowCount:1000}},
+    mirrorSheet:{sheetId:3457,gridProperties:{rowCount:1000}},
+    oldPlan:plan,oldMirror};
+  const writes=api.syncRequests(state);
+  const updates=writes.filter(x=>x.updateCells);
+  assert.equal(updates.length,2);
+  assert.deepEqual(updates.map(x=>x.updateCells.range.sheetId),[3457,3456]);
+  const moneyFormat=writes.find(x=>x.repeatCell?.fields==='userEnteredFormat.numberFormat');
+  assert.equal(moneyFormat.repeatCell.range.sheetId,3456);
+  assert.equal(moneyFormat.repeatCell.range.startColumnIndex,6);
+  assert.equal(moneyFormat.repeatCell.range.endColumnIndex,13);
+  assert.equal(moneyFormat.repeatCell.cell.userEnteredFormat.numberFormat.pattern.includes(';;'),true);
+  assert.equal(writes.some(x=>JSON.stringify(x).includes('PHU_HUNG_HISTORY_BACKUP')),false);
+  assert.equal(plan.rows.length,160);
+});
