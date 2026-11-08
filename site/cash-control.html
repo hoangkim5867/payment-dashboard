@@ -7154,9 +7154,9 @@ function ccGoogleSyncInitializeGooglePilot(){
   }
   const originalPanel=$('ccGoogleSyncOriginalPanel');
   const originalLiveButton=$('ccGoogleSyncManualOriginal');
-  if(originalPanel&&originalLiveButton&&isCashControlOwner()&&
+  if(originalPanel&&originalLiveButton&&
      firebaseConfig.projectId==='cscecmep-payment'){
-    originalPanel.hidden=false;
+    originalPanel.hidden=!(currentAuthUser&&isCashControlOwner());
     originalLiveButton.addEventListener('click',async()=>{
       originalLiveButton.disabled=true;
       try{await ccGoogleSyncRunOriginalManually()}
@@ -13000,6 +13000,8 @@ onAuthStateChanged(auth,async user=>{
     currentAuthUser=user||null;
     const pilotExportButton=$('cashPhuHungExportSource');
     if(pilotExportButton)pilotExportButton.hidden=!isCashControlOwner();
+    const originalSyncPanel=$('ccGoogleSyncOriginalPanel');
+    if(originalSyncPanel)originalSyncPanel.hidden=!(firebaseConfig.projectId==='cscecmep-payment'&&isCashControlOwner());
     updateCashAuthUI();
 
     if(!user || !isCashControlOwner()){
