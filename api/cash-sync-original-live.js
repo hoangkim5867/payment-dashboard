@@ -95,8 +95,23 @@ async function state(authorization,originalId,source,action){
   if(!active&&(archived||mirrorSheet))
     deny('Có tab đồng bộ dở dang; dừng để bảo vệ dữ liệu.');
   if(active){
-    if(!archived.hidden||!mirrorSheet.hidden||view.hidden)
-      deny('Tab lịch sử, dữ liệu kỹ thuật hoặc tab chính bị thay đổi trạng thái.');
+    if(archived.hidden!==true||mirrorSheet.hidden!==true||view.hidden===true){
+      // Retry once using the same minimal field projection as the independent
+      // historical audit. Do not write if the two metadata reads disagree.
+      const second=await getGoogle(authorization,originalId,
+        '?fields=spreadsheetId,sheets(properties(title,hidden))');
+      const secondStates=[HIST_BACKUP,MIRROR_TITLE,LIVE_TITLE].map(name=>{
+        const props=sheet(second,name);
+        return !props?'MISSING':props.hidden===true?'HIDDEN':'VISIBLE';
+      });
+      const firstStates=[archived,mirrorSheet,view].map(props=>
+        props.hidden===true?'HIDDEN':'VISIBLE');
+      deny('Trạng thái tab chưa nhất quán giữa hai lần đọc Google: '+
+        'Lịch sử '+firstStates[0]+'/'+secondStates[0]+
+        ', dữ liệu '+firstStates[1]+'/'+secondStates[1]+
+        ', PHU HUNG '+firstStates[2]+'/'+secondStates[2]+
+        '. DỪNG, chưa ghi dữ liệu.');
+    }
     if(action==='activate'||action==='activate-preview')
       return {active:true,alreadyActivated:true};
     if(!view.sheetId&&!Number.isInteger(view.sheetId))deny('Thiếu mã tab chính.');
@@ -339,7 +354,7 @@ async function run(req,res){
       error.statusCode:500;
     return res.status(code).json({error:code===500?
       'Lỗi bảo vệ đồng bộ. Không thử lại liên tục; kiểm tra trạng thái tab Google trước.':
-      String(error.message).slice(0,220)});
+      String(error.message).slice(0,420)});
   }
 }
 module.exports=run;
