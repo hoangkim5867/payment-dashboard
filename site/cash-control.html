@@ -1440,7 +1440,8 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
       <div id="ccGoogleSyncOriginalPanel" hidden style="margin-top:12px;padding:12px;border:1px solid #c9d8ed;border-radius:10px;background:#f8fafc">
         <div style="font-weight:800;margin-bottom:5px">PHU HUNG CHÍNH THỨC · 1 tab hiển thị</div>
         <p style="font-size:12px;margin:0 0 10px">Nguồn chuẩn: Cash Control. Lần đầu chuyển đổi sẽ lưu tab lịch sử trong file gốc dưới tên ẩn PHU_HUNG_HISTORY_BACKUP, rồi xuất bản tab tổng hợp thành PHU HUNG. Những lần sau chỉ đồng bộ thủ công sau khi Admin xác nhận. Không sửa/xóa dữ liệu lịch sử.</p>
-        <button class="btn primary" type="button" id="ccGoogleSyncManualOriginal">Kiểm tra và chuyển/đồng bộ PHU HUNG thật</button>
+        <button class="btn" type="button" id="ccGoogleSyncOriginalPreflight">Kiểm tra sẵn sàng (chỉ đọc, không ghi)</button>
+        <button class="btn primary" type="button" id="ccGoogleSyncManualOriginal">Chuyển/đồng bộ PHU HUNG thật (cần mở khóa ghi)</button>
       </div>
     </div>
     <div style="margin:12px 0;padding:12px;border:1px solid #dbe4f0;border-radius:12px">
@@ -5868,6 +5869,29 @@ async function ccGoogleSyncOriginalSnapshot(){
   ccGoogleSyncRequireFreshLiveSource();
   return {fromMonth:'2026-10',throughMonth,months,rows};
 }
+// One-click, never-write preflight for the real PHU HUNG ledger.
+async function ccGoogleSyncRunOriginalPreflight(){
+  if(ccGoogleSyncWriteInFlight)throw Error('Đang có thao tác Google khác; thử lại sau khi hoàn tất.');
+  ccGoogleSyncWriteInFlight=true;
+  try{
+    ccGoogleSyncStatus('CHỈ ĐỌC: đang làm mới nguồn PHU HUNG và đối chiếu đủ tháng với Google gốc…');
+    const snapshot=await ccGoogleSyncOriginalSnapshot();
+    let preview=await ccGoogleSyncOriginalRequest('activate-preview',snapshot);
+    if(preview.mode==='activated')preview=await ccGoogleSyncOriginalRequest('sync-preview',snapshot);
+    if(preview.mode!=='activate'&&preview.mode!=='sync')
+      throw Error('Trạng thái bảng tính không hợp lệ; chưa đủ điều kiện chuyển đổi.');
+    const sum=preview.summary||{},fmt=v=>Number(v||0).toLocaleString('vi-VN');
+    ccGoogleSyncStatus('KẾT QUẢ KIỂM TRA CHỈ ĐỌC PHU HUNG THẬT: '+
+      (preview.mode==='activate'?'SẴN SÀNG CHUYỂN TAB':'ĐÃ CHUYỂN TAB; kiểm tra đồng bộ')+
+      '; lịch sử '+fmt(sum.historic)+' dòng; phát sinh Cash Control mới '+
+      fmt(sum.extra)+' dòng; tổng sau đồng bộ '+fmt(sum.rows)+' dòng; số dư dự kiến '+
+      fmt(sum.balance)+' VND; nguồn '+snapshot.fromMonth+' → '+snapshot.throughMonth+
+      '; số dòng nguồn Cash Control '+fmt(snapshot.rows.length)+
+      '; '+(preview.changed?'có cập nhật chờ ghi':'không có dữ liệu cần ghi')+
+      '. HOÀN TOÀN CHỈ ĐỌC, chưa sửa Google Sheets gốc.');
+    return preview;
+  }finally{ccGoogleSyncWriteInFlight=false}
+}
 async function ccGoogleSyncRunOriginalManually(){
   if(ccGoogleSyncWriteInFlight)throw Error('Đang có lượt ghi Google khác; không đồng bộ đồng thời.');
   ccGoogleSyncWriteInFlight=true;
@@ -7154,9 +7178,17 @@ function ccGoogleSyncInitializeGooglePilot(){
   }
   const originalPanel=$('ccGoogleSyncOriginalPanel');
   const originalLiveButton=$('ccGoogleSyncManualOriginal');
-  if(originalPanel&&originalLiveButton&&
+  const originalPreflightButton=$('ccGoogleSyncOriginalPreflight');
+  if(originalPanel&&originalLiveButton&&originalPreflightButton&&
      firebaseConfig.projectId==='cscecmep-payment'){
     originalPanel.hidden=!(currentAuthUser&&isCashControlOwner());
+    originalPreflightButton.addEventListener('click',async()=>{
+      originalPreflightButton.disabled=true;
+      originalLiveButton.disabled=true;
+      try{await ccGoogleSyncRunOriginalPreflight()}
+      catch(error){ccGoogleSyncStatus('CHƯA SẴN SÀNG PHU HUNG GỐC (CHỈ ĐỌC): '+error.message)}
+      finally{originalPreflightButton.disabled=false;originalLiveButton.disabled=false}
+    });
     originalLiveButton.addEventListener('click',async()=>{
       originalLiveButton.disabled=true;
       try{await ccGoogleSyncRunOriginalManually()}
