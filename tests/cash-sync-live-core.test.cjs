@@ -190,3 +190,16 @@ test('original live preview is strictly read-only; all write action labels stay 
     CASH_SYNC_ADMIN_UID:'AuthorizedAdminUid123'
   }),/not been approved/);
 });
+
+test('last-moment revalidation prevents stale activation and stale sync writes',()=>{
+  const same=require('../api/cash-sync-original-live.js')._internals.sameApprovedState;
+  const activate={active:false,signature:'immutable-snapshot-A'};
+  assert.equal(same(activate,{...activate},'activate'),true);
+  assert.equal(same(activate,{...activate,signature:'changed-original'},'activate'),false);
+  assert.equal(same(activate,{active:true,signature:activate.signature},'activate'),false);
+  const synced={active:true,signature:'hash-old',changes:true};
+  assert.equal(same(synced,{...synced},'sync'),true);
+  assert.equal(same(synced,{...synced,changes:false},'sync'),false);
+  assert.equal(same(synced,{...synced,signature:'hash-new'},'sync'),false);
+  assert.equal(same(synced,null,'sync'),false);
+});
