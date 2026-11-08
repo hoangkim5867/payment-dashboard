@@ -15,7 +15,9 @@ module.exports=async function handler(req,res){
   try{
     if(process.env.VERCEL_ENV!=='production')
       return res.status(403).json({error:'Only production Admin may audit the original.'});
-    const config=readConfig(process.env);
+    // Read-only original-vs-TEST audit is allowed before enabling production writing.
+    // Authentication still requires the exact configured production Admin UID.
+    const config=readConfig({...process.env,VERCEL_ENV:'preview'});
     await verifyFirebaseAdminToken(String(req.headers['x-firebase-id-token']||''),config);
     const bearer=String(req.headers.authorization||'');
     if(!/^Bearer [A-Za-z0-9._~-]{20,4096}$/.test(bearer))
@@ -44,8 +46,14 @@ module.exports=async function handler(req,res){
       return res.status(409).json({error:'Original/TEST file identity or PHU HUNG tab mismatch.'});
     const history='/values/'+encodeURIComponent("'PHU HUNG'!A1:N")+
       '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER';
+    const backup='PHU_HUNG_HISTORY_BACKUP';
+    const activeBackup=originalInfo.sheets?.some(s=>s.properties?.title===backup);
+    const originalHistoryPath=activeBackup?
+      '/values/'+encodeURIComponent("'"+backup+"'!A1:N")+
+        '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER':
+      history;
     const [originalHistory,testHistory]=await Promise.all([
-      google(originalId,history),google(TEST_SPREADSHEET_ID,history)
+      google(originalId,originalHistoryPath),google(TEST_SPREADSHEET_ID,history)
     ]);
     const report=compareOriginalWithTest(originalHistory.values||[],testHistory.values||[]);
     const correction=auditKnownPayrollCorrection(originalHistory.values||[],testHistory.values||[]);

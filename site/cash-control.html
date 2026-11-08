@@ -1437,6 +1437,11 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <button class="btn" type="button" id="ccGoogleSyncOriginalAudit" hidden>Đối chiếu file PHU HUNG gốc (chỉ đọc)</button>
       </div>
       <p id="ccGoogleSyncGoogleStatus" aria-live="polite" style="font-size:13px;color:#475569;margin:10px 0 0">Chưa kết nối Google. Không có thao tác ghi tự động.</p>
+      <div id="ccGoogleSyncOriginalPanel" hidden style="margin-top:12px;padding:12px;border:1px solid #c9d8ed;border-radius:10px;background:#f8fafc">
+        <div style="font-weight:800;margin-bottom:5px">PHU HUNG CHÍNH THỨC · 1 tab hiển thị</div>
+        <p style="font-size:12px;margin:0 0 10px">Nguồn chuẩn: Cash Control. Lần đầu chuyển đổi sẽ lưu tab lịch sử trong file gốc dưới tên ẩn PHU_HUNG_HISTORY_BACKUP, rồi xuất bản tab tổng hợp thành PHU HUNG. Những lần sau chỉ đồng bộ thủ công sau khi Admin xác nhận. Không sửa/xóa dữ liệu lịch sử.</p>
+        <button class="btn primary" type="button" id="ccGoogleSyncManualOriginal">Kiểm tra và chuyển/đồng bộ PHU HUNG thật</button>
+      </div>
     </div>
     <div style="margin:12px 0;padding:12px;border:1px solid #dbe4f0;border-radius:12px">
       <div style="font-weight:700;margin-bottom:6px">3. Xử lý kết quả</div>
@@ -5819,6 +5824,100 @@ async function ccGoogleSyncAuditOriginalReadOnly(){
     'Không sửa file gốc, không tải Firestore.');
   return result;
 }
+async function ccGoogleSyncOriginalRequest(action,snapshot,extra={}){
+  if(!currentAuthUser||!isCashControlOwner()||
+     firebaseConfig.projectId!=='cscecmep-payment')
+    throw Error('Chỉ Admin Cash Control chính được chuyển/đồng bộ file thật.');
+  if(!ccGoogleSyncToken)throw Error('Cần Kết nối Google trước.');
+  const response=await fetch('/api/cash-sync-original-live',{
+    method:'POST',headers:{'Content-Type':'application/json',
+      'X-Firebase-ID-Token':await currentAuthUser.getIdToken(),
+      Authorization:'Bearer '+ccGoogleSyncToken},
+    body:JSON.stringify({action,snapshot,...extra})
+  });
+  const json=await response.json().catch(()=>({}));
+  if(!response.ok)throw Error(String(json.error||'Đối chiếu Google Sheets thật thất bại')+
+    ' (HTTP '+response.status+'). Không bấm lại nếu chưa kiểm tra trạng thái Google.');
+  return json;
+}
+async function ccGoogleSyncOriginalSnapshot(){
+  if(!currentAuthUser||!isCashControlOwner()||ccGoogleSyncDemoActive||
+     firebaseConfig.projectId!=='cscecmep-payment')
+    throw Error('Chỉ Admin bản chính, ngoài DEMO.');
+  if(!ccGoogleSyncToken)throw Error('Kết nối Google trước.');
+  // One deliberately initiated PHU HUNG source refresh for ALL months in scope.
+  ccGoogleSyncLiveSourceRefreshedAt=0;
+  const loaded=await loadProjectPayments('PHU HUNG',{force:true,quiet:true,refresh:true});
+  if(!loaded||!paymentMonths.has('PHU HUNG'))
+    throw Error('Chưa đọc đủ nguồn Cash Control PHU HUNG; không đồng bộ.');
+  ccGoogleSyncLiveSourceRefreshedAt=Date.now();
+  const vnNow=new Intl.DateTimeFormat('en-CA',{
+    timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit'
+  }).format(new Date());
+  const throughMonth=vnNow<'2026-10'?'2026-10':vnNow;
+  const year=Number(throughMonth.slice(0,4)),lastMonth=Number(throughMonth.slice(5,7));
+  const months=[],rows=[];
+  for(let y=2026;y<=year;y++){
+    for(let m=y===2026?10:1;m<=(y===year?lastMonth:12);m++){
+      const month=y+'-'+String(m).padStart(2,'0');
+      months.push(month);
+      rows.push(...await ccGoogleSyncCurrentRows('PHU HUNG',month));
+    }
+  }
+  if(rows.length<30)throw Error('Dữ liệu Cash Control không đủ 30 giao dịch tháng 10 đã nghiệm thu.');
+  ccGoogleSyncRequireFreshLiveSource();
+  return {fromMonth:'2026-10',throughMonth,months,rows};
+}
+async function ccGoogleSyncRunOriginalManually(){
+  if(ccGoogleSyncWriteInFlight)throw Error('Đang có lượt ghi Google khác; không đồng bộ đồng thời.');
+  ccGoogleSyncWriteInFlight=true;
+  try{
+    ccGoogleSyncStatus('Đang làm mới duy nhất nguồn PHU HUNG, rồi đối chiếu file Google gốc (chưa ghi)…');
+    const snapshot=await ccGoogleSyncOriginalSnapshot();
+    let preview=await ccGoogleSyncOriginalRequest('activate-preview',snapshot);
+    if(preview.mode==='activated')
+      preview=await ccGoogleSyncOriginalRequest('sync-preview',snapshot);
+    const number=n=>Number(n||0).toLocaleString('vi-VN');
+    const sum=preview.summary||{};
+    if(preview.mode==='sync'&&!preview.changed){
+      ccGoogleSyncStatus('PHU HUNG THẬT ĐÃ KHỚP SẴN: '+
+        number(sum.rows)+' giao dịch; số dư cuối '+number(sum.balance)+
+        'đ. Không phát sinh ghi Google. Nguồn Firestore chỉ được làm mới khi Admin bấm.');
+      return;
+    }
+    if(preview.mode!=='activate'&&preview.mode!=='sync')
+      throw Error('Kết quả bước kiểm tra không hợp lệ; chưa ghi file gốc.');
+    ccGoogleSyncRequireFreshLiveSource();
+    const first=preview.mode==='activate';
+    const confirmation=first?
+      'KÍCH HOẠT FILE PHU HUNG GỐC – CHỈ 1 TAB CHÍNH\n'+
+      'Tổng '+number(sum.rows)+' giao dịch, số dư '+number(sum.balance)+' VND.\n'+
+      'Sổ PHU HUNG lịch sử được GIỮ NGUYÊN, đổi tên thành PHU_HUNG_HISTORY_BACKUP và ẩn.\n'+
+      'Tạo PHU HUNG mới từ Cash Control và ẩn DATA_CASHCONTROL kỹ thuật.\n'+
+      'Không xóa giao dịch. Xác nhận chuyển đổi?':
+      'ĐỒNG BỘ THỦ CÔNG PHU HUNG THẬT\n'+
+      'Tổng '+number(sum.rows)+' giao dịch ('+number(sum.extra)+' mới ngoài lịch sử), '+
+      'số dư cuối '+number(sum.balance)+' VND.\n'+
+      'Giữ nguyên sổ lịch sử gốc, chỉ cập nhật tab chính và mirror kỹ thuật. Xác nhận ghi?';
+    if(!confirm(confirmation)){
+      ccGoogleSyncStatus('ĐÃ HỦY: chỉ kiểm tra và làm mới nguồn, không ghi file Google Sheets gốc.');
+      return;
+    }
+    ccGoogleSyncRequireFreshLiveSource();
+    const action=first?'activate':'sync';
+    const result=await ccGoogleSyncOriginalRequest(action,snapshot,{
+      signature:preview.signature,confirm:'CONFIRM_'+action.toUpperCase()
+    });
+    ccGoogleSyncStatus('ĐÃ XÁC MINH GOOGLE SHEETS GỐC: '+
+      number(result.summary?.rows)+' giao dịch ('+
+      number(result.summary?.historic)+' lịch sử + '+
+      number(result.summary?.extra)+' Cash Control mới); số dư cuối '+
+      number(result.summary?.balance)+' VND. '+
+      (first?'Một tab PHU HUNG hiển thị; sổ cũ được lưu ẩn. ':
+        'Đồng bộ thủ công; không ghi thêm nếu dữ liệu không đổi. ')+
+      'Không sửa Firestore, không chạy đồng bộ ngầm.');
+  }finally{ccGoogleSyncWriteInFlight=false}
+}
 async function ccGoogleSyncReadSheet(){
   const metadata=await ccGoogleSyncApi('?fields=spreadsheetId,properties(title),sheets(properties(title,sheetId))');
   if(!/TEST/i.test(metadata.properties?.title||''))throw Error('Chặn ghi: file Google không có chữ TEST.');
@@ -7051,6 +7150,18 @@ function ccGoogleSyncInitializeGooglePilot(){
         await ccGoogleSyncAuditOriginalReadOnly();
       }catch(error){ccGoogleSyncStatus('CHƯA XÁC MINH FILE GỐC: '+error.message)}
       finally{originalAuditButton.disabled=false}
+    });
+  }
+  const originalPanel=$('ccGoogleSyncOriginalPanel');
+  const originalLiveButton=$('ccGoogleSyncManualOriginal');
+  if(originalPanel&&originalLiveButton&&
+     firebaseConfig.projectId==='cscecmep-payment'){
+    originalPanel.hidden=!(currentAuthUser&&isCashControlOwner());
+    originalLiveButton.addEventListener('click',async()=>{
+      originalLiveButton.disabled=true;
+      try{await ccGoogleSyncRunOriginalManually()}
+      catch(error){ccGoogleSyncStatus('DỪNG ĐỒNG BỘ PHU HUNG THẬT: '+error.message)}
+      finally{originalLiveButton.disabled=false}
     });
   }
   const directSyncButton=$('ccGoogleSyncDirectSync');
@@ -12889,6 +13000,8 @@ onAuthStateChanged(auth,async user=>{
     currentAuthUser=user||null;
     const pilotExportButton=$('cashPhuHungExportSource');
     if(pilotExportButton)pilotExportButton.hidden=!isCashControlOwner();
+    const originalSyncPanel=$('ccGoogleSyncOriginalPanel');
+    if(originalSyncPanel)originalSyncPanel.hidden=!(firebaseConfig.projectId==='cscecmep-payment'&&isCashControlOwner());
     updateCashAuthUI();
 
     if(!user || !isCashControlOwner()){
