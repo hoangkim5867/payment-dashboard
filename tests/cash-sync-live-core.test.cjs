@@ -203,3 +203,23 @@ test('last-moment revalidation prevents stale activation and stale sync writes',
   assert.equal(same(synced,{...synced,signature:'hash-new'},'sync'),false);
   assert.equal(same(synced,null,'sync'),false);
 });
+
+test('already corrected original K148 is accepted without applying 0.3 a second time',()=>{
+  const f=fixture(), corrected=structuredClone(f.revised), snapshot=JSON.stringify(corrected);
+  const rows=C.correctedHistory(corrected);
+  assert.equal(rows.length,160);
+  assert.equal(rows.find(r=>r.sheetRow===148).values[10],350945181);
+  assert.equal(JSON.stringify(corrected),snapshot);
+  const combined=C.prepareNewMirror(f.sources,rows);
+  assert.equal(combined.newMirror.filter(x=>x.status.startsWith('history:')).length,30);
+  const plan=C.buildLedger(rows,combined.newMirror);
+  assert.equal(plan.rows.length,160);
+  assert.equal(plan.extraCount,0);
+  assert.equal(plan.closingBalance,C.buildLedger(C.correctedHistory(f.original),
+    C.prepareNewMirror(f.sources,C.correctedHistory(f.original)).newMirror).closingBalance);
+});
+test('unapproved K148 values still fail closed',()=>{
+  const f=fixture(),bad=structuredClone(f.revised);
+  bad[147][10]=350945180;
+  assert.throws(()=>C.correctedHistory(bad),/Khoản lương K148/);
+});
