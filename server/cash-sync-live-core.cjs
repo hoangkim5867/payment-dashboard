@@ -187,12 +187,30 @@ function buildLedger(history,mirror){
     historicCount:history.length,extraCount:extras.length};
 }
 function historicalDisplayHeader(original){
-  // Reuse the actual A:N labels stored in the immutable PHU HUNG archive.
-  const source=original?.[0];
-  if(!Array.isArray(source)||source.length<14||
-     typeof source[0]!=='string'||!source[0].trim())
-    deny('Không tìm thấy đủ tiêu đề A:N của sổ PHU HUNG lịch sử.');
-  return [...Array.from({length:14},(_,i)=>String(source[i]??'')),...HEAD_VIEW.slice(14)];
+  if(!Array.isArray(original)||!original.length)
+    deny('Không đọc được sổ PHU HUNG lịch sử để lấy tiêu đề.');
+  // The original ledger can contain a title, blank lines or merged cells
+  // before the A:N column headings. Search only ABOVE the first transaction.
+  const firstTransaction=original.findIndex(row=>normDate(row?.[0]));
+  if(firstTransaction<0)deny('Không có giao dịch lịch sử để xác định tiêu đề.');
+  // Prefer the actual original column labels even when the owner used
+  // merged or empty heading cells. Never treat a one-cell title as headers.
+  const fallback=['日期','单位名称','合同编号','摘要','IPC','类型',
+    '收入','分包款','材料款','其他直接费','间接费','财务费用','其他应付款','余额'];
+  let best=null,bestScore=-1;
+  for(let i=0;i<firstTransaction;i++){
+    const row=original[i];
+    if(!Array.isArray(row))continue;
+    const values=Array.from({length:14},(_,j)=>String(row[j]??'').trim());
+    const filled=values.filter(Boolean).length;
+    if(filled<5)continue;
+    const headingWords=values.filter(v=>/日期|时间|单位|公司|合同|摘要|内容|类型|收|支|余额|结余|财务|材料|分包|间接|应付|date|balance/i.test(v)).length;
+    const score=filled+headingWords*2+(values[0]?1:0)+(values[13]?1:0);
+    if(score>=bestScore){bestScore=score;best=values}
+  }
+  // A missing label is supplied without changing any original accounting value.
+  const header=best?fallback.map((fallbackText,i)=>best[i]||fallbackText):fallback;
+  return [...header,'来源','来源编号','期初余额'];
 }
 function totalRow(plan){
   const end=plan.rows.length+1;

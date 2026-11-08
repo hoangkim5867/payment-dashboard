@@ -269,3 +269,33 @@ test('visible zero hiding is formatting-only; no source amounts or formulas are 
   assert.equal(writes.some(x=>JSON.stringify(x).includes('PHU_HUNG_HISTORY_BACKUP')),false);
   assert.equal(plan.rows.length,160);
 });
+
+test('historical heading lookup tolerates blank first row, merged title and later heading',()=>{
+  const source=[
+    [],
+    ['PHU HUNG 项目资金收支明细表'],
+    ['日期','单位名称','合同编号','摘要','IPC','类型','收入',
+      '分包款','材料款','其他直接费','间接费','财务费用','其他应付款','余额'],
+    ['2026-10-27','供应商','LAB-001','Payment','IPC1','支出',0,0,0,0,350945181,0,0,10]
+  ];
+  const labels=C.historicalDisplayHeader(source);
+  assert.equal(labels.length,17);
+  assert.equal(labels[0],'日期');
+  assert.equal(labels[10],'间接费');
+  assert.equal(labels[13],'余额');
+  assert.equal(labels[14],'来源');
+});
+test('missing A:N heading safely uses Chinese labels and never misreads a transaction',()=>{
+  const source=[
+    [],
+    ['PHU HUNG'],
+    ['2026-10-27','VENDOR','LAB-001','Payment','IPC1','支出',
+      0,0,0,0,350945181,0,0,13289845382]
+  ];
+  const labels=C.historicalDisplayHeader(source);
+  assert.equal(labels.length,17);
+  assert.deepEqual(labels.slice(0,3),['日期','单位名称','合同编号']);
+  assert.equal(labels[13],'余额');
+  assert.equal(C.historicalDisplayHeader([[],['2026-10-27']])[0],'日期');
+  assert.throws(()=>C.historicalDisplayHeader([[],['title']]),/Không có giao dịch/);
+});
