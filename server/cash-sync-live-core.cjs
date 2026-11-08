@@ -79,8 +79,12 @@ function correctedHistory(original){
   if(rows.length!==160)deny('Sổ lịch sử gốc không còn 160 giao dịch đã nghiệm thu.');
   const payroll=rows.find(r=>r.sheetRow===148);
   if(!payroll||payroll.values[0]!=='2026-10-27'||
-     Math.abs(payroll.values[10]-350945181.3)>0.000001)
-    deny('Khoản lương K148 đã thay đổi; dừng chuyển đổi.');
+     (Math.abs(payroll.values[10]-350945181.3)>0.000001&&
+      Math.abs(payroll.values[10]-350945181)>0.000001))
+    deny('Khoản lương K148 không khớp giá trị gốc hoặc giá trị đã sửa được duyệt; dừng chuyển đổi.');
+  // Legacy original may already have been manually corrected to Cash Control's
+  // authoritative integer value. Normalize the in-memory copy only; never
+  // change the original archive, and never apply the 0.3 VND adjustment twice.
   payroll.values[10]=350945181;
   return rows;
 }
