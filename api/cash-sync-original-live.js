@@ -8,7 +8,7 @@ const {compareOriginalWithTest,auditKnownPayrollCorrection}=
 const core=require('../server/cash-sync-live-core.cjs');
 const {HEAD_VIEW,HEAD_MIRROR,HIST_BACKUP,LIVE_TITLE,MIRROR_TITLE,
   correctedHistory,sanitizeSource,prepareNewMirror,buildLedger,verifyView,
-  viewGrid,mirrorGrid,planSignature,deny}=core;
+  historicalDisplayHeader,viewGrid,mirrorGrid,planSignature,deny}=core;
 function err(msg,statusCode=409){throw Object.assign(new Error(msg),{statusCode})}
 // Read-only requests can audit the source before production writing is enabled.
 // Write actions MUST still pass both independent server-side production gates.
@@ -106,6 +106,7 @@ async function state(authorization,originalId,source,action){
       getGoogle(authorization,originalId,gridPath(MIRROR_TITLE,'A1:S'))
     ]);
     const historic=correctedHistory(history.values);
+    const displayHeader=historicalDisplayHeader(history.values);
     const oldMirror=mirrorFromSheet(mirrorData.values||[]);
     const oldPlan=buildLedger(historic,oldMirror.map(x=>({
       id:String(x[0]),month:String(x[2]),values:x.slice(3,16),
@@ -117,12 +118,14 @@ async function state(authorization,originalId,source,action){
       id:String(x[0]),project:'PHU HUNG',month:String(x[2]),
       values:x.slice(3,16),hash:String(x[17])
     })),historic,oldMirror);
-    if(!verifyView(viewData.values,viewData.formulas,oldPlan))
+    const modernView=verifyView(viewData.values,viewData.formulas,oldPlan,displayHeader)&&
+      viewData.values.length===oldPlan.rows.length+2;
+    if(!modernView&&!verifyView(viewData.values,viewData.formulas,oldPlan))
       deny('Sổ PHU HUNG hiện tại đã thay đổi ngoài đồng bộ; dừng để tránh ghi đè.');
     const combined=prepareNewMirror(source,historic,oldMirror);
     const plan=buildLedger(historic,combined.newMirror);
-    const changes=compareOldAndNext(oldMirror,combined.newMirror);
-    return {active:true,meta,archived,view,mirrorSheet,history,oldMirror,
+    const changes=compareOldAndNext(oldMirror,combined.newMirror)||!modernView;
+    return {active:true,meta,archived,view,mirrorSheet,history,displayHeader,oldMirror,
       oldPlan,plan,combined,changes,
       signature:planSignature({original:history.values,view:viewData.values,
         formulas:viewData.formulas,mirror:mirrorData.values,source})};
@@ -147,6 +150,7 @@ async function state(authorization,originalId,source,action){
   if(!strict.matched&&!correction.approved)
     deny('Chỉ được chuyển đổi khi khớp lịch sử hoặc đúng duy nhất chênh lệch K148 đã xác minh.');
   const historic=correctedHistory(history.values);
+  const displayHeader=historicalDisplayHeader(history.values);
   const oct=source.filter(x=>x.month==='2026-10');
   if(oct.length!==30)deny('Không còn đúng 30 giao dịch Cash Control đã nghiệm thu tháng 10.');
   const baseline=prepareNewMirror(oct,historic);
@@ -159,7 +163,7 @@ async function state(authorization,originalId,source,action){
     deny('Bản tổng hợp TEST không còn đúng 160 giao dịch, số dư hoặc dữ liệu đã nghiệm thu.');
   const combined=prepareNewMirror(source,historic);
   const plan=buildLedger(historic,combined.newMirror);
-  return {active:false,meta,view,history,testHistory,testView,plan,combined,
+  return {active:false,meta,view,history,testHistory,testView,plan,combined,displayHeader,
     exception:correction.approved?correction:null,
     signature:planSignature({original:history.values,
       testHistory:testHistory.values,testView:testView.values,
@@ -175,7 +179,7 @@ function batchGrid(sheetId,grid,cols,oldRowCount=0){
 }
 function activateRequests(s){
   const used=distinct(s.meta),newViewId=allocateId(used),newMirrorId=allocateId(used);
-  const viewGridRows=viewGrid(s.plan),mirrorRows=mirrorGrid(s.combined.newMirror);
+  const viewGridRows=viewGrid(s.plan,s.displayHeader),mirrorRows=mirrorGrid(s.combined.newMirror);
   const maxView=Math.max(1000,viewGridRows.length+32);
   const maxMirror=Math.max(1000,mirrorRows.length+32);
   return {newViewId,newMirrorId,requests:[
@@ -184,6 +188,18 @@ function activateRequests(s){
     {addSheet:{properties:{sheetId:newMirrorId,title:MIRROR_TITLE,hidden:true,
       gridProperties:{rowCount:maxMirror,columnCount:19,frozenRowCount:1}}}},
     batchGrid(newViewId,viewGridRows,17),batchGrid(newMirrorId,mirrorRows,19),
+    ...(s.displayHeader?[{repeatCell:{range:{sheetId:newViewId,
+      startRowIndex:1,endRowIndex:viewGridRows.length,
+      startColumnIndex:6,endColumnIndex:13},
+      cell:{userEnteredFormat:{numberFormat:{type:'NUMBER',
+        pattern:'#,##0.########;-#,##0.########;;@'}}},
+      fields:'userEnteredFormat.numberFormat'}},
+      {repeatCell:{range:{sheetId:newViewId,
+        startRowIndex:viewGridRows.length-1,endRowIndex:viewGridRows.length,
+        startColumnIndex:0,endColumnIndex:14},
+        cell:{userEnteredFormat:{textFormat:{bold:true},
+          backgroundColor:{red:0.92,green:0.95,blue:0.99}}},
+        fields:'userEnteredFormat.textFormat,userEnteredFormat.backgroundColor'}}]:[]),
     // The new view becomes visible first, then the existing title is archived
     // without deleting a single historical cell.
     {updateSheetProperties:{properties:{sheetId:newViewId,hidden:false},fields:'hidden'}},
@@ -200,7 +216,7 @@ function activateRequests(s){
   ]};
 }
 function syncRequests(s){
-  const newViewRows=viewGrid(s.plan),newMirrorRows=mirrorGrid(s.combined.newMirror);
+  const newViewRows=viewGrid(s.plan,s.displayHeader),newMirrorRows=mirrorGrid(s.combined.newMirror);
   const requests=[];
   if(newViewRows.length>s.view.gridProperties.rowCount)
     requests.push({updateSheetProperties:{properties:{sheetId:s.view.sheetId,
@@ -209,7 +225,22 @@ function syncRequests(s){
     requests.push({updateSheetProperties:{properties:{sheetId:s.mirrorSheet.sheetId,
       gridProperties:{rowCount:newMirrorRows.length+32}},fields:'gridProperties.rowCount'}});
   requests.push(batchGrid(s.mirrorSheet.sheetId,newMirrorRows,19,s.oldMirror.length+1));
-  requests.push(batchGrid(s.view.sheetId,newViewRows,17,s.oldPlan.rows.length+1));
+  requests.push(batchGrid(s.view.sheetId,newViewRows,17,s.oldPlan.rows.length+2));
+  if(s.displayHeader){
+    const totalRowIndex=s.plan.rows.length+1;
+    requests.push({repeatCell:{range:{sheetId:s.view.sheetId,
+      startRowIndex:1,endRowIndex:totalRowIndex+1,
+      startColumnIndex:6,endColumnIndex:13},
+      cell:{userEnteredFormat:{numberFormat:{type:'NUMBER',
+        pattern:'#,##0.########;-#,##0.########;;@'}}},
+      fields:'userEnteredFormat.numberFormat'}});
+    requests.push({repeatCell:{range:{sheetId:s.view.sheetId,
+      startRowIndex:totalRowIndex,endRowIndex:totalRowIndex+1,
+      startColumnIndex:0,endColumnIndex:14},
+      cell:{userEnteredFormat:{textFormat:{bold:true},
+        backgroundColor:{red:0.92,green:0.95,blue:0.99}}},
+      fields:'userEnteredFormat.textFormat,userEnteredFormat.backgroundColor'}});
+  }
   return requests;
 }
 async function run(req,res){
@@ -298,7 +329,7 @@ async function run(req,res){
         if(!mirrorVerified)break;
       }
     }
-    if(!verifyView(viewBack.values,viewBack.formulas,report.plan)||!mirrorVerified){
+    if(!verifyView(viewBack.values,viewBack.formulas,report.plan,report.displayHeader)||!mirrorVerified){
       err('Tab đã cập nhật nhưng cần đọc lại/xác minh mirror trước khi đồng bộ tiếp.',502);
     }
     return res.status(200).json({mode:action==='activate'?'activated':'synced',
