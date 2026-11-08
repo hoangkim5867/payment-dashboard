@@ -5822,6 +5822,11 @@ async function ccGoogleSyncAuditOriginalReadOnly(){
             ' | TEST '+String(field.test).slice(0,48)+
             (field.delta!==undefined?' | lệch '+num(field.delta):'')+']').join(', '))
         .join('; ')+'. ':'')+
+    'Trạng thái tab GỐC (chỉ đọc): '+
+    (Array.isArray(result.originalTabStates)?
+      result.originalTabStates.map(x=>x.name+': '+
+        (!x.exists?'KHÔNG CÓ':x.hidden?'ẨN':'HIỂN THỊ')).join('; '):
+      'chưa nhận được')+'. '+
     'Không sửa file gốc, không tải Firestore.');
   return result;
 }
