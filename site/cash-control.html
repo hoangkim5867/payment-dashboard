@@ -6810,6 +6810,42 @@ function ccGoogleSyncInitializeGooglePilot(){
   });
 }
 
+function ccGoogleSyncInspectOnly(){
+  const out=$('ccGoogleSyncPreviewResult');
+  const month=$('ccGoogleSyncMonth')?.value||'';
+  const projects=ccGoogleSyncSelectedProjects();
+  if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)||!projects.length){
+    out.textContent='Cần chọn tháng và ít nhất một dự án.';return;
+  }
+  const result=projects.map(project=>{
+    // A complete-project cache is the only sufficient completeness signal in this prototype.
+    // Month-only caches are not treated as complete history.
+    const complete=paymentMonths.has(project);
+    const rows=legacyCashExportRows(month,project);
+    const incomes=rows.reduce((n,x)=>n+Number(x.income||0),0);
+    const expenses=rows.reduce((n,x)=>n+
+      Number(x.subcontract||0)+Number(x.material||0)+
+      Number(x.otherDirect||0)+Number(x.indirect||0)+
+      Number(x.financial||0)+Number(x.otherPayable||0),0);
+    return {project,complete,count:rows.length,incomes,expenses};
+  });
+  // All values below are derived from existing in-memory Cash Control state.
+  const fmt=n=>Number(n).toLocaleString('vi-VN',{maximumFractionDigits:0});
+  const missing=result.filter(x=>!x.complete).length;
+  out.innerHTML='<div class="note" style="margin:8px 0"><b>Kiểm tra dữ liệu '+ccGoogleSyncSafeText(month)+'</b>: '+
+    result.length+' dự án · '+result.reduce((n,x)=>n+x.count,0)+' dòng giao dịch đang có trên trang · '+
+    missing+' dự án chưa xác minh đã tải đủ Payment. '+
+    '<b>Không có giao dịch nào được gửi hoặc ghi.</b></div>'+
+    '<div class="mep-table-wrap" style="max-height:330px;overflow:auto"><table class="mep-table"><thead><tr>'+
+    '<th>Dự án</th><th>Dòng hiện có</th><th>Thu (điều chuyển có thể âm)</th><th>Chi</th><th>Kiểm tra tải Payment</th>'+
+    '</tr></thead><tbody>'+result.map(r=>'<tr><td>'+ccGoogleSyncSafeText(r.project)+'</td>'+
+    '<td>'+fmt(r.count)+'</td><td>'+fmt(r.incomes)+'</td><td>'+fmt(r.expenses)+'</td>'+
+    '<td>'+(r.complete?'✓ Đã tải toàn dự án trong phiên':'⚠ Chưa xác minh đủ, không đồng bộ')+
+    '</td></tr>').join('')+'</tbody></table></div>'+
+    '<p style="font-size:12px;color:#8c5c19;margin:10px 0">Đây là thống kê giao dịch Cash Control đang có, KHÔNG phải số mới/đã sửa so với Google Sheets. '+
+    'Không đủ điều kiện để ghi thật cho đến khi đối chiếu ID, bảo toàn chỉnh sửa tay và xác thực quyền.</p>';
+}
+
 function ccGoogleSyncInitializePreview(){
   const button=$('ccGoogleSyncPreviewOpen');
   if(!button)return;
