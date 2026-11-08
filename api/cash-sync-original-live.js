@@ -8,7 +8,8 @@ const {compareOriginalWithTest,auditKnownPayrollCorrection}=
 const core=require('../server/cash-sync-live-core.cjs');
 const {HEAD_VIEW,HEAD_MIRROR,HIST_BACKUP,LIVE_TITLE,MIRROR_TITLE,
   correctedHistory,sanitizeSource,prepareNewMirror,buildLedger,verifyView,
-  historicalDisplayHeader,viewGrid,mirrorGrid,planSignature,deny}=core;
+  historicalDisplayHeader,viewGrid,groupedViewGrid,verifyGroupedView,
+  mirrorGrid,planSignature,deny}=core;
 function err(msg,statusCode=409){throw Object.assign(new Error(msg),{statusCode})}
 // Read-only requests can audit the source before production writing is enabled.
 // Write actions MUST still pass both independent server-side production gates.
@@ -133,14 +134,15 @@ async function state(authorization,originalId,source,action){
       id:String(x[0]),project:'PHU HUNG',month:String(x[2]),
       values:x.slice(3,16),hash:String(x[17])
     })),historic,oldMirror);
-    const modernView=verifyView(viewData.values,viewData.formulas,oldPlan,displayHeader)&&
+    const groupedView=verifyGroupedView(viewData.values,viewData.formulas,oldPlan);
+    const modernView=!groupedView&&verifyView(viewData.values,viewData.formulas,oldPlan,displayHeader)&&
       viewData.values.length===oldPlan.rows.length+2;
-    if(!modernView&&!verifyView(viewData.values,viewData.formulas,oldPlan))
+    if(!groupedView&&!modernView&&!verifyView(viewData.values,viewData.formulas,oldPlan))
       deny('Sổ PHU HUNG hiện tại đã thay đổi ngoài đồng bộ; dừng để tránh ghi đè.');
     const combined=prepareNewMirror(source,historic,oldMirror);
     const plan=buildLedger(historic,combined.newMirror);
-    const changes=compareOldAndNext(oldMirror,combined.newMirror)||!modernView;
-    return {active:true,meta,archived,view,mirrorSheet,history,displayHeader,oldMirror,
+    const changes=compareOldAndNext(oldMirror,combined.newMirror)||!groupedView;
+    return {active:true,meta,archived,view,mirrorSheet,history,displayHeader,groupedView,oldMirror,
       oldPlan,plan,combined,changes,
       signature:planSignature({original:history.values,view:viewData.values,
         formulas:viewData.formulas,mirror:mirrorData.values,source})};
@@ -194,7 +196,7 @@ function batchGrid(sheetId,grid,cols,oldRowCount=0){
 }
 function activateRequests(s){
   const used=distinct(s.meta),newViewId=allocateId(used),newMirrorId=allocateId(used);
-  const viewGridRows=viewGrid(s.plan,s.displayHeader),mirrorRows=mirrorGrid(s.combined.newMirror);
+  const viewGridRows=groupedViewGrid(s.plan),mirrorRows=mirrorGrid(s.combined.newMirror);
   const maxView=Math.max(1000,viewGridRows.length+32);
   const maxMirror=Math.max(1000,mirrorRows.length+32);
   return {newViewId,newMirrorId,requests:[
@@ -231,7 +233,7 @@ function activateRequests(s){
   ]};
 }
 function syncRequests(s){
-  const newViewRows=viewGrid(s.plan,s.displayHeader),newMirrorRows=mirrorGrid(s.combined.newMirror);
+  const newViewRows=groupedViewGrid(s.plan),newMirrorRows=mirrorGrid(s.combined.newMirror);
   const requests=[];
   if(newViewRows.length>s.view.gridProperties.rowCount)
     requests.push({updateSheetProperties:{properties:{sheetId:s.view.sheetId,
@@ -240,11 +242,11 @@ function syncRequests(s){
     requests.push({updateSheetProperties:{properties:{sheetId:s.mirrorSheet.sheetId,
       gridProperties:{rowCount:newMirrorRows.length+32}},fields:'gridProperties.rowCount'}});
   requests.push(batchGrid(s.mirrorSheet.sheetId,newMirrorRows,19,s.oldMirror.length+1));
-  requests.push(batchGrid(s.view.sheetId,newViewRows,17,s.oldPlan.rows.length+2));
+  requests.push(batchGrid(s.view.sheetId,newViewRows,17,s.oldPlan.rows.length+5));
   if(s.displayHeader){
-    const totalRowIndex=s.plan.rows.length+1;
+    const totalRowIndex=s.plan.rows.length+4;
     requests.push({repeatCell:{range:{sheetId:s.view.sheetId,
-      startRowIndex:1,endRowIndex:totalRowIndex+1,
+      startRowIndex:4,endRowIndex:totalRowIndex+1,
       startColumnIndex:6,endColumnIndex:13},
       cell:{userEnteredFormat:{numberFormat:{type:'NUMBER',
         pattern:'#,##0.########;-#,##0.########;;@'}}},
@@ -256,6 +258,36 @@ function syncRequests(s){
         backgroundColor:{red:0.92,green:0.95,blue:0.99}}},
       fields:'userEnteredFormat.textFormat,userEnteredFormat.backgroundColor'}});
   }
+  // Merge only during a one-time migration from the old single-row header.
+  // Never try to remerge cells on a normal subsequent sync.
+  if(!s.groupedView){
+    const id=s.view.sheetId;
+    const merge=(r1,r2,c1,c2)=>({mergeCells:{range:{sheetId:id,
+      startRowIndex:r1,endRowIndex:r2,startColumnIndex:c1,endColumnIndex:c2},
+      mergeType:'MERGE_ALL'}});
+    requests.push(merge(0,1,0,14),merge(1,2,0,14),merge(2,3,7,13));
+    for(const col of [0,1,2,3,4,5,6,13])
+      requests.push(merge(2,4,col,col+1));
+  }
+  const id=s.view.sheetId;
+  requests.push({repeatCell:{range:{sheetId:id,startRowIndex:0,endRowIndex:1,
+    startColumnIndex:0,endColumnIndex:14},
+    cell:{userEnteredFormat:{textFormat:{bold:true,fontSize:16},
+      horizontalAlignment:'CENTER',verticalAlignment:'MIDDLE',
+      backgroundColor:{red:0.88,green:0.94,blue:0.90}}},
+    fields:'userEnteredFormat'}});
+  requests.push({repeatCell:{range:{sheetId:id,startRowIndex:1,endRowIndex:2,
+    startColumnIndex:0,endColumnIndex:14},
+    cell:{userEnteredFormat:{textFormat:{italic:true,fontSize:10},
+      horizontalAlignment:'LEFT'}},fields:'userEnteredFormat.textFormat,userEnteredFormat.horizontalAlignment'}});
+  requests.push({repeatCell:{range:{sheetId:id,startRowIndex:2,endRowIndex:4,
+    startColumnIndex:0,endColumnIndex:14},
+    cell:{userEnteredFormat:{textFormat:{bold:true},
+      backgroundColor:{red:0.85,green:0.88,blue:0.85},
+      horizontalAlignment:'CENTER',verticalAlignment:'MIDDLE'}},
+    fields:'userEnteredFormat'}});
+  requests.push({updateSheetProperties:{properties:{sheetId:id,
+    gridProperties:{frozenRowCount:4}},fields:'gridProperties.frozenRowCount'}});
   return requests;
 }
 async function run(req,res){
@@ -344,7 +376,7 @@ async function run(req,res){
         if(!mirrorVerified)break;
       }
     }
-    if(!verifyView(viewBack.values,viewBack.formulas,report.plan,report.displayHeader)||!mirrorVerified){
+    if(!verifyGroupedView(viewBack.values,viewBack.formulas,report.plan)||!mirrorVerified){
       err('Tab đã cập nhật nhưng cần đọc lại/xác minh mirror trước khi đồng bộ tiếp.',502);
     }
     return res.status(200).json({mode:action==='activate'?'activated':'synced',
