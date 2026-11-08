@@ -187,12 +187,27 @@ function buildLedger(history,mirror){
     historicCount:history.length,extraCount:extras.length};
 }
 function historicalDisplayHeader(original){
-  // Reuse the actual A:N labels stored in the immutable PHU HUNG archive.
-  const source=original?.[0];
-  if(!Array.isArray(source)||source.length<14||
-     typeof source[0]!=='string'||!source[0].trim())
-    deny('Không tìm thấy đủ tiêu đề A:N của sổ PHU HUNG lịch sử.');
-  return [...Array.from({length:14},(_,i)=>String(source[i]??'')),...HEAD_VIEW.slice(14)];
+  if(!Array.isArray(original)||!original.length)
+    deny('Không đọc được sổ PHU HUNG lịch sử để lấy tiêu đề.');
+  // The original ledger can contain a title, blank lines or merged cells
+  // before the A:N column headings. Search only ABOVE the first transaction.
+  const firstTransaction=original.findIndex(row=>normDate(row?.[0]));
+  if(firstTransaction<0)deny('Không có giao dịch lịch sử để xác định tiêu đề.');
+  let header=null;
+  for(let i=0;i<firstTransaction;i++){
+    const row=original[i];
+    if(!Array.isArray(row))continue;
+    const values=Array.from({length:14},(_,j)=>String(row[j]??'').trim());
+    const filled=values.filter(Boolean).length;
+    // Treat an A:N row as actual headings only when most labels are present.
+    if(filled>=10&&values[0]&&values[13])header=values;
+  }
+  // Some archived workbooks contain only merged titles without a full A:N
+  // label row. Never use a date or a real transaction as a column heading.
+  // For that case use explicitly defined Chinese accounting headings.
+  const fallback=['日期','单位名称','合同编号','摘要','IPC','类型',
+    '收入','分包款','材料款','其他直接费','间接费','财务费用','其他应付款','余额'];
+  return [...(header||fallback),'来源','来源编号','期初余额'];
 }
 function totalRow(plan){
   const end=plan.rows.length+1;
