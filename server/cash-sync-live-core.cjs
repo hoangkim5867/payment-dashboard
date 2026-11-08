@@ -12,6 +12,9 @@ const HEAD_MIRROR=['sourceId','projectKey','month','date','company','contractNo'
   'indirect','financial','otherPayable','balance','sourceHash','syncStatus'];
 const HIST_BACKUP='PHU_HUNG_HISTORY_BACKUP';
 const LIVE_TITLE='PHU HUNG';
+const DISPLAY_TITLE='PHU HUNG项目现金流明细表';
+const GROUP_LABELS=['日期','公司名称','合同编号','合同内容','IPC','类型','收入'];
+const EXPENSE_LABELS=['分包款','材料款','其他直接费用','间接费','财务费用','其他应付款'];
 const MIRROR_TITLE='DATA_CASHCONTROL';
 function deny(msg){throw Object.assign(new Error(msg),{statusCode:409})}
 function money(v){
@@ -280,6 +283,89 @@ function viewGrid(plan,displayHeader=null){
   if(displayHeader)result.push(totalRow(plan));
   return result;
 }
+// The visible PHU HUNG ledger mirrors the original multi-level Chinese layout.
+// Four rows before data: title, period, grouped headings, expense headings.
+// This affects only PHU HUNG; the DATA_CASHCONTROL mirror keeps its schema.
+function groupedHeaderRows(plan){
+  const a=Array.from({length:17},()=>({}));
+  a[0]=gridValue(DISPLAY_TITLE);
+  const b=Array.from({length:17},()=>({}));
+  const months=plan.rows.map(r=>r.values[0].slice(0,7));
+  b[0]=gridValue('期间：'+months[0]+' ~ '+months.at(-1));
+  const c=Array.from({length:17},()=>({}));
+  for(let i=0;i<7;i++)c[i]=gridValue(GROUP_LABELS[i]);
+  c[7]=gridValue('支出'); c[13]=gridValue('余额');
+  const d=Array.from({length:17},()=>({}));
+  for(let i=0;i<6;i++)d[7+i]=gridValue(EXPENSE_LABELS[i]);
+  return [{values:a},{values:b},{values:c},{values:d}];
+}
+function groupedViewGrid(plan){
+  const result=groupedHeaderRows(plan);
+  for(let i=0;i<plan.rows.length;i++){
+    const entry=plan.rows[i],row=5+i;
+    const cells=entry.cells.map(gridValue);
+    const formula=i===0?'=$Q$5+G5-SUM(H5:M5)':
+      '=N'+(row-1)+'+G'+row+'-SUM(H'+row+':M'+row+')';
+    cells[13]={userEnteredValue:{formulaValue:formula}};
+    result.push({values:cells});
+  }
+  // The total row is a summary, NEVER a new transaction or source ID.
+  const end=plan.rows.length+4;
+  const total=Array.from({length:17},()=>({}));
+  total[0]=gridValue('合计');
+  for(let j=6;j<=12;j++){
+    const col=String.fromCharCode(65+j);
+    total[j]={userEnteredValue:{formulaValue:'=SUM('+col+'5:'+col+end+')'}};
+  }
+  total[13]={userEnteredValue:{formulaValue:'=N'+end}};
+  result.push({values:total});
+  return result;
+}
+function verifyGroupedView(values,formulas,plan){
+  const rows=plan.rows;
+  if(!Array.isArray(values)||values.length!==rows.length+5||
+     !Array.isArray(formulas)||formulas.length!==rows.length+4||
+     String(values[0]?.[0]??'')!==DISPLAY_TITLE||
+     String(values[2]?.[7]??'')!=='支出'||
+     String(values[2]?.[13]??'')!=='余额')return false;
+  const expected=groupedHeaderRows(plan).map(r=>r.values.map(c=>
+    Object.values(c.userEnteredValue||{})[0]??''));
+  for(let i=0;i<4;i++){
+    for(let j=0;j<17;j++){
+      if(String(values[i]?.[j]??'')!==String(expected[i][j]??''))return false;
+    }
+  }
+  for(let i=0;i<rows.length;i++){
+    const actual=values[i+4]||[],entry=rows[i],row=5+i;
+    for(let j=0;j<17;j++){
+      if(j===13){
+        if(!Number.isFinite(Number(actual[j]))||
+           Math.abs(Number(actual[j])-entry.balance)>0.000001)return false;
+      }else if(j===16&&i>0){
+        if(String(actual[j]??'')!=='')return false;
+      }else if(j===16||j>=6&&j<=12){
+        if(!Number.isFinite(Number(actual[j]))||
+           Math.abs(Number(actual[j])-Number(entry.cells[j]??0))>0.000001)return false;
+      }else if(String(actual[j]??'').trim()!==String(entry.cells[j]??'').trim()){
+        return false;
+      }
+    }
+    const formula=i===0?'=$Q$5+G5-SUM(H5:M5)':
+      '=N'+(row-1)+'+G'+row+'-SUM(H'+row+':M'+row+')';
+    if(String(formulas[i+3]?.[0]??'').replace(/\s+/g,'')!==formula)return false;
+  }
+  const total=values.at(-1)||[];
+  if(String(total[0])!=='合计'||
+     !Number.isFinite(Number(total[13]))||
+     Math.abs(Number(total[13])-plan.closingBalance)>0.000001||
+     String(formulas.at(-1)?.[0]??'')!=='=N'+(rows.length+4))return false;
+  for(let j=6;j<=12;j++){
+    const expectedSum=rows.reduce((n,r)=>n+r.values[j],0);
+    if(!Number.isFinite(Number(total[j]))||
+       Math.abs(Number(total[j])-expectedSum)>0.000001)return false;
+  }
+  return true;
+}
 function mirrorGrid(rows){
   const result=[{values:HEAD_MIRROR.map(gridValue)}];
   for(const row of rows){
@@ -293,5 +379,6 @@ function planSignature(components){return sha(components)}
 module.exports={
   HEAD_VIEW,HEAD_MIRROR,HIST_BACKUP,LIVE_TITLE,MIRROR_TITLE,
   correctedHistory,sanitizeSource,prepareNewMirror,buildLedger,verifyView,
-  historicalDisplayHeader,totalRow,viewGrid,mirrorGrid,planSignature,deny,sha
+  historicalDisplayHeader,totalRow,viewGrid,groupedViewGrid,verifyGroupedView,
+  DISPLAY_TITLE,mirrorGrid,planSignature,deny,sha
 };
