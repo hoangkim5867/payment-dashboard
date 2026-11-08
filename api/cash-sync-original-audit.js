@@ -15,7 +15,9 @@ module.exports=async function handler(req,res){
   try{
     if(process.env.VERCEL_ENV!=='production')
       return res.status(403).json({error:'Only production Admin may audit the original.'});
-    const config=readConfig(process.env);
+    // Read-only original-vs-TEST audit is allowed before enabling production writing.
+    // Authentication still requires the exact configured production Admin UID.
+    const config=readConfig({...process.env,VERCEL_ENV:'preview'});
     await verifyFirebaseAdminToken(String(req.headers['x-firebase-id-token']||''),config);
     const bearer=String(req.headers.authorization||'');
     if(!/^Bearer [A-Za-z0-9._~-]{20,4096}$/.test(bearer))
