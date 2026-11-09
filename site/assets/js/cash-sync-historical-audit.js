@@ -59,11 +59,15 @@
     if(!taxCols.length)return null;
     // Reject ambiguous, partial and unexpected layouts. Original history
     // remains untouched; Admin must inspect if a reliable header is absent.
-    if(taxCols.length!==1||balanceCols.length!==1)return {invalid:true};
-    const taxIndex=taxCols[0],balanceIndex=balanceCols[0];
-    if(taxIndex<7||taxIndex>=balanceIndex||balanceIndex<14||
-       balanceIndex>31)return {invalid:true};
-    return {taxIndex,balanceIndex};
+    if(taxCols.length!==1||balanceCols.length>1)return {invalid:true};
+    const taxIndex=taxCols[0],balanceIndex=balanceCols.length?balanceCols[0]:null;
+    // FOXCONN uses a split header: row 3 is the category banner
+    // and row 4 has N: 进口税+增值税; the balance heading is not present.
+    // Never infer the balance column from position alone.
+    if(taxIndex<7||taxIndex>30||
+       (balanceIndex!==null&&(taxIndex>=balanceIndex||balanceIndex<14||
+       balanceIndex>31)))return {invalid:true};
+    return {taxIndex,balanceIndex,requiresBalanceSelection:balanceIndex===null};
   }
   function audit(rows,options={}){
     const project=String(options.project||'').trim().toUpperCase();
@@ -105,6 +109,11 @@
       const useTax=foxconn&&activeLayout&&!activeLayout.invalid;
       if(foxconn&&activeLayout?.invalid){
         layoutErrors++;issue('tax-layout',i+1,'Unknown tax column layout');
+        previous=null;continue;
+      }
+      if(foxconn&&(!activeLayout||activeLayout.requiresBalanceSelection)){
+        // Tax has been located but the balance column is still unknown.
+        // Keep screening closed instead of counting every row as faulty.
         previous=null;continue;
       }
       // 7 original categories: G income; H:M six expenses.
@@ -152,7 +161,8 @@
     // separately from financial arithmetic errors without accepting the ledger.
     const missingEveryBalance=count>0&&missingBalance===count;
     const financialIssues=invalidMoney+continuityErrors+roundingDifferences;
-    const taxLayoutUnverified=foxconn&&(layoutErrors>0||taxColumnsDetected===0);
+    const taxLayoutUnverified=foxconn&&(layoutErrors>0||
+      taxColumnsDetected===0||activeLayout?.requiresBalanceSelection);
     const status=blank?'blank-tab':taxLayoutUnverified?
       'unsupported-tax-layout':count===0||missingEveryBalance?
       'unsupported-layout':financialIssues||missingBalance?
@@ -162,7 +172,10 @@
       openingBalance:opening,closingBalance:closing,monthTransitions,
       invalidMoney,missingBalance,continuityErrors,roundingDifferences,
       nonMonotonicDates,missingEveryBalance,financialIssues,
-      taxColumnsDetected,taxRows,taxTotal,layoutErrors,examples,
+      taxColumnsDetected,taxRows,taxTotal,layoutErrors,
+      balanceColumnUnconfirmed:foxconn&&!!activeLayout?.requiresBalanceSelection,
+      taxColumn:foxconn&&activeLayout&&!activeLayout.invalid?activeLayout.taxIndex+1:null,
+      examples,
       historyOnly:true,canWrite:false});
   }
   // Header-only diagnostics for atypical FOXCONN layouts. No financial
