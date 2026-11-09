@@ -210,7 +210,7 @@ test('CHAOMED balance column candidates are numbers only, not automatic layout a
 
 test('historical project with nonempty but nonrecognized dates stays blocked, not new/blank',()=>{
  const api=require('../site/assets/js/cash-sync-historical-audit.js');
- const rows=[['日期','项目'],['2026/10/03','中健厂房'],['03-10-26','记录'],[45678,'金额']];
+ const rows=[['日期','项目'],['2026/10/03','中健厂房'],['03-10-26','记录'],[12345,'金额']];
  const result=api.audit(rows,{project:'中健厂房'});
  assert.equal(result.status,'unsupported-layout');
  assert.equal(result.transactionRows,0);
