@@ -5573,7 +5573,7 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
             const button=document.createElement('button');
             button.type='button';button.className='btn';
             button.textContent='Đối chiếu ứng viên trùng · không ghi';
-            button.addEventListener('click',()=>{
+            const runCandidateComparison=()=>{
               try{
                 const cashRows=[];
                 // Explicitly include all months since the Cash Control cutover,
@@ -5601,8 +5601,45 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
                     'CHƯA tải đủ Payment của dự án. So khớp này chỉ để tham khảo.')+
                   '\\nKHÔNG xác nhận khoản nào sẽ ghi hoặc được phép đồng bộ.';
               }catch(e){pre.textContent='Không đối chiếu được: '+String(e.message||e).slice(0,110)}
+            };
+            button.addEventListener('click',runCandidateComparison);
+            const loadButton=document.createElement('button');
+            loadButton.type='button';loadButton.className='btn';
+            loadButton.textContent='Tải riêng Payment '+project+' (có Firestore reads) và so lại';
+            loadButton.addEventListener('click',async()=>{
+              if(!currentAuthUser||!isCashControlOwner()){
+                pre.textContent='Chỉ Admin được đọc nguồn Cash Control.';
+                return;
+              }
+              if(paymentMonths.has(project)){
+                rebuildPaymentsFromLoadedMonths();
+                runCandidateComparison();
+                return;
+              }
+              // Explicit consent before the one-project Firestore query.
+              // No listener, company-wide scan or background refresh.
+              if(!confirm('Chỉ tải Payment của '+project+
+                ' từ Firestore (có tính lượt đọc theo số bản ghi). '+
+                'Không ghi dữ liệu. Tiếp tục?'))return;
+              loadButton.disabled=true;
+              pre.textContent='Đang tải đúng một dự án '+project+'…';
+              try{
+                const loaded=await loadProjectPayments(project,
+                  {force:false,quiet:true,refresh:false});
+                if(!loaded||!paymentMonths.has(project)){
+                  pre.textContent='Không tải đủ Payment dự án. Chưa so trùng, không ghi.';
+                  return;
+                }
+                // Rebuild in-memory normalized Cash Control data only.
+                // refresh:false explicitly avoids renderAll/scheduled balance writes.
+                rebuildPaymentsFromLoadedMonths();
+                runCandidateComparison();
+              }catch(error){
+                pre.textContent='Đọc Payment thất bại: '+
+                  String(error?.message||error).slice(0,120);
+              }finally{loadButton.disabled=false}
             });
-            details.append(button,pre);
+            details.append(button,loadButton,pre);
             cells[4].append(document.createElement('div'),details);
           }
           if(result.financialExamples?.length&&project!=='FOXCONN'){
