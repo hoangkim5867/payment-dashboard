@@ -65,3 +65,44 @@ test('only date-order warning does not masquerade as arithmetic corruption',()=>
  assert.equal(r.nonMonotonicDates,1);
  assert.equal(r.canWrite,false);
 });
+
+test('FOXCONN: explicit import tax + VAT column N, balance O, and valid continuity',()=>{
+ const h=['日期','单位','合同','内容','IPC','类型','收入','分包','材料','其他直接费','间接费','财务费用','其他应付款','进口税+增值税','余额'];
+ const f=(date,income,cost,tax,balance)=>[
+ date,'A','LAB','test','IPC','type',income,cost,0,0,0,0,0,tax,balance];
+ const result=audit([h,f('2026-10-01',1000,100,40,1860),
+   f('2026-10-02',500,50,25,2285)],{project:'FOXCONN'});
+ assert.equal(result.taxColumnsDetected,1);
+ assert.equal(result.taxRows,2);
+ assert.equal(result.taxTotal,65);
+ assert.equal(result.closingBalance,2285);
+ assert.equal(result.continuityErrors,0);
+ assert.equal(result.missingBalance,0);
+ assert.equal(result.status,'internally-consistent');
+ assert.equal(result.canWrite,false);
+});
+test('FOXCONN: detect tax after expenses in one section, switch back safely when header repeats',()=>{
+ const h=['日期','单位','合同','内容','IPC','类型','收入','分包','材料','其他直接费','间接费','财务费用','其他应付款','进口税+增值税','余额'];
+ const r=(d,inc,out,tax,bal)=>[d,'','','','','',inc,out,0,0,0,0,0,tax,bal];
+ const a=audit([h,r('2026-10-01',100,20,10,1070),
+    ['2026-11','',...Array.from({length:13},()=>'')],
+    h,r('2026-11-01',50,0,20,1100)],{project:'FOXCONN'});
+ assert.equal(a.taxColumnsDetected,2);
+ assert.equal(a.continuityErrors,0);
+ assert.equal(a.taxTotal,30);
+});
+test('FOXCONN unknown tax header blocks rather than misreads N as balance',()=>{
+ const a=audit([['日期','','','','','','','进口税+增值税'],
+   row('2026-10-01',100,10,'')],{project:'FOXCONN'});
+ assert.equal(a.status,'unsupported-tax-layout');
+ assert.equal(a.canWrite,false);
+});
+test('FOXCONN tax missing from header blocks assumptions even if ledger appears valid',()=>{
+ const a=audit([row('2026-10-01',100,0,1100)],{project:'FOXCONN'});
+ assert.equal(a.status,'unsupported-tax-layout');
+ assert.equal(a.canWrite,false);
+});
+test('standard project ignores unrelated tax row and retains previous template',()=>{
+ const a=audit([row('2026-10-01',100,0,1100)],{project:'EATON'});
+ assert.equal(a.status,'internally-consistent');
+});
