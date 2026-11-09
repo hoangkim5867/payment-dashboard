@@ -81,7 +81,10 @@
     const probeBalanceIndex=foxconn&&options.probeBalanceIndex===14?14:null;
     let provisionalBalanceRows=0;
     const examples=[];
+    const financialExamples=[];
     const issue=(kind,row,detail)=>{
+      if((kind==='balance'||kind==='rounding'||kind==='missing-balance'||kind==='invalid-money')&&financialExamples.length<60)
+        financialExamples.push({kind,row,detail});
       if(examples.length<8)examples.push({kind,row,detail});
     };
     let previousDate='';
@@ -169,7 +172,8 @@
     const financialIssues=invalidMoney+continuityErrors+roundingDifferences;
     const taxLayoutUnverified=foxconn&&(layoutErrors>0||
       taxColumnsDetected===0||activeLayout?.requiresBalanceSelection);
-    const status=blank?'blank-tab':taxLayoutUnverified?
+    const status=project==='S19-3'&&count===0?'new-project-no-transactions':
+      blank?'blank-tab':taxLayoutUnverified?
       (provisionalBalanceRows>0&&layoutErrors===0&&taxColumnsDetected>0?
         'provisional-balance-review':'unsupported-tax-layout'):
       count===0||missingEveryBalance?
@@ -183,7 +187,7 @@
       taxColumnsDetected,taxRows,taxTotal,layoutErrors,provisionalBalanceRows,
       balanceColumnUnconfirmed:foxconn&&!!activeLayout?.requiresBalanceSelection,
       taxColumn:foxconn&&activeLayout&&!activeLayout.invalid?activeLayout.taxIndex+1:null,
-      examples,
+      examples,financialExamples,
       historyOnly:true,canWrite:false});
   }
   // Header-only diagnostics for atypical FOXCONN layouts. No financial
@@ -221,5 +225,15 @@
       return {column,numericRows:numeric,totalRows:transactionRows.length};
     }).filter(x=>x.numericRows>0);
   }
-  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates});
+  function balanceColumnCandidates(rows,start=13,end=17){
+    if(!Array.isArray(rows))return [];
+    const entries=rows.filter(row=>Array.isArray(row)&&!!dateValue(row[0]));
+    return Array.from({length:Math.max(0,Math.min(end,32)-start+1)},(_,i)=>start+i).map(index=>{
+      const numericRows=entries.filter(row=>Number.isFinite(amount(row[index]))).length;
+      let n=index+1,column='';
+      while(n){n--;column=String.fromCharCode(65+n%26)+column;n=Math.floor(n/26)}
+      return {column,numericRows,totalRows:entries.length};
+    }).filter(x=>x.numericRows>0);
+  }
+  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates});
 });
