@@ -220,3 +220,41 @@ test('historical project with nonempty but nonrecognized dates stays blocked, no
  assert.equal(diag.validDatesByColumn[0],1);
  assert.ok(diag.suspectRows.some(x=>x.row===3));
 });
+
+test('read-only candidate comparison excludes pre-cutover history and reports potential duplicate multiplicity',()=>{
+ const api=require('../site/assets/js/cash-sync-historical-audit.js');
+ const historical=[
+ row('2026-09-29',100,0,1000),
+ row('2026-10-01',100,10,1090),
+ row('2026-10-02',40,0,1130),
+ row('2026-10-02',40,0,1170)
+ ];
+ const cash=[
+ {date:'2026-10-01',income:100,subcontract:10},
+ {date:'2026-10-02',income:40},
+ {date:'2026-10-03',income:20}
+ ];
+ const r=api.compareLoadedCashControl(historical,'C13B',cash,{sourceComplete:true});
+ assert.equal(r.historicalScope,3);
+ assert.equal(r.sourceScope,3);
+ assert.equal(r.matched,2);
+ assert.equal(r.historicalOnly,1);
+ assert.equal(r.cashOnly,1);
+ assert.equal(r.ambiguous,1);
+ assert.equal(r.canWrite,false);
+ assert.equal(r.status,'candidates-only');
+});
+test('incomplete cached source is always blocked even when all candidate signatures match',()=>{
+ const api=require('../site/assets/js/cash-sync-historical-audit.js');
+ const r=api.compareLoadedCashControl([row('2026-10-01',10,0,10)],
+   'ADVANCE',[{date:'2026-10-01',income:10}],{sourceComplete:false});
+ assert.equal(r.matched,1);
+ assert.equal(r.status,'incomplete-memory-source');
+ assert.equal(r.canWrite,false);
+});
+test('FOXCONN tax-specific historical columns are never naively matched to seven source categories',()=>{
+ const api=require('../site/assets/js/cash-sync-historical-audit.js');
+ const r=api.compareLoadedCashControl([], 'FOXCONN',[],{sourceComplete:true});
+ assert.equal(r.status,'requires-tax-mapping');
+ assert.equal(r.canWrite,false);
+});
