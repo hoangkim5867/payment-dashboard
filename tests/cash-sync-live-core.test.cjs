@@ -345,3 +345,31 @@ test('grouped style update only touches live view and mirror, never archive, and
   const next=runner.syncRequests({...args,groupedView:true});
   assert.equal(next.filter(x=>x.mergeCells).length,0);
 });
+
+test('grouped PHU HUNG view moves totals down when new month adds one transaction',()=>{
+  const f=fixture(),history=C.correctedHistory(f.revised);
+  const values=['2026-11-10','NEW','SUPL-2026-001','November material','IPC018','材料款',
+    0,0,1250000,0,0,0,0];
+  const next={id:'PHU HUNG:NEW-NOV',project:'PHU HUNG',month:'2026-11',
+    values,hash:signature(values)};
+  const linked=C.prepareNewMirror([...f.sources,next],history);
+  const plan=C.buildLedger(history,linked.newMirror);
+  assert.equal(plan.rows.length,161);
+  assert.equal(plan.extraCount,1);
+  const grid=C.groupedViewGrid(plan);
+  assert.equal(grid.length,166);
+  assert.equal(grid[165].values[0].userEnteredValue.stringValue,'合计');
+  assert.equal(grid[165].values[8].userEnteredValue.formulaValue,'=SUM(I5:I165)');
+  assert.equal(grid[165].values[13].userEnteredValue.formulaValue,'=N165');
+  assert.equal(grid[164].values[13].userEnteredValue.formulaValue,'=N164+G165-SUM(H165:M165)');
+  const api=require('../api/cash-sync-original-live.js')._internals;
+  const oldMirror=linked.newMirror.map(x=>[x.id,'PHU HUNG',x.month,...x.values,'',x.hash,x.status]);
+  const update=api.syncRequests({
+    plan,combined:linked,displayHeader:C.historicalDisplayHeader(f.revised),
+    view:{sheetId:555,gridProperties:{rowCount:1000}},
+    mirrorSheet:{sheetId:556,gridProperties:{rowCount:1000}},
+    oldPlan:plan,oldMirror,groupedView:true
+  });
+  assert.equal(update.filter(x=>x.mergeCells).length,0);
+  assert.equal(update.filter(x=>x.updateCells&&x.updateCells.range.sheetId===555)[0].updateCells.rows.length,166);
+});
