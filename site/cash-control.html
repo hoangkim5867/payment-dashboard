@@ -3303,7 +3303,7 @@ async function autoLoadActivePaymentMonth(month,{force=false,quiet=false}={}){
     return ok;
 }
 
-async function loadProjectPayments(project,{force=false,quiet=false,refresh=true}={}){
+async function loadProjectPayments(project,{force=false,quiet=false,refresh=true,onError=null}={}){
     project=normProject(project);
 
     if(!project){
@@ -3312,6 +3312,7 @@ async function loadProjectPayments(project,{force=false,quiet=false,refresh=true
     }
 
     if(!currentAuthUser){
+        if(typeof onError==='function')onError('Chưa đăng nhập Firebase');
         setPayConnection('idle','Cần đăng nhập để đọc Payment');
         return false;
     }
@@ -3380,6 +3381,7 @@ async function loadProjectPayments(project,{force=false,quiet=false,refresh=true
                 generation!==paymentLoadGeneration ||
                 !currentAuthUser
             ){
+                if(typeof onError==='function')onError('Phiên đăng nhập hoặc dữ liệu đã thay đổi khi tải');
                 return false;
             }
 
@@ -3410,6 +3412,15 @@ async function loadProjectPayments(project,{force=false,quiet=false,refresh=true
             console.error('PROJECT PAYMENT LOAD ERROR',error);
 
             const code=String(error?.code||'');
+            if(typeof onError==='function')onError(code.includes('permission-denied')?
+                'Firebase permission-denied (Rules từ chối truy vấn theo dự án)':
+                code.includes('resource-exhausted')?
+                'Firebase resource-exhausted (có thể hết quota đọc)':
+                code.includes('unauthenticated')?
+                'Firebase unauthenticated (phiên đăng nhập không hợp lệ)':
+                code.includes('unavailable')?
+                'Firebase unavailable (kết nối/máy chủ không sẵn sàng)':
+                'Không tải được Payment'+(code?' · '+code:''));
 
             const msg=
                 code.includes('permission-denied')
@@ -5624,10 +5635,12 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
               loadButton.disabled=true;
               pre.textContent='Đang tải đúng một dự án '+project+'…';
               try{
+                let loadFailure='';
                 const loaded=await loadProjectPayments(project,
-                  {force:false,quiet:true,refresh:false});
+                  {force:false,quiet:true,refresh:false,onError:msg=>{loadFailure=msg}});
                 if(!loaded||!paymentMonths.has(project)){
-                  pre.textContent='Không tải đủ Payment dự án. Chưa so trùng, không ghi.';
+                  pre.textContent=(loadFailure||'Không tải đủ Payment của dự án')+
+                    '. Chưa so trùng, không ghi. Không tự thử lại để tránh reads.';
                   return;
                 }
                 // Rebuild in-memory normalized Cash Control data only.
