@@ -1416,6 +1416,19 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <div id="ccGoogleSyncProjects" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px;padding:10px;border:1px solid #dce4ef;border-radius:8px;background:white"></div>
         </div>
       </div>
+      <details id="ccGoogleSyncProjectLinkCatalog" hidden style="margin-top:10px;border:1px solid #dbe4f0;border-radius:10px;padding:10px;background:#f8fafc">
+        <summary style="cursor:pointer;font-weight:700">Danh mục Google Sheets tất cả dự án (Admin · chuẩn bị kết nối)</summary>
+        <p style="font-size:12px;margin:8px 0;color:#56647a">Tự lấy toàn bộ dự án đang có trong Cash Control và Project Master. Dự án mới sẽ tự xuất hiện. Link được lưu nháp trên trình duyệt này, chưa gửi Google, Firebase hoặc cho phép ghi dữ liệu. Chỉ PHU HUNG đã được kích hoạt đồng bộ thật.</p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0">
+          <input id="ccSyncProjectCatalogSearch" type="search" placeholder="Tìm dự án…" style="flex:1;min-width:160px;padding:8px;border:1px solid #ccd6e4;border-radius:7px">
+          <button class="btn" id="ccSyncProjectCatalogRefresh" type="button">Cập nhật danh sách</button>
+          <button class="btn" id="ccSyncProjectCatalogExport" type="button">Xuất danh sách / link (JSON)</button>
+          <button class="btn" id="ccSyncProjectCatalogImport" type="button">Nhập lại danh sách đã xuất</button>
+          <input type="file" accept="application/json,.json" id="ccSyncProjectCatalogImportFile" hidden>
+        </div>
+        <p id="ccSyncProjectCatalogStatus" style="font-size:12px;color:#44546b"></p>
+        <div id="ccSyncProjectCatalogEntries" style="max-height:420px;overflow:auto;display:grid;gap:7px"></div>
+      </details>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
         <button class="btn" type="button" id="ccGoogleSyncSourceImport" hidden>Nhập file nguồn PHU HUNG</button>
         <input id="ccGoogleSyncSourceFile" type="file" accept=".json,application/json" hidden>
@@ -5356,6 +5369,115 @@ const ccGoogleSyncSeedProjects=['PHU HUNG'];
 function ccGoogleSyncSafeText(value){
   return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
+// Admin-only local link catalog: no Google API, Firebase or write permissions.
+// The list always derives from the existing Cash Control project catalog.
+const CC_SYNC_PROJECT_LINKS_KEY='ccGoogleSyncProjectLinksDraftV1';
+let ccSyncProjectLinkDraft=Object.create(null);
+function ccSyncProjectLinkValid(link){
+  try{
+    const u=new URL(String(link??'').trim());
+    return u.protocol==='https:'&&
+      (u.hostname==='docs.google.com'||u.hostname==='drive.google.com')&&
+      /\/spreadsheets\/d\/[A-Za-z0-9_-]{20,}/.test(u.pathname);
+  }catch{return false}
+}
+function ccSyncProjectCatalogNames(){
+  return [...new Set(allProjects().map(normProject).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+}
+function ccSyncProjectCatalogStatus(message){
+  const el=$('ccSyncProjectCatalogStatus');if(el)el.textContent=message;
+}
+function ccSyncProjectCatalogSaveDraft(){
+  try{
+    localStorage.setItem(CC_SYNC_PROJECT_LINKS_KEY,JSON.stringify(ccSyncProjectLinkDraft));
+    return true;
+  }catch{
+    ccSyncProjectCatalogStatus('Không lưu được trên trình duyệt này. Hãy xuất JSON để sao lưu.');
+    return false;
+  }
+}
+function ccSyncProjectCatalogLoadDraft(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(CC_SYNC_PROJECT_LINKS_KEY)||'{}');
+    if(!raw||Array.isArray(raw)||typeof raw!=='object')return;
+    for(const [key,val] of Object.entries(raw)){
+      if(key.length<180&&typeof val==='string'&&val.length<500&&
+         ccSyncProjectLinkValid(val))ccSyncProjectLinkDraft[normProject(key)]=val.trim();
+    }
+  }catch{/* ignore malformed local draft without ever overwriting cloud data */}
+}
+function ccSyncProjectCatalogRender(){
+  const wrap=$('ccSyncProjectCatalogEntries');
+  if(!wrap)return;
+  const term=String($('ccSyncProjectCatalogSearch')?.value||'').trim().toLocaleLowerCase('vi');
+  const catalog=ccSyncProjectCatalogNames();
+  const visible=catalog.filter(p=>p.toLocaleLowerCase('vi').includes(term));
+  wrap.replaceChildren();
+  for(const p of visible){
+    const row=document.createElement('label');
+    row.style.cssText='display:grid;grid-template-columns:minmax(120px,1fr) minmax(190px,2fr);gap:8px;align-items:center';
+    const title=document.createElement('span');title.textContent=p;title.style.fontSize='12px';
+    const input=document.createElement('input');
+    input.type='url';input.placeholder='Link Google Sheets của '+p;
+    input.value=ccSyncProjectLinkDraft[p]||'';
+    input.style.cssText='width:100%;min-width:0;padding:7px;border:1px solid #cad4e3;border-radius:7px';
+    input.setAttribute('aria-label','Link Google Sheets dự án '+p);
+    input.addEventListener('change',()=>{
+      const value=input.value.trim();
+      if(value&&!ccSyncProjectLinkValid(value)){
+        input.setCustomValidity('Cần link Google Sheets hợp lệ dạng docs.google.com/spreadsheets/d/...');
+        input.reportValidity();
+        return;
+      }
+      input.setCustomValidity('');
+      if(value)ccSyncProjectLinkDraft[p]=value;else delete ccSyncProjectLinkDraft[p];
+      ccSyncProjectCatalogSaveDraft();
+      ccSyncProjectCatalogStatus('Đã lưu nháp trên máy này: '+Object.keys(ccSyncProjectLinkDraft).length+
+        ' dự án có link. Chưa kết nối hay ghi Google Sheets.');
+    });
+    row.append(title,input);wrap.append(row);
+  }
+  ccSyncProjectCatalogStatus('Danh mục: '+catalog.length+' dự án · đang hiển thị '+visible.length+
+    ' · '+Object.keys(ccSyncProjectLinkDraft).length+
+    ' dự án đã nhập link nháp. Dự án mới trong Cash Control tự vào danh sách.');
+}
+function ccSyncProjectCatalogInitialize(){
+  const wrap=$('ccGoogleSyncProjectLinkCatalog');
+  if(!wrap||wrap.dataset.initialized==='yes')return;
+  wrap.dataset.initialized='yes';
+  ccSyncProjectCatalogLoadDraft();
+  const search=$('ccSyncProjectCatalogSearch');
+  search?.addEventListener('input',ccSyncProjectCatalogRender);
+  $('ccSyncProjectCatalogRefresh')?.addEventListener('click',ccSyncProjectCatalogRender);
+  $('ccSyncProjectCatalogExport')?.addEventListener('click',()=>{
+    const payload={schema:'CASH_SYNC_PROJECT_LINK_DRAFT_V1',projects:ccSyncProjectLinkDraft,
+      note:'Local draft only; does not authorize Google Sheets sync'};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download='CashControl_GoogleSheets_Links_Draft.json';a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  });
+  const file=$('ccSyncProjectCatalogImportFile');
+  $('ccSyncProjectCatalogImport')?.addEventListener('click',()=>file?.click());
+  file?.addEventListener('change',async()=>{
+    const selected=file.files?.[0];file.value='';if(!selected)return;
+    if(selected.size>100000){ccSyncProjectCatalogStatus('File JSON lớn bất thường; không nhập.');return}
+    try{
+      const data=JSON.parse(await selected.text());
+      if(data.schema!=='CASH_SYNC_PROJECT_LINK_DRAFT_V1'||!data.projects||
+         typeof data.projects!=='object'||Array.isArray(data.projects))throw Error('Sai cấu trúc');
+      const next=Object.create(null);
+      for(const [key,value] of Object.entries(data.projects)){
+        const p=normProject(key);
+        if(p&&typeof value==='string'&&ccSyncProjectLinkValid(value))next[p]=value.trim();
+        else throw Error('Có link hoặc dự án không hợp lệ');
+      }
+      ccSyncProjectLinkDraft=next;ccSyncProjectCatalogSaveDraft();ccSyncProjectCatalogRender();
+    }catch{ccSyncProjectCatalogStatus('Không nhập được JSON. Chưa thay đổi các link nháp đang lưu.')}
+  });
+  wrap.addEventListener('toggle',()=>{if(wrap.open)ccSyncProjectCatalogRender()});
+  ccSyncProjectCatalogRender();
+}
 function ccGoogleSyncBuildSelector(){
   const container=$('ccGoogleSyncProjects');
   if(!container)return;
@@ -7091,6 +7213,7 @@ async function ccGoogleSyncCommitPilot({automatic=false}={}){
   }
 }
 function ccGoogleSyncInitializeGooglePilot(){
+  ccSyncProjectCatalogInitialize();
   const oauth=$('ccGoogleSyncOAuthClient');
   if(!oauth)return;
   const demoToggle=$('ccGoogleSyncDemoToggle'),demoChange=$('ccGoogleSyncDemoChange'),demoAdd=$('ccGoogleSyncDemoAdd');
@@ -13039,6 +13162,8 @@ onAuthStateChanged(auth,async user=>{
     if(pilotExportButton)pilotExportButton.hidden=!isCashControlOwner();
     const originalSyncPanel=$('ccGoogleSyncOriginalPanel');
     if(originalSyncPanel)originalSyncPanel.hidden=!(firebaseConfig.projectId==='cscecmep-payment'&&isCashControlOwner());
+    const projectLinkCatalog=$('ccGoogleSyncProjectLinkCatalog');
+    if(projectLinkCatalog)projectLinkCatalog.hidden=!(currentAuthUser&&isCashControlOwner());
     updateCashAuthUI();
 
     if(!user || !isCashControlOwner()){
