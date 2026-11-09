@@ -43,11 +43,37 @@
     return Number.isFinite(n)?n:NaN;
   }
   const rounded=v=>Math.round(v*1e6)/1e6;
-  function audit(rows){
+  // FOXCONN historical workbook has a separate 进口税+增值税 expense column.
+  // Identify its position AND the running-balance position from each section's
+  // actual header; never assume all monthly sections use the same template.
+  const normHeader=v=>String(v??'').replace(/[\\s　:：()（）+＋\\/_-]/g,'').toLowerCase();
+  const isTax=v=>/进口税/.test(String(v??''))&&/增值税/.test(String(v??''));
+  const isBalance=v=>/^(?:余额|结余|累计余额|期末余额|资金余额|结存|剩余金额|balance|runningbalance)$/.test(normHeader(v));
+  function foxconnHeader(row){
+    if(!Array.isArray(row)||dateValue(row[0]))return null;
+    const taxCols=[],balanceCols=[];
+    for(let i=0;i<Math.min(row.length,32);i++){
+      if(isTax(row[i]))taxCols.push(i);
+      if(isBalance(row[i]))balanceCols.push(i);
+    }
+    if(!taxCols.length)return null;
+    // Reject ambiguous, partial and unexpected layouts. Original history
+    // remains untouched; Admin must inspect if a reliable header is absent.
+    if(taxCols.length!==1||balanceCols.length!==1)return {invalid:true};
+    const taxIndex=taxCols[0],balanceIndex=balanceCols[0];
+    if(taxIndex<7||taxIndex>=balanceIndex||balanceIndex<14||
+       balanceIndex>31)return {invalid:true};
+    return {taxIndex,balanceIndex};
+  }
+  function audit(rows,options={}){
+    const project=String(options.project||'').trim().toUpperCase();
+    const foxconn=project==='FOXCONN';
     if(!Array.isArray(rows)||rows.length>20000)throw Error('Invalid historical snapshot');
     let count=0,previous=null,firstDate='',lastDate='',opening=null,closing=null;
     let missingBalance=0,invalidMoney=0,continuityErrors=0;
     let roundingDifferences=0,monthTransitions=0,nonMonotonicDates=0;
+    let taxColumnsDetected=0,taxRows=0,taxTotal=0,layoutErrors=0;
+    let activeLayout=null;
     const examples=[];
     const issue=(kind,row,detail)=>{
       if(examples.length<8)examples.push({kind,row,detail});
@@ -57,7 +83,17 @@
       const row=rows[i];
       if(!Array.isArray(row))continue;
       const date=dateValue(row[0]);
-      if(!date)continue;
+      if(!date){
+        if(foxconn){
+          const detected=foxconnHeader(row);
+          if(detected){
+            activeLayout=detected;
+            if(detected.invalid){layoutErrors++;issue('tax-layout',i+1,'Ambiguous tax/balance header')}
+            else taxColumnsDetected++;
+          }
+        }
+        continue;
+      }
       count++;
       if(!firstDate)firstDate=date;
       lastDate=date;
@@ -65,17 +101,34 @@
       if(previousDate&&date.slice(0,7)!==previousDate.slice(0,7))
         monthTransitions++;
       previousDate=date;
-      const amounts=Array.from({length:7},(_,j)=>amount(row[j+6],true));
-      if(amounts.some(n=>!Number.isFinite(n))){
-        invalidMoney++;issue('invalid-money',i+1,'G:M contains invalid amount');
+      // Each historical section is read using its own verified header.
+      const useTax=foxconn&&activeLayout&&!activeLayout.invalid;
+      if(foxconn&&activeLayout?.invalid){
+        layoutErrors++;issue('tax-layout',i+1,'Unknown tax column layout');
         previous=null;continue;
       }
-      const recorded=amount(row[13]);
+      // 7 original categories: G income; H:M six expenses.
+      // An inserted import-tax/VAT column displaces the later expenses.
+      const indices=useTax?
+        [6,...Array.from({length:6},(_,k)=>k+7>=activeLayout.taxIndex?k+8:k+7)]:
+        [6,7,8,9,10,11,12];
+      if(useTax&&indices.includes(activeLayout.balanceIndex)){
+        layoutErrors++;issue('tax-layout',i+1,'Balance overlaps expense categories');
+        previous=null;continue;
+      }
+      const amounts=indices.map(index=>amount(row[index],true));
+      const tax=useTax?amount(row[activeLayout.taxIndex],true):0;
+      if(amounts.some(n=>!Number.isFinite(n))||!Number.isFinite(tax)){
+        invalidMoney++;issue('invalid-money',i+1,'Invalid expense/tax amount');
+        previous=null;continue;
+      }
+      if(useTax){taxRows++;taxTotal=rounded(taxTotal+tax)}
+      const recorded=amount(row[useTax?activeLayout.balanceIndex:13]);
       if(!Number.isFinite(recorded)){
         missingBalance++;issue('missing-balance',i+1,'N is blank/invalid');
         previous=null;continue;
       }
-      const net=rounded(amounts[0]-amounts.slice(1).reduce((s,n)=>s+n,0));
+      const net=rounded(amounts[0]-amounts.slice(1).reduce((s,n)=>s+n,0)-tax);
       if(opening===null)opening=rounded(recorded-net);
       if(previous!==null){
         const expected=rounded(previous+net);
@@ -99,14 +152,17 @@
     // separately from financial arithmetic errors without accepting the ledger.
     const missingEveryBalance=count>0&&missingBalance===count;
     const financialIssues=invalidMoney+continuityErrors+roundingDifferences;
-    const status=blank?'blank-tab':count===0||missingEveryBalance?
+    const taxLayoutUnverified=foxconn&&(layoutErrors>0||taxColumnsDetected===0);
+    const status=blank?'blank-tab':taxLayoutUnverified?
+      'unsupported-tax-layout':count===0||missingEveryBalance?
       'unsupported-layout':financialIssues||missingBalance?
       'needs-financial-review':nonMonotonicDates?
       'review-date-order':'internally-consistent';
     return Object.freeze({status,transactionRows:count,firstDate,lastDate,
       openingBalance:opening,closingBalance:closing,monthTransitions,
       invalidMoney,missingBalance,continuityErrors,roundingDifferences,
-      nonMonotonicDates,missingEveryBalance,financialIssues,examples,
+      nonMonotonicDates,missingEveryBalance,financialIssues,
+      taxColumnsDetected,taxRows,taxTotal,layoutErrors,examples,
       historyOnly:true,canWrite:false});
   }
   return Object.freeze({audit,dateValue,amount});
