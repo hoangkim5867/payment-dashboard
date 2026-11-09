@@ -395,11 +395,18 @@ test('PHU HUNG integers display without trailing decimal dot and no residual blu
   assert.equal(clean.repeatCell.range.endRowIndex,164);
   assert.deepEqual(clean.repeatCell.cell.userEnteredFormat.backgroundColor,{red:1,green:1,blue:1});
   assert.equal(clean.repeatCell.cell.userEnteredFormat.textFormat.bold,false);
-  const marker=requests.find(x=>x.addDeveloperMetadata);
-  assert.equal(marker.addDeveloperMetadata.developerMetadata.location.sheetId,sheetId);
-  assert.equal(marker.addDeveloperMetadata.developerMetadata.visibility,'DOCUMENT');
+  const marker=requests.find(x=>x.createDeveloperMetadata);
+  assert.equal(marker.createDeveloperMetadata.developerMetadata.location.sheetId,sheetId);
+  assert.equal(marker.createDeveloperMetadata.developerMetadata.visibility,'DOCUMENT');
+  const validBatchOperations=new Set(['updateCells','repeatCell','mergeCells',
+    'updateSheetProperties','createDeveloperMetadata','deleteDeveloperMetadata']);
+  for(const req of requests){
+    const keys=Object.keys(req);
+    assert.equal(keys.length,1);
+    assert.ok(validBatchOperations.has(keys[0]),'Unsupported Google Sheets batchUpdate operation: '+keys[0]);
+  }
   assert.ok(!requests.some(x=>JSON.stringify(x).includes('PHU_HUNG_HISTORY_BACKUP')));
   const again=api.syncRequests({...args,currentFormat:true});
-  assert.equal(again.some(x=>x.addDeveloperMetadata),false);
+  assert.equal(again.some(x=>x.createDeveloperMetadata),false);
   assert.equal(again.some(x=>x.deleteDeveloperMetadata),false);
 });
