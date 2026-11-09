@@ -1426,6 +1426,11 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <button class="btn" id="ccSyncProjectCatalogImport" type="button">Nhập lại danh sách đã xuất</button>
           <input type="file" accept="application/json,.json" id="ccSyncProjectCatalogImportFile" hidden>
         </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0">
+          <button class="btn" id="ccSyncProjectReadOnlyCheck" type="button">Kiểm tra 18 file Google Sheets (chỉ đọc)</button>
+          <small style="font-size:11px;color:#64748b">Admin bấm thủ công · cần Kết nối Google phía dưới · không đọc Firestore, không ghi Sheets</small>
+        </div>
+        <div id="ccSyncProjectReadOnlyResult" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
         <p id="ccSyncProjectCatalogStatus" style="font-size:12px;color:#44546b"></p>
         <div id="ccSyncProjectCatalogEntries" style="max-height:420px;overflow:auto;display:grid;gap:7px"></div>
       </details>
@@ -5441,6 +5446,90 @@ function ccSyncProjectCatalogRender(){
     ' · '+Object.keys(ccSyncProjectLinkDraft).length+
     ' dự án đã nhập link nháp. Dự án mới trong Cash Control tự vào danh sách.');
 }
+// Admin-only explicit read-only discovery: validates the selected historical
+// tab exists and is readable. This does NOT reconcile Cash Control/closing balances.
+async function ccSyncProjectReadOnlyCheck(){
+  const output=$('ccSyncProjectReadOnlyResult'),button=$('ccSyncProjectReadOnlyCheck');
+  if(!output||!button)return;
+  if(!currentAuthUser||!isCashControlOwner()){
+    output.textContent='Chỉ Admin được kiểm tra Google Sheets.';return;
+  }
+  if(!ccGoogleSyncToken){
+    output.textContent='Chưa kết nối Google. Bấm Kết nối Google ở phần 2 trước.';return;
+  }
+  const items=Object.entries(ccSyncProjectLinkDraft)
+    .filter(([project,url])=>project!=='PHU HUNG'&&url);
+  if(!items.length){output.textContent='Chưa có link dự án cần kiểm tra.';return}
+  if(button.disabled)return;
+  button.disabled=true;
+  output.replaceChildren();
+  const note=document.createElement('p');
+  note.textContent='Bắt đầu kiểm tra '+items.length+' file. Chỉ đọc Google Sheets, không truy vấn Firestore, không ghi dữ liệu.';
+  const table=document.createElement('table');
+  table.style.cssText='width:100%;border-collapse:collapse;font-size:12px';
+  const heading=document.createElement('tr');
+  for(const name of ['Dự án','Kết quả','Tab đã chọn','Dòng dữ liệu (ước tính)']){
+    const th=document.createElement('th');
+    th.textContent=name;th.style.cssText='text-align:left;border-bottom:1px solid #cbd5e1;padding:6px';
+    heading.append(th);
+  }
+  table.append(heading);
+  output.append(note,table);
+  let passed=0,blocked=0;
+  try{
+    for(const [project,link] of items){
+      const tr=document.createElement('tr');
+      const cells=Array.from({length:4},()=>document.createElement('td'));
+      cells.forEach(td=>{td.style.cssText='border-bottom:1px solid #e2e8f0;padding:6px';tr.append(td)});
+      cells[0].textContent=project;cells[1].textContent='Đang kiểm tra…';
+      table.append(tr);
+      try{
+        const url=new URL(link);
+        if(url.protocol!=='https:'||url.hostname!=='docs.google.com')
+          throw Error('Đường dẫn Google Sheets không hợp lệ');
+        const match=/^\\/spreadsheets\\/d\\/([A-Za-z0-9_-]{20,})\\/edit\\/?$/.exec(url.pathname);
+        if(!match)throw Error('Thiếu File ID');
+        const gid=url.searchParams.get('gid')||/^#gid=(\\d+)$/.exec(url.hash)?.[1];
+        if(!/^\\d+$/.test(String(gid??'')))throw Error('Link thiếu gid');
+        const base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(match[1]);
+        const headers={Authorization:'Bearer '+ccGoogleSyncToken};
+        const metaResponse=await fetch(base+'?fields=spreadsheetId,sheets(properties(sheetId,title,hidden))',
+          {method:'GET',headers,cache:'no-store'});
+        if(!metaResponse.ok)throw Error('Google HTTP '+metaResponse.status);
+        const meta=await metaResponse.json();
+        if(meta.spreadsheetId!==match[1])throw Error('File ID không khớp');
+        const selected=(meta.sheets||[]).map(s=>s.properties)
+          .find(s=>String(s?.sheetId)===String(gid));
+        if(!selected||selected.hidden===true)throw Error('Không tìm thấy tab hoặc tab đang ẩn');
+        const range="'"+selected.title.replace(/'/g,"''")+"'!A1:N20000";
+        const response=await fetch(base+'/values/'+encodeURIComponent(range)+
+          '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER',
+          {method:'GET',headers,cache:'no-store'});
+        if(!response.ok)throw Error('Google HTTP '+response.status+' khi đọc tab');
+        const data=await response.json();
+        if(!Array.isArray(data.values)&&data.values!==undefined)throw Error('Cấu trúc dữ liệu không hợp lệ');
+        const rows=data.values||[];
+        // Count candidate transaction dates only. Does not prove financial correctness.
+        const count=rows.filter(row=>{
+          const d=row?.[0];
+          return typeof d==='number'&&d>10000&&d<100000||
+            typeof d==='string'&&/^20\\d{2}-\\d{2}-\\d{2}$/.test(d);
+        }).length;
+        cells[1].textContent='Đọc được · chưa đối chiếu số dư';
+        cells[2].textContent=selected.title;
+        cells[3].textContent=count+' dòng nhận diện';
+        passed++;
+      }catch(error){
+        cells[1].textContent='Cần kiểm tra: '+String(error.message||'Không đọc được').slice(0,90);
+        blocked++;
+      }
+      note.textContent='Đã kiểm tra '+(passed+blocked)+'/'+items.length+
+        ' file · đọc được '+passed+' · cần kiểm tra '+blocked+
+        '. Chưa có dự án nào được phê duyệt đồng bộ.';
+    }
+  }finally{button.disabled=false}
+}
+
 function ccSyncProjectCatalogInitialize(){
   const wrap=$('ccGoogleSyncProjectLinkCatalog');
   if(!wrap||wrap.dataset.initialized==='yes')return;
@@ -5449,6 +5538,7 @@ function ccSyncProjectCatalogInitialize(){
   const search=$('ccSyncProjectCatalogSearch');
   search?.addEventListener('input',ccSyncProjectCatalogRender);
   $('ccSyncProjectCatalogRefresh')?.addEventListener('click',ccSyncProjectCatalogRender);
+  $('ccSyncProjectReadOnlyCheck')?.addEventListener('click',ccSyncProjectReadOnlyCheck);
   $('ccSyncProjectCatalogExport')?.addEventListener('click',()=>{
     const payload={schema:'CASH_SYNC_PROJECT_LINK_DRAFT_V1',projects:ccSyncProjectLinkDraft,
       note:'Local draft only; does not authorize Google Sheets sync'};
