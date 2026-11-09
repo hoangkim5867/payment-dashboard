@@ -145,8 +145,9 @@ test('live monthly sync writes only current derived view and hidden mirror, neve
     mirrorSheet:{sheetId:3457,gridProperties:{rowCount:1000}},
     oldPlan:plan,oldMirror:[]
   });
-  assert.equal(changes.length,2);
-  assert.deepEqual(changes.map(r=>r.updateCells.range.sheetId),[3457,3456]);
+  const updates=changes.filter(r=>r.updateCells);
+  assert.equal(updates.length,2);
+  assert.deepEqual(updates.map(r=>r.updateCells.range.sheetId),[3457,3456]);
   assert.ok(!changes.some(r=>JSON.stringify(r).includes('PHU_HUNG_HISTORY_BACKUP')));
 });
 
@@ -298,4 +299,77 @@ test('missing A:N heading safely uses Chinese labels and never misreads a transa
   assert.equal(labels[13],'余额');
   assert.equal(C.historicalDisplayHeader([[],['2026-10-27']])[0],'日期');
   assert.throws(()=>C.historicalDisplayHeader([[],['title']]),/Không có giao dịch/);
+});
+
+test('PHU HUNG original-style title + grouped Chinese headings shifts all formulas safely',()=>{
+  const f=fixture(),h=C.correctedHistory(f.revised);
+  const linked=C.prepareNewMirror(f.sources,h),plan=C.buildLedger(h,linked.newMirror);
+  const grid=C.groupedViewGrid(plan);
+  assert.equal(grid.length,165);
+  assert.equal(grid[0].values[0].userEnteredValue.stringValue,'PHU HUNG项目现金流明细表');
+  assert.equal(grid[1].values[0].userEnteredValue.stringValue.startsWith('期间：'),true);
+  assert.equal(grid[2].values[7].userEnteredValue.stringValue,'支出');
+  assert.equal(grid[2].values[13].userEnteredValue.stringValue,'余额');
+  assert.equal(grid[3].values[7].userEnteredValue.stringValue,'分包款');
+  assert.equal(grid[4].values[13].userEnteredValue.formulaValue,'=$Q$5+G5-SUM(H5:M5)');
+  assert.equal(grid[5].values[13].userEnteredValue.formulaValue,'=N5+G6-SUM(H6:M6)');
+  assert.equal(grid[164].values[0].userEnteredValue.stringValue,'合计');
+  assert.equal(grid[164].values[6].userEnteredValue.formulaValue,'=SUM(G5:G164)');
+  assert.equal(grid[164].values[13].userEnteredValue.formulaValue,'=N164');
+  const values=grid.map(row=>row.values.map(cell=>Object.values(cell.userEnteredValue||{})[0]??''));
+  const formulas=[[],['余额'],[]];
+  for(let i=0;i<plan.rows.length;i++){
+    values[i+4][13]=plan.rows[i].balance;
+    formulas.push([grid[i+4].values[13].userEnteredValue.formulaValue]);
+  }
+  for(let j=6;j<=12;j++)values.at(-1)[j]=plan.rows.reduce((sum,r)=>sum+r.values[j],0);
+  values.at(-1)[13]=plan.closingBalance;
+  formulas.push(['=N164']);
+  assert.equal(C.verifyGroupedView(values,formulas,plan),true);
+  values[12][10]+=1;
+  assert.equal(C.verifyGroupedView(values,formulas,plan),false);
+});
+test('grouped style update only touches live view and mirror, never archive, and merges only on upgrade',()=>{
+  const f=fixture(),h=C.correctedHistory(f.revised),linked=C.prepareNewMirror(f.sources,h);
+  const plan=C.buildLedger(h,linked.newMirror);
+  const runner=require('../api/cash-sync-original-live.js')._internals;
+  const args={plan,combined:linked,displayHeader:C.historicalDisplayHeader(f.revised),
+    view:{sheetId:555,gridProperties:{rowCount:1000}},
+    mirrorSheet:{sheetId:556,gridProperties:{rowCount:1000}},
+    oldPlan:plan,oldMirror:[],groupedView:false};
+  const migration=runner.syncRequests(args);
+  assert.deepEqual(migration.filter(x=>x.updateCells).map(x=>x.updateCells.range.sheetId),[556,555]);
+  assert.equal(migration.filter(x=>x.mergeCells).length,11);
+  assert.equal(migration.filter(x=>x.updateCells && x.updateCells.range.sheetId===555)[0].updateCells.rows.length,165);
+  assert.equal(migration.some(x=>JSON.stringify(x).includes('PHU_HUNG_HISTORY_BACKUP')),false);
+  const next=runner.syncRequests({...args,groupedView:true});
+  assert.equal(next.filter(x=>x.mergeCells).length,0);
+});
+
+test('grouped PHU HUNG view moves totals down when new month adds one transaction',()=>{
+  const f=fixture(),history=C.correctedHistory(f.revised);
+  const values=['2026-11-10','NEW','SUPL-2026-001','November material','IPC018','材料款',
+    0,0,1250000,0,0,0,0];
+  const next={id:'PHU HUNG:NEW-NOV',project:'PHU HUNG',month:'2026-11',
+    values,hash:signature(values)};
+  const linked=C.prepareNewMirror([...f.sources,next],history);
+  const plan=C.buildLedger(history,linked.newMirror);
+  assert.equal(plan.rows.length,161);
+  assert.equal(plan.extraCount,1);
+  const grid=C.groupedViewGrid(plan);
+  assert.equal(grid.length,166);
+  assert.equal(grid[165].values[0].userEnteredValue.stringValue,'合计');
+  assert.equal(grid[165].values[8].userEnteredValue.formulaValue,'=SUM(I5:I165)');
+  assert.equal(grid[165].values[13].userEnteredValue.formulaValue,'=N165');
+  assert.equal(grid[164].values[13].userEnteredValue.formulaValue,'=N164+G165-SUM(H165:M165)');
+  const api=require('../api/cash-sync-original-live.js')._internals;
+  const oldMirror=linked.newMirror.map(x=>[x.id,'PHU HUNG',x.month,...x.values,'',x.hash,x.status]);
+  const update=api.syncRequests({
+    plan,combined:linked,displayHeader:C.historicalDisplayHeader(f.revised),
+    view:{sheetId:555,gridProperties:{rowCount:1000}},
+    mirrorSheet:{sheetId:556,gridProperties:{rowCount:1000}},
+    oldPlan:plan,oldMirror,groupedView:true
+  });
+  assert.equal(update.filter(x=>x.mergeCells).length,0);
+  assert.equal(update.filter(x=>x.updateCells&&x.updateCells.range.sheetId===555)[0].updateCells.rows.length,166);
 });
