@@ -165,5 +165,28 @@
       taxColumnsDetected,taxRows,taxTotal,layoutErrors,examples,
       historyOnly:true,canWrite:false});
   }
-  return Object.freeze({audit,dateValue,amount});
+  // Header-only diagnostics for atypical FOXCONN layouts. No financial
+  // cells are exposed, persisted or transmitted by this helper.
+  function diagnoseHeaders(rows){
+    if(!Array.isArray(rows))return [];
+    const output=[];
+    for(let i=0;i<rows.length&&output.length<12;i++){
+      const row=rows[i];
+      if(!Array.isArray(row)||dateValue(row[0]))continue;
+      const columns=[];
+      for(let j=0;j<Math.min(32,row.length);j++){
+        const value=row[j];
+        if(typeof value!=='string')continue;
+        const v=value.trim();
+        if(!v||v.length>55||/^[-+]?\\d[\\d.,\\s]*$/.test(v))continue;
+        if(!/(税|增值|进口|余额|结余|结存|balance|income|支出|收入|分包|材料|间接|日期|项目)/i.test(v))continue;
+        let k=j+1,label='';
+        while(k){k--;label=String.fromCharCode(65+k%26)+label;k=Math.floor(k/26)}
+        columns.push(label+': '+v.slice(0,45));
+      }
+      if(columns.length)output.push({row:i+1,columns:columns.slice(0,16)});
+    }
+    return output;
+  }
+  return Object.freeze({audit,dateValue,amount,diagnoseHeaders});
 });
