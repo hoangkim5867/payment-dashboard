@@ -5561,6 +5561,50 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
               ' · bố cục chưa xác minh: '+result.layoutErrors+
               ' · O thử tính: '+result.provisionalBalanceRows+'/'+result.transactionRows+
               ' (chưa xác nhận cột số dư)':'');
+          // Explicit per-project candidate comparison against current in-memory
+          // Cash Control source. Never invokes loadProjectPayments or any Firebase API.
+          if(result.transactionRows>0&&project!=='FOXCONN'){
+            const details=document.createElement('details');
+            const summary=document.createElement('summary');
+            summary.textContent='So trùng với Cash Control đã tải (chỉ bộ nhớ, không đọc Firebase)';
+            details.append(summary);
+            const pre=document.createElement('pre');
+            pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-width:620px';
+            const button=document.createElement('button');
+            button.type='button';button.className='btn';
+            button.textContent='Đối chiếu ứng viên trùng · không ghi';
+            button.addEventListener('click',()=>{
+              try{
+                const cashRows=[];
+                // Explicitly include all months since the Cash Control cutover,
+                // including months absent from Google Sheets history.
+                const through=/^20\\d{2}-(0[1-9]|1[0-2])$/.test(CURRENT)?CURRENT:'2026-11';
+                for(let year=2026;year<=Number(through.slice(0,4));year++){
+                  for(let month=year===2026?10:1;
+                      month<=(year===Number(through.slice(0,4))?
+                        Number(through.slice(5,7)):12);month++){
+                    cashRows.push(...legacyCashExportRows(
+                      year+'-'+String(month).padStart(2,'0'),project));
+                  }
+                }
+                const complete=paymentMonths.has(project);
+                const report=window.CashSyncHistoricalAudit.compareLoadedCashControl(
+                  rows,project,cashRows,{sourceComplete:complete});
+                pre.textContent='Google từ 10/2026: '+report.historicalScope+
+                  ' · Cash Control hiện có: '+report.sourceScope+
+                  ' · ứng viên khớp: '+report.matched+
+                  ' · chỉ có ở Google: '+report.historicalOnly+
+                  ' · chỉ có trong Cash Control: '+report.cashOnly+
+                  ' · chữ ký trùng không phân biệt được: '+report.ambiguous+
+                  ' · giá trị chưa đọc được: '+(report.invalidHistory+report.invalidSource)+
+                  '\\n'+(complete?'Đã tải toàn bộ Payment của dự án trong phiên.':
+                    'CHƯA tải đủ Payment của dự án. So khớp này chỉ để tham khảo.')+
+                  '\\nKHÔNG xác nhận khoản nào sẽ ghi hoặc được phép đồng bộ.';
+              }catch(e){pre.textContent='Không đối chiếu được: '+String(e.message||e).slice(0,110)}
+            });
+            details.append(button,pre);
+            cells[4].append(document.createElement('div'),details);
+          }
           if(result.financialExamples?.length&&project!=='FOXCONN'){
             const details=document.createElement('details');
             const summary=document.createElement('summary');
