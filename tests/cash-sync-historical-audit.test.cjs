@@ -133,3 +133,28 @@ test('FOXCONN real split header at rows 3 and 4 detects N tax without assuming O
  const candidates=api.foxconnBalanceCandidates([row]);
  assert.ok(candidates.some(x=>x.column==='O'&&x.numericRows===1));
 });
+
+test('FOXCONN O-column probe computes expenses including N tax but never authorizes sync',()=>{
+ const header=['日期','','','','','','收入','支出'];
+ const sub=Array(15).fill('');
+ sub[7]='分包款';sub[8]='材料款';sub[13]='进口税+增值税';
+ const a=['2026-10-01','','','','','',1000,100,0,0,0,0,0,40,1860];
+ const b=['2026-10-02','','','','','',500,50,0,0,0,0,0,25,2285];
+ const report=audit([header,sub,a,b],{project:'FOXCONN',probeBalanceIndex:14});
+ assert.equal(report.status,'provisional-balance-review');
+ assert.equal(report.taxColumnsDetected,1);
+ assert.equal(report.taxTotal,65);
+ assert.equal(report.provisionalBalanceRows,2);
+ assert.equal(report.continuityErrors,0);
+ assert.equal(report.closingBalance,2285);
+ assert.equal(report.canWrite,false);
+});
+test('FOXCONN O candidate with wrong arithmetic stays provisional and reports mismatch',()=>{
+ const sub=Array(15).fill('');sub[13]='进口税+增值税';
+ const a=['2026-10-01','','','','','',1000,100,0,0,0,0,0,40,1860];
+ const b=['2026-10-02','','','','','',500,50,0,0,0,0,0,25,2290];
+ const report=audit([sub,a,b],{project:'FOXCONN',probeBalanceIndex:14});
+ assert.equal(report.status,'provisional-balance-review');
+ assert.equal(report.continuityErrors,1);
+ assert.equal(report.canWrite,false);
+});
