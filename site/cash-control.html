@@ -1416,7 +1416,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <div id="ccGoogleSyncProjects" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:8px;padding:10px;border:1px solid #dce4ef;border-radius:8px;background:white"></div>
         </div>
       </div>
-      <details id="ccGoogleSyncProjectLinkCatalog" style="margin-top:10px;border:1px solid #dbe4f0;border-radius:10px;padding:10px;background:#f8fafc">
+      <details id="ccGoogleSyncProjectLinkCatalog" hidden style="margin-top:10px;border:1px solid #dbe4f0;border-radius:10px;padding:10px;background:#f8fafc">
         <summary style="cursor:pointer;font-weight:700">Danh mục Google Sheets tất cả dự án (Admin · chuẩn bị kết nối)</summary>
         <p style="font-size:12px;margin:8px 0;color:#56647a">Tự lấy toàn bộ dự án đang có trong Cash Control và Project Master. Dự án mới sẽ tự xuất hiện. Link được lưu nháp trên trình duyệt này, chưa gửi Google, Firebase hoặc cho phép ghi dữ liệu. Chỉ PHU HUNG đã được kích hoạt đồng bộ thật.</p>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0">
@@ -13162,6 +13162,8 @@ onAuthStateChanged(auth,async user=>{
     if(pilotExportButton)pilotExportButton.hidden=!isCashControlOwner();
     const originalSyncPanel=$('ccGoogleSyncOriginalPanel');
     if(originalSyncPanel)originalSyncPanel.hidden=!(firebaseConfig.projectId==='cscecmep-payment'&&isCashControlOwner());
+    const projectLinkCatalog=$('ccGoogleSyncProjectLinkCatalog');
+    if(projectLinkCatalog)projectLinkCatalog.hidden=!(currentAuthUser&&isCashControlOwner());
     updateCashAuthUI();
 
     if(!user || !isCashControlOwner()){
