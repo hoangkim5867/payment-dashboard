@@ -5487,10 +5487,10 @@ async function ccSyncProjectReadOnlyCheck(){
         const url=new URL(link);
         if(url.protocol!=='https:'||url.hostname!=='docs.google.com')
           throw Error('Đường dẫn Google Sheets không hợp lệ');
-        const match=/^\\/spreadsheets\\/d\\/([A-Za-z0-9_-]{20,})\\/edit\\/?$/.exec(url.pathname);
+        const match=/^\/spreadsheets\/d\/([A-Za-z0-9_-]{20,})\/edit\/?$/.exec(url.pathname);
         if(!match)throw Error('Thiếu File ID');
-        const gid=url.searchParams.get('gid')||/^#gid=(\\d+)$/.exec(url.hash)?.[1];
-        if(!/^\\d+$/.test(String(gid??'')))throw Error('Link thiếu gid');
+        const gid=url.searchParams.get('gid')||/^#gid=(\d+)$/.exec(url.hash)?.[1];
+        if(!/^\d+$/.test(String(gid??'')))throw Error('Link thiếu gid');
         const base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(match[1]);
         const headers={Authorization:'Bearer '+ccGoogleSyncToken};
         const metaResponse=await fetch(base+'?fields=spreadsheetId,sheets(properties(sheetId,title,hidden))',
@@ -5513,7 +5513,7 @@ async function ccSyncProjectReadOnlyCheck(){
         const count=rows.filter(row=>{
           const d=row?.[0];
           return typeof d==='number'&&d>10000&&d<100000||
-            typeof d==='string'&&/^20\\d{2}-\\d{2}-\\d{2}$/.test(d);
+            typeof d==='string'&&/^20\d{2}-\d{2}-\d{2}$/.test(d);
         }).length;
         cells[1].textContent='Đọc được · chưa đối chiếu số dư';
         cells[2].textContent=selected.title;
