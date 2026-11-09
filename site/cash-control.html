@@ -5560,9 +5560,15 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
             details.append(summary);
             const pre=document.createElement('pre');
             pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-width:560px';
-            pre.textContent=diagnostic.length?
+            const candidates=window.CashSyncHistoricalAudit.foxconnBalanceCandidates(rows);
+            const candidateText=candidates.length?
+              'Cột có số ở dòng giao dịch (CHƯA xác nhận số dư): '+
+                candidates.map(x=>x.column+' '+x.numericRows+'/'+x.totalRows).join(' | '):
+              'Không tìm được cột số dư tiềm năng trong O:X.';
+            pre.textContent=(diagnostic.length?
               diagnostic.map(x=>'Hàng '+x.row+': '+x.columns.join(' | ')).join('\\n'):
-              'Không tìm thấy tiêu đề thuế/số dư trong A:AF. Cần xem ảnh hàng tiêu đề.';
+              'Không tìm thấy tiêu đề thuế/số dư trong A:AF.')+
+              '\\n'+candidateText;
             details.append(pre);
             const copy=document.createElement('button');
             copy.type='button';copy.className='btn';
