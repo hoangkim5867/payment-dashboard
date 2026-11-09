@@ -78,6 +78,8 @@
     let roundingDifferences=0,monthTransitions=0,nonMonotonicDates=0;
     let taxColumnsDetected=0,taxRows=0,taxTotal=0,layoutErrors=0;
     let activeLayout=null;
+    const probeBalanceIndex=foxconn&&options.probeBalanceIndex===14?14:null;
+    let provisionalBalanceRows=0;
     const examples=[];
     const issue=(kind,row,detail)=>{
       if(examples.length<8)examples.push({kind,row,detail});
@@ -111,17 +113,21 @@
         layoutErrors++;issue('tax-layout',i+1,'Unknown tax column layout');
         previous=null;continue;
       }
-      if(foxconn&&(!activeLayout||activeLayout.requiresBalanceSelection)){
-        // Tax has been located but the balance column is still unknown.
-        // Keep screening closed instead of counting every row as faulty.
+      if(foxconn&&(!activeLayout||
+         (activeLayout.requiresBalanceSelection&&probeBalanceIndex===null))){
         previous=null;continue;
       }
+      // An explicit O-column probe can test the arithmetic, not certify that
+      // O is the balance. The original header has no balance label.
+      const balanceIndex=useTax&&activeLayout.requiresBalanceSelection?
+        probeBalanceIndex:useTax?activeLayout.balanceIndex:13;
+      if(useTax&&activeLayout.requiresBalanceSelection)provisionalBalanceRows++;
       // 7 original categories: G income; H:M six expenses.
       // An inserted import-tax/VAT column displaces the later expenses.
       const indices=useTax?
         [6,...Array.from({length:6},(_,k)=>k+7>=activeLayout.taxIndex?k+8:k+7)]:
         [6,7,8,9,10,11,12];
-      if(useTax&&indices.includes(activeLayout.balanceIndex)){
+      if(useTax&&indices.includes(balanceIndex)){
         layoutErrors++;issue('tax-layout',i+1,'Balance overlaps expense categories');
         previous=null;continue;
       }
@@ -132,7 +138,7 @@
         previous=null;continue;
       }
       if(useTax){taxRows++;taxTotal=rounded(taxTotal+tax)}
-      const recorded=amount(row[useTax?activeLayout.balanceIndex:13]);
+      const recorded=amount(row[balanceIndex]);
       if(!Number.isFinite(recorded)){
         missingBalance++;issue('missing-balance',i+1,'N is blank/invalid');
         previous=null;continue;
@@ -164,7 +170,9 @@
     const taxLayoutUnverified=foxconn&&(layoutErrors>0||
       taxColumnsDetected===0||activeLayout?.requiresBalanceSelection);
     const status=blank?'blank-tab':taxLayoutUnverified?
-      'unsupported-tax-layout':count===0||missingEveryBalance?
+      (provisionalBalanceRows>0&&layoutErrors===0&&taxColumnsDetected>0?
+        'provisional-balance-review':'unsupported-tax-layout'):
+      count===0||missingEveryBalance?
       'unsupported-layout':financialIssues||missingBalance?
       'needs-financial-review':nonMonotonicDates?
       'review-date-order':'internally-consistent';
@@ -172,7 +180,7 @@
       openingBalance:opening,closingBalance:closing,monthTransitions,
       invalidMoney,missingBalance,continuityErrors,roundingDifferences,
       nonMonotonicDates,missingEveryBalance,financialIssues,
-      taxColumnsDetected,taxRows,taxTotal,layoutErrors,
+      taxColumnsDetected,taxRows,taxTotal,layoutErrors,provisionalBalanceRows,
       balanceColumnUnconfirmed:foxconn&&!!activeLayout?.requiresBalanceSelection,
       taxColumn:foxconn&&activeLayout&&!activeLayout.invalid?activeLayout.taxIndex+1:null,
       examples,
