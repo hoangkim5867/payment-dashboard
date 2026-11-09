@@ -309,7 +309,7 @@ function syncRequests(s){
         requests.push({deleteDeveloperMetadata:{dataFilter:{
           developerMetadataLookup:{metadataId:stale.metadataId}}}});
     }
-    requests.push({addDeveloperMetadata:{developerMetadata:{
+    requests.push({createDeveloperMetadata:{developerMetadata:{
       metadataKey:DISPLAY_FORMAT_KEY,metadataValue:DISPLAY_FORMAT_VERSION,
       location:{sheetId:id},visibility:'DOCUMENT'}}});
   }
