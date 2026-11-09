@@ -5510,9 +5510,9 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
         const selected=(meta.sheets||[]).map(s=>s.properties)
           .find(s=>String(s?.sheetId)===String(gid));
         if(!selected||selected.hidden===true)throw Error('Không tìm thấy tab hoặc tab đang ẩn');
-        // FOXCONN has the 进口税+增值税 expense column and may keep
-        // running balance beyond N. Fetch extra columns only for this project.
-        const lastColumn=project==='FOXCONN'?'AF':'N';
+        // FOXCONN reads A:O only, including N tax and provisional O balance.
+        // Columns P onward are scratch notes and must remain untouched.
+        const lastColumn=project==='FOXCONN'?'O':'N';
         const range="'"+selected.title.replace(/'/g,"''")+"'!A1:"+lastColumn+"20000";
         const dataUrl=base+'/values/'+encodeURIComponent(range)+
           '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER';
