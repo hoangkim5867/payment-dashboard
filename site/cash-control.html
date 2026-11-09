@@ -5510,7 +5510,10 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
         const selected=(meta.sheets||[]).map(s=>s.properties)
           .find(s=>String(s?.sheetId)===String(gid));
         if(!selected||selected.hidden===true)throw Error('Không tìm thấy tab hoặc tab đang ẩn');
-        const range="'"+selected.title.replace(/'/g,"''")+"'!A1:N20000";
+        // FOXCONN has the 进口税+增值税 expense column and may keep
+        // running balance beyond N. Fetch extra columns only for this project.
+        const lastColumn=project==='FOXCONN'?'AF':'N';
+        const range="'"+selected.title.replace(/'/g,"''")+"'!A1:"+lastColumn+"20000";
         const dataUrl=base+'/values/'+encodeURIComponent(range)+
           '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER';
         let response=await fetch(dataUrl,{method:'GET',headers,cache:'no-store'});
@@ -5530,9 +5533,10 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
             typeof d==='string'&&/^20\d{2}-\d{2}-\d{2}$/.test(d);
         }).length;
         if(auditBalances){
-          const result=window.CashSyncHistoricalAudit.audit(rows);
+          const result=window.CashSyncHistoricalAudit.audit(rows,{project});
           const titles={'blank-tab':'File trắng · cần xác minh số dư đầu kỳ',
             'unsupported-layout':'Chưa xác định được cột số dư (N)',
+            'unsupported-tax-layout':'FOXCONN: chưa xác định cột thuế/số dư',
             'needs-financial-review':'Số dư / dữ liệu tiền cần kiểm tra',
             'review-date-order':'Thứ tự ngày cần xem lại · số dư tự khớp',
             'internally-consistent':'Sổ tự khớp · chưa so Cash Control'};
@@ -5544,7 +5548,10 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
             ' · sai số làm tròn: '+result.roundingDifferences+
             ' · thiếu N: '+result.missingBalance+
             ' · tiền không đọc được: '+result.invalidMoney+
-            ' · ngày không tăng dần: '+result.nonMonotonicDates;
+            ' · ngày không tăng dần: '+result.nonMonotonicDates+
+            (project==='FOXCONN'?' · cột thuế nhận diện: '+result.taxColumnsDetected+
+              ' · tổng thuế: '+result.taxTotal.toLocaleString('vi-VN')+
+              ' · bố cục chưa xác minh: '+result.layoutErrors:'');
           if(result.status==='internally-consistent'||result.status==='blank-tab')
             passed++;else blocked++;
         }else{
