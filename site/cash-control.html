@@ -5512,7 +5512,7 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
         if(!selected||selected.hidden===true)throw Error('Không tìm thấy tab hoặc tab đang ẩn');
         // FOXCONN reads A:O only, including N tax and provisional O balance.
         // Columns P onward are scratch notes and must remain untouched.
-        const lastColumn=project==='FOXCONN'?'O':'N';
+        const lastColumn=project==='FOXCONN'?'O':project==='CHAOMED'?'R':'N';
         const range="'"+selected.title.replace(/'/g,"''")+"'!A1:"+lastColumn+"20000";
         const dataUrl=base+'/values/'+encodeURIComponent(range)+
           '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER';
@@ -5537,7 +5537,8 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
           // historical header does not name a balance field. Probe only.
           const result=window.CashSyncHistoricalAudit.audit(rows,
             {project,...(project==='FOXCONN'?{probeBalanceIndex:14}:{})});
-          const titles={'blank-tab':'File trắng · cần xác minh số dư đầu kỳ',
+          const titles={'new-project-no-transactions':'Dự án mới · chưa có phát sinh',
+            'blank-tab':'File trắng · cần xác minh số dư đầu kỳ',
             'unsupported-layout':'Chưa xác định được cột số dư (N)',
             'unsupported-tax-layout':'FOXCONN: chưa xác định cột thuế/số dư',
             'provisional-balance-review':'FOXCONN: thử tính số dư O · chưa xác nhận',
@@ -5558,8 +5559,41 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
               ' · bố cục chưa xác minh: '+result.layoutErrors+
               ' · O thử tính: '+result.provisionalBalanceRows+'/'+result.transactionRows+
               ' (chưa xác nhận cột số dư)':'');
+          if(result.financialExamples?.length&&project!=='FOXCONN'){
+            const details=document.createElement('details');
+            const summary=document.createElement('summary');
+            summary.textContent='Xem '+result.financialExamples.length+
+              ' dòng chênh lệch/không đọc được (chỉ đọc)';
+            details.append(summary);
+            const pre=document.createElement('pre');
+            pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-width:620px';
+            pre.textContent=result.financialExamples.map(x=>
+              'Dòng '+x.row+' · '+
+              (x.kind==='balance'?'Chênh lệch số dư: ':
+               x.kind==='rounding'?'Chênh lệch làm tròn: ':
+               x.kind==='missing-balance'?'Thiếu số dư: ':'Số tiền không đọc được: ')+
+              (typeof x.detail==='number'?
+                 x.detail.toLocaleString('vi-VN',{maximumFractionDigits:6})+' VND':
+                 String(x.detail))).join('\\n');
+            details.append(pre);
+            cells[4].append(document.createElement('div'),details);
+          }
+          if(project==='CHAOMED'&&result.status==='unsupported-layout'){
+            const candidates=window.CashSyncHistoricalAudit.balanceColumnCandidates(rows,13,17);
+            const details=document.createElement('details');
+            const summary=document.createElement('summary');
+            summary.textContent='CHAOMED: xem cột số dư có thể có (chưa xác nhận)';
+            details.append(summary);
+            const pre=document.createElement('pre');
+            pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-width:620px';
+            pre.textContent=candidates.length?
+              candidates.map(x=>x.column+': '+x.numericRows+'/'+x.totalRows+' dòng có số').join(' | '):
+              'Không thấy cột số dư dạng số trong N:R. Không tự chọn cột.';
+            details.append(pre);
+            cells[4].append(document.createElement('div'),details);
+          }
           if(project==='FOXCONN'&&result.status==='provisional-balance-review'){
-            const mismatches=(result.examples||[]).filter(x=>x.kind==='balance'||x.kind==='rounding');
+            const mismatches=(result.financialExamples||[]).filter(x=>x.kind==='balance'||x.kind==='rounding');
             const details=document.createElement('details');
             const summary=document.createElement('summary');
             summary.textContent='FOXCONN: xem dòng chênh lệch số dư O (chỉ đọc)';
@@ -5598,7 +5632,8 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
             details.append(copy);
             cells[4].append(document.createElement('div'),details);
           }
-          if(result.status==='internally-consistent'||result.status==='blank-tab')
+          if(result.status==='internally-consistent'||result.status==='blank-tab'||
+             result.status==='new-project-no-transactions')
             passed++;else blocked++;
         }else{
           cells[1].textContent='Đọc được · chưa đối chiếu số dư';
@@ -5611,7 +5646,7 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
         blocked++;
       }
       note.textContent='Đã kiểm tra '+(passed+blocked)+'/'+items.length+
-        ' file · '+(auditBalances?'sổ tự khớp hoặc trắng ':'đọc được ')+passed+' · cần kiểm tra '+blocked+
+        ' file · '+(auditBalances?'sổ tự khớp hoặc chưa phát sinh ':'đọc được ')+passed+' · cần kiểm tra '+blocked+
         '. Chưa có dự án nào được phê duyệt đồng bộ.';
     }
   }finally{button.disabled=false}
