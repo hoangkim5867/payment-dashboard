@@ -207,3 +207,16 @@ test('CHAOMED balance column candidates are numbers only, not automatic layout a
  assert.equal(found[0].numericRows,2);
  assert.equal(audit([a,b],{project:'CHAOMED'}).status,'unsupported-layout');
 });
+
+test('historical project with nonempty but nonrecognized dates stays blocked, not new/blank',()=>{
+ const api=require('../site/assets/js/cash-sync-historical-audit.js');
+ const rows=[['日期','项目'],['2026/10/03','中健厂房'],['03-10-26','记录'],[45678,'金额']];
+ const result=api.audit(rows,{project:'中健厂房'});
+ assert.equal(result.status,'unsupported-layout');
+ assert.equal(result.transactionRows,0);
+ assert.equal(result.canWrite,false);
+ const diag=api.dateLayoutDiagnostic(rows);
+ assert.equal(diag.nonemptyRows,4);
+ assert.equal(diag.validDatesByColumn[0],1);
+ assert.ok(diag.suspectRows.some(x=>x.row===3));
+});
