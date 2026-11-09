@@ -106,3 +106,13 @@ test('standard project ignores unrelated tax row and retains previous template',
  const a=audit([row('2026-10-01',100,0,1100)],{project:'EATON'});
  assert.equal(a.status,'internally-consistent');
 });
+
+test('FOXCONN header diagnostics identify columns without copying financial amounts',()=>{
+ const rows=[['日期','','','','','','收入','分包','材料','其他直接费','间接费','财务费用','其他应付款','进口税+增值税','余额'],
+ ['2026-10-01','company','','','','',1000,100,0,0,0,0,0,50,850]];
+ const {diagnoseHeaders}=require('../site/assets/js/cash-sync-historical-audit.js');
+ const report=diagnoseHeaders(rows);
+ assert.ok(report.some(r=>r.columns.some(c=>c.startsWith('N:')&&c.includes('进口税'))));
+ assert.ok(report.some(r=>r.columns.some(c=>c.startsWith('O:')&&c.includes('余额'))));
+ assert.ok(!JSON.stringify(report).includes('1000'));
+});
