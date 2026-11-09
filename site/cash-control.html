@@ -5552,6 +5552,25 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
             (project==='FOXCONN'?' · cột thuế nhận diện: '+result.taxColumnsDetected+
               ' · tổng thuế: '+result.taxTotal.toLocaleString('vi-VN')+
               ' · bố cục chưa xác minh: '+result.layoutErrors:'');
+          if(project==='FOXCONN'&&result.status==='unsupported-tax-layout'){
+            const diagnostic=window.CashSyncHistoricalAudit.diagnoseHeaders(rows);
+            const details=document.createElement('details');
+            const summary=document.createElement('summary');
+            summary.textContent='Xem vị trí tiêu đề FOXCONN để nhận diện cột thuế/số dư';
+            details.append(summary);
+            const pre=document.createElement('pre');
+            pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-width:560px';
+            pre.textContent=diagnostic.length?
+              diagnostic.map(x=>'Hàng '+x.row+': '+x.columns.join(' | ')).join('\\n'):
+              'Không tìm thấy tiêu đề thuế/số dư trong A:AF. Cần xem ảnh hàng tiêu đề.';
+            details.append(pre);
+            const copy=document.createElement('button');
+            copy.type='button';copy.className='btn';
+            copy.textContent='Sao chép vị trí cột (không có số tiền)';
+            copy.addEventListener('click',()=>navigator.clipboard?.writeText(pre.textContent));
+            details.append(copy);
+            cells[4].append(document.createElement('div'),details);
+          }
           if(result.status==='internally-consistent'||result.status==='blank-tab')
             passed++;else blocked++;
         }else{
