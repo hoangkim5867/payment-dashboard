@@ -1,28 +1,35 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {PROJECTS,projectFor,canActivate}=require('../server/cash-sync-project-registry.cjs');
-test('multi-project registry contains only explicit unique supported projects',()=>{
- assert.equal(PROJECTS.length,8);
- assert.equal(new Set(PROJECTS.map(p=>p.key)).size,8);
- assert.equal(projectFor('  elysian ')?.key,'ELYSIAN');
- assert.equal(projectFor('EATON P1')?.key,'EATON P1');
- assert.equal(projectFor('UNKNOWN'),null);
- assert.equal(projectFor('__proto__'),null);
+const {buildCatalog,projectFor,canActivate}=
+  require('../server/cash-sync-project-registry.cjs');
+const names=['大福莲花市政','Krista','FelizenVista','HAPPY SGSU','HERITAGE',
+  'M5M6','理文造纸厂','SUNWAH','SSR','SA','D1 mension','Krisvue','S6-1',
+  'C13B','CHAOMED','DELASOL','CAPITAL PLACE','CLUB HOUSE','大福5区',
+  '大幅莲花8区','中健厂房','289','SSIS','C17-2','S13-2','EATON',
+  'ELYSIAN','ADVANCE','H14-3','红鹤别墅1.1区','PHU HUNG','OCEAN LINK',
+  'CN8-2','CR5-1B','FOXCONN'];
+test('dynamic registry includes full Cash Control catalog without eight-project cap',()=>{
+  const items=buildCatalog([...names,' elysian ']);
+  assert.equal(items.length,names.length);
+  assert.ok(items.some(p=>p.key==='ELYSIAN'));
+  assert.ok(items.some(p=>p.key==='红鹤别墅1.1区'));
+  assert.equal(projectFor(names,'  elysian ')?.key,'ELYSIAN');
+  assert.equal(projectFor(names,'UNKNOWN'),null);
 });
-test('existing PHU HUNG never auto-migrates through new registry',()=>{
- assert.equal(canActivate('PHU HUNG',{
-  matchingProject:'PHU HUNG',readOnlyAuditPassed:true,
-  historicalRowsVerified:true,closingBalanceVerified:true,explicitAdminApproval:true
- }),false);
+test('a future project appears immediately without changing code',()=>{
+  const dynamic=[...names,'NEW PROJECT DEC 2026'];
+  assert.equal(projectFor(dynamic,'new project dec 2026').status,'pending-audit');
+  assert.equal(projectFor(names,'NEW PROJECT DEC 2026'),null);
 });
-test('all new projects start blocked until independent audit and Admin approval',()=>{
- const proof={matchingProject:'ELYSIAN',readOnlyAuditPassed:true,
-  historicalRowsVerified:true,closingBalanceVerified:true,explicitAdminApproval:true};
- assert.equal(canActivate('ELYSIAN',proof),true);
- for(const key of ['readOnlyAuditPassed','historicalRowsVerified',
-  'closingBalanceVerified','explicitAdminApproval']){
-  assert.equal(canActivate('ELYSIAN',{...proof,[key]:false}),false);
- }
- assert.equal(canActivate('EATON P1',proof),false);
- assert.equal(canActivate('ELYSIAN',{...proof,matchingProject:'FOXCONN'}),false);
+test('existing PHU HUNG is protected and new projects require complete proof',()=>{
+  const proof={matchingProject:'ELYSIAN',readOnlyAuditPassed:true,
+    historicalRowsVerified:true,closingBalanceVerified:true,
+    explicitAdminApproval:true,destinationSpreadsheetVerified:true};
+  assert.equal(canActivate(names,'PHU HUNG',{...proof,matchingProject:'PHU HUNG'}),false);
+  assert.equal(canActivate(names,'ELYSIAN',proof),true);
+  for(const field of ['readOnlyAuditPassed','historicalRowsVerified',
+    'closingBalanceVerified','explicitAdminApproval','destinationSpreadsheetVerified']){
+    assert.equal(canActivate(names,'ELYSIAN',{...proof,[field]:false}),false);
+  }
+  assert.equal(canActivate(names,'EATON',proof),false);
 });
