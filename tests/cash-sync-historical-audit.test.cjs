@@ -39,7 +39,7 @@ test('rejects missing and malformed financial amounts',()=>{
  assert.equal(b.invalidMoney,1);
 });
 test('recognizes Sheets serial dates and Chinese/formatted dates',()=>{
- assert.equal(dateValue(46326),'2026-11-30');
+ assert.equal(dateValue(46326),'2026-10-31');
  assert.equal(dateValue('01/11/2026'),'2026-11-01');
  assert.equal(dateValue('2026-02-30'),'');
  assert.equal(amount('1,000,000'),1000000);
