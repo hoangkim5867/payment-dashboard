@@ -23,6 +23,11 @@ function actionIsPreview(input){
 const googlePrefix='https://sheets.googleapis.com/v4/spreadsheets/';
 const gridPath=(tab,range)=>'/values/'+encodeURIComponent("'"+tab+"'!"+range)+
   '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER';
+// A version marker on the visible view makes presentation upgrades one-time:
+ // no Firebase polling and no repeat Google writes if content stays unchanged.
+const DISPLAY_FORMAT_KEY='PHU_HUNG_VIEW_FORMAT_VERSION';
+const DISPLAY_FORMAT_VERSION='2026-11-09-clean-amounts-and-rows';
+const CLEAN_NUMBER_PATTERN='#,##0;-#,##0;;@';
 const formulaPath=(tab)=>'/values/'+encodeURIComponent("'"+tab+"'!N2:N")+
   '?valueRenderOption=FORMULA';
 async function getGoogle(authorization,id,path,method='GET',body){
@@ -83,7 +88,7 @@ function sameApprovedState(before,after,action){
 }
 async function state(authorization,originalId,source,action){
   const [meta,onlyTestMeta]=await Promise.all([
-    getGoogle(authorization,originalId,'?fields=spreadsheetId,properties(title),sheets(properties(title,sheetId,hidden,gridProperties(rowCount,columnCount)))'),
+    getGoogle(authorization,originalId,'?fields=spreadsheetId,properties(title),sheets(properties(title,sheetId,hidden,gridProperties(rowCount,columnCount))),developerMetadata(metadataId,metadataKey,metadataValue,location(sheetId))'),
     action==='sync-preview'||action==='sync'?
       Promise.resolve(null):
       getGoogle(authorization,TEST_SPREADSHEET_ID,
@@ -141,8 +146,12 @@ async function state(authorization,originalId,source,action){
       deny('Sổ PHU HUNG hiện tại đã thay đổi ngoài đồng bộ; dừng để tránh ghi đè.');
     const combined=prepareNewMirror(source,historic,oldMirror);
     const plan=buildLedger(historic,combined.newMirror);
-    const changes=compareOldAndNext(oldMirror,combined.newMirror)||!groupedView;
-    return {active:true,meta,archived,view,mirrorSheet,history,displayHeader,groupedView,oldMirror,
+    const currentFormat=(meta.developerMetadata||[]).some(x=>
+      x.metadataKey===DISPLAY_FORMAT_KEY&&
+      x.metadataValue===DISPLAY_FORMAT_VERSION&&
+      x.location?.sheetId===view.sheetId);
+    const changes=compareOldAndNext(oldMirror,combined.newMirror)||!groupedView||!currentFormat;
+    return {active:true,meta,archived,view,mirrorSheet,history,displayHeader,groupedView,currentFormat,oldMirror,
       oldPlan,plan,combined,changes,
       signature:planSignature({original:history.values,view:viewData.values,
         formulas:viewData.formulas,mirror:mirrorData.values,source})};
@@ -247,10 +256,16 @@ function syncRequests(s){
     const totalRowIndex=s.plan.rows.length+4;
     requests.push({repeatCell:{range:{sheetId:s.view.sheetId,
       startRowIndex:4,endRowIndex:totalRowIndex+1,
-      startColumnIndex:6,endColumnIndex:13},
+      startColumnIndex:6,endColumnIndex:14},
       cell:{userEnteredFormat:{numberFormat:{type:'NUMBER',
-        pattern:'#,##0.########;-#,##0.########;;@'}}},
+        pattern:CLEAN_NUMBER_PATTERN}}},
       fields:'userEnteredFormat.numberFormat'}});
+    requests.push({repeatCell:{range:{sheetId:s.view.sheetId,
+      startRowIndex:4,endRowIndex:totalRowIndex,
+      startColumnIndex:0,endColumnIndex:14},
+      cell:{userEnteredFormat:{backgroundColor:{red:1,green:1,blue:1},
+        textFormat:{bold:false}}},
+      fields:'userEnteredFormat.backgroundColor,userEnteredFormat.textFormat.bold'}});
     requests.push({repeatCell:{range:{sheetId:s.view.sheetId,
       startRowIndex:totalRowIndex,endRowIndex:totalRowIndex+1,
       startColumnIndex:0,endColumnIndex:14},
@@ -288,6 +303,16 @@ function syncRequests(s){
     fields:'userEnteredFormat'}});
   requests.push({updateSheetProperties:{properties:{sheetId:id,
     gridProperties:{frozenRowCount:4}},fields:'gridProperties.frozenRowCount'}});
+  if(!s.currentFormat){
+    for(const stale of (s.meta?.developerMetadata||[])){
+      if(stale.metadataKey===DISPLAY_FORMAT_KEY&&stale.location?.sheetId===id)
+        requests.push({deleteDeveloperMetadata:{dataFilter:{
+          developerMetadataLookup:{metadataId:stale.metadataId}}}});
+    }
+    requests.push({addDeveloperMetadata:{developerMetadata:{
+      metadataKey:DISPLAY_FORMAT_KEY,metadataValue:DISPLAY_FORMAT_VERSION,
+      location:{sheetId:id},visibility:'DOCUMENT'}}});
+  }
   return requests;
 }
 async function run(req,res){
