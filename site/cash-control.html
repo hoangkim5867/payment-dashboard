@@ -5558,6 +5558,21 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
               ' · bố cục chưa xác minh: '+result.layoutErrors+
               ' · O thử tính: '+result.provisionalBalanceRows+'/'+result.transactionRows+
               ' (chưa xác nhận cột số dư)':'');
+          if(project==='FOXCONN'&&result.status==='provisional-balance-review'){
+            const mismatches=(result.examples||[]).filter(x=>x.kind==='balance'||x.kind==='rounding');
+            const details=document.createElement('details');
+            const summary=document.createElement('summary');
+            summary.textContent='FOXCONN: xem dòng chênh lệch số dư O (chỉ đọc)';
+            details.append(summary);
+            const pre=document.createElement('pre');
+            pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-width:560px';
+            pre.textContent=mismatches.length?
+              mismatches.map(x=>'Dòng '+x.row+' · chênh lệch O so với thu/chi/thuế: '+
+                Number(x.detail).toLocaleString('vi-VN',{maximumFractionDigits:6})+' VND').join('\\n'):
+              'Không có chênh lệch trong các ví dụ đã ghi nhận. Nếu báo sai số dư, xem dữ liệu chi tiết.';
+            details.append(pre);
+            cells[4].append(document.createElement('div'),details);
+          }
           if(project==='FOXCONN'&&result.status==='unsupported-tax-layout'){
             const diagnostic=window.CashSyncHistoricalAudit.diagnoseHeaders(rows);
             const details=document.createElement('details');
