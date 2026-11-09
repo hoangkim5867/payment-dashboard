@@ -158,3 +158,28 @@ test('FOXCONN O candidate with wrong arithmetic stays provisional and reports mi
  assert.equal(report.continuityErrors,1);
  assert.equal(report.canWrite,false);
 });
+
+test('financial row diagnostics are not displaced by date-order warnings',()=>{
+ const rows=Array.from({length:10},(_,i)=>row('2026-10-'+String(20-i).padStart(2,'0'),100,10,1000+i*90));
+ rows[9][13]+=120;
+ const r=audit(rows,{project:'C13B'});
+ assert.equal(r.continuityErrors,1);
+ assert.equal(r.financialExamples.length,1);
+ assert.equal(r.financialExamples[0].row,10);
+ assert.equal(r.financialExamples[0].detail,120);
+ assert.equal(r.canWrite,false);
+});
+test('S19-3 with no transactions is new and cannot write',()=>{
+ const r=audit([['项目名称','S19-3']],{project:'S19-3'});
+ assert.equal(r.transactionRows,0);
+ assert.equal(r.status,'new-project-no-transactions');
+ assert.equal(r.canWrite,false);
+});
+test('CHAOMED candidate columns are only numeric coverage, not approval',()=>{
+ const {balanceColumnCandidates}=require('../site/assets/js/cash-sync-historical-audit.js');
+ const rows=[['日期'],row('2026-10-01',100,10,''),row('2026-10-02',50,20,'')];
+ rows[1][14]=200;rows[2][14]=230;
+ const candidates=balanceColumnCandidates(rows,13,17);
+ assert.deepEqual(candidates,[{column:'O',numericRows:2,totalRows:2}]);
+ assert.equal(audit(rows,{project:'CHAOMED'}).status,'unsupported-layout');
+});
