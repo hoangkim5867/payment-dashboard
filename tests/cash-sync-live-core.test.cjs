@@ -265,7 +265,7 @@ test('visible zero hiding is formatting-only; no source amounts or formulas are 
   const moneyFormat=writes.find(x=>x.repeatCell?.fields==='userEnteredFormat.numberFormat');
   assert.equal(moneyFormat.repeatCell.range.sheetId,3456);
   assert.equal(moneyFormat.repeatCell.range.startColumnIndex,6);
-  assert.equal(moneyFormat.repeatCell.range.endColumnIndex,13);
+  assert.equal(moneyFormat.repeatCell.range.endColumnIndex,14);
   assert.equal(moneyFormat.repeatCell.cell.userEnteredFormat.numberFormat.pattern.includes(';;'),true);
   assert.equal(writes.some(x=>JSON.stringify(x).includes('PHU_HUNG_HISTORY_BACKUP')),false);
   assert.equal(plan.rows.length,160);
@@ -372,4 +372,34 @@ test('grouped PHU HUNG view moves totals down when new month adds one transactio
   });
   assert.equal(update.filter(x=>x.mergeCells).length,0);
   assert.equal(update.filter(x=>x.updateCells&&x.updateCells.range.sheetId===555)[0].updateCells.rows.length,166);
+});
+
+test('PHU HUNG integers display without trailing decimal dot and no residual blue bold transaction rows',()=>{
+  const f=fixture(),h=C.correctedHistory(f.revised),linked=C.prepareNewMirror(f.sources,h);
+  const plan=C.buildLedger(h,linked.newMirror);
+  const api=require('../api/cash-sync-original-live.js')._internals;
+  const sheetId=901;
+  const args={plan,combined:linked,displayHeader:C.historicalDisplayHeader(f.revised),
+    view:{sheetId,gridProperties:{rowCount:1000}},
+    mirrorSheet:{sheetId:902,gridProperties:{rowCount:1000}},
+    oldPlan:plan,oldMirror:[],groupedView:true,currentFormat:false,meta:{developerMetadata:[]}};
+  const requests=api.syncRequests(args);
+  const fmt=requests.find(x=>x.repeatCell?.fields==='userEnteredFormat.numberFormat');
+  assert.equal(fmt.repeatCell.range.sheetId,sheetId);
+  assert.equal(fmt.repeatCell.range.startColumnIndex,6);
+  assert.equal(fmt.repeatCell.range.endColumnIndex,14);
+  assert.equal(fmt.repeatCell.cell.userEnteredFormat.numberFormat.pattern,'#,##0;-#,##0;;@');
+  const clean=requests.find(x=>x.repeatCell?.fields===
+    'userEnteredFormat.backgroundColor,userEnteredFormat.textFormat.bold');
+  assert.equal(clean.repeatCell.range.startRowIndex,4);
+  assert.equal(clean.repeatCell.range.endRowIndex,164);
+  assert.deepEqual(clean.repeatCell.cell.userEnteredFormat.backgroundColor,{red:1,green:1,blue:1});
+  assert.equal(clean.repeatCell.cell.userEnteredFormat.textFormat.bold,false);
+  const marker=requests.find(x=>x.addDeveloperMetadata);
+  assert.equal(marker.addDeveloperMetadata.developerMetadata.location.sheetId,sheetId);
+  assert.equal(marker.addDeveloperMetadata.developerMetadata.visibility,'DOCUMENT');
+  assert.ok(!requests.some(x=>JSON.stringify(x).includes('PHU_HUNG_HISTORY_BACKUP')));
+  const again=api.syncRequests({...args,currentFormat:true});
+  assert.equal(again.some(x=>x.addDeveloperMetadata),false);
+  assert.equal(again.some(x=>x.deleteDeveloperMetadata),false);
 });
