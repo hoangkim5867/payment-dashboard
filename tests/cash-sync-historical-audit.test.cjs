@@ -116,3 +116,20 @@ test('FOXCONN header diagnostics identify columns without copying financial amou
  assert.ok(report.some(r=>r.columns.some(c=>c.startsWith('O:')&&c.includes('余额'))));
  assert.ok(!JSON.stringify(report).includes('1000'));
 });
+
+test('FOXCONN real split header at rows 3 and 4 detects N tax without assuming O balance',()=>{
+ const header3=['日期','','','','','','收入','支出'];
+ const header4=Array(15).fill('');
+ header4[7]='分包款';header4[8]='材料款';header4[13]='进口税+增值税';
+ const row=[ '2026-10-01','','','','','',100,10,0,0,0,0,0,20,1070 ];
+ const api=require('../site/assets/js/cash-sync-historical-audit.js');
+ const result=api.audit([['FOXCONN项目现金流'],[],header3,header4,row],{project:'FOXCONN'});
+ assert.equal(result.taxColumnsDetected,1);
+ assert.equal(result.balanceColumnUnconfirmed,true);
+ assert.equal(result.taxColumn,14);
+ assert.equal(result.layoutErrors,0);
+ assert.equal(result.status,'unsupported-tax-layout');
+ assert.equal(result.canWrite,false);
+ const candidates=api.foxconnBalanceCandidates([row]);
+ assert.ok(candidates.some(x=>x.column==='O'&&x.numericRows===1));
+});
