@@ -259,5 +259,51 @@
     }
     return {nonemptyRows,validDatesByColumn,suspectRows};
   }
-  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic});
+  // Candidate reconciliation on already loaded in-memory Cash Control only.
+  // A date + seven-category amount signature is NOT a unique transaction ID;
+  // report ambiguous multiplicities and never authorize a write.
+  function compareLoadedCashControl(rows,project,cashRows,opts={}){
+    if(!Array.isArray(rows)||!Array.isArray(cashRows)||
+       rows.length>20000||cashRows.length>20000)throw Error('Invalid comparison input');
+    const key=String(project||'').trim().toUpperCase();
+    const complete=opts.sourceComplete===true;
+    if(key==='FOXCONN')return {status:'requires-tax-mapping',project,
+      reason:'FOXCONN has a separate import-tax column',canWrite:false};
+    const months=new Set();
+    const counts=new Map(),sourceCounts=new Map();
+    const add=(map,id)=>map.set(id,(map.get(id)||0)+1);
+    const token=(date,values)=>JSON.stringify([date,...values.map(x=>Math.round(x*1e6)/1e6)]);
+    let historicalScope=0,invalidHistory=0,sourceScope=0,invalidSource=0;
+    for(const row of rows){
+      if(!Array.isArray(row))continue;
+      const date=dateValue(row[0]);
+      if(!date||date<'2026-10-01')continue;
+      months.add(date.slice(0,7));historicalScope++;
+      const values=row.slice(6,13).map(x=>amount(x,true));
+      if(values.length!==7||values.some(x=>!Number.isFinite(x))){invalidHistory++;continue}
+      add(counts,token(date,values));
+    }
+    for(const row of cashRows){
+      const date=dateValue(row?.date);
+      if(!date||date<'2026-10-01')continue;
+      sourceScope++;
+      const fields=['income','subcontract','material','otherDirect','indirect','financial','otherPayable'];
+      const values=fields.map(x=>amount(row[x],true));
+      if(values.some(x=>!Number.isFinite(x))){invalidSource++;continue}
+      add(sourceCounts,token(date,values));
+    }
+    let matched=0,historicalOnly=0,cashOnly=0,ambiguous=0;
+    for(const key of new Set([...counts.keys(),...sourceCounts.keys()])){
+      const h=counts.get(key)||0,c=sourceCounts.get(key)||0;
+      matched+=Math.min(h,c);
+      historicalOnly+=Math.max(0,h-c);
+      cashOnly+=Math.max(0,c-h);
+      if(h>1||c>1)ambiguous+=Math.min(h,c);
+    }
+    return {status:!complete?'incomplete-memory-source':'candidates-only',
+      project,sourceComplete:complete,historicalScope,sourceScope,matched,
+      historicalOnly,cashOnly,ambiguous,invalidHistory,invalidSource,
+      months:[...months].sort(),canWrite:false};
+  }
+  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl});
 });
