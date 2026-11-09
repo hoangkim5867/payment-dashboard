@@ -5545,7 +5545,9 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
             'needs-financial-review':'Số dư / dữ liệu tiền cần kiểm tra',
             'review-date-order':'Thứ tự ngày cần xem lại · số dư tự khớp',
             'internally-consistent':'Sổ tự khớp · chưa so Cash Control'};
-          cells[1].textContent=titles[result.status]||'Cần kiểm tra';
+          cells[1].textContent=project==='中健厂房'&&result.transactionRows===0?
+            '0 giao dịch nhận diện · cần kiểm tra dữ liệu lịch sử':
+            titles[result.status]||'Cần kiểm tra';
           cells[2].textContent=String(result.transactionRows);
           cells[3].textContent=result.closingBalance===null?'—':
             result.closingBalance.toLocaleString('vi-VN',{maximumFractionDigits:2});
@@ -5575,6 +5577,23 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
               (typeof x.detail==='number'?
                  x.detail.toLocaleString('vi-VN',{maximumFractionDigits:6})+' VND':
                  String(x.detail))).join('\\n');
+            details.append(pre);
+            cells[4].append(document.createElement('div'),details);
+          }
+          if(project==='中健厂房'&&result.transactionRows===0){
+            const diagnostic=window.CashSyncHistoricalAudit.dateLayoutDiagnostic(rows);
+            const details=document.createElement('details');
+            const summary=document.createElement('summary');
+            summary.textContent='中健厂房: kiểm tra vì sao không nhận diện được giao dịch';
+            details.append(summary);
+            const pre=document.createElement('pre');
+            pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-width:620px';
+            pre.textContent='Dòng có dữ liệu: '+diagnostic.nonemptyRows+
+              ' · ngày hợp lệ cột A/B/C: '+diagnostic.validDatesByColumn.join('/')+
+              (diagnostic.suspectRows.length?
+                '\\nDòng cột A giống ngày nhưng chưa đọc được: '+
+                diagnostic.suspectRows.map(x=>x.row+' ('+x.type+')').join(', '):'')+
+              '\\nKhông tự đổi định dạng ngày hoặc coi lịch sử là file trắng.';
             details.append(pre);
             cells[4].append(document.createElement('div'),details);
           }
