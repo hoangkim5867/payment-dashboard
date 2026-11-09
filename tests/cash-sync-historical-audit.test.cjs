@@ -183,3 +183,27 @@ test('CHAOMED candidate columns are only numeric coverage, not approval',()=>{
  assert.deepEqual(candidates,[{column:'O',numericRows:2,totalRows:2}]);
  assert.equal(audit(rows,{project:'CHAOMED'}).status,'unsupported-layout');
 });
+
+test('financial mismatch remains available despite earlier date-order notices',()=>{
+ const rows=[row('2026-10-02',100,20,1080),row('2026-10-01',100,20,1170)];
+ const r=audit(rows,{project:'C13B'});
+ assert.equal(r.nonMonotonicDates,1);
+ assert.equal(r.continuityErrors,1);
+ assert.deepEqual(r.financialExamples.filter(x=>x.kind==='balance').map(x=>x.row),[2]);
+ assert.equal(r.canWrite,false);
+});
+test('new S19-3 project with empty sheet is not a financial error and never approved for writing',()=>{
+ const r=audit([],{project:'S19-3'});
+ assert.equal(r.status,'new-project-no-transactions');
+ assert.equal(r.transactionRows,0);
+ assert.equal(r.canWrite,false);
+});
+test('CHAOMED balance column candidates are numbers only, not automatic layout approval',()=>{
+ const api=require('../site/assets/js/cash-sync-historical-audit.js');
+ const a=row('2026-10-01',100,20,'');a[14]=1000;
+ const b=row('2026-10-02',50,10,'');b[14]=1040;
+ const found=api.balanceColumnCandidates([a,b],13,17);
+ assert.deepEqual(found.map(x=>x.column),['O']);
+ assert.equal(found[0].numericRows,2);
+ assert.equal(audit([a,b],{project:'CHAOMED'}).status,'unsupported-layout');
+});
