@@ -201,5 +201,17 @@
     }
     return output;
   }
-  return Object.freeze({audit,dateValue,amount,diagnoseHeaders});
+  function foxconnBalanceCandidates(rows){
+    if(!Array.isArray(rows))return [];
+    const transactionRows=rows.filter(row=>Array.isArray(row)&&!!dateValue(row[0]));
+    if(!transactionRows.length)return [];
+    // Count numeric coverage only. No amounts, cross-project data or IDs escape.
+    return Array.from({length:10},(_,i)=>i+14).map(index=>{
+      const numeric=transactionRows.filter(row=>Number.isFinite(amount(row[index]))).length;
+      let n=index+1,column='';
+      while(n){n--;column=String.fromCharCode(65+n%26)+column;n=Math.floor(n/26)}
+      return {column,numericRows:numeric,totalRows:transactionRows.length};
+    }).filter(x=>x.numericRows>0);
+  }
+  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates});
 });
