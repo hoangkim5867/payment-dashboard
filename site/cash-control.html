@@ -5533,10 +5533,14 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
             typeof d==='string'&&/^20\d{2}-\d{2}-\d{2}$/.test(d);
         }).length;
         if(auditBalances){
-          const result=window.CashSyncHistoricalAudit.audit(rows,{project});
+          // FOXCONN: O has numeric data in all 270 observed rows, but the
+          // historical header does not name a balance field. Probe only.
+          const result=window.CashSyncHistoricalAudit.audit(rows,
+            {project,...(project==='FOXCONN'?{probeBalanceIndex:14}:{})});
           const titles={'blank-tab':'File trắng · cần xác minh số dư đầu kỳ',
             'unsupported-layout':'Chưa xác định được cột số dư (N)',
             'unsupported-tax-layout':'FOXCONN: chưa xác định cột thuế/số dư',
+            'provisional-balance-review':'FOXCONN: thử tính số dư O · chưa xác nhận',
             'needs-financial-review':'Số dư / dữ liệu tiền cần kiểm tra',
             'review-date-order':'Thứ tự ngày cần xem lại · số dư tự khớp',
             'internally-consistent':'Sổ tự khớp · chưa so Cash Control'};
@@ -5551,7 +5555,9 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
             ' · ngày không tăng dần: '+result.nonMonotonicDates+
             (project==='FOXCONN'?' · cột thuế nhận diện: '+result.taxColumnsDetected+
               ' · tổng thuế: '+result.taxTotal.toLocaleString('vi-VN')+
-              ' · bố cục chưa xác minh: '+result.layoutErrors:'');
+              ' · bố cục chưa xác minh: '+result.layoutErrors+
+              ' · O thử tính: '+result.provisionalBalanceRows+'/'+result.transactionRows+
+              ' (chưa xác nhận cột số dư)':'');
           if(project==='FOXCONN'&&result.status==='unsupported-tax-layout'){
             const diagnostic=window.CashSyncHistoricalAudit.diagnoseHeaders(rows);
             const details=document.createElement('details');
