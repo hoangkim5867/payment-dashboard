@@ -93,13 +93,21 @@
     }
     const blank=count===0&&rows.every(r=>!Array.isArray(r)||
       r.every(v=>String(v??'').trim()===''));
-    const status=blank?'blank-tab':count===0?'unsupported-layout':
-      invalidMoney||missingBalance||continuityErrors||roundingDifferences||
-      nonMonotonicDates?'needs-review':'internally-consistent';
+    // A missing balance in every date row usually means column N is not
+    // the ledger's balance column. Flag layout, not a proven balance error.
+    // Date reversals may reflect manual ordering or month sections; report
+    // separately from financial arithmetic errors without accepting the ledger.
+    const missingEveryBalance=count>0&&missingBalance===count;
+    const financialIssues=invalidMoney+continuityErrors+roundingDifferences;
+    const status=blank?'blank-tab':count===0||missingEveryBalance?
+      'unsupported-layout':financialIssues||missingBalance?
+      'needs-financial-review':nonMonotonicDates?
+      'review-date-order':'internally-consistent';
     return Object.freeze({status,transactionRows:count,firstDate,lastDate,
       openingBalance:opening,closingBalance:closing,monthTransitions,
       invalidMoney,missingBalance,continuityErrors,roundingDifferences,
-      nonMonotonicDates,examples,historyOnly:true,canWrite:false});
+      nonMonotonicDates,missingEveryBalance,financialIssues,examples,
+      historyOnly:true,canWrite:false});
   }
   return Object.freeze({audit,dateValue,amount});
 });
