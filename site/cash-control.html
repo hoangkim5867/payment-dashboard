@@ -5499,6 +5499,7 @@ function ccSyncSaveAuditSession(){
       ok:audit.ok===true,status:String(audit.status||'').slice(0,100),
       note:String(audit.note||'').slice(0,500),
       nonMonotonicDates:Number(audit.nonMonotonicDates)||0,
+      dateOrderOnly:audit.dateOrderOnly===true,
       continuityErrors:Number(audit.continuityErrors)||0,
       roundingDifferences:Number(audit.roundingDifferences)||0,
       missingBalance:Number(audit.missingBalance)||0,
@@ -5523,6 +5524,7 @@ function ccSyncLoadAuditSession(){
         ok:row.ok===true,status:String(row.status||'').slice(0,100),
         note:row.note.slice(0,500),checkedAt:row.checkedAt,cached:true,
         nonMonotonicDates:Number(row.nonMonotonicDates)||0,
+        dateOrderOnly:row.dateOrderOnly===true,
         continuityErrors:Number(row.continuityErrors)||0,
         roundingDifferences:Number(row.roundingDifferences)||0,
         missingBalance:Number(row.missingBalance)||0,
@@ -5556,7 +5558,7 @@ function ccSyncRenderBatchOverview(){
   const issueGroups=[
     {name:'Ngày lịch sử chưa tăng dần',
       matches:a=>a.status==='review-date-order'||a.nonMonotonicDates>0,
-      action:'Kiểm tra các ngày bất thường trong sổ gốc. Không tự sắp xếp lại dòng lịch sử.'},
+      action:'Đối chiếu thứ tự dòng và ngày tại các vị trí hiển thị. Nếu phép tính số dư vẫn khớp, chỉ phân loại lỗi thứ tự ngày; không thay đổi sổ gốc hay cấp quyền ghi.'},
     {name:'Bố cục / cột số dư đặc biệt',
       matches:a=>['unsupported-layout','unsupported-tax-layout',
         'provisional-balance-review','new-project-no-transactions-review'].includes(a.status)||
@@ -5765,12 +5767,32 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
             status:result.status,checkedAt:Date.now(),cached:false,
             transactionRows:result.transactionRows,
             nonMonotonicDates:result.nonMonotonicDates,
+            dateOrderOnly:result.dateOrderOnly===true,
             continuityErrors:result.continuityErrors,
             roundingDifferences:result.roundingDifferences,
             missingBalance:result.missingBalance,
             invalidMoney:result.invalidMoney,
             layoutErrors:result.layoutErrors
           };
+          if(result.nonMonotonicDates>0){
+            const details=document.createElement('details');
+            const summary=document.createElement('summary');
+            summary.textContent=(result.dateOrderOnly?
+              'Chỉ lỗi thứ tự ngày; phép tính số dư theo dòng vẫn khớp · ':
+              'Ngày không tăng dần, còn vấn đề khác cần xác minh · ')+
+              result.nonMonotonicDates+' điểm (chỉ đọc)';
+            const pre=document.createElement('pre');
+            pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-width:680px';
+            const events=result.dateOrderExamples||[];
+            pre.textContent='Vị trí dòng Google Sheets theo thứ tự hiện có. Không tự sắp xếp lại và không cho phép ghi.\\n'+
+              events.map(x=>'Dòng '+x.previousRow+' ('+x.previousDate+
+                ') → dòng '+x.dateRow+' ('+x.date+')'+
+                (x.crossesMonth?' · lùi sang tháng trước':' · lùi ngày trong tháng')).join('\\n')+
+              (events.length<result.nonMonotonicDates?
+                '\\nCòn '+(result.nonMonotonicDates-events.length)+' điểm chưa hiển thị.':'');
+            details.append(summary,pre);
+            cells[4].append(document.createElement('div'),details);
+          }
           // Explicit per-project candidate comparison against current in-memory
           // Cash Control source. Never invokes loadProjectPayments or any Firebase API.
           if(result.transactionRows>0&&project!=='FOXCONN'){
