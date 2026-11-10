@@ -1465,6 +1465,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <button class="btn primary" type="button" id="ccGoogleSyncDirectSync">Đồng bộ PHU HUNG → Google Sheets TEST</button>
         <button class="btn" type="button" id="ccSyncMultiProjectTestRun" hidden>Kiểm tra ELYSIAN TEST · không trùng</button>
         <button class="btn" type="button" id="ccSyncMultiProjectTestDecember" hidden>Thêm giao dịch tháng 12 TEST</button>
+        <button class="btn" type="button" id="ccSyncMultiProjectTestStatus" hidden>Kiểm tra trạng thái ELYSIAN TEST (chỉ đọc)</button>
         <button class="btn" type="button" id="ccGoogleSyncCompare">So sánh dữ liệu (chỉ đọc)</button>
         <button class="btn" type="button" id="ccGoogleSyncOriginalAudit" hidden>Đối chiếu file PHU HUNG gốc (chỉ đọc)</button>
       </div>
@@ -2696,7 +2697,7 @@ function updateCashAuthUI(){
     const user=currentAuthUser;
     // Expose synthetic ELYSIAN integration controls only to the signed-in
     // owner on the isolated staging Firebase. No production access or writes.
-    for(const id of ['ccSyncMultiProjectTestRun','ccSyncMultiProjectTestDecember']){
+    for(const id of ['ccSyncMultiProjectTestRun','ccSyncMultiProjectTestDecember','ccSyncMultiProjectTestStatus']){
         const testButton=$(id);
         if(testButton)testButton.hidden=!(
             firebaseConfig.projectId==='cash-control-staging'&&
@@ -8054,11 +8055,45 @@ function ccGoogleSyncInitializeGooglePilot(){
   const demoView=$('ccGoogleSyncDemoView');
   const multiTestButton=$('ccSyncMultiProjectTestRun');
   const multiDecemberButton=$('ccSyncMultiProjectTestDecember');
+  const multiStatusButton=$('ccSyncMultiProjectTestStatus');
   const multiTestButtons=[multiTestButton,multiDecemberButton].filter(Boolean);
   // Authentication is async; reflect current account if already available.
   // Keep hidden until owner signs in; never expose on production.
-  for(const button of multiTestButtons){
+  for(const button of [...multiTestButtons,multiStatusButton].filter(Boolean)){
     button.hidden=!(CC_SYNC_DEMO_ALLOWED&&currentAuthUser&&isCashControlOwner());
+  }
+  // Explicit READ-ONLY inspection. This is safe to use after a failed
+  // Google TEST write; it never calls preview/commit or retries any append.
+  if(CC_SYNC_DEMO_ALLOWED&&multiStatusButton){
+    multiStatusButton.addEventListener('click',async()=>{
+      if(multiStatusButton.disabled||!currentAuthUser||!isCashControlOwner()||
+         firebaseConfig.projectId!=='cash-control-staging'||!ccGoogleSyncToken){
+        ccGoogleSyncStatus('Cần đăng nhập Admin TEST và Kết nối Google.');return;
+      }
+      multiStatusButton.disabled=true;
+      try{
+        const token=await currentAuthUser.getIdToken();
+        const response=await fetch('/api/cash-sync-multiproject-test',{
+          method:'POST',headers:{'Content-Type':'application/json',
+            'X-Firebase-ID-Token':token,Authorization:'Bearer '+ccGoogleSyncToken},
+          body:JSON.stringify({action:'status',project:'ELYSIAN',testDataOnly:true}),
+          cache:'no-store'
+        });
+        const status=await response.json().catch(()=>({}));
+        if(!response.ok)throw Error((status.code?status.code+': ':'')+
+          String(status.error||'Không kiểm tra được trạng thái'));
+        if(status.mode!=='TEST_ONLY'||status.readOnly!==true)
+          throw Error('Máy chủ không xác nhận chế độ chỉ đọc.');
+        ccGoogleSyncStatus('TRẠNG THÁI ELYSIAN TEST · '+
+          (status.mirrorPresent?'Tab dữ liệu: '+status.mirrorRows+' dòng':'Chưa có tab dữ liệu')+
+          ' · '+(status.viewPresent?'Tab tổng hợp: '+status.viewRows+' dòng':'Chưa có tab tổng hợp')+
+          '. CHƯA XÁC NHẬN ghi thành công. Không bấm lại nút ghi. '+
+          'Gửi mình đúng dòng trạng thái này để xử lý tiếp.');
+      }catch(error){
+        ccGoogleSyncStatus('KHÔNG ĐỌC ĐƯỢC TRẠNG THÁI TEST: '+
+          String(error?.message||error).slice(0,200)+'. Không bấm lại nút ghi.');
+      }finally{multiStatusButton.disabled=false}
+    });
   }
   if(CC_SYNC_DEMO_ALLOWED&&multiTestButtons.length===2){
     const runMultiProjectTest=async includeDecember=>{
@@ -8091,7 +8126,8 @@ function ccGoogleSyncInitializeGooglePilot(){
             body:JSON.stringify(data),cache:'no-store'
           });
           const result=await response.json();
-          if(!response.ok)throw Error(String(result.error||response.status));
+          if(!response.ok)throw Error((result.code?result.code+': ':'')+
+            String(result.error||response.status));
           return result;
         };
         const goal=includeDecember?'thêm tháng 12':'kiểm tra không trùng';
