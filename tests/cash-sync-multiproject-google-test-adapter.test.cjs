@@ -53,6 +53,8 @@ function fakeSheets({corrupt=false,failViewOnce=false,ackLostOnce=false}={}){
     if(!sh)return reply({error:'unknown sheet'},404);
     if(method==='GET'){
       if(range==='N2:N20000')return reply({values:sh.formulas});
+      if(range==='A1:A20000'||range==='A1:A10001')
+        return reply({values:sh.rows.map(cells=>[cells[0]??''])});
       return reply({values:sh.rows});
     }
     if(method==='PUT'&&range.startsWith('A1:')){
@@ -181,4 +183,38 @@ test('TEST view write reports failure after reaching Google: fresh preview is re
   assert.equal(checked.alreadySynced,true);
   assert.equal(remote.writes,before);
   assert.equal(remote.sheets.get('PHU HUNG').rows.length,0);
+});
+
+test('read-only status returns no financial rows and makes zero writes',async()=>{
+ const remote=fakeSheets(),client=setup(remote,[source('a','2026-11-02',50)]);
+ const before=remote.writes;
+ const empty=await client.adapter.readStatus();
+ assert.deepEqual({mirror:empty.mirrorPresent,view:empty.viewPresent},
+   {mirror:false,view:false});
+ assert.equal(remote.writes,before);
+ const prepared=await client.compare();
+ await runTestOnlySync({prepared,adapter:client.adapter,
+   expectedTestSpreadsheetId:TEST_SPREADSHEET_ID,explicitAdminConsent:true});
+ const afterWrites=remote.writes;
+ const current=await client.adapter.readStatus();
+ assert.equal(current.readOnly,true);
+ assert.equal(current.canWrite,false);
+ assert.equal(current.verified,false);
+ assert.equal(current.mirrorRows,1);
+ assert.equal(current.viewRows,2);
+ assert.equal(remote.writes,afterWrites);
+ assert.equal('rows' in current,false);
+});
+test('TEST status reports partial mirror after simulated lost acknowledgement without retry',async()=>{
+ const remote=fakeSheets({ackLostOnce:true});
+ const client=setup(remote,[source('a','2026-11-02',50)]);
+ const prepared=await client.compare();
+ await assert.rejects(()=>runTestOnlySync({prepared,adapter:client.adapter,
+   expectedTestSpreadsheetId:TEST_SPREADSHEET_ID,explicitAdminConsent:true}));
+ const writes=remote.writes;
+ const status=await client.adapter.readStatus();
+ assert.equal(status.mirrorPresent,true);
+ assert.equal(status.viewPresent,false);
+ assert.equal(status.mirrorRows,1);
+ assert.equal(remote.writes,writes);
 });
