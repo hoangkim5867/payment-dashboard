@@ -35,6 +35,6 @@ test('date-only disorder has its own report label without approving sync',()=>{
  const overview=html.slice(html.indexOf('function ccSyncRenderBatchOverview(){'),
    html.indexOf('async function ccSyncProjectReadOnlyCheck('));
  assert.match(overview,/SỐ DƯ KHỚP · XEM THỨ TỰ NGÀY/);
- assert.match(overview,/Number\(audit\.continuityErrors\)===0/);
+ assert.match(overview,/Number\(a\.continuityErrors\)===0/);
  assert.match(overview,/CHƯA dự án nào được phê duyệt ghi/);
 });
