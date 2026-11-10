@@ -10,7 +10,9 @@ const MIRROR_NAME='DATA_CASHCONTROL';
 const VIEW_HEADER=['date','company','contractNo','content','ipc','type',
   'income','subcontract','material','otherDirect','indirect','financial',
   'otherPayable','balance','origin','sourceId','openingBalance'];
-const MIRROR_HEADER=['sourceId','projectKey','month',...COLUMNS,'sourceSignature','syncStatus'];
+// The 19-column PHU HUNG mirror reserves column Q for calculated balance;
+ // generated TEST mirror leaves Q blank and stores signature/status in R/S.
+const MIRROR_HEADER=['sourceId','projectKey','month',...COLUMNS,'balance','sourceSignature','syncStatus'];
 const digest=v=>crypto.createHash('sha256').update(JSON.stringify(v)).digest('hex');
 function deny(code,message){throw Object.assign(new Error(message),{code})}
 function asRows(arr,name){
