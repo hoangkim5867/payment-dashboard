@@ -5626,6 +5626,7 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
                   ' · giá trị chưa đọc được: '+(report.invalidHistory+report.invalidSource)+
                   '\\n'+(complete?'Đã tải toàn bộ Payment của dự án trong phiên.':
                     'CHƯA tải đủ Payment của dự án. So khớp này chỉ để tham khảo.')+
+                  '\\n'+window.CashSyncHistoricalAudit.assessProjectSyncReadiness(project,result,report).note+
                   '\\nKHÔNG xác nhận khoản nào sẽ ghi hoặc được phép đồng bộ.';
               }catch(e){pre.textContent='Không đối chiếu được: '+String(e.message||e).slice(0,110)}
             };
