@@ -5729,7 +5729,11 @@ async function ccSyncOneClickAudit(){
   button.disabled=true;
   try{
     const catalog=ccSyncProjectCatalogNames();
-    const linked=catalog.filter(p=>ccSyncProjectLinkValid(ccSyncProjectLinkDraft[p]));
+    const linked=catalog.filter(p=>p!=='PHU HUNG'&&
+      ccSyncProjectLinkValid(ccSyncProjectLinkDraft[p]));
+    const stale=Object.keys(ccSyncProjectLinkDraft).filter(p=>
+      p!=='PHU HUNG'&&!catalog.includes(p)&&
+      ccSyncProjectLinkValid(ccSyncProjectLinkDraft[p])).length;
     status.textContent='Đang kiểm tra lịch sử '+linked.length+' dự án đã có link. '+
       'Google chỉ đọc, không đọc Firebase, không ghi Google Sheets…';
     await ccSyncProjectReadOnlyCheck(true);
@@ -5741,11 +5745,21 @@ async function ccSyncOneClickAudit(){
     });
     const ok=fresh.filter(p=>ccSyncLastHistoricalAudit[p].ok===true).length;
     const blocked=fresh.length-ok;
-    const absent=catalog.length-linked.length;
+    const datesOnly=fresh.filter(p=>{
+      const a=ccSyncLastHistoricalAudit[p];
+      return !a.ok&&a.status==='review-date-order'&&
+        Number(a.continuityErrors)===0&&Number(a.roundingDifferences)===0&&
+        Number(a.missingBalance)===0&&Number(a.invalidMoney)===0;
+    }).length;
+    const absent=catalog.length-catalog.filter(p=>
+      ccSyncProjectLinkValid(ccSyncProjectLinkDraft[p])).length;
     status.textContent='ĐÃ PHÂN NHÓM '+catalog.length+' DỰ ÁN · '+
-      ok+' lịch sử tự khớp/chưa phát sinh · '+blocked+
-      ' lịch sử cần kiểm tra · '+absent+' chưa có link · '+
-      (linked.length-fresh.length)+' chưa kiểm tra được trong lượt này. '+
+      ok+' lịch sử tự khớp/chưa phát sinh · '+datesOnly+
+      ' số dư khớp nhưng thứ tự ngày cần xem lại · '+
+      (blocked-datesOnly)+' lỗi/bố cục khác cần kiểm tra · '+
+      absent+' chưa có link · '+
+      (linked.length-fresh.length)+' chưa kiểm tra được trong lượt này'+
+      (stale?' · '+stale+' link nháp dự án cũ không nằm trong danh mục':'')+'. '+
       'Chưa đối chiếu đủ nguồn Cash Control/Payment; 0 dự án được cấp quyền ghi. '+
       'Không có Google writes hoặc Firestore reads trong thao tác này.';
   }catch(error){
@@ -5769,7 +5783,12 @@ function ccSyncRenderBatchOverview(){
     let stage='CHƯA CÓ LINK',detail='Nhập link Google Sheets để kiểm tra lịch sử';
     if(hasLink&&!audit){stage='CHƯA KIỂM TRA';detail='Chưa có kết quả đối chiếu Google Sheets trong phiên này'}
     else if(hasLink&&audit){
-      stage=audit.cached?'KẾT QUẢ ĐÃ LƯU':(audit.ok?'LỊCH SỬ ĐÃ KIỂM TRA':'CẦN XỬ LÝ');
+      const dateOrderOnly=audit.status==='review-date-order'&&
+        Number(a.continuityErrors)===0&&Number(a.roundingDifferences)===0&&
+        Number(a.missingBalance)===0&&Number(a.invalidMoney)===0;
+      stage=audit.cached?'KẾT QUẢ ĐÃ LƯU':
+        (audit.ok?'LỊCH SỬ ĐÃ KIỂM TRA':
+        dateOrderOnly?'SỐ DƯ KHỚP · XEM THỨ TỰ NGÀY':'CẦN XỬ LÝ');
       detail=(audit.cached?'Kết quả cũ (chưa xác nhận Google còn nguyên): ':'')+audit.note;
     }
     // Inspect source already loaded in memory; never query Firebase here.
@@ -5821,7 +5840,9 @@ function ccSyncRenderBatchOverview(){
       action:'Kiểm tra quyền truy cập file hoặc kiểu dữ liệu lịch sử, rồi đối chiếu lại.'}
   ];
   const grouped=issueGroups.map(x=>({...x,projects:[]}));
-  for(const entry of entries.filter(x=>x.stage==='CẦN XỬ LÝ'||x.stage==='KẾT QUẢ ĐÃ LƯU'&&ccSyncLastHistoricalAudit[x.project]?.ok===false)){
+  for(const entry of entries.filter(x=>x.stage==='CẦN XỬ LÝ'||
+    x.stage==='SỐ DƯ KHỚP · XEM THỨ TỰ NGÀY'||
+    x.stage==='KẾT QUẢ ĐÃ LƯU'&&ccSyncLastHistoricalAudit[x.project]?.ok===false)){
     const audit=ccSyncLastHistoricalAudit[entry.project]||{};
     grouped.find(group=>group.matches(audit)).projects.push(entry.project);
   }
@@ -5830,7 +5851,8 @@ function ccSyncRenderBatchOverview(){
   const intro=document.createElement('p');
   intro.textContent='TỔNG HỢP '+catalog.length+' DỰ ÁN · '+entries.filter(x=>x.hasLink).length+
     ' có link · '+(tally['LỊCH SỬ ĐÃ KIỂM TRA']||0)+' lịch sử đã kiểm tra · '+
-    (tally['CẦN XỬ LÝ']||0)+' cần xử lý · '+(tally['KẾT QUẢ ĐÃ LƯU']||0)+' kết quả cũ · '+(tally['CHƯA KIỂM TRA']||0)+
+    (tally['SỐ DƯ KHỚP · XEM THỨ TỰ NGÀY']||0)+' số dư khớp nhưng cần xem thứ tự ngày · '+
+    (tally['CẦN XỬ LÝ']||0)+' lỗi khác cần xử lý · '+(tally['KẾT QUẢ ĐÃ LƯU']||0)+' kết quả cũ · '+(tally['CHƯA KIỂM TRA']||0)+
     ' chưa kiểm tra · '+(tally['CHƯA CÓ LINK']||0)+' chưa có link.';
   const warning=document.createElement('p');
   warning.textContent='CHƯA dự án nào được phê duyệt ghi. Kết quả đã lưu chỉ để tham khảo, không chứng minh Google Sheets hiện tại chưa thay đổi. Lịch sử tự khớp KHÔNG có nghĩa đã đối chiếu đủ Payment. Nút tổng hợp: 0 Firestore reads, 0 Google Sheets reads/writes.';
@@ -5902,8 +5924,13 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
   if(!ccGoogleSyncToken){
     output.textContent='Chưa kết nối Google. Bấm Kết nối Google ở phần 2 trước.';return;
   }
+  // Only active Cash Control projects with valid saved links belong to this
+  // batch. Old local draft entries for renamed/deleted projects must not
+  // silently inflate the Google file count (e.g. 17 versus 16 active links).
+  const activeProjects=new Set(ccSyncProjectCatalogNames());
   const items=Object.entries(ccSyncProjectLinkDraft)
-    .filter(([project,url])=>project!=='PHU HUNG'&&url);
+    .filter(([project,url])=>project!=='PHU HUNG'&&
+      activeProjects.has(project)&&ccSyncProjectLinkValid(url));
   if(!items.length){output.textContent='Chưa có link dự án cần kiểm tra.';return}
   if(button.disabled)return;
   button.disabled=true;
