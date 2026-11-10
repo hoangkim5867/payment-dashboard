@@ -5502,6 +5502,30 @@ function ccSyncRenderBatchOverview(){
     }
     return {project,stage,detail,hasLink};
   });
+  // Group audit causes instead of asking Admin to inspect all projects one-by-one.
+  // These are historical diagnostics ONLY, never write eligibility.
+  const issueGroups=[
+    {name:'Ngày lịch sử chưa tăng dần',
+      matches:a=>a.status==='review-date-order'||a.nonMonotonicDates>0,
+      action:'Kiểm tra các ngày bất thường trong sổ gốc. Không tự sắp xếp lại dòng lịch sử.'},
+    {name:'Bố cục / cột số dư đặc biệt',
+      matches:a=>['unsupported-layout','unsupported-tax-layout',
+        'provisional-balance-review','new-project-no-transactions-review'].includes(a.status)||
+        Number(a.layoutErrors)>0,
+      action:'Xác minh cột thu/chi, thuế, số dư và dòng tiêu đề trước khi chuẩn hóa.'},
+    {name:'Số dư / công thức / tiền không khớp',
+      matches:a=>a.status==='needs-financial-review'||a.continuityErrors>0||
+        a.roundingDifferences>0||a.missingBalance>0||a.invalidMoney>0,
+      action:'Rà các dòng sai số dư/thiếu công thức hoặc số tiền không đọc được; không sửa số gốc.'},
+    {name:'Lỗi đọc hoặc chưa nhận diện',
+      matches:a=>true,
+      action:'Kiểm tra quyền truy cập file hoặc kiểu dữ liệu lịch sử, rồi đối chiếu lại.'}
+  ];
+  const grouped=issueGroups.map(x=>({...x,projects:[]}));
+  for(const entry of entries.filter(x=>x.stage==='CẦN XỬ LÝ')){
+    const audit=ccSyncLastHistoricalAudit[entry.project]||{};
+    grouped.find(group=>group.matches(audit)).projects.push(entry.project);
+  }
   const tally=entries.reduce((map,row)=>(map[row.stage]=(map[row.stage]||0)+1,map),{});
   output.replaceChildren();
   const intro=document.createElement('p');
@@ -5530,7 +5554,39 @@ function ccSyncRenderBatchOverview(){
     }
     table.append(row);
   }
-  output.append(intro,warning,table);
+  const issueHeader=document.createElement('p');
+  issueHeader.textContent='NHÓM CẦN XỬ LÝ (chỉ phân loại theo nguyên nhân đầu tiên, không sửa dữ liệu):';
+  issueHeader.style.cssText='font-weight:700;margin:10px 0 6px';
+  const groupWrap=document.createElement('div');
+  groupWrap.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px';
+  for(const group of grouped.filter(x=>x.projects.length)){
+    const section=document.createElement('details');
+    section.style.cssText='border:1px solid #dbe4f0;padding:8px;border-radius:8px;max-width:100%;flex:1 1 240px';
+    const summary=document.createElement('summary');
+    summary.style.cssText='font-weight:700;cursor:pointer';
+    summary.textContent=group.name+' · '+group.projects.length+' dự án';
+    const desc=document.createElement('p');
+    desc.textContent=group.action;desc.style.cssText='margin:6px 0;font-size:12px';
+    const projects=document.createElement('p');
+    projects.textContent=group.projects.join(' · ');
+    projects.style.cssText='overflow-wrap:anywhere;font-size:12px;margin:6px 0';
+    section.append(summary,desc,projects);
+    groupWrap.append(section);
+  }
+  const ready=entries.filter(x=>x.stage==='LỊCH SỬ ĐÃ KIỂM TRA');
+  if(ready.length){
+    const section=document.createElement('details');
+    section.style.cssText='border:1px solid #dbe4f0;padding:8px;border-radius:8px;max-width:100%;margin-bottom:10px';
+    const summary=document.createElement('summary');
+    summary.textContent='Lịch sử đã tự khớp · '+ready.length+' dự án (vẫn CHƯA đủ điều kiện ghi)';
+    const desc=document.createElement('p');
+    desc.textContent=ready.map(x=>x.project).join(' · ')+
+      '. Còn phải đối chiếu toàn bộ Payment / Cash Control và kiểm tra trùng trước khi được ghi.';
+    desc.style.cssText='overflow-wrap:anywhere;font-size:12px';
+    section.append(summary,desc);
+    groupWrap.append(section);
+  }
+  output.append(intro,warning,issueHeader,groupWrap,table);
 }
 // Admin-only explicit read-only discovery: validates the selected historical
 // tab exists and is readable. This does NOT reconcile Cash Control/closing balances.
@@ -5657,7 +5713,14 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
             ok:result.status==='internally-consistent'||
               result.status==='blank-tab'||result.status==='new-project-no-transactions',
             note:ready.note,
-            status:result.status
+            status:result.status,
+            transactionRows:result.transactionRows,
+            nonMonotonicDates:result.nonMonotonicDates,
+            continuityErrors:result.continuityErrors,
+            roundingDifferences:result.roundingDifferences,
+            missingBalance:result.missingBalance,
+            invalidMoney:result.invalidMoney,
+            layoutErrors:result.layoutErrors
           };
           // Explicit per-project candidate comparison against current in-memory
           // Cash Control source. Never invokes loadProjectPayments or any Firebase API.
