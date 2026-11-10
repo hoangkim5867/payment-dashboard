@@ -5673,6 +5673,17 @@ function ccSyncCompareAlreadyLoadedProjects(){
           payments:paymentMonths.get(project)||[],ledger:sourceRows
         }],{maxProjects:1});
         const paymentProof=checked.results[0];
+        // Compare the RAW paid amount to the exported expense column. This
+        // resolves columns through the existing Cash Control classification;
+        // it does not independently certify the business cost classification.
+        const moneyProof=window.CashSyncPaymentCoverage.checkMoney(project,
+          paymentMonths.get(project)||[],sourceRows,{
+            bucketOf:p=>{
+              const bucket=excelProjectCostBucket(normalizePayment(p));
+              return bucket==='labor'||bucket==='taxDeposit'?'otherDirect':
+                bucket==='other'?'otherPayable':bucket;
+            }
+          });
         const coverage=window.CashSyncPaymentCoverage.check(project,
           paymentMonths.get(project)||[],sourceRows);
         // Verify EVERY paid local expense and internal transfer has a stable
@@ -5695,14 +5706,20 @@ function ccSyncCompareAlreadyLoadedProjects(){
           String(result.identityConflict||0),
           paymentProof.status==='empty-payment-snapshot-unverified'?
             'Rỗng: chưa thể xác minh':
+          paymentProof.paymentSnapshotVerified&&moneyProof.moneyAndBucketVerified?
+            'ID: '+paymentProof.matched+' · tiền/cột xuất: '+moneyProof.checkedRows+
+              ' dòng khớp (chưa duyệt nghiệp vụ)':
           paymentProof.paymentSnapshotVerified?
-            'Đã khớp '+paymentProof.matched+' ID trong bộ nhớ (chưa đủ nguồn)':
+            'ID khớp nhưng tiền/cột xuất CHƯA xác minh · lệch '+
+              moneyProof.amountMismatches+' · chưa rõ '+moneyProof.unverifiedRows:
             'CHẶN: thiếu/trùng/sai ngày Payment',
           result.status==='requires-tax-mapping'?'FOXCONN: cần phân loại thuế riêng':
           !lineage.inMemoryLineageVerified?
             'Thiếu hoặc trùng nguồn lương / thuế / chuyển tiền / nhập tay · không ghi':
           !paymentProof.paymentSnapshotVerified||!coverage.paidPaymentIdsCovered?
             'Payment thiếu / chưa chứng minh đầy đủ · không ghi':
+          !moneyProof.moneyAndBucketVerified?
+            'Tiền thực trả hoặc cột chi phí chưa khớp / chưa rõ · không ghi':
           !inspected.sourceStructureValid?
             'ID / tiền nguồn chưa hợp lệ · không ghi':
           !['internally-consistent','review-date-order'].includes(cache.auditStatus)?
