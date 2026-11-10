@@ -1454,6 +1454,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" type="button" id="ccGoogleSyncAuthorize">Kết nối Google</button>
         <button class="btn primary" type="button" id="ccGoogleSyncDirectSync">Đồng bộ PHU HUNG → Google Sheets TEST</button>
+        <button class="btn" type="button" id="ccSyncMultiProjectTestRun" hidden>Chạy ELYSIAN giả → Google TEST</button>
         <button class="btn" type="button" id="ccGoogleSyncCompare">So sánh dữ liệu (chỉ đọc)</button>
         <button class="btn" type="button" id="ccGoogleSyncOriginalAudit" hidden>Đối chiếu file PHU HUNG gốc (chỉ đọc)</button>
       </div>
@@ -7615,6 +7616,63 @@ function ccGoogleSyncInitializeGooglePilot(){
   const demoToggle=$('ccGoogleSyncDemoToggle'),demoChange=$('ccGoogleSyncDemoChange'),demoAdd=$('ccGoogleSyncDemoAdd');
   const demoFourth=$('ccGoogleSyncDemoFourth'),demoFourthEdit=$('ccGoogleSyncDemoFourthEdit');
   const demoView=$('ccGoogleSyncDemoView');
+  const multiTestButton=$('ccSyncMultiProjectTestRun');
+  if(multiTestButton&&CC_SYNC_DEMO_ALLOWED){
+    multiTestButton.hidden=!(currentAuthUser&&isCashControlOwner());
+    multiTestButton.addEventListener('click',async()=>{
+      if(!currentAuthUser||!isCashControlOwner()||!ccGoogleSyncToken){
+        ccGoogleSyncStatus('Cần đăng nhập Admin TEST và bấm Kết nối Google trước.');return;
+      }
+      if(multiTestButton.disabled)return;
+      multiTestButton.disabled=true;
+      const values=(date,company,contractNo,content,ipc,subcontract)=>({
+        date,company,contractNo,content,ipc,type:'支出',income:0,
+        subcontract,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0
+      });
+      const payload={project:'ELYSIAN',testDataOnly:true,openingBalance:1000,
+        history:[{...values('2026-10-01','DEMO HISTORY','TEST-H001',
+          'Lịch sử giả, không phải giao dịch thật','IPC00',100),rowId:2,balance:900}],
+        source:[{...values('2026-11-02','DEMO VENDOR','TEST-LAB-001',
+          'ELYSIAN giả trên PHU HUNG TEST COPY','IPC01',50),
+          project:'ELYSIAN',id:'MULTI-TEST-ELYSIAN-001'}]};
+      try{
+        const jwt=await currentAuthUser.getIdToken();
+        const request=async data=>{
+          const response=await fetch('/api/cash-sync-multiproject-test',{
+            method:'POST',headers:{'Content-Type':'application/json',
+              Authorization:'Bearer '+ccGoogleSyncToken,'X-Firebase-ID-Token':jwt},
+            body:JSON.stringify(data),cache:'no-store'
+          });
+          const result=await response.json();
+          if(!response.ok)throw Error(String(result.error||response.status));
+          return result;
+        };
+        ccGoogleSyncStatus('Đang so sánh ELYSIAN giả với bản sao Google TEST (0 Firestore reads)…');
+        const initial=await request({...payload,action:'preview'});
+        if(initial.mode!=='TEST_ONLY'||!initial.preview)throw Error('Thiếu kế hoạch TEST.');
+        if(!initial.preview.wouldChange){
+          ccGoogleSyncStatus('ELYSIAN TEST đã khớp, không có giao dịch mới; không ghi.');return;
+        }
+        if(!confirm('CHỈ GHI ELYSIAN GIẢ VÀO PHU HUNG TEST COPY.\n'+
+          'Số dòng mới: '+initial.preview.additions+
+          '\nKhông sửa PHU HUNG lịch sử, ELYSIAN thật hay 17 Google Sheets gốc. Tiếp tục?')){
+          ccGoogleSyncStatus('Đã hủy thử ghi.');return;
+        }
+        const done=await request({...payload,action:'commit',confirmTestWrite:true,
+          beforeFingerprint:initial.preview.beforeFingerprint,
+          afterFingerprint:initial.preview.afterFingerprint});
+        if(done.status!=='FULL_READBACK_VERIFIED'||done.balancesVerified!==true)
+          throw Error('Chưa xác minh Google Sheets hoàn chỉnh.');
+        ccGoogleSyncStatus('TEST ĐÃ XÁC MINH: '+done.verifiedMirrorAdditions+
+          ' giao dịch giả · số dư cuối '+Number(done.closingBalance).toLocaleString('vi-VN')+
+          '. Chỉ tab TEST riêng; không sửa dữ liệu thật.');
+      }catch(error){
+        ccGoogleSyncStatus('CHƯA HOÀN TẤT GOOGLE TEST: '+
+          String(error?.message||error).slice(0,170)+
+          '. Không tự ghi lại; cần so sánh lại.');
+      }finally{multiTestButton.disabled=false}
+    });
+  }
   if(CC_SYNC_DEMO_ALLOWED){
     demoToggle.hidden=false;
     demoToggle.addEventListener('click',()=>{
