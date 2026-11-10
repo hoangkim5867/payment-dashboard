@@ -63,5 +63,45 @@
       excludedOutside,blockers,paidPaymentIdsCovered:consistent,
       allCashControlSourcesCovered:false,sourceCompletenessVerified:false,canWrite:false});
   }
-  return Object.freeze({check});
+  // Explicit Admin-triggered Payment batches may be checked in memory only.
+  // loaded=true is evidence supplied by the caller, never inferred from an
+  // empty result, cached project name, or a successful Google history check.
+  // This function does NOT fetch Payment and cannot approve Google writes.
+  function checkBoundedBatch(requests,{maxProjects=3}={}){
+    if(!Array.isArray(requests)||requests.length<1||requests.length>3||
+       !Number.isSafeInteger(maxProjects)||maxProjects<1||maxProjects>3||
+       requests.length>maxProjects)
+      throw Error('Invalid or unbounded Payment audit batch');
+    const seen=new Set(),results=[];
+    for(const request of requests){
+      if(!request||typeof request.project!=='string'||!request.project.trim())
+        throw Error('Invalid Payment project');
+      const project=request.project.normalize('NFKC').trim().replace(/\\s+/g,' ').toUpperCase();
+      if(seen.has(project))throw Error('Repeated project in Payment batch');
+      seen.add(project);
+      if(request.loaded!==true||request.complete!==true){
+        results.push(Object.freeze({project,status:'incomplete-payment-snapshot',
+          paymentSnapshotVerified:false,canWrite:false}));
+        continue;
+      }
+      if(!Array.isArray(request.payments)||!Array.isArray(request.ledger))
+        throw Error('Loaded Payment snapshot requires explicit source arrays');
+      const report=check(project,request.payments,request.ledger,{
+        from:request.from||'2026-10-01',to:request.to||'9999-12-31'
+      });
+      const valid=report.paidPaymentIdsCovered&&
+        report.blockers.invalidDates===0&&
+        report.blockers.missingSourceIds===0;
+      results.push(Object.freeze({project,
+        status:valid?'payment-ids-covered-needs-full-source-review':'payment-coverage-blocked',
+        paidDocuments:report.paidDocuments,matched:report.matched,
+        blockers:report.blockers,paymentSnapshotVerified:valid,
+        sourceCompletenessVerified:false,canWrite:false}));
+    }
+    return Object.freeze({results:Object.freeze(results),
+      reviewedProjects:results.length,allPaymentSnapshotsVerified:
+        results.every(x=>x.paymentSnapshotVerified===true),
+      sourceCompletenessVerified:false,canWrite:false});
+  }
+  return Object.freeze({check,checkBoundedBatch});
 });
