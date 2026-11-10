@@ -5474,7 +5474,7 @@ function ccSyncProjectCatalogRender(){
   }
   ccSyncProjectCatalogStatus('Danh mục: '+catalog.length+' dự án · đang hiển thị '+visible.length+
     ' · '+Object.keys(ccSyncProjectLinkDraft).length+
-    ' dự án đã nhập link Google Sheets gốc (chỉ lưu trên trình duyệt này). Dự án mới trong Cash Control tự vào danh sách.');
+    ' dự án đã nhập link Google Sheets gốc (chỉ lưu trên trình duyệt này). Chế độ nhiều dự án hiện chỉ đọc; ghi vẫn chỉ hỗ trợ PHU HUNG TEST. Dự án mới tự vào danh sách.');
 }
 // Admin-only explicit read-only discovery: validates the selected historical
 // tab exists and is readable. This does NOT reconcile Cash Control/closing balances.
@@ -5641,6 +5641,16 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
               if(paymentMonths.has(project)){
                 rebuildPaymentsFromLoadedMonths();
                 runCandidateComparison();
+                return;
+              }
+              // Preview builds replace Firebase configuration with an isolated
+              // staging project. Real Payment records are not present there.
+              // Fail locally to avoid an irrelevant permission-denied query.
+              if(firebaseConfig.projectId!=='cscecmep-payment'){
+                pre.textContent='Bản Preview đang kết nối Firebase '+firebaseConfig.projectId+
+                  ', không phải Payment thật của cscecmep-payment.'+
+                  '\\nKhông truy vấn Firestore staging. 17 Google Sheets gốc vẫn chỉ đọc.'+
+                  '\\nChỉ đối chiếu Payment thật trên bản phát hành đã kiểm chứng.';
                 return;
               }
               // Explicit consent before the one-project Firestore query.
