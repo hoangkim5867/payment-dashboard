@@ -5784,12 +5784,12 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
             const pre=document.createElement('pre');
             pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-width:680px';
             const events=result.dateOrderExamples||[];
-            pre.textContent='Vị trí dòng Google Sheets theo thứ tự hiện có. Không tự sắp xếp lại và không cho phép ghi.\\n'+
+            pre.textContent='Vị trí dòng Google Sheets theo thứ tự hiện có. Không tự sắp xếp lại và không cho phép ghi.\n'+
               events.map(x=>'Dòng '+x.previousRow+' ('+x.previousDate+
                 ') → dòng '+x.dateRow+' ('+x.date+')'+
-                (x.crossesMonth?' · lùi sang tháng trước':' · lùi ngày trong tháng')).join('\\n')+
+                (x.crossesMonth?' · lùi sang tháng trước':' · lùi ngày trong tháng')).join('\n')+
               (events.length<result.nonMonotonicDates?
-                '\\nCòn '+(result.nonMonotonicDates-events.length)+' điểm chưa hiển thị.':'');
+                '\nCòn '+(result.nonMonotonicDates-events.length)+' điểm chưa hiển thị.':'');
             details.append(summary,pre);
             cells[4].append(document.createElement('div'),details);
           }
