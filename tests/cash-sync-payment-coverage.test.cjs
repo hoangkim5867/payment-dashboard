@@ -65,3 +65,18 @@ test('bounded batch blocks duplicate project and over-three or oversized request
  assert.throws(()=>checkBoundedBatch([{project:'ELYSIAN',loaded:true,complete:true}]),
   /explicit source arrays/);
 });
+
+test('empty Payment does not prove coverage even if caller says loaded and complete',()=>{
+ const x=checkBoundedBatch([{project:'ELYSIAN',loaded:true,complete:true,
+  payments:[],ledger:[]}]);
+ assert.equal(x.results[0].status,'empty-payment-snapshot-unverified');
+ assert.equal(x.results[0].paymentSnapshotVerified,false);
+ assert.equal(x.allPaymentSnapshotsVerified,false);
+ assert.equal(x.canWrite,false);
+});
+test('unpaid or deleted Payment from another project cannot hide in a batch',()=>{
+ assert.throws(()=>check('ELYSIAN',[
+  {id:'unpaid-other',project:'EATON'}],[]),/project mismatch/);
+ assert.throws(()=>check('ELYSIAN',[
+  {id:'deleted-other',project:'EATON',deleted:true}],[]),/project mismatch/);
+});
