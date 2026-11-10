@@ -1433,6 +1433,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0">
           <button class="btn" id="ccSyncProjectReadOnlyCheck" type="button">Kiểm tra link Google Sheets (chỉ đọc)</button>
           <button class="btn" id="ccSyncHistoryContinuityCheck" type="button">So sánh lịch sử & điều kiện đồng bộ (chỉ đọc)</button>
+          <button class="btn primary" id="ccSyncOneClickAudit" type="button">Kiểm tra & tổng hợp tất cả dự án (chỉ đọc)</button>
           <button class="btn" id="ccSyncBatchOverview" type="button">Tổng hợp tất cả dự án (0 reads)</button>
           <button class="btn" id="ccSyncLoadedBatchCompare" type="button">Đối chiếu các dự án đã tải (0 reads)</button>
           <button class="btn" id="ccSyncLoadLinkedSourceBatch" type="button" hidden>Tải Payment cho tối đa 3 dự án có link (có reads)</button>
@@ -1440,6 +1441,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         </div>
         <div id="ccSyncProjectReadOnlyResult" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
         <div id="ccSyncHistoryContinuityResult" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
+        <div id="ccSyncOneClickAuditStatus" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
         <div id="ccSyncBatchOverviewResult" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
         <div id="ccSyncLoadedBatchCompareResult" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
         <div id="ccSyncLinkedSourceBatchStatus" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
@@ -5710,6 +5712,49 @@ function ccSyncCompareAlreadyLoadedProjects(){
   }
   output.append(table);
 }
+// One Admin click: re-read all linked historical Google tabs ONCE, then
+// classify already-read audit results in browser memory. Never reads Firebase
+// and never writes Sheets. The existing per-file scanner owns error handling,
+// so a failed file does not stop unrelated projects from being classified.
+async function ccSyncOneClickAudit(){
+  const button=$('ccSyncOneClickAudit'),status=$('ccSyncOneClickAuditStatus');
+  if(!button||!status)return;
+  if(!currentAuthUser||!isCashControlOwner()){
+    status.textContent='Chỉ Admin được kiểm tra hàng loạt.';return;
+  }
+  if(!ccGoogleSyncToken){
+    status.textContent='Bấm Kết nối Google một lần trước khi kiểm tra.';return;
+  }
+  if(button.disabled||$('ccSyncHistoryContinuityCheck')?.disabled)return;
+  button.disabled=true;
+  try{
+    const catalog=ccSyncProjectCatalogNames();
+    const linked=catalog.filter(p=>ccSyncProjectLinkValid(ccSyncProjectLinkDraft[p]));
+    status.textContent='Đang kiểm tra lịch sử '+linked.length+' dự án đã có link. '+
+      'Google chỉ đọc, không đọc Firebase, không ghi Google Sheets…';
+    await ccSyncProjectReadOnlyCheck(true);
+    // This function only summarizes cached metadata; zero additional calls.
+    ccSyncRenderBatchOverview();
+    const fresh=catalog.filter(p=>{
+      const x=ccSyncLastHistoricalAudit[p];
+      return x&&!x.cached&&ccSyncProjectLinkValid(ccSyncProjectLinkDraft[p]);
+    });
+    const ok=fresh.filter(p=>ccSyncLastHistoricalAudit[p].ok===true).length;
+    const blocked=fresh.length-ok;
+    const absent=catalog.length-linked.length;
+    status.textContent='ĐÃ PHÂN NHÓM '+catalog.length+' DỰ ÁN · '+
+      ok+' lịch sử tự khớp/chưa phát sinh · '+blocked+
+      ' lịch sử cần kiểm tra · '+absent+' chưa có link · '+
+      (linked.length-fresh.length)+' chưa kiểm tra được trong lượt này. '+
+      'Chưa đối chiếu đủ nguồn Cash Control/Payment; 0 dự án được cấp quyền ghi. '+
+      'Không có Google writes hoặc Firestore reads trong thao tác này.';
+  }catch(error){
+    status.textContent='CHƯA HOÀN TẤT KIỂM TRA HÀNG LOẠT: '+
+      String(error?.message||error).slice(0,140)+
+      '. Không ghi dữ liệu; xem kết quả từng dự án bên dưới.';
+    ccSyncRenderBatchOverview();
+  }finally{button.disabled=false}
+}
 function ccSyncRenderBatchOverview(){
   const output=$('ccSyncBatchOverviewResult');
   if(!output)return;
@@ -6280,6 +6325,7 @@ function ccSyncProjectCatalogInitialize(){
   $('ccSyncProjectCatalogRefresh')?.addEventListener('click',ccSyncProjectCatalogRender);
   $('ccSyncProjectReadOnlyCheck')?.addEventListener('click',()=>ccSyncProjectReadOnlyCheck(false));
   $('ccSyncHistoryContinuityCheck')?.addEventListener('click',()=>ccSyncProjectReadOnlyCheck(true));
+  $('ccSyncOneClickAudit')?.addEventListener('click',ccSyncOneClickAudit);
   $('ccSyncBatchOverview')?.addEventListener('click',ccSyncRenderBatchOverview);
   $('ccSyncLoadedBatchCompare')?.addEventListener('click',ccSyncCompareAlreadyLoadedProjects);
   $('ccSyncLoadLinkedSourceBatch')?.addEventListener('click',ccSyncLoadLinkedPaymentBatch);
