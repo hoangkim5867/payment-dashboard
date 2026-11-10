@@ -110,5 +110,73 @@
         results.every(x=>x.paymentSnapshotVerified===true),
       sourceCompletenessVerified:false,canWrite:false});
   }
-  return Object.freeze({check,checkBoundedBatch});
+  // Independent amount check against raw paid Payment amounts. A caller must
+  // explicitly supply an expense-bucket resolver; otherwise the result is
+  // unverified. Multi-source rows are checked only if ALL sources are paid
+  // Payment IDs for this project, and their bucket totals match exactly.
+  function checkMoney(project,payments,ledger,{from='2026-10-01',to='9999-12-31',
+      bucketOf=null}={}){
+    if(!Array.isArray(payments)||!Array.isArray(ledger)||
+       typeof bucketOf!=='function'||typeof project!=='string'||!project.trim())
+      return Object.freeze({status:'money-not-verified',
+        checkedRows:0,amountMismatches:0,unverifiedRows:0,
+        moneyAndBucketVerified:false,canWrite:false});
+    const buckets=['subcontract','material','otherDirect','indirect','financial','otherPayable'];
+    const projectKey=x=>String(x??'').normalize('NFKC').trim().replace(/\s+/g,' ').toUpperCase();
+    const key=projectKey(project),expected=new Map();
+    let unknownPaymentValues=0,duplicatePaymentIds=0;
+    for(const p of payments){
+      if(!p||projectKey(p.project)!==key)throw Error('Payment project mismatch');
+      if(p.deleted===true||!p.processPaymentDate)continue;
+      const date=String(p.processPaymentDate).slice(0,10);
+      if(date<from||date>to)continue;
+      const id='expense:pay_'+String(p.id??'');
+      const raw=p.processActualAmount!==null&&p.processActualAmount!==undefined&&
+        p.processActualAmount!==''?p.processActualAmount:p.amount;
+      const amount=typeof raw==='number'?raw:
+        typeof raw==='string'&&raw.trim()!==''?Number(raw):NaN;
+      const bucket=bucketOf(p);
+      if(!p.id||!Number.isFinite(amount)||amount<0||
+         !Number.isSafeInteger(Math.round(amount*1e6))||!buckets.includes(bucket)){
+        unknownPaymentValues++;continue;
+      }
+      if(expected.has(id))duplicatePaymentIds++;
+      expected.set(id,{amount,bucket,date});
+    }
+    let checkedRows=0,amountMismatches=0,unverifiedRows=0;
+    const compared=new Set();
+    for(const row of ledger){
+      if(!row||!Array.isArray(row._syncIds)||!row._syncIds.length){
+        unverifiedRows++;continue;
+      }
+      const ids=row._syncIds;
+      if(ids.every(id=>typeof id==='string'&&!id.startsWith('expense:pay_')))
+        continue; // This row contains only non-Payment Cash Control sources.
+      if(ids.some(id=>!expected.has(id))||ids.some(id=>compared.has(id))){
+        unverifiedRows++;continue;
+      }
+      const totals=Object.fromEntries(buckets.map(b=>[b,0]));
+      let expectedIncome=0,valid=true;
+      for(const id of ids){
+        const p=expected.get(id);
+        if(!p||p.date!==String(row.date||'')){valid=false;break}
+        totals[p.bucket]+=p.amount;
+      }
+      if(!valid){unverifiedRows++;continue}
+      for(const id of ids)compared.add(id);
+      checkedRows++;
+      const actualIncome=Number(row.income);
+      if(!Number.isFinite(actualIncome)||Math.abs(actualIncome-expectedIncome)>0.000001||
+         buckets.some(b=>typeof row[b]!=='number'||!Number.isFinite(row[b])||
+           Math.abs(row[b]-totals[b])>0.000001))amountMismatches++;
+    }
+    const missingCompared=[...expected.keys()].filter(id=>!compared.has(id)).length;
+    const verified=checkedRows>0&&amountMismatches===0&&unverifiedRows===0&&
+      unknownPaymentValues===0&&duplicatePaymentIds===0&&missingCompared===0;
+    return Object.freeze({status:verified?'money-and-export-bucket-consistent':
+      'money-not-verified',checkedRows,amountMismatches,unverifiedRows,
+      unknownPaymentValues,duplicatePaymentIds,missingCompared,
+      moneyAndBucketVerified:verified,sourceCompletenessVerified:false,canWrite:false});
+  }
+  return Object.freeze({check,checkBoundedBatch,checkMoney});
 });
