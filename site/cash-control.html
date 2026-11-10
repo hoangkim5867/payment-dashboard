@@ -1435,12 +1435,14 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <button class="btn" id="ccSyncHistoryContinuityCheck" type="button">So sánh lịch sử & điều kiện đồng bộ (chỉ đọc)</button>
           <button class="btn" id="ccSyncBatchOverview" type="button">Tổng hợp tất cả dự án (0 reads)</button>
           <button class="btn" id="ccSyncLoadedBatchCompare" type="button">Đối chiếu các dự án đã tải (0 reads)</button>
+          <button class="btn" id="ccSyncLoadLinkedSourceBatch" type="button" hidden>Tải Payment cho tối đa 3 dự án có link (có reads)</button>
           <small style="font-size:11px;color:#64748b">Admin bấm thủ công · cần Kết nối Google phía dưới · không đọc Firestore, không ghi Sheets</small>
         </div>
         <div id="ccSyncProjectReadOnlyResult" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
         <div id="ccSyncHistoryContinuityResult" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
         <div id="ccSyncBatchOverviewResult" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
         <div id="ccSyncLoadedBatchCompareResult" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
+        <div id="ccSyncLinkedSourceBatchStatus" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
         <p id="ccSyncProjectCatalogStatus" style="font-size:12px;color:#44546b"></p>
         <div id="ccSyncProjectCatalogEntries" style="max-height:420px;overflow:auto;display:grid;gap:7px"></div>
       </details>
@@ -5544,6 +5546,67 @@ function ccSyncLoadAuditSession(){
 }
 // Batch reconciliation uses only existing memory. No Google API calls, no
 // Firestore queries, no local file input, no promises and no write authorization.
+// Production-only, explicitly initiated Admin read. At most THREE project
+// queries per invocation; never scans the whole company. A project already
+// loaded into the current tab is never queried again until Admin refreshes.
+// This is intentionally hidden on Firebase staging and does not authorize sync.
+async function ccSyncLoadLinkedPaymentBatch(){
+  const button=$('ccSyncLoadLinkedSourceBatch');
+  const status=$('ccSyncLinkedSourceBatchStatus');
+  if(!button||!status)return;
+  if(button.disabled||!currentAuthUser||!isCashControlOwner()){
+    status.textContent='Chỉ Admin được tải nguồn Payment.';return;
+  }
+  if(firebaseConfig.projectId!=='cscecmep-payment'){
+    status.textContent='Preview TEST tách khỏi Payment thật; không được tải nguồn production.';return;
+  }
+  const eligible=ccSyncProjectCatalogNames().filter(project=>
+    project!=='PHU HUNG'&&ccSyncProjectLinkValid(ccSyncProjectLinkDraft[project])&&
+    !paymentMonths.has(project));
+  if(!eligible.length){
+    status.textContent='Các dự án có link đều đã tải Payment trong phiên. '+
+      'Chưa đủ chứng minh các nguồn ngoài Payment hoặc Google Sheets khớp.';
+    return;
+  }
+  const batch=eligible.slice(0,3);
+  if(!confirm('Chỉ đọc Payment của '+batch.length+' dự án: '+
+    batch.join(', ')+'. Firestore tính reads theo số chứng từ trả về; '+
+    'không biết trước chính xác số reads. Không ghi dữ liệu. Tiếp tục?'))return;
+  button.disabled=true;
+  let success=0,failed=0;
+  try{
+    for(const project of batch){
+      if(!currentAuthUser||!isCashControlOwner())break;
+      status.textContent='Đang đọc '+project+' ('+(success+failed+1)+'/'+batch.length+
+        '), không ghi Firebase hoặc Sheets…';
+      let errorText='';
+      const ok=await loadProjectPayments(project,{
+        quiet:true,refresh:false,
+        onError:message=>{errorText=String(message||'')}
+      });
+      if(!ok||!paymentMonths.has(project)){
+        failed++;
+        status.textContent='Dừng ở '+project+': '+(errorText||'chưa tải đủ Payment')+
+          '. Không thử lại tự động để tránh reads.';
+        break;
+      }
+      // Rebuild only the in-memory Cash Control state; refresh:false avoids
+      // renderAll and scheduled balance-snapshot writes.
+      rebuildPaymentsFromLoadedMonths();
+      success++;
+    }
+    const remaining=ccSyncProjectCatalogNames().filter(project=>
+      project!=='PHU HUNG'&&ccSyncProjectLinkValid(ccSyncProjectLinkDraft[project])&&
+      !paymentMonths.has(project)).length;
+    status.textContent='Đã tải '+success+' dự án vào bộ nhớ · '+failed+
+      ' thất bại · còn '+remaining+' dự án có link chưa tải. '+
+      'Tải nguồn chỉ để kiểm tra, KHÔNG cấp quyền đồng bộ.';
+  }finally{button.disabled=false}
+}
+function ccSyncSetLinkedBatchVisibility(){
+  const button=$('ccSyncLoadLinkedSourceBatch');
+  if(button)button.hidden=firebaseConfig.projectId!=='cscecmep-payment';
+}
 function ccSyncCompareAlreadyLoadedProjects(){
   const output=$('ccSyncLoadedBatchCompareResult');
   if(!output)return;
@@ -6209,6 +6272,8 @@ function ccSyncProjectCatalogInitialize(){
   $('ccSyncHistoryContinuityCheck')?.addEventListener('click',()=>ccSyncProjectReadOnlyCheck(true));
   $('ccSyncBatchOverview')?.addEventListener('click',ccSyncRenderBatchOverview);
   $('ccSyncLoadedBatchCompare')?.addEventListener('click',ccSyncCompareAlreadyLoadedProjects);
+  $('ccSyncLoadLinkedSourceBatch')?.addEventListener('click',ccSyncLoadLinkedPaymentBatch);
+  ccSyncSetLinkedBatchVisibility();
   $('ccSyncProjectCatalogExport')?.addEventListener('click',()=>{
     const payload={schema:'CASH_SYNC_PROJECT_LINK_DRAFT_V1',projects:ccSyncProjectLinkDraft,
       note:'Local draft only; does not authorize Google Sheets sync'};
