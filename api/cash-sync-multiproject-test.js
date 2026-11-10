@@ -36,15 +36,22 @@ module.exports=async function handler(req,res){
       JSON.stringify(raw).length>600000)
       httpError(413,'Invalid/oversized TEST request.');
     const {action,project,history,source,openingBalance}=raw;
-    if(!['preview','commit'].includes(action)||
+    if(!['preview','commit','status'].includes(action)||
        typeof project!=='string'||project.trim().length<2||project.length>180||
-       !Array.isArray(history)||history.length>5000||
-       !Array.isArray(source)||source.length>5000)
+       (action!=='status'&&(!Array.isArray(history)||history.length>5000||
+       !Array.isArray(source)||source.length>5000)))
       httpError(400,'Project/transaction snapshot invalid.');
     // Real Payment completeness is NOT attested here: only synthetic/supplied
     // staging snapshots are accepted. Production Payment cannot be read in Preview.
     if(raw.testDataOnly!==true)
       httpError(403,'Only explicitly labelled TEST data is permitted.');
+    // A status check needs no source snapshot and must NEVER initiate writes.
+    if(action==='status'){
+      const inspector=createGoogleTestAdapter({
+        project,accessToken:bearer.slice(7),adminVerified:true
+      });
+      return res.status(200).json(await inspector.readStatus());
+    }
     const planInput={project,history,source,
       openingBalance:openingBalance??null,
       sourceComplete:true,destinationConfirmed:true};
@@ -76,13 +83,26 @@ module.exports=async function handler(req,res){
     });
     return res.status(200).json(verified);
   }catch(error){
+    const diagnosticCode=typeof error?.code==='string'&&
+      /^[A-Z][A-Z0-9_]{2,48}$/.test(error.code)?error.code:'UNEXPECTED_TEST_ERROR';
     const code=Number(error?.statusCode)||(
-      error?.code?.includes('CONFLICT')||error?.code?.includes('CHANGED')||
-      error?.code?.includes('VERIFIED')?409:500);
+      diagnosticCode.includes('CONFLICT')||diagnosticCode.includes('CHANGED')||
+      diagnosticCode.includes('VERIFIED')?409:500);
+    // Only controlled error messages and error codes; never log tokens,
+    // Google response bodies, source rows, bank details, or IDs.
+    console.error('[CashSync TEST]',diagnosticCode,
+      'action',typeof req.body==='object'?String(req.body?.action||''):'unknown');
     if([400,401,403,409,413,503].includes(code))
-      return res.status(code).json({error:String(error.message).slice(0,240)});
+      return res.status(code).json({code:diagnosticCode,
+        error:String(error.message).slice(0,240)});
     if(error?.name==='TimeoutError'||error?.name==='AbortError')
-      return res.status(504).json({error:'TEST Google Sheets request timed out.'});
-    return res.status(500).json({error:'TEST sync blocked; inspect state before retrying.'});
+      return res.status(504).json({code:'GOOGLE_TIMEOUT',
+        error:'TEST Google Sheets request timed out.'});
+    // Controlled adapter errors may be shown. Unknown library errors remain
+    // generic but are distinguishable from actual Google HTTP failures.
+    const known=diagnosticCode!=='UNEXPECTED_TEST_ERROR';
+    return res.status(500).json({code:diagnosticCode,
+      error:known?String(error.message).slice(0,240):
+        'Lỗi máy chủ chưa xác định. Chỉ kiểm tra trạng thái TEST; không ghi lại.'});
   }
 };
