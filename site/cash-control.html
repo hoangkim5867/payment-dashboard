@@ -1428,8 +1428,8 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <input type="file" accept="application/json,.json" id="ccSyncProjectCatalogImportFile" hidden>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0">
-          <button class="btn" id="ccSyncProjectReadOnlyCheck" type="button">Kiểm tra 18 file Google Sheets (chỉ đọc)</button>
-          <button class="btn" id="ccSyncHistoryContinuityCheck" type="button">Đối chiếu số dư lịch sử (18 file · chỉ đọc)</button>
+          <button class="btn" id="ccSyncProjectReadOnlyCheck" type="button">Kiểm tra link Google Sheets (chỉ đọc)</button>
+          <button class="btn" id="ccSyncHistoryContinuityCheck" type="button">So sánh lịch sử & điều kiện đồng bộ (chỉ đọc)</button>
           <small style="font-size:11px;color:#64748b">Admin bấm thủ công · cần Kết nối Google phía dưới · không đọc Firestore, không ghi Sheets</small>
         </div>
         <div id="ccSyncProjectReadOnlyResult" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
@@ -5503,7 +5503,7 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
   table.style.cssText='width:100%;border-collapse:collapse;font-size:12px';
   const heading=document.createElement('tr');
   for(const name of (auditBalances?
-    ['Dự án','Đối chiếu số dư','Số giao dịch','Số dư cuối · VND','Lỗi / chênh lệch']:
+    ['Dự án','Đối chiếu số dư','Số giao dịch','Số dư cuối · VND','Lỗi / chênh lệch','Điều kiện đồng bộ']: 
     ['Dự án','Kết quả','Tab đã chọn','Dòng dữ liệu (ước tính)'])){
     const th=document.createElement('th');
     th.textContent=name;th.style.cssText='text-align:left;border-bottom:1px solid #cbd5e1;padding:6px';
@@ -5515,7 +5515,7 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
   try{
     for(const [project,link] of items){
       const tr=document.createElement('tr');
-      const cells=Array.from({length:auditBalances?5:4},()=>document.createElement('td'));
+      const cells=Array.from({length:auditBalances?6:4},()=>document.createElement('td'));
       cells.forEach(td=>{td.style.cssText='border-bottom:1px solid #e2e8f0;padding:6px';tr.append(td)});
       cells[0].textContent=project;cells[1].textContent='Đang kiểm tra…';
       table.append(tr);
@@ -5588,6 +5588,10 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
               ' · bố cục chưa xác minh: '+result.layoutErrors+
               ' · O thử tính: '+result.provisionalBalanceRows+'/'+result.transactionRows+
               ' (chưa xác nhận cột số dư)':'');
+          // The first pass stays fail-closed: even a perfect historical balance
+          // is not authorization to write. No extra Firebase or Google calls.
+          const ready=window.CashSyncHistoricalAudit.assessProjectSyncReadiness(project,result,null);
+          cells[5].textContent=ready.note;
           // Explicit per-project candidate comparison against current in-memory
           // Cash Control source. Never invokes loadProjectPayments or any Firebase API.
           if(result.transactionRows>0&&project!=='FOXCONN'){
@@ -5821,6 +5825,7 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
         }
       }catch(error){
         cells[1].textContent='Cần kiểm tra: '+String(error.message||'Không đọc được').slice(0,90);
+        if(auditBalances)cells[5].textContent='CHẶN: Chưa đọc và kiểm chứng được lịch sử Google Sheets.';
         blocked++;
       }
       note.textContent='Đã kiểm tra '+(passed+blocked)+'/'+items.length+
