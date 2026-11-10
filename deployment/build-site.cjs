@@ -65,6 +65,7 @@ if(require.main===module){
    path.join(__dirname,'../tests/cash-sync-lineage-audit.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-linked-payment-batch.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-signed-transfer.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-staging-elysian-ui.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-gate.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-original-audit.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-live-core.test.cjs'),
