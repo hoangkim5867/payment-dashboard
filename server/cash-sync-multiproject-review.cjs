@@ -32,6 +32,8 @@ function makeProjectReview(entry, input){
       unmatchedHistorical:report.unmatchedHistorical,
       unmatchedSource:report.unmatchedSource,
       ambiguousMatches:report.ambiguousMatches||0,
+      dateOrderRegressions:report.dateOrderRegressions||0,
+      dateOrderExamples:report.dateOrderExamples||[],
       continuityErrorCount:report.continuityErrorCount||0,
       historicalRowsVerified:report.historicalRowsVerified,
       closingBalanceVerified:report.closingBalanceVerified,
