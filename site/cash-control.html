@@ -5585,17 +5585,29 @@ function ccSyncCompareAlreadyLoadedProjects(){
       try{
         const sourceRows=[];
         for(const period of periods)sourceRows.push(...legacyCashExportRows(period,project));
+        const inspected=window.CashSyncSourceDiagnostics.inspect(project,
+          periods.map(period=>({month:period,rows:legacyCashExportRows(period,project)
+            .map(row=>({...row,project}))})),{
+            paymentProjectLoaded:true,firebaseProject:firebaseConfig.projectId
+          });
+        // The Payment query can load the whole Payment collection for a project,
+        // but that alone cannot prove that all manual/inflow/transfer/quarterly-tax
+        // Cash Control records have been reconciled. Stay explicitly incomplete.
         const result=window.CashSyncHistoricalAudit.compareLoadedCashControl(
-          cache.rows,project,sourceRows,{sourceComplete:true});
+          cache.rows,project,sourceRows,{sourceComplete:false});
         cells=[project,String(result.sourceScope),String(result.matched||0),
           String(result.historicalOnly||0),String(result.cashOnly||0),
           String(result.identityConflict||0),
           result.status==='requires-tax-mapping'?'FOXCONN: cần phân loại thuế riêng':
+          !inspected.sourceStructureValid?
+            'ID / tiền nguồn chưa hợp lệ · không ghi':
+          !['internally-consistent','review-date-order'].includes(cache.auditStatus)?
+            'Lịch sử chưa được xác minh · không ghi':
           result.invalidHistory||result.invalidSource||result.ambiguous||
             result.identityConflict||result.identityUnverified||
             result.historicalOnly||result.cashOnly?
               'CÒN CHÊNH LỆCH / CHƯA XÁC MINH · không ghi':
-              'ỨNG VIÊN KHỚP · chưa xác minh đủ nguồn, không ghi'];
+              'ỨNG VIÊN KHỚP · chưa chứng minh đủ nguồn, không ghi'];
       }catch(error){
         cells[6]='Lỗi đối chiếu trong bộ nhớ · không ghi';
       }
@@ -5832,12 +5844,13 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
             typeof d==='string'&&/^20\d{2}-\d{2}-\d{2}$/.test(d);
         }).length;
         if(auditBalances){
-          // Only a current successful Google read can populate the comparison cache.
-          ccSyncInMemoryHistory.set(project,{link,rows});
-          // FOXCONN: O has numeric data in all 270 observed rows, but the
-          // historical header does not name a balance field. Probe only.
+          // FOXCONN: O may be the balance and N may be import tax.
+          // Never treat an unverified column as an approved ledger.
           const result=window.CashSyncHistoricalAudit.audit(rows,
             {project,...(project==='FOXCONN'?{probeBalanceIndex:14}:{})});
+          // Retain only a successful, fresh in-session read, with its
+          // validation status. This cache never authorizes any write.
+          ccSyncInMemoryHistory.set(project,{link,rows,auditStatus:result.status});
           const titles={'new-project-no-transactions':'Dự án mới · chưa có phát sinh',
             'blank-tab':'File trắng · cần xác minh số dư đầu kỳ',
             'unsupported-layout':'Chưa xác định được cột số dư (N)',
