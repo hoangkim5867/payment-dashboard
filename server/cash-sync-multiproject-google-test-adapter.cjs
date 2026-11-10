@@ -116,9 +116,10 @@ function createGoogleTestAdapter({project,accessToken,adminVerified=false,
     const mirror=await inspect(tabs.mirror),view=await inspect(tabs.view);
     const count=async(tab,max)=>{
       const rows=await call(valuesPath(tab,'A1:A'+max));
-      if(!Array.isArray(rows.values)||rows.values.length>max)
+      const values=rows.values||[];
+      if(!Array.isArray(values)||values.length>max)
         reject('STATUS_SCHEMA','Không đọc được trạng thái tab TEST.');
-      return Math.max(0,rows.values.length-1);
+      return Math.max(0,values.length-1);
     };
     const [mirrorRows,viewRows]=await Promise.all([
       mirror?count(tabs.mirror,20000):0,
