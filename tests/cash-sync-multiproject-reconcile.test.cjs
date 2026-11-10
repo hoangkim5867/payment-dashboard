@@ -68,3 +68,17 @@ test('unconfirmed opening never permits closing balance verification',()=>{
  assert.equal(x.openingConfirmed,false);
  assert.equal(x.closingBalanceVerified,false);
 });
+
+test('backward dates remain blocked even when every running balance and amount matches',()=>{
+ const reversed=[history[0],history[2],history[1]];
+ // Balances are deliberately recalculated in the displayed, backward-date order.
+ reversed[1]=reversed[1].slice();reversed[1][13]=1020;
+ reversed[2]=reversed[2].slice();reversed[2][13]=1100;
+ const result=auditHistoricalLedger('EATON',reversed,sources,{confirmedOpeningBalance:1000});
+ assert.equal(result.continuityErrorCount,0);
+ assert.equal(result.dateOrderRegressions,1);
+ assert.equal(result.dateOrderExamples.length,1);
+ assert.equal(result.historicalRowsVerified,false);
+ assert.equal(result.closingBalanceVerified,false);
+ assert.equal(result.canWrite,false);
+});
