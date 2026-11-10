@@ -92,3 +92,35 @@ test('batch project names normalize spaces identically to Payment documents',()=
   {project:'EATON  P1',loaded:false,complete:false}
  ]),/Repeated project/);
 });
+
+test('many Payment IDs are indexed once and date mismatch is still detected',()=>{
+ const payments=Array.from({length:800},(_,i)=>paid('p'+i));
+ const rows=Array.from({length:800},(_,i)=>ledger('p'+i));
+ rows[799].date='2026-10-16';
+ const x=check('ELYSIAN',payments,rows);
+ assert.equal(x.paidDocuments,800);
+ assert.equal(x.matched,800);
+ assert.equal(x.blockers.dateMismatch,1);
+ assert.equal(x.paidPaymentIdsCovered,false);
+ assert.equal(x.canWrite,false);
+});
+test('multiple source IDs in one grouped row stay distinct',()=>{
+ const x=check('ELYSIAN',[paid('a'),paid('b')],
+  [{date:'2026-10-15',_syncIds:['expense:pay_a','expense:pay_b']}]);
+ assert.equal(x.matched,2);
+ assert.equal(x.blockers.duplicateLedgerIds,0);
+ assert.equal(x.paidPaymentIdsCovered,true);
+ assert.equal(x.sourceCompletenessVerified,false);
+});
+test('up to three independent project batches never approve writes',()=>{
+ const rows=['ELYSIAN','EATON','FOXCONN'].map(project=>({
+  project,loaded:true,complete:true,
+  payments:[{id:'one',project,processPaymentDate:'2026-10-15'}],
+  ledger:[{date:'2026-10-15',_syncIds:['expense:pay_one']}]
+ }));
+ const x=checkBoundedBatch(rows);
+ assert.equal(x.reviewedProjects,3);
+ assert.equal(x.allPaymentSnapshotsVerified,true);
+ assert.equal(x.sourceCompletenessVerified,false);
+ assert.equal(x.canWrite,false);
+});
