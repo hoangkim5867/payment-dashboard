@@ -284,8 +284,18 @@
       reason:'FOXCONN has a separate import-tax column',canWrite:false};
     const months=new Set();
     const counts=new Map(),sourceCounts=new Map();
+    const historicIdentity=new Map(),sourceIdentity=new Map();
     const add=(map,id)=>map.set(id,(map.get(id)||0)+1);
     const token=(date,values)=>JSON.stringify([date,...values.map(x=>Math.round(x*1e6)/1e6)]);
+    const normalize=v=>String(v??'').normalize('NFKC').trim().replace(/\\s+/g,' ').toUpperCase();
+    // Metadata is diagnostic only. A shared date/amount is NOT proof of the
+    // same company/contract/IPC. Missing fields must remain unverified.
+    const identity=(company,contractNo,ipc)=>
+      [company,contractNo,ipc].map(normalize);
+    const saveIdentity=(bucket,key,value)=>{
+      if(!bucket.has(key))bucket.set(key,[]);
+      bucket.get(key).push(value);
+    };
     let historicalScope=0,invalidHistory=0,sourceScope=0,invalidSource=0;
     for(const row of rows){
       if(!Array.isArray(row))continue;
@@ -294,7 +304,9 @@
       months.add(date.slice(0,7));historicalScope++;
       const values=row.slice(6,13).map(x=>amount(x,true));
       if(values.length!==7||values.some(x=>!Number.isFinite(x))){invalidHistory++;continue}
-      add(counts,token(date,values));
+      const id=token(date,values);
+      add(counts,id);
+      saveIdentity(historicIdentity,id,identity(row[1],row[2],row[4]));
     }
     for(const row of cashRows){
       const date=dateValue(row?.date);
@@ -303,19 +315,33 @@
       const fields=['income','subcontract','material','otherDirect','indirect','financial','otherPayable'];
       const values=fields.map(x=>amount(row[x],true));
       if(values.some(x=>!Number.isFinite(x))){invalidSource++;continue}
-      add(sourceCounts,token(date,values));
+      const id=token(date,values);
+      add(sourceCounts,id);
+      saveIdentity(sourceIdentity,id,identity(row.company,row.contractNo,row.ipc));
     }
     let matched=0,historicalOnly=0,cashOnly=0,ambiguous=0;
+    let identityConflict=0,identityUnverified=0,identityConsistent=0;
     for(const key of new Set([...counts.keys(),...sourceCounts.keys()])){
       const h=counts.get(key)||0,c=sourceCounts.get(key)||0;
       matched+=Math.min(h,c);
       historicalOnly+=Math.max(0,h-c);
       cashOnly+=Math.max(0,c-h);
       if(h>1||c>1)ambiguous+=Math.min(h,c);
+      // Only one-to-one coarse candidates can safely be compared by metadata.
+      if(h===1&&c===1){
+        const historical=historicIdentity.get(key)?.[0]||[];
+        const source=sourceIdentity.get(key)?.[0]||[];
+        const known=historical.map((v,i)=>v&&source[i]?i:-1).filter(i=>i>=0);
+        if(!known.length)identityUnverified++;
+        else if(known.some(i=>historical[i]!==source[i]))identityConflict++;
+        else if(known.length===3)identityConsistent++;
+        else identityUnverified++;
+      }
     }
     return {status:!complete?'incomplete-memory-source':'candidates-only',
       project,sourceComplete:complete,historicalScope,sourceScope,matched,
-      historicalOnly,cashOnly,ambiguous,invalidHistory,invalidSource,
+      historicalOnly,cashOnly,ambiguous,identityConflict,identityUnverified,
+      identityConsistent,invalidHistory,invalidSource,
       months:[...months].sort(),canWrite:false};
   }
   // Pure read-only release gate for real project Sheets. A consistent ledger
