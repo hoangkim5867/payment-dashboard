@@ -42,3 +42,16 @@ test('Admin explicitly loaded proof is required before showing Payment coverage'
  assert.doesNotMatch(body,/\b(?:getDocs|onSnapshot|loadProjectPayments|fetch|setDoc|updateDoc|addDoc|deleteDoc)\s*\(/);
  assert.match(body,/sourceComplete:false/);
 });
+
+test('Admin cross-checks raw paid VND and expense bucket without extra Firestore reads',()=>{
+ const start=html.indexOf('function ccSyncCompareAlreadyLoadedProjects(){');
+ const end=html.indexOf('// One Admin click:',start);
+ const body=html.slice(start,end);
+ assert.match(body,/CashSyncPaymentCoverage\.checkMoney\(/);
+ assert.match(body,/excelProjectCostBucket\(normalizePayment\(p\)\)/);
+ assert.match(body,/moneyProof\.moneyAndBucketVerified/);
+ assert.match(body,/moneyProof\.amountMismatches/);
+ assert.match(body,/Tiền thực trả hoặc cột chi phí chưa khớp/);
+ assert.match(body,/sourceComplete:false/);
+ assert.doesNotMatch(body,/\b(?:getDocs|onSnapshot|loadProjectPayments|fetch|setDoc|updateDoc|addDoc|deleteDoc)\s*\(/);
+});
