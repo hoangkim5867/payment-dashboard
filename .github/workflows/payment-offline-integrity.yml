@@ -25,6 +25,9 @@ jobs:
         run: python tests/verify_js_syntax.py
       - name: Current offline regression suite
         run: node --test tests/index-v1/*.test.cjs tests/secure/*.test.cjs tests/regression/*.test.cjs
+      - name: Cash Sync offline integration and safety gates (TEST only)
+        run: |
+          node --test tests/cash-sync-offline-integration.test.cjs tests/cash-sync-multiproject-planner.test.cjs tests/cash-sync-multiproject-write-plan.test.cjs tests/cash-sync-multiproject-reconcile.test.cjs tests/cash-sync-payment-coverage.test.cjs tests/cash-sync-linked-payment-batch.test.cjs tests/cash-sync-batch-guard.test.cjs
       - name: Check Excel import and duplicate semantics
         run: |
           node tests/verify_preflight.cjs
