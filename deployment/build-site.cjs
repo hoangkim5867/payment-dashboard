@@ -58,6 +58,7 @@ if(require.main===module){
    path.join(__dirname,'../tests/cash-sync-multiproject-phu-adapter.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-multiproject-planner.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-multiproject-readiness.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-historical-audit.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-gate.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-original-audit.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-live-core.test.cjs'),
