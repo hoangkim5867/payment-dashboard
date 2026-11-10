@@ -5819,7 +5819,9 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
                       year+'-'+String(month).padStart(2,'0'),project));
                   }
                 }
-                const complete=paymentMonths.has(project);
+                // A staging cache is never proof that real production Payment is loaded.
+                const complete=firebaseConfig.projectId==='cscecmep-payment'&&
+                  paymentMonths.has(project);
                 const report=window.CashSyncHistoricalAudit.compareLoadedCashControl(
                   rows,project,cashRows,{sourceComplete:complete});
                 pre.textContent='Google từ 10/2026: '+report.historicalScope+
@@ -5838,7 +5840,18 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
             button.addEventListener('click',runCandidateComparison);
             const loadButton=document.createElement('button');
             loadButton.type='button';loadButton.className='btn';
-            loadButton.textContent='Tải riêng Payment '+project+' (có Firestore reads) và so lại';
+            const stagingSource=firebaseConfig.projectId!=='cscecmep-payment';
+            loadButton.textContent=stagingSource?
+              'Payment thật không có trên Preview TEST · không cần bấm':
+              'Tải riêng Payment '+project+' (có Firestore reads) và so lại';
+            loadButton.disabled=stagingSource;
+            loadButton.title=stagingSource?
+              'Firebase TEST tách biệt production; không truy vấn dữ liệu thật tại đây.':'';
+            if(stagingSource){
+              pre.textContent='Bản TEST chỉ xác minh lịch sử Google Sheets. '+
+                'Không có Payment thật nên chưa thể đối chiếu chống trùng. '+
+                'Không cần xuất Excel, không bấm tải Payment trên Preview.';
+            }
             loadButton.addEventListener('click',async()=>{
               if(!currentAuthUser||!isCashControlOwner()){
                 pre.textContent='Chỉ Admin được đọc nguồn Cash Control.';
