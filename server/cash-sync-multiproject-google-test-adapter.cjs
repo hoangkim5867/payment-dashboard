@@ -116,8 +116,8 @@ function createGoogleTestAdapter({project,accessToken,adminVerified=false,
     }});
     await refreshMeta();
     if(!await inspect(name))reject('CREATE_FAILED','Không tìm thấy tab TEST vừa tạo.');
-    await call(valuesPath(name,'A1:'+endColumn+'1','RAW')+
-      '&valueInputOption=RAW',{method:'PUT',body:{values:[header]}});
+    await call('/values/'+encodeURIComponent(tabQuote(name)+'!A1:'+endColumn+'1')+
+      '?valueInputOption=RAW',{method:'PUT',body:{values:[header]}});
   }
   async function writeMirrorAdditions(entries){
     if(!Array.isArray(entries)||!entries.length||entries.length>5000)
