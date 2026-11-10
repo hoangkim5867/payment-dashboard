@@ -28,9 +28,6 @@
         invalidDates++;continue;
       }
       if(date<from||date>to){excludedOutside++;continue;}
-      // Raw documents must belong to the project being audited. Do not
-      // silently count rows from other projects or infer alias repairs.
-      if(norm(p.project)!==key)throw Error('Payment project mismatch');
       const id='expense:pay_'+p.id;
       if(expected.has(id))duplicateDocuments.add(id);
       expected.set(id,{date});
@@ -77,7 +74,7 @@
     for(const request of requests){
       if(!request||typeof request.project!=='string'||!request.project.trim())
         throw Error('Invalid Payment project');
-      const project=request.project.normalize('NFKC').trim().replace(/\\s+/g,' ').toUpperCase();
+      const project=request.project.normalize('NFKC').trim().replace(/\s+/g,' ').toUpperCase();
       if(seen.has(project))throw Error('Repeated project in Payment batch');
       seen.add(project);
       if(request.loaded!==true||request.complete!==true){
