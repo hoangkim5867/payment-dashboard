@@ -20,6 +20,7 @@
     for(const p of payments){
       if(!p||typeof p!=='object'||typeof p.id!=='string'||!p.id)
         throw Error('Payment row lacks a stable ID');
+      if(norm(p.project)!==key)throw Error('Payment project mismatch');
       if(p.deleted===true){deleted++;continue}
       const date=String(p.processPaymentDate||'').slice(0,10);
       if(!date){unpaid++;continue}
@@ -89,11 +90,16 @@
       const report=check(project,request.payments,request.ledger,{
         from:request.from||'2026-10-01',to:request.to||'9999-12-31'
       });
-      const valid=report.paidPaymentIdsCovered&&
+      // An empty Payment array may mean a legitimate zero-payment period, or
+      // a failed/partial load. No upstream claim can distinguish the two here.
+      // Even a perfect ID match is only a partial consistency check.
+      const emptyUnproven=request.payments.length===0;
+      const valid=!emptyUnproven&&report.paidPaymentIdsCovered&&
         report.blockers.invalidDates===0&&
         report.blockers.missingSourceIds===0;
       results.push(Object.freeze({project,
-        status:valid?'payment-ids-covered-needs-full-source-review':'payment-coverage-blocked',
+        status:emptyUnproven?'empty-payment-snapshot-unverified':
+          valid?'payment-ids-covered-needs-full-source-review':'payment-coverage-blocked',
         paidDocuments:report.paidDocuments,matched:report.matched,
         blockers:report.blockers,paymentSnapshotVerified:valid,
         sourceCompletenessVerified:false,canWrite:false}));
