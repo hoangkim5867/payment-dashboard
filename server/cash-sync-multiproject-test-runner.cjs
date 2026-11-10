@@ -68,6 +68,18 @@ async function runTestOnlySync({prepared,adapter,explicitAdminConsent=false,
     abort('VIEW_CREATED','Tab tổng hợp đã được tạo bởi người khác; so sánh lại.');
   if((before.mirror||[]).length!==p.existingMirror)
     abort('MIRROR_CHANGED','Tab mirror có số dòng khác kế hoạch.');
+  // A repeat of the same snapshot must be STRICTLY read-only, including
+  // refusing to rewrite a valid fixed VIEW or recreate any tabs.
+  if(!p.wouldChange){
+    if(p.additions!==0||!p.viewExists)
+      abort('UNSAFE_NOOP','No-op TEST plan has inconsistent row counts.');
+    const unchanged=await adapter.readAfterWrite();
+    if(unchanged?.spreadsheetId!==expectedTestSpreadsheetId||
+       unchanged.project!==p.project)
+      abort('TARGET_CHANGED','Google trả về file khác khi xác nhận không trùng.');
+    return {...verifyAfterWrite(prepared,unchanged),mode:'TEST_ONLY',
+      writesConfirmed:false,alreadySynced:true};
+  }
   // No attempts to silently edit manual entries or delete old mirror rows.
   // The mirror stage is append-only; a repeat will be checked by recompare.
   if(p.additions)await adapter.writeMirrorAdditions(prepared.mirrorAdditions);
