@@ -5,8 +5,12 @@
 const crypto=require('node:crypto');
 const {prepareProjectView}=require('./cash-sync-multiproject-phu-adapter.cjs');
 const {COLUMNS,token,record}=require('../site/assets/js/cash-sync-multiproject-planner.js');
-const VIEW_NAME='PROJECT_VIEW';
-const MIRROR_NAME='DATA_CASHCONTROL';
+// TEST-only per-project tabs; never touch PHU HUNG's own historical/mirror tabs.
+function tabNames(project){
+  if(typeof project!=='string'||!project.trim())deny('INVALID_PROJECT','Thiếu dự án.');
+  const key=digest(project.normalize('NFKC').trim()).slice(0,12).toUpperCase();
+  return {view:'CC_'+key+'_VIEW_TEST',mirror:'CC_'+key+'_DATA_TEST'};
+}
 const VIEW_HEADER=['date','company','contractNo','content','ipc','type',
   'income','subcontract','material','otherDirect','indirect','financial',
   'otherPayable','balance','origin','sourceId','openingBalance'];
@@ -87,7 +91,7 @@ function planTestSync({project,history,source,openingBalance=null,
       deny('VIEW_REVIEW','Tab VIEW khác sổ cũ được xác minh; không ghi đè chỉnh sửa tay.');
   }
   const preview={
-    project,viewTab:VIEW_NAME,mirrorTab:MIRROR_NAME,
+    project,viewTab:tabNames(project).view,mirrorTab:tabNames(project).mirror,
     existingMirror:old.size,additions:newEntries.length,
     historicCount:result.historicCount,sourceCount:source.length,
     totalRows:result.rows.length,openingBalance:result.openingBalance,
@@ -166,5 +170,5 @@ function verifyAfterWrite(prepared,{mirror=[],view=[],formulas=[]}={}){
     verifiedMirrorAdditions:required.size,verifiedViewRows:rows.length,
     closingBalance:Number(last[13]),balancesVerified:true,canWrite:false};
 }
-module.exports={VIEW_NAME,MIRROR_NAME,VIEW_HEADER,MIRROR_HEADER,
+module.exports={tabNames,VIEW_HEADER,MIRROR_HEADER,
   viewSignature,sourceSnapshotFingerprint,planTestSync,verifyAfterWrite};
