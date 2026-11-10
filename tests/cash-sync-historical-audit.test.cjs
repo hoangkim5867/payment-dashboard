@@ -279,3 +279,36 @@ test('FOXCONN tax-specific historical columns are never naively matched to seven
  assert.equal(r.status,'requires-tax-mapping');
  assert.equal(r.canWrite,false);
 });
+
+test('candidate match with same date and money but different contract/IPC reports identity conflict',()=>{
+ const historical=[row('2026-10-07',1000,200,800)];
+ historical[0][1]='Vendor A';historical[0][2]='LAB-01';historical[0][4]='IPC001';
+ const source=[{date:'2026-10-07',company:'Vendor A',contractNo:'LAB-02',
+   ipc:'IPC001',income:1000,subcontract:200}];
+ const r=require('../site/assets/js/cash-sync-historical-audit.js')
+   .compareLoadedCashControl(historical,'ELYSIAN',source,{sourceComplete:true});
+ assert.equal(r.matched,1);
+ assert.equal(r.identityConflict,1);
+ assert.equal(r.identityConsistent,0);
+ assert.equal(r.canWrite,false);
+});
+test('candidate match with fully equal company contract and IPC remains read-only',()=>{
+ const historical=[row('2026-10-07',1000,200,800)];
+ historical[0][1]='Vendor A';historical[0][2]='LAB-01';historical[0][4]='IPC001';
+ const source=[{date:'2026-10-07',company:'vendor a',contractNo:'LAB-01',
+   ipc:'IPC001',income:1000,subcontract:200}];
+ const r=require('../site/assets/js/cash-sync-historical-audit.js')
+   .compareLoadedCashControl(historical,'ELYSIAN',source,{sourceComplete:true});
+ assert.equal(r.identityConsistent,1);
+ assert.equal(r.identityConflict,0);
+ assert.equal(r.canWrite,false);
+});
+test('candidate match without identifying fields is unverified rather than approved',()=>{
+ const r=require('../site/assets/js/cash-sync-historical-audit.js')
+   .compareLoadedCashControl([row('2026-10-07',1000,200,800)],
+     'ELYSIAN',[{date:'2026-10-07',income:1000,subcontract:200}],
+     {sourceComplete:true});
+ assert.equal(r.identityUnverified,1);
+ assert.equal(r.identityConsistent,0);
+ assert.equal(r.canWrite,false);
+});
