@@ -5657,7 +5657,7 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
                 if(!loaded||!paymentMonths.has(project)){
                   pre.textContent=(loadFailure||'Không tải đủ Payment của dự án')+
                     '. Chưa so trùng, không ghi. Không tự thử lại để tránh reads.';
-                  diagnoseButton.style.display=loadFailure.includes('permission-denied')?'':'none';
+                  // The zero-Firestore-read diagnostic is always available to Admin.
                   return;
                 }
                 // Rebuild in-memory normalized Cash Control data only.
@@ -5672,7 +5672,7 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
             const diagnoseButton=document.createElement('button');
             diagnoseButton.type='button';diagnoseButton.className='btn';
             diagnoseButton.textContent='Kiểm tra phiên Firebase (0 Firestore reads)';
-            diagnoseButton.style.display='none';
+            // Always visible: users must not repeat a costly denied query to diagnose.
             diagnoseButton.addEventListener('click',async()=>{
               if(!currentAuthUser||!isCashControlOwner()){
                 pre.textContent='Tài khoản hiện tại không phải Admin Cash Control.';return;
