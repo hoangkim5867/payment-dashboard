@@ -7690,7 +7690,7 @@ function ccGoogleSyncInitializeGooglePilot(){
         ccGoogleSyncStatus('ĐÃ XÁC MINH GOOGLE TEST: '+(includeDecember?'đã thêm tháng 12':'đã thêm tháng 11')+
           ' · 1 giao dịch giả · số dư cuối '+
           Number(done.closingBalance).toLocaleString('vi-VN')+
-          '. Bấm kiểm tra lần nữa để xác nhận không ghi trùng.');
+          '. Bấm lại cùng nút để xác nhận không ghi trùng.');
       }catch(error){
         ccGoogleSyncStatus('CHƯA HOÀN TẤT GOOGLE TEST: '+
           String(error?.message||error).slice(0,180)+
