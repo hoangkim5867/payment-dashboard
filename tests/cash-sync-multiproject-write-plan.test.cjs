@@ -28,7 +28,7 @@ test('will not compose write without complete payment source or confirmed target
   denied(()=>planTestSync({...data,destinationConfirmed:false}),'DESTINATION_UNCONFIRMED');
 });
 test('already mirrored transaction is not duplicated on next compare',()=>{
-  const old=[{...src,signature:token(src),status:'synced'}];
+  const old=[{...src,month:'2026-11',signature:token(src),status:'synced'}];
   const p=planTestSync({...data,mirror:old});
   assert.equal(p.preview.additions,0);
   assert.equal(p.preview.existingMirror,1);
@@ -37,7 +37,7 @@ test('edited Google mirror or removed Cash source rejects',()=>{
   denied(()=>planTestSync({...data,mirror:[{...src,signature:'fake',status:'synced'}]}),
     'MIRROR_TAMPERED');
   denied(()=>planTestSync({...data,source:[],mirror:[
-    {...src,signature:token(src),status:'synced'}]}),'SOURCE_REMOVED');
+    {...src,month:'2026-11',signature:token(src),status:'synced'}]}),'SOURCE_REMOVED');
 });
 test('foreign project and conflicting historical values block',()=>{
   denied(()=>planTestSync({...data,source:[{...src,project:'PHU HUNG'}]}),'SOURCE_ID');
@@ -74,7 +74,7 @@ function readbackFor(p){
 }
 test('full Google readback verifies amount, ID, formulas and calculated balances',()=>{
   const p=planTestSync(data);
-  const found=[{...src,signature:token(src),status:'synced'}];
+  const found=[{...src,month:'2026-11',signature:token(src),status:'synced'}];
   const readback=readbackFor(p);
   denied(()=>verifyAfterWrite(p,{mirror:[],...readback}),'WRITE_NOT_VERIFIED');
   denied(()=>verifyAfterWrite(p,{mirror:found,view:readback.view}),
@@ -88,17 +88,17 @@ test('full Google readback verifies amount, ID, formulas and calculated balances
 test('Google calculated balance mismatch blocks even with correct formula',()=>{
   const p=planTestSync(data),r=readbackFor(p);
   r.view[2].values[13]+=1;
-  denied(()=>verifyAfterWrite(p,{mirror:[{...src,signature:token(src),status:'synced'}],...r}),
+  denied(()=>verifyAfterWrite(p,{mirror:[{...src,month:'2026-11',signature:token(src),status:'synced'}],...r}),
     'BALANCE_NOT_VERIFIED');
 });
 test('Google formula changed to hard-coded amount is rejected',()=>{
   const p=planTestSync(data),r=readbackFor(p);
   r.formulas[0][0]='900';
-  denied(()=>verifyAfterWrite(p,{mirror:[{...src,signature:token(src),status:'synced'}],...r}),
+  denied(()=>verifyAfterWrite(p,{mirror:[{...src,month:'2026-11',signature:token(src),status:'synced'}],...r}),
     'FORMULA_NOT_VERIFIED');
 });
 test('Google altered source ID or amount is rejected even if final balance matches',()=>{
-  const p=planTestSync(data),found=[{...src,signature:token(src),status:'synced'}];
+  const p=planTestSync(data),found=[{...src,month:'2026-11',signature:token(src),status:'synced'}];
   const r=readbackFor(p);
   r.view[3].values[15]='WRONG-ID';
   denied(()=>verifyAfterWrite(p,{mirror:found,...r}),'VIEW_NOT_VERIFIED');
@@ -113,16 +113,16 @@ test('empty project cannot take historic ledger path without opening approval',(
 
 test('readback rejects unexpected extra mirror rows after Google Sheets write',()=>{
   const p=planTestSync(data),r=readbackFor(p);
-  const saved={...src,signature:token(src),status:'synced'};
+  const saved={...src,month:'2026-11',signature:token(src),status:'synced'};
   const injected={...saved,id:'unexpected-source-id'};
   denied(()=>verifyAfterWrite(p,{mirror:[saved,injected],...r}),'MIRROR_NOT_VERIFIED');
 });
 test('readback rejects changed old mirror even when new additions are intact',()=>{
-  const old={...src,signature:token(src),status:'synced'};
+  const old={...src,month:'2026-11',signature:token(src),status:'synced'};
   const newer={project:'ELYSIAN',id:'pay-12',...tx('2026-12-02',25,'LAB-12')};
   const p=planTestSync({...data,source:[src,newer],mirror:[old]});
   const r=readbackFor(p);
-  const storedNew={...newer,signature:token(newer),status:'synced'};
+  const storedNew={...newer,month:'2026-12',signature:token(newer),status:'synced'};
   const editedOld={...old,signature:'tampered'};
   denied(()=>verifyAfterWrite(p,{mirror:[editedOld,storedNew],...r}),
     'MIRROR_NOT_VERIFIED');
