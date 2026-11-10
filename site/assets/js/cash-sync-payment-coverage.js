@@ -33,15 +33,21 @@
       expected.set(id,{date});
     }
     let missingSourceIds=0,duplicateLedgerIds=0,unknownPaymentIds=0;
+    // Index source IDs and their dates exactly once. An O(Payment × ledger)
+    // repeated scan is expensive for long project histories, even with 0 reads.
+    const actualDates=new Map();
     for(const row of ledger){
       if(!row||typeof row!=='object'||!Array.isArray(row._syncIds)){
         missingSourceIds++;continue;
       }
+      const date=String(row.date||'');
       for(const id of row._syncIds){
         if(typeof id!=='string'||!id){missingSourceIds++;continue;}
         if(!id.startsWith('expense:pay_'))continue;
         if(actual.has(id))duplicateLedgerIds++;
         actual.set(id,(actual.get(id)||0)+1);
+        if(!actualDates.has(id))actualDates.set(id,new Set());
+        actualDates.get(id).add(date);
         if(!expected.has(id))unknownPaymentIds++;
       }
     }
@@ -49,10 +55,8 @@
     for(const [id,v] of expected){
       if(!actual.has(id)){missingPayments++;continue}
       matched++;
-      // Source ID alone is not sufficient to attest the monetary value;
-      // date/amount/bucket still need independent reconciliation.
-      if(!ledger.some(row=>Array.isArray(row?._syncIds)&&row._syncIds.includes(id)&&
-          String(row.date||'')===v.date))dateMismatch++;
+      // Matching ID and date alone still cannot attest amount or cost bucket.
+      if(!actualDates.get(id)?.has(v.date))dateMismatch++;
     }
     const blockers={invalidDates,duplicateDocuments:duplicateDocuments.size,
       missingPayments,duplicateLedgerIds,unknownPaymentIds,missingSourceIds,dateMismatch};
