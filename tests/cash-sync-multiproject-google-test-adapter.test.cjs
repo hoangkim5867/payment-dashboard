@@ -218,3 +218,46 @@ test('TEST status reports partial mirror after simulated lost acknowledgement wi
  assert.equal(status.mirrorRows,1);
  assert.equal(remote.writes,writes);
 });
+
+test('existing synthetic ELYSIAN November+December ledger verifies read-only without a further write',async()=>{
+  const {auditExistingTest}=require('../server/cash-sync-elysian-test-audit.cjs');
+  const remote=fakeSheets();
+  const row=(date,company,contractNo,content,ipc,amount)=>({
+    date,company,contractNo,content,ipc,type:'支出',income:0,
+    subcontract:amount,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0
+  });
+  const h=[{...row('2026-10-01','DEMO HISTORY','TEST-H001',
+    'Lịch sử giả, không phải giao dịch thật','IPC00',100),rowId:2,balance:900}];
+  const first={...row('2026-11-02','DEMO VENDOR','TEST-LAB-001',
+    'ELYSIAN giả trên PHU HUNG TEST COPY','IPC01',50),
+    project:'ELYSIAN',id:'MULTI-TEST-ELYSIAN-001'};
+  const second={...row('2026-12-02','DEMO VENDOR 12','TEST-LAB-002',
+    'Giao dịch giả tháng 12, không phải thanh toán thật','IPC02',25),
+    project:'ELYSIAN',id:'MULTI-TEST-ELYSIAN-002'};
+  let src=[first,second];
+  let adapter;
+  const compare2=async()=>{
+    const snapshot=await adapter.readSnapshot();
+    return planTestSync({project:'ELYSIAN',history:h,source:src,
+      sourceComplete:true,destinationConfirmed:true,openingBalance:1000,
+      mirror:snapshot.mirror,currentView:snapshot.view,
+      expectedViewSignature:snapshot.view.length?viewSignature(snapshot.view):null});
+  };
+  adapter=createGoogleTestAdapter({project:'ELYSIAN',
+    accessToken:'abcdefghijklmnopqrstuvwxyz012345',adminVerified:true,
+    fetcher:remote.calls,recompare:compare2});
+  const prepared=await compare2();
+  await runTestOnlySync({prepared,adapter,
+    expectedTestSpreadsheetId:TEST_SPREADSHEET_ID,explicitAdminConsent:true});
+  const writes=remote.writes;
+  const readback=await adapter.readAfterWrite();
+  const result=auditExistingTest(readback);
+  assert.equal(result.verified,true);
+  assert.equal(result.fixture,'NOVEMBER_AND_DECEMBER_DEMO');
+  assert.equal(result.closingBalance,825);
+  assert.equal(result.readOnly,true);
+  assert.equal(remote.writes,writes);
+  const bad=structuredClone(readback);
+  bad.view.at(-1).values[13]=826;
+  assert.equal(auditExistingTest(bad).verified,false);
+});
