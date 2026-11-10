@@ -5641,6 +5641,7 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
                 if(!loaded||!paymentMonths.has(project)){
                   pre.textContent=(loadFailure||'Không tải đủ Payment của dự án')+
                     '. Chưa so trùng, không ghi. Không tự thử lại để tránh reads.';
+                  diagnoseButton.style.display=loadFailure.includes('permission-denied')?'':'none';
                   return;
                 }
                 // Rebuild in-memory normalized Cash Control data only.
@@ -5652,7 +5653,35 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
                   String(error?.message||error).slice(0,120);
               }finally{loadButton.disabled=false}
             });
-            details.append(button,loadButton,pre);
+            const diagnoseButton=document.createElement('button');
+            diagnoseButton.type='button';diagnoseButton.className='btn';
+            diagnoseButton.textContent='Chẩn đoán quyền Admin (1 lần đọc hồ sơ)';
+            diagnoseButton.style.display='none';
+            diagnoseButton.addEventListener('click',async()=>{
+              if(!currentAuthUser||!isCashControlOwner()){
+                pre.textContent='Tài khoản hiện tại không phải Admin Cash Control.';return;
+              }
+              diagnoseButton.disabled=true;
+              try{
+                // One exact self-profile document only. Never list authUsers,
+                // never retry the denied Payment query and never change Rules.
+                const snap=await getDoc(doc(db,'authUsers',currentAuthUser.uid));
+                const profile=snap.exists()?snap.data():null;
+                const role=String(profile?.role||'').trim().toLowerCase();
+                const active=profile?.active!==false&&profile?.disabled!==true;
+                pre.textContent=(!profile?
+                  'Không tìm thấy hồ sơ authUsers của phiên hiện tại.':
+                  !active?'Hồ sơ Admin đang bị khóa hoặc vô hiệu hóa.':
+                  role!=='admin'?'Hồ sơ tồn tại nhưng vai trò không phải Admin.':
+                  'Hồ sơ Admin tồn tại và đang hoạt động; truy vấn Payment theo dự án vẫn bị Rules từ chối. Cần đối chiếu Rules đang triển khai với Rules lưu trong GitHub.')+
+                  '\\nKhông thay đổi quyền hoặc đọc lại Payment.';
+              }catch(error){
+                pre.textContent='Không đọc được hồ sơ quyền hiện tại: '+
+                  String(error?.code||'unknown')+
+                  '. Cần kiểm tra Rules/phiên đăng nhập, không tự nới quyền.';
+              }finally{diagnoseButton.style.display='none'}
+            });
+            details.append(button,loadButton,diagnoseButton,pre);
             cells[4].append(document.createElement('div'),details);
           }
           if(result.financialExamples?.length&&project!=='FOXCONN'){
