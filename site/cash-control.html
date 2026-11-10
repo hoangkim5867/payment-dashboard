@@ -5483,6 +5483,44 @@ function ccSyncProjectCatalogRender(){
 // Only the current tab session retains the last audit outcome.
 // No Firestore or Google reads occur when rendering the batch overview.
 const ccSyncLastHistoricalAudit=Object.create(null);
+const CC_SYNC_AUDIT_SESSION_KEY='ccGoogleSyncHistoryAuditSessionV1';
+function ccSyncSaveAuditSession(){
+  try{
+    const rows=Object.entries(ccSyncLastHistoricalAudit).map(([project,audit])=>({
+      project,link:ccSyncProjectLinkDraft[project],
+      ok:audit.ok===true,status:String(audit.status||''),
+      note:String(audit.note||'').slice(0,500),
+      nonMonotonicDates:Number(audit.nonMonotonicDates)||0,
+      continuityErrors:Number(audit.continuityErrors)||0,
+      roundingDifferences:Number(audit.roundingDifferences)||0,
+      missingBalance:Number(audit.missingBalance)||0,
+      invalidMoney:Number(audit.invalidMoney)||0,
+      layoutErrors:Number(audit.layoutErrors)||0
+    }));
+    sessionStorage.setItem(CC_SYNC_AUDIT_SESSION_KEY,JSON.stringify(rows));
+  }catch{/* audit remains usable in current memory */}
+}
+function ccSyncLoadAuditSession(){
+  try{
+    const rows=JSON.parse(sessionStorage.getItem(CC_SYNC_AUDIT_SESSION_KEY)||'[]');
+    if(!Array.isArray(rows)||rows.length>1000)return;
+    for(const row of rows){
+      if(!row||typeof row.project!=='string'||!row.project||
+         row.link!==ccSyncProjectLinkDraft[row.project]||
+         !ccSyncProjectLinkValid(row.link)||typeof row.note!=='string')continue;
+      ccSyncLastHistoricalAudit[row.project]={
+        ok:row.ok===true,status:String(row.status||'').slice(0,100),
+        note:row.note.slice(0,500),
+        nonMonotonicDates:Number(row.nonMonotonicDates)||0,
+        continuityErrors:Number(row.continuityErrors)||0,
+        roundingDifferences:Number(row.roundingDifferences)||0,
+        missingBalance:Number(row.missingBalance)||0,
+        invalidMoney:Number(row.invalidMoney)||0,
+        layoutErrors:Number(row.layoutErrors)||0
+      };
+    }
+  }catch{/* invalid or unavailable session cache: never assume audited */}
+}
 function ccSyncRenderBatchOverview(){
   const output=$('ccSyncBatchOverviewResult');
   if(!output)return;
@@ -5968,7 +6006,10 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
         ' file · '+(auditBalances?'sổ tự khớp hoặc chưa phát sinh ':'đọc được ')+passed+' · cần kiểm tra '+blocked+
         '. Chưa có dự án nào được phê duyệt đồng bộ.';
     }
-  }finally{button.disabled=false}
+  }finally{
+    if(auditBalances)ccSyncSaveAuditSession();
+    button.disabled=false;
+  }
 }
 
 function ccSyncProjectCatalogInitialize(){
@@ -5976,6 +6017,7 @@ function ccSyncProjectCatalogInitialize(){
   if(!wrap||wrap.dataset.initialized==='yes')return;
   wrap.dataset.initialized='yes';
   ccSyncProjectCatalogLoadDraft();
+  ccSyncLoadAuditSession();
   const search=$('ccSyncProjectCatalogSearch');
   search?.addEventListener('input',ccSyncProjectCatalogRender);
   $('ccSyncProjectCatalogRefresh')?.addEventListener('click',ccSyncProjectCatalogRender);
