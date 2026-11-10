@@ -238,7 +238,7 @@ test('historical project with nonempty but nonrecognized dates stays blocked, no
  assert.equal(result.canWrite,false);
  const diag=api.dateLayoutDiagnostic(rows);
  assert.equal(diag.nonemptyRows,4);
- assert.equal(diag.validDatesByColumn[0],1);
+ assert.equal(diag.validDatesByColumn[0],0); // Unsupported 2026/10/03 must not be silently accepted
  assert.ok(diag.suspectRows.some(x=>x.row===3));
 });
 
