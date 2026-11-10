@@ -52,7 +52,8 @@ function planTestSync({project,history,source,openingBalance=null,
   if(result.renderer!=='REUSED_PHU_HUNG_BUILD_LEDGER')
     deny('HISTORY_NOT_READY','Dự án mới cần phê duyệt số dư mở đầu riêng.');
   const nextMirror=result.rows.filter(r=>r.origin==='CASH_CONTROL').map(r=>{
-    const row=record(r.data);
+    // The PHU HUNG renderer returns positional values, not source objects.
+    const row=record(Object.fromEntries(COLUMNS.map((key,i)=>[key,r.values[i]])));
     return {id:r.id,project,month:row.date.slice(0,7),...row,
       signature:token(row),status:'synced'};
   });
