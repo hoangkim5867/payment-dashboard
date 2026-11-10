@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {check,checkBoundedBatch}=require('../site/assets/js/cash-sync-payment-coverage.js');
+const {check,checkBoundedBatch,checkMoney}=require('../site/assets/js/cash-sync-payment-coverage.js');
 const paid=(id,date='2026-10-15')=>({id,project:'ELYSIAN',processPaymentDate:date});
 const ledger=(id,date='2026-10-15')=>({date,_syncIds:['expense:pay_'+id]});
 test('paid Payment ID covered by Cash Control does not approve sync',()=>{
@@ -123,4 +123,51 @@ test('up to three independent project batches never approve writes',()=>{
  assert.equal(x.allPaymentSnapshotsVerified,true);
  assert.equal(x.sourceCompletenessVerified,false);
  assert.equal(x.canWrite,false);
+});
+
+test('raw actual amount and expense bucket match a grouped Cash Control ledger',()=>{
+ const payments=[
+  {...paid('a'),amount:900,processActualAmount:100},
+  {...paid('b'),amount:900,processActualAmount:250}
+ ];
+ const rows=[{date:'2026-10-15',_syncIds:['expense:pay_a','expense:pay_b'],
+  income:0,subcontract:350,material:0,otherDirect:0,indirect:0,
+  financial:0,otherPayable:0}];
+ const bucketOf=()=> 'subcontract';
+ const ok=checkMoney('ELYSIAN',payments,rows,{bucketOf});
+ assert.equal(ok.checkedRows,1);
+ assert.equal(ok.amountMismatches,0);
+ assert.equal(ok.moneyAndBucketVerified,true);
+ assert.equal(ok.sourceCompletenessVerified,false);
+ assert.equal(ok.canWrite,false);
+ rows[0].subcontract=340;
+ const wrong=checkMoney('ELYSIAN',payments,rows,{bucketOf});
+ assert.equal(wrong.amountMismatches,1);
+ assert.equal(wrong.moneyAndBucketVerified,false);
+});
+test('same total in wrong expense column never counts as consistent',()=>{
+ const p={...paid('a'),processActualAmount:100};
+ const rows=[{date:'2026-10-15',_syncIds:['expense:pay_a'],
+  income:0,subcontract:0,material:100,otherDirect:0,indirect:0,
+  financial:0,otherPayable:0}];
+ const r=checkMoney('ELYSIAN',[p],rows,{bucketOf:()=> 'subcontract'});
+ assert.equal(r.amountMismatches,1);
+ assert.equal(r.canWrite,false);
+});
+test('mixed source rows, missing amounts and no bucket resolver stay unverified',()=>{
+ const p={...paid('a'),amount:100};
+ const row={date:'2026-10-15',_syncIds:['expense:pay_a','expense:manual_x'],
+  income:0,subcontract:100,material:0,otherDirect:0,indirect:0,
+  financial:0,otherPayable:0};
+ assert.equal(checkMoney('ELYSIAN',[p],[row],{bucketOf:()=> 'subcontract'}).unverifiedRows,1);
+ assert.equal(checkMoney('ELYSIAN',[p],[row]).moneyAndBucketVerified,false);
+ assert.equal(checkMoney('ELYSIAN',[{...p,amount:'not-number'}],[row],
+  {bucketOf:()=> 'subcontract'}).moneyAndBucketVerified,false);
+});
+test('large legitimate VND amounts are checked without unsafe scaled-integer rejection',()=>{
+ const p={...paid('a'),processActualAmount:15000000000};
+ const row={date:'2026-10-15',_syncIds:['expense:pay_a'],income:0,
+  subcontract:15000000000,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0};
+ const r=checkMoney('ELYSIAN',[p],[row],{bucketOf:()=> 'subcontract'});
+ assert.equal(r.moneyAndBucketVerified,true);
 });
