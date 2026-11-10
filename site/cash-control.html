@@ -13614,6 +13614,8 @@ onAuthStateChanged(auth,async user=>{
     currentAuthUser=user||null;
     const pilotExportButton=$('cashPhuHungExportSource');
     if(pilotExportButton)pilotExportButton.hidden=!isCashControlOwner();
+    const multiTestButton=$('ccSyncMultiProjectTestRun');
+    if(multiTestButton)multiTestButton.hidden=!(firebaseConfig.projectId==='cash-control-staging'&&isCashControlOwner());
     const originalSyncPanel=$('ccGoogleSyncOriginalPanel');
     if(originalSyncPanel)originalSyncPanel.hidden=!(firebaseConfig.projectId==='cscecmep-payment'&&isCashControlOwner());
     const projectLinkCatalog=$('ccGoogleSyncProjectLinkCatalog');
