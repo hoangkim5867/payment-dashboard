@@ -28,3 +28,17 @@ test('already loaded project is skipped and no recurring scans',()=>{
  assert.match(fn,/button\.disabled=true/);
  assert.match(fn,/finally\{button\.disabled=false\}/);
 });
+
+test('Admin explicitly loaded proof is required before showing Payment coverage',()=>{
+ const begin=html.indexOf('function ccSyncCompareAlreadyLoadedProjects(){');
+ const end=html.indexOf('// One Admin click:',begin);
+ const body=html.slice(begin,end);
+ assert.match(html,/const ccSyncExplicitPaymentLoaded=new Set\(\)/);
+ assert.match(fn,/ccSyncExplicitPaymentLoaded\.add\(project\)/);
+ assert.match(body,/ccSyncExplicitPaymentLoaded\.has\(project\)/);
+ assert.match(body,/CashSyncPaymentCoverage\.checkBoundedBatch\(/);
+ assert.match(body,/paymentProof\.paymentSnapshotVerified/);
+ assert.match(body,/Payment theo ID/);
+ assert.doesNotMatch(body,/\b(?:getDocs|onSnapshot|loadProjectPayments|fetch|setDoc|updateDoc|addDoc|deleteDoc)\s*\(/);
+ assert.match(body,/sourceComplete:false/);
+});
