@@ -7,6 +7,7 @@
 <script src="assets/js/cash-sync-historical-audit.js"></script>
 <script src="assets/js/cash-sync-source-diagnostics.js"></script>
 <script src="assets/js/cash-sync-payment-coverage.js"></script>
+<script src="assets/js/cash-sync-lineage-audit.js"></script>
 <link rel="stylesheet" href="assets/css/cash-control.css" data-stage1-extracted="primary">
 <style id="cc-no-double-sidebar-gap">
 /* Fix: sidebar already occupies a CSS-grid column; do not offset main twice. */
@@ -5590,6 +5591,11 @@ function ccSyncCompareAlreadyLoadedProjects(){
         // action. Comparing IDs locally does not consume additional Firestore reads.
         const coverage=window.CashSyncPaymentCoverage.check(project,
           paymentMonths.get(project)||[],sourceRows);
+        // Verify EVERY paid local expense and internal transfer has a stable
+        // origin ID in the grouped Cash Control ledger (including quarterly tax).
+        const lineage=window.CashSyncLineageAudit.inspect(project,periods,
+          allExpenses(),allTransfers(),
+          periods.map(period=>legacyCashExportRows(period,project)));
         const inspected=window.CashSyncSourceDiagnostics.inspect(project,
           periods.map(period=>({month:period,rows:legacyCashExportRows(period,project)
             .map(row=>({...row,project}))})),{
@@ -5604,6 +5610,8 @@ function ccSyncCompareAlreadyLoadedProjects(){
           String(result.historicalOnly||0),String(result.cashOnly||0),
           String(result.identityConflict||0),
           result.status==='requires-tax-mapping'?'FOXCONN: cần phân loại thuế riêng':
+          !lineage.inMemoryLineageVerified?
+            'Thiếu hoặc trùng nguồn lương / thuế / chuyển tiền / nhập tay · không ghi':
           !coverage.paidPaymentIdsCovered?
             'Payment chưa phủ đủ trong Cash Control · không ghi':
           !inspected.sourceStructureValid?
