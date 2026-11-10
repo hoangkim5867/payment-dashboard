@@ -1944,6 +1944,7 @@ import {
     signInWithEmailAndPassword,
     signOut,
     onAuthStateChanged,
+    getIdTokenResult,
     setPersistence,
     browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -5670,7 +5671,7 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
             });
             const diagnoseButton=document.createElement('button');
             diagnoseButton.type='button';diagnoseButton.className='btn';
-            diagnoseButton.textContent='Chẩn đoán quyền Admin (1 lần đọc hồ sơ)';
+            diagnoseButton.textContent='Kiểm tra phiên Firebase (0 Firestore reads)';
             diagnoseButton.style.display='none';
             diagnoseButton.addEventListener('click',async()=>{
               if(!currentAuthUser||!isCashControlOwner()){
@@ -5678,18 +5679,27 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
               }
               diagnoseButton.disabled=true;
               try{
-                // One exact self-profile document only. Never list authUsers,
-                // never retry the denied Payment query and never change Rules.
-                const snap=await getDoc(doc(db,'authUsers',currentAuthUser.uid));
-                const profile=snap.exists()?snap.data():null;
-                const role=String(profile?.role||'').trim().toLowerCase();
-                const active=profile?.active!==false&&profile?.disabled!==true;
-                pre.textContent=(!profile?
-                  'Không tìm thấy hồ sơ authUsers của phiên hiện tại.':
-                  !active?'Hồ sơ Admin đang bị khóa hoặc vô hiệu hóa.':
-                  role!=='admin'?'Hồ sơ tồn tại nhưng vai trò không phải Admin.':
-                  'Hồ sơ Admin tồn tại và đang hoạt động; truy vấn Payment theo dự án vẫn bị Rules từ chối. Cần đối chiếu Rules đang triển khai với Rules lưu trong GitHub.')+
-                  '\\nKhông thay đổi quyền hoặc đọc lại Payment.';
+                // Auth ID token inspection only: zero Firestore reads, zero writes.
+                // Do not expose the raw token or UID in UI.
+                const identity=await getIdTokenResult(currentAuthUser,false);
+                const userIdMatches=identity.claims.user_id===currentAuthUser.uid;
+                const expectedAdminUid='HTx2QuATHxh8zgAawwreg88w65M2';
+                const expectedEmail='lehoangoanh@cscecmep.internal';
+                const tokenEmail=String(identity.claims.email||'').toLowerCase();
+                const tokenProject=String(identity.claims.aud||'');
+                const issuer=String(identity.claims.iss||'');
+                const checks=[
+                  'Firebase Project: '+firebaseConfig.projectId,
+                  'Auth token project khớp: '+(tokenProject===firebaseConfig.projectId?'CÓ':'KHÔNG'),
+                  'Auth token issuer khớp: '+(issuer==='https://securetoken.google.com/'+firebaseConfig.projectId?'CÓ':'KHÔNG'),
+                  'UID phiên và token khớp: '+(userIdMatches?'CÓ':'KHÔNG'),
+                  'UID Admin gốc khớp: '+(currentAuthUser.uid===expectedAdminUid?'CÓ':'KHÔNG'),
+                  'Email Admin gốc khớp: '+(tokenEmail===expectedEmail?'CÓ':'KHÔNG'),
+                  'Token hết hạn: '+identity.expirationTime,
+                  'Chẩn đoán không đọc Payment, không đọc authUsers, không ghi dữ liệu.'
+                ];
+                pre.textContent=checks.join('\\n')+
+                  '\\nNếu các mục đều khớp nhưng truy vấn vẫn permission-denied, phải kiểm tra Rules được Publish thực tế; file GitHub không chứng minh Rules đã Publish.';
               }catch(error){
                 pre.textContent='Không đọc được hồ sơ quyền hiện tại: '+
                   String(error?.code||'unknown')+
