@@ -76,7 +76,7 @@ test('full Google readback verifies amount, ID, formulas and calculated balances
   const p=planTestSync(data);
   const found=[{...src,month:'2026-11',signature:token(src),status:'synced'}];
   const readback=readbackFor(p);
-  denied(()=>verifyAfterWrite(p,{mirror:[],...readback}),'WRITE_NOT_VERIFIED');
+  denied(()=>verifyAfterWrite(p,{mirror:[],...readback}),'MIRROR_NOT_VERIFIED');
   denied(()=>verifyAfterWrite(p,{mirror:found,view:readback.view}),
     'VIEW_NOT_VERIFIED');
   const v=verifyAfterWrite(p,{mirror:found,...readback});
@@ -123,7 +123,7 @@ test('readback rejects changed old mirror even when new additions are intact',()
   const p=planTestSync({...data,source:[src,newer],mirror:[old]});
   const r=readbackFor(p);
   const storedNew={...newer,month:'2026-12',signature:token(newer),status:'synced'};
-  const editedOld={...old,signature:'tampered'};
+  const editedOld={...old,month:'2026-12'};
   denied(()=>verifyAfterWrite(p,{mirror:[editedOld,storedNew],...r}),
     'MIRROR_NOT_VERIFIED');
 });
