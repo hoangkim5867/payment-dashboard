@@ -265,8 +265,8 @@
         const numeric=typeof a==='number'&&Number.isFinite(a);
         // Only report row numbers and input types, never personal/money cells.
         if(!dateValue(a)&&raw&&(
-          numeric||/^\\d{1,2}[-/.]\\d{1,2}[-/.]\\d{2,4}$/.test(raw)||
-          /^\\d{4}[-/.]\\d{1,2}[-/.]\\d{1,2}/.test(raw)))
+          numeric||/^\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}$/.test(raw)||
+          /^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}/.test(raw)))
           suspectRows.push({row:i+1,type:numeric?'number':'text'});
       }
     }
