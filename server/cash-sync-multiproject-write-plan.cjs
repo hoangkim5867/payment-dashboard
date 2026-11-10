@@ -30,6 +30,9 @@ function validateMirror(project,rows){
   }
   return byId;
 }
+function sourceSnapshotFingerprint({project,mirror=[],currentView=[]}){
+  return digest({project,mirror,currentView});
+}
 function viewSignature(rows){
   return digest(asRows(rows,'VIEW').map(r=>{
     if(!r||!Array.isArray(r.values)||r.values.length!==17)
@@ -87,7 +90,7 @@ function planTestSync({project,history,source,openingBalance=null,
     historicCount:result.historicCount,sourceCount:source.length,
     totalRows:result.rows.length,openingBalance:result.openingBalance,
     closingBalance:result.closingBalance,
-    beforeFingerprint:digest({project,mirror,currentView}),
+    beforeFingerprint:sourceSnapshotFingerprint({project,mirror,currentView}),
     afterFingerprint:digest({view:result.grid,mirror:nextMirror}),
     viewExists:currentView.length>0,
     originalViewSignature,
@@ -162,4 +165,4 @@ function verifyAfterWrite(prepared,{mirror=[],view=[],formulas=[]}={}){
     closingBalance:Number(last[13]),balancesVerified:true,canWrite:false};
 }
 module.exports={VIEW_NAME,MIRROR_NAME,VIEW_HEADER,MIRROR_HEADER,
-  viewSignature,planTestSync,verifyAfterWrite};
+  viewSignature,sourceSnapshotFingerprint,planTestSync,verifyAfterWrite};
