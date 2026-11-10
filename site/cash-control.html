@@ -1466,6 +1466,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <button class="btn" type="button" id="ccSyncMultiProjectTestRun" hidden>Kiểm tra ELYSIAN TEST · không trùng</button>
         <button class="btn" type="button" id="ccSyncMultiProjectTestDecember" hidden>Thêm giao dịch tháng 12 TEST</button>
         <button class="btn" type="button" id="ccSyncMultiProjectTestStatus" hidden>Kiểm tra trạng thái ELYSIAN TEST (chỉ đọc)</button>
+        <button class="btn" type="button" id="ccSyncMultiProjectTestAudit" hidden>Xác minh dữ liệu ELYSIAN TEST (chỉ đọc)</button>
         <button class="btn" type="button" id="ccGoogleSyncCompare">So sánh dữ liệu (chỉ đọc)</button>
         <button class="btn" type="button" id="ccGoogleSyncOriginalAudit" hidden>Đối chiếu file PHU HUNG gốc (chỉ đọc)</button>
       </div>
@@ -2697,7 +2698,7 @@ function updateCashAuthUI(){
     const user=currentAuthUser;
     // Expose synthetic ELYSIAN integration controls only to the signed-in
     // owner on the isolated staging Firebase. No production access or writes.
-    for(const id of ['ccSyncMultiProjectTestRun','ccSyncMultiProjectTestDecember','ccSyncMultiProjectTestStatus']){
+    for(const id of ['ccSyncMultiProjectTestStatus','ccSyncMultiProjectTestAudit']){
         const testButton=$(id);
         if(testButton)testButton.hidden=!(
             firebaseConfig.projectId==='cash-control-staging'&&
@@ -8056,11 +8057,56 @@ function ccGoogleSyncInitializeGooglePilot(){
   const multiTestButton=$('ccSyncMultiProjectTestRun');
   const multiDecemberButton=$('ccSyncMultiProjectTestDecember');
   const multiStatusButton=$('ccSyncMultiProjectTestStatus');
+  const multiAuditButton=$('ccSyncMultiProjectTestAudit');
   const multiTestButtons=[multiTestButton,multiDecemberButton].filter(Boolean);
   // Authentication is async; reflect current account if already available.
   // Keep hidden until owner signs in; never expose on production.
-  for(const button of [...multiTestButtons,multiStatusButton].filter(Boolean)){
+  // Keep historical write controls hidden after an uncertain Google write;
+  // only read-only diagnostics are exposed until reconciliation is verified.
+  for(const button of multiTestButtons)button.hidden=true;
+  for(const button of [multiStatusButton,multiAuditButton].filter(Boolean)){
     button.hidden=!(CC_SYNC_DEMO_ALLOWED&&currentAuthUser&&isCashControlOwner());
+  }
+  if(CC_SYNC_DEMO_ALLOWED&&multiAuditButton){
+    multiAuditButton.addEventListener('click',async()=>{
+      if(multiAuditButton.disabled||!currentAuthUser||!isCashControlOwner()||
+        firebaseConfig.projectId!=='cash-control-staging'||!ccGoogleSyncToken){
+        ccGoogleSyncStatus('Cần Admin TEST đăng nhập và Kết nối Google.');return;
+      }
+      multiAuditButton.disabled=true;
+      try{
+        const response=await fetch('/api/cash-sync-multiproject-test',{
+          method:'POST',headers:{'Content-Type':'application/json',
+            'X-Firebase-ID-Token':await currentAuthUser.getIdToken(),
+            Authorization:'Bearer '+ccGoogleSyncToken},
+          body:JSON.stringify({action:'audit',project:'ELYSIAN',testDataOnly:true}),
+          cache:'no-store'
+        });
+        const result=await response.json().catch(()=>({}));
+        if(!response.ok)throw Error((result.code?result.code+': ':'')+
+          String(result.error||'Lỗi xác minh Google TEST'));
+        if(result.mode!=='TEST_ONLY'||result.readOnly!==true||result.canWrite!==false)
+          throw Error('Máy chủ không xác nhận kiểm tra chỉ đọc.');
+        if(result.verified===true){
+          ccGoogleSyncStatus('ĐẠT XÁC MINH ELYSIAN TEST · '+
+            (result.fixture==='NOVEMBER_AND_DECEMBER_DEMO'?
+              'Có 1 giao dịch giả tháng 11 và 1 giao dịch giả tháng 12 trước đó':
+              'Có 1 giao dịch giả tháng 11')+
+            ' · ID, tiền, công thức và số dư đều khớp · Số dư cuối: '+
+            Number(result.closingBalance).toLocaleString('vi-VN')+
+            ' VND. Chỉ đọc, 0 Google writes. Không có phát sinh tháng 12 thật.');
+        }else{
+          ccGoogleSyncStatus('CHƯA ĐẠT XÁC MINH ELYSIAN TEST · '+
+            String(result.reason||'UNKNOWN')+
+            ' · '+result.mirrorRows+' dòng dữ liệu · '+result.viewRows+
+            ' dòng tổng hợp. Không ghi lại, không sửa dữ liệu; gửi dòng này để xử lý.');
+        }
+      }catch(error){
+        ccGoogleSyncStatus('KHÔNG XÁC MINH ĐƯỢC ELYSIAN TEST: '+
+          String(error?.message||error).slice(0,180)+
+          '. Không bấm lại nút ghi.');
+      }finally{multiAuditButton.disabled=false}
+    });
   }
   // Explicit READ-ONLY inspection. This is safe to use after a failed
   // Google TEST write; it never calls preview/commit or retries any append.
