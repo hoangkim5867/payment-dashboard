@@ -5,6 +5,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="assets/js/cash-sync-historical-audit.js"></script>
+<script src="assets/js/cash-sync-source-diagnostics.js"></script>
 <link rel="stylesheet" href="assets/css/cash-control.css" data-stage1-extracted="primary">
 <style id="cc-no-double-sidebar-gap">
 /* Fix: sidebar already occupies a CSS-grid column; do not offset main twice. */
@@ -5551,7 +5552,34 @@ function ccSyncRenderBatchOverview(){
       stage=audit.cached?'KẾT QUẢ ĐÃ LƯU':(audit.ok?'LỊCH SỬ ĐÃ KIỂM TRA':'CẦN XỬ LÝ');
       detail=(audit.cached?'Kết quả cũ (chưa xác nhận Google còn nguyên): ':'')+audit.note;
     }
-    return {project,stage,detail,hasLink};
+    // Inspect source already loaded in memory; never query Firebase here.
+    // A loaded Payment collection does NOT establish Cash Control completeness.
+    let sourceInfo='Nguồn Payment: chưa tải đủ (0 reads khi tổng hợp)';
+    if(firebaseConfig.projectId!=='cscecmep-payment'){
+      sourceInfo='Nguồn Payment thật: không có trong TEST staging';
+    }else if(paymentMonths.has(project)&&window.CashSyncSourceDiagnostics){
+      try{
+        const now=CURRENT;
+        const inspected=[];
+        for(let year=2026;year<=Number(now.slice(0,4));year++){
+          for(let month=year===2026?10:1;month<=(year===Number(now.slice(0,4))?
+            Number(now.slice(5,7)):12);month++){
+            const period=year+'-'+String(month).padStart(2,'0');
+            inspected.push({month:period,rows:legacyCashExportRows(period,project)
+              .map(row=>({...row,project}))});
+          }
+        }
+        const info=window.CashSyncSourceDiagnostics.inspect(project,inspected,{
+          paymentProjectLoaded:true,firebaseProject:firebaseConfig.projectId
+        });
+        sourceInfo='Nguồn đã tải: '+info.transactions+' giao dịch · '+
+          (info.sourceStructureValid?'ID có cấu trúc hợp lệ':'CẦN KIỂM TRA: '+
+            info.reasons.join('; '))+' · chưa duyệt đồng bộ';
+      }catch(error){
+        sourceInfo='Nguồn Payment cần kiểm tra: '+String(error.message||error).slice(0,90);
+      }
+    }
+    return {project,stage,detail,hasLink,sourceInfo};
   });
   // Group audit causes instead of asking Admin to inspect all projects one-by-one.
   // These are historical diagnostics ONLY, never write eligibility.
@@ -5598,7 +5626,7 @@ function ccSyncRenderBatchOverview(){
   table.append(tr);
   for(const item of entries){
     const row=document.createElement('tr');
-    for(const value of [item.project,item.stage,item.detail]){
+    for(const value of [item.project,item.stage,item.detail+' · '+item.sourceInfo]){
       const td=document.createElement('td');td.textContent=value;
       td.style.cssText='border-bottom:1px solid #e2e8f0;padding:6px;vertical-align:top';
       row.append(td);
