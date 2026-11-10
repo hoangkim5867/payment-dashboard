@@ -43,16 +43,22 @@ test('foreign project and conflicting historical values block',()=>{
   denied(()=>planTestSync({...data,source:[{...src,project:'PHU HUNG'}]}),'SOURCE_ID');
   denied(()=>planTestSync({...data,history:[history[0],{...history[1],balance:123}]}),'HISTORY_BALANCE');
 });
-test('existing view never overwritten blindly; matching view is unchanged',()=>{
-  const p=planTestSync(data);
-  const rows=p.expectedView.map(r=>({values:r.values.map(c=>
+test('existing PHU HUNG-derived view is safely extended by next month',()=>{
+  const prior=planTestSync({...data,source:[]});
+  const rows=prior.expectedView.map(r=>({values:r.values.map(c=>
     c.userEnteredValue?.formulaValue??c.userEnteredValue?.numberValue??
     c.userEnteredValue?.stringValue??'')}));
   denied(()=>planTestSync({...data,currentView:rows,
     expectedViewSignature:'stale'}),'VIEW_CONFLICT');
   const compatible=planTestSync({...data,currentView:rows,
     expectedViewSignature:viewSignature(rows)});
-  assert.equal(compatible.preview.wouldChange,true); // mirror still missing
+  assert.equal(compatible.preview.originalViewSignature,viewSignature(rows));
+  assert.equal(compatible.preview.wouldChange,true);
+  assert.equal(compatible.preview.additions,1);
+  assert.equal(compatible.expectedView.length,prior.expectedView.length+1);
+  const edited=structuredClone(rows); edited[1].values[7]=999;
+  denied(()=>planTestSync({...data,currentView:edited,
+    expectedViewSignature:viewSignature(edited)}),'VIEW_REVIEW');
 });
 function readbackFor(p){
   const view=p.expectedView.map((row,i)=>({
