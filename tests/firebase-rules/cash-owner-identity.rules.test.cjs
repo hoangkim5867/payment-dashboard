@@ -58,3 +58,13 @@ test('identity repair preserves schema checks, private deletion and anonymous de
  await no(s.deleteDoc(cash(context())));
  await no(s.getDoc(cash(env.unauthenticatedContext().firestore())));
 });
+
+test('Cash owner can query one project Payment without read of the whole collection',async()=>{
+ const db=context();
+ await env.withSecurityRulesDisabled(async c=>{
+   await s.setDoc(s.doc(c.firestore(),'payments/elysian-owner-read-test'),{
+     paymentMonth:'2026-10',project:'ELYSIAN',amount:100,processPaymentDate:'2026-10-12'
+   });
+ });
+ await yes(s.getDocs(s.query(s.collection(db,'payments'),s.where('project','==','ELYSIAN'))));
+});
