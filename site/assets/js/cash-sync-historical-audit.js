@@ -305,5 +305,39 @@
       historicalOnly,cashOnly,ambiguous,invalidHistory,invalidSource,
       months:[...months].sort(),canWrite:false};
   }
-  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl});
+  // Pure read-only release gate for real project Sheets. A consistent ledger
+  // is not proof that payments are complete or that automatic writes are safe.
+  // This function deliberately NEVER returns write authorization.
+  function assessProjectSyncReadiness(project,historical,comparison){
+    const blockers=[];
+    const add=(code,message)=>{if(!blockers.some(x=>x.code===code))blockers.push({code,message})};
+    if(!historical||typeof historical!=='object')add('NO_HISTORY','Chưa kiểm tra sổ Google Sheets gốc.');
+    else {
+      if(historical.status!=='internally-consistent')
+        add('HISTORY_REVIEW','Bố cục hoặc thứ tự ngày của sổ lịch sử chưa được xác nhận.');
+      if(historical.continuityErrors!==0||historical.roundingDifferences!==0||
+        historical.missingBalance!==0||historical.invalidMoney!==0)
+        add('BALANCE_REVIEW','Số dư hoặc giá trị tiền trong sổ lịch sử cần kiểm tra.');
+      if(historical.nonMonotonicDates!==0)
+        add('DATE_ORDER','Ngày giao dịch lịch sử chưa tăng dần.');
+      if(historical.transactionRows===0)
+        add('EMPTY_HISTORY','Dự án chưa có giao dịch lịch sử; phải xác nhận số dư đầu kỳ.');
+    }
+    if(!comparison||comparison.sourceComplete!==true)
+      add('SOURCE_INCOMPLETE','Chưa tải đủ Payment thật của dự án để chống trùng.');
+    else {
+      if(comparison.invalidHistory>0||comparison.invalidSource>0)
+        add('INVALID_TRANSACTIONS','Có dòng giao dịch chưa đọc được.');
+      if(comparison.ambiguous>0)
+        add('AMBIGUOUS_MATCH','Có nhiều giao dịch cùng ngày và cùng số tiền; không tự chọn bản ghi.');
+      if(comparison.historicalOnly>0||comparison.cashOnly>0)
+        add('UNRESOLVED_MATCH','Còn giao dịch chỉ xuất hiện ở một nguồn; cần gắn ID trước khi ghi.');
+    }
+    return Object.freeze({project,status:blockers.length?'blocked':'review-required',
+      blockers,canWrite:false,
+      note:blockers.length?
+        'CHẶN ĐỒNG BỘ: '+blockers.map(x=>x.message).join(' '):
+        'Đã qua điều kiện kiểm tra sơ bộ. Vẫn cần kiểm tra ID, nối số dư và xác nhận Admin; chưa được ghi.'});
+  }
+  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,assessProjectSyncReadiness});
 });
