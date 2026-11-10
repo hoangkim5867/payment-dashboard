@@ -21,7 +21,7 @@ function mock(prepared,{mutate=false,stale=false,access=true,badBalance=false}={
     async checkAuthority(){calls.push('auth');return {adminVerified:access,testOnly:true,spreadsheetId:file}},
     async readSnapshot(){calls.push('read');return {project:'ELYSIAN',spreadsheetId:file,
       viewTab:'PROJECT_VIEW',mirrorTab:'DATA_CASHCONTROL',mirror:[],view:[]}},
-    async recompare(){calls.push('compare');const p=plan();if(stale)p.preview.afterFingerprint='changed';return p},
+    async recompare(){calls.push('compare');const p=plan();return stale?{...p,preview:{...p.preview,afterFingerprint:'changed'}}:p},
     async writeMirrorAdditions(rows){calls.push('mirror');if(mutate)throw Error('Write failed');state.mirror.push(...rows)},
     async writeView(){calls.push('view');state.view=normalizeView();
       state.formulas=prepared.expectedView.slice(1).map(x=>[x.values[13].userEnteredValue.formulaValue])},
