@@ -65,7 +65,7 @@ function planTestSync({project,history,source,openingBalance=null,
   if(currentView.length){
     if(!expectedViewSignature||expectedViewSignature!==viewSignature(currentView))
       deny('VIEW_CONFLICT','Tab VIEW thay đổi từ lần kiểm tra trước.');
-    if(currentView.length!==result.rows.length)
+    if(currentView.length!==result.rows.length+1)
       deny('VIEW_REVIEW','Tab VIEW có số hàng khác kế hoạch; không tự xóa hoặc ghi đè.');
     // Only an identical existing tab is safe to mark as already synced.
     const expected=result.grid.map(row=>({values:row.values.map(c=>
