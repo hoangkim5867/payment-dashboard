@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {planTestSync}=require('../server/cash-sync-multiproject-write-plan.cjs');
+const {planTestSync,tabNames}=require('../server/cash-sync-multiproject-write-plan.cjs');
 const {runTestOnlySync}=require('../server/cash-sync-multiproject-test-runner.cjs');
 const {token}=require('../site/assets/js/cash-sync-multiproject-planner.js');
 const file='1TESTPROJECTFILEABCDEFGHIJKLMNOPQ';
@@ -21,7 +21,7 @@ function mock(prepared,{mutate=false,stale=false,access=true,badBalance=false,
   const adapter={
     async checkAuthority(){calls.push('auth');return {adminVerified:access,testOnly:true,spreadsheetId:file}},
     async readSnapshot(){calls.push('read');return {project:'ELYSIAN',spreadsheetId:file,
-      viewTab:'PROJECT_VIEW',mirrorTab:'DATA_CASHCONTROL',
+      viewTab:tabNames('ELYSIAN').view,mirrorTab:tabNames('ELYSIAN').mirror,
       mirror:changedDestination?[{id:'injected',project:'ELYSIAN'}]:[],view:[]}},
     async recompare(){calls.push('compare');const p=plan();return stale?{...p,preview:{...p.preview,afterFingerprint:'changed'}}:p},
     async writeMirrorAdditions(rows){calls.push('mirror');if(mutate)throw Error('Write failed');state.mirror.push(...rows)},
