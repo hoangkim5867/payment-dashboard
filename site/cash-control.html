@@ -5483,12 +5483,20 @@ function ccSyncProjectCatalogRender(){
 // Only the current tab session retains the last audit outcome.
 // No Firestore or Google reads occur when rendering the batch overview.
 const ccSyncLastHistoricalAudit=Object.create(null);
-const CC_SYNC_AUDIT_SESSION_KEY='ccGoogleSyncHistoryAuditSessionV1';
+const CC_SYNC_AUDIT_CACHE_KEY='ccGoogleSyncHistoryAuditCacheV2';
+const CC_SYNC_AUDIT_MAX_AGE_MS=7*24*60*60*1000;
+// Keep only diagnostic metadata on this browser. This is never authorization
+// for Google writes or proof that a Google file is unchanged.
 function ccSyncSaveAuditSession(){
   try{
-    const rows=Object.entries(ccSyncLastHistoricalAudit).map(([project,audit])=>({
+    const now=Date.now();
+    const rows=Object.entries(ccSyncLastHistoricalAudit).filter(([project,audit])=>
+      ccSyncProjectLinkValid(ccSyncProjectLinkDraft[project])&&
+      Number.isFinite(audit.checkedAt)&&now-audit.checkedAt<=CC_SYNC_AUDIT_MAX_AGE_MS
+    ).map(([project,audit])=>({
       project,link:ccSyncProjectLinkDraft[project],
-      ok:audit.ok===true,status:String(audit.status||''),
+      checkedAt:audit.checkedAt,
+      ok:audit.ok===true,status:String(audit.status||'').slice(0,100),
       note:String(audit.note||'').slice(0,500),
       nonMonotonicDates:Number(audit.nonMonotonicDates)||0,
       continuityErrors:Number(audit.continuityErrors)||0,
@@ -5497,20 +5505,23 @@ function ccSyncSaveAuditSession(){
       invalidMoney:Number(audit.invalidMoney)||0,
       layoutErrors:Number(audit.layoutErrors)||0
     }));
-    sessionStorage.setItem(CC_SYNC_AUDIT_SESSION_KEY,JSON.stringify(rows));
-  }catch{/* audit remains usable in current memory */}
+    localStorage.setItem(CC_SYNC_AUDIT_CACHE_KEY,JSON.stringify(rows));
+  }catch{/* audit remains available in memory; no network retries */}
 }
 function ccSyncLoadAuditSession(){
   try{
-    const rows=JSON.parse(sessionStorage.getItem(CC_SYNC_AUDIT_SESSION_KEY)||'[]');
+    const rows=JSON.parse(localStorage.getItem(CC_SYNC_AUDIT_CACHE_KEY)||'[]');
     if(!Array.isArray(rows)||rows.length>1000)return;
+    const now=Date.now();
     for(const row of rows){
       if(!row||typeof row.project!=='string'||!row.project||
          row.link!==ccSyncProjectLinkDraft[row.project]||
-         !ccSyncProjectLinkValid(row.link)||typeof row.note!=='string')continue;
+         !ccSyncProjectLinkValid(row.link)||typeof row.note!=='string'||
+         !Number.isFinite(row.checkedAt)||row.checkedAt>now||
+         now-row.checkedAt>CC_SYNC_AUDIT_MAX_AGE_MS)continue;
       ccSyncLastHistoricalAudit[row.project]={
         ok:row.ok===true,status:String(row.status||'').slice(0,100),
-        note:row.note.slice(0,500),
+        note:row.note.slice(0,500),checkedAt:row.checkedAt,cached:true,
         nonMonotonicDates:Number(row.nonMonotonicDates)||0,
         continuityErrors:Number(row.continuityErrors)||0,
         roundingDifferences:Number(row.roundingDifferences)||0,
@@ -5519,7 +5530,7 @@ function ccSyncLoadAuditSession(){
         layoutErrors:Number(row.layoutErrors)||0
       };
     }
-  }catch{/* invalid or unavailable session cache: never assume audited */}
+  }catch{/* invalid cache is never considered verified */}
 }
 function ccSyncRenderBatchOverview(){
   const output=$('ccSyncBatchOverviewResult');
@@ -5535,8 +5546,8 @@ function ccSyncRenderBatchOverview(){
     let stage='CHƯA CÓ LINK',detail='Nhập link Google Sheets để kiểm tra lịch sử';
     if(hasLink&&!audit){stage='CHƯA KIỂM TRA';detail='Chưa có kết quả đối chiếu Google Sheets trong phiên này'}
     else if(hasLink&&audit){
-      stage=audit.ok?'LỊCH SỬ ĐÃ KIỂM TRA':'CẦN XỬ LÝ';
-      detail=audit.note;
+      stage=audit.cached?'KẾT QUẢ ĐÃ LƯU':(audit.ok?'LỊCH SỬ ĐÃ KIỂM TRA':'CẦN XỬ LÝ');
+      detail=(audit.cached?'Kết quả cũ (chưa xác nhận Google còn nguyên): ':'')+audit.note;
     }
     return {project,stage,detail,hasLink};
   });
@@ -5560,7 +5571,7 @@ function ccSyncRenderBatchOverview(){
       action:'Kiểm tra quyền truy cập file hoặc kiểu dữ liệu lịch sử, rồi đối chiếu lại.'}
   ];
   const grouped=issueGroups.map(x=>({...x,projects:[]}));
-  for(const entry of entries.filter(x=>x.stage==='CẦN XỬ LÝ')){
+  for(const entry of entries.filter(x=>x.stage==='CẦN XỬ LÝ'||x.stage==='KẾT QUẢ ĐÃ LƯU'&&ccSyncLastHistoricalAudit[x.project]?.ok===false)){
     const audit=ccSyncLastHistoricalAudit[entry.project]||{};
     grouped.find(group=>group.matches(audit)).projects.push(entry.project);
   }
@@ -5569,10 +5580,10 @@ function ccSyncRenderBatchOverview(){
   const intro=document.createElement('p');
   intro.textContent='TỔNG HỢP '+catalog.length+' DỰ ÁN · '+entries.filter(x=>x.hasLink).length+
     ' có link · '+(tally['LỊCH SỬ ĐÃ KIỂM TRA']||0)+' lịch sử đã kiểm tra · '+
-    (tally['CẦN XỬ LÝ']||0)+' cần xử lý · '+(tally['CHƯA KIỂM TRA']||0)+
+    (tally['CẦN XỬ LÝ']||0)+' cần xử lý · '+(tally['KẾT QUẢ ĐÃ LƯU']||0)+' kết quả cũ · '+(tally['CHƯA KIỂM TRA']||0)+
     ' chưa kiểm tra · '+(tally['CHƯA CÓ LINK']||0)+' chưa có link.';
   const warning=document.createElement('p');
-  warning.textContent='CHƯA dự án nào được phê duyệt ghi. Kiểm tra lịch sử tự khớp KHÔNG có nghĩa đã đối chiếu đủ Payment, không đồng nghĩa được phép đồng bộ. Chỉ sử dụng dữ liệu đã tải trong phiên; 0 Firestore reads, 0 Google Sheets reads/writes.';
+  warning.textContent='CHƯA dự án nào được phê duyệt ghi. Kết quả đã lưu chỉ để tham khảo, không chứng minh Google Sheets hiện tại chưa thay đổi. Lịch sử tự khớp KHÔNG có nghĩa đã đối chiếu đủ Payment. Nút tổng hợp: 0 Firestore reads, 0 Google Sheets reads/writes.';
   warning.style.cssText='font-weight:600;color:#8a4f0a';
   const table=document.createElement('table');
   table.style.cssText='width:100%;border-collapse:collapse;font-size:12px';
@@ -5593,7 +5604,7 @@ function ccSyncRenderBatchOverview(){
     table.append(row);
   }
   const issueHeader=document.createElement('p');
-  issueHeader.textContent='NHÓM CẦN XỬ LÝ (chỉ phân loại theo nguyên nhân đầu tiên, không sửa dữ liệu):';
+  issueHeader.textContent='NHÓM CẦN XỬ LÝ (gồm kết quả cũ để tham khảo; chưa được phép ghi):';
   issueHeader.style.cssText='font-weight:700;margin:10px 0 6px';
   const groupWrap=document.createElement('div');
   groupWrap.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px';
@@ -5662,10 +5673,10 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
   table.append(heading);
   output.append(note,table);
   let passed=0,blocked=0;
+  // Keep earlier diagnostics until each Google file is re-read successfully.
+  // Mark old results historical immediately; never mistake them for fresh checks.
   if(auditBalances){
-    // Old audit results cannot be reused after a new historical scan starts.
-    for(const project of Object.keys(ccSyncLastHistoricalAudit))
-      delete ccSyncLastHistoricalAudit[project];
+    for(const audit of Object.values(ccSyncLastHistoricalAudit))audit.cached=true;
   }
   try{
     for(const [project,link] of items){
@@ -5751,7 +5762,7 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
             ok:result.status==='internally-consistent'||
               result.status==='blank-tab'||result.status==='new-project-no-transactions',
             note:ready.note,
-            status:result.status,
+            status:result.status,checkedAt:Date.now(),cached:false,
             transactionRows:result.transactionRows,
             nonMonotonicDates:result.nonMonotonicDates,
             continuityErrors:result.continuityErrors,
@@ -5996,7 +6007,8 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
         if(auditBalances){
           cells[5].textContent='CHẶN: Chưa đọc và kiểm chứng được lịch sử Google Sheets.';
           ccSyncLastHistoricalAudit[project]={
-            ok:false,note:'Không thể đọc hoặc xác minh lịch sử: '+
+            ok:false,checkedAt:Date.now(),cached:false,
+            note:'Không thể đọc hoặc xác minh lịch sử: '+
               String(error.message||'Không rõ lỗi').slice(0,90)
           };
         }
