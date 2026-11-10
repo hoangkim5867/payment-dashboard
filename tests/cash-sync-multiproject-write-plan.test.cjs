@@ -110,3 +110,20 @@ test('empty project cannot take historic ledger path without opening approval',(
   denied(()=>planTestSync({...data,project:'S19-3',history:[],source:[]}),
     'OPENING_NOT_CONFIRMED');
 });
+
+test('readback rejects unexpected extra mirror rows after Google Sheets write',()=>{
+  const p=planTestSync(data),r=readbackFor(p);
+  const saved={...src,signature:token(src),status:'synced'};
+  const injected={...saved,id:'unexpected-source-id'};
+  denied(()=>verifyAfterWrite(p,{mirror:[saved,injected],...r}),'MIRROR_NOT_VERIFIED');
+});
+test('readback rejects changed old mirror even when new additions are intact',()=>{
+  const old={...src,signature:token(src),status:'synced'};
+  const newer={project:'ELYSIAN',id:'pay-12',...tx('2026-12-02',25,'LAB-12')};
+  const p=planTestSync({...data,source:[src,newer],mirror:[old]});
+  const r=readbackFor(p);
+  const storedNew={...newer,signature:token(newer),status:'synced'};
+  const editedOld={...old,signature:'tampered'};
+  denied(()=>verifyAfterWrite(p,{mirror:[editedOld,storedNew],...r}),
+    'MIRROR_NOT_VERIFIED');
+});
