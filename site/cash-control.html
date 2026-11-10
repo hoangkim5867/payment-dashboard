@@ -2694,6 +2694,14 @@ function setPayConnection(status,message,error=false){
 }
 function updateCashAuthUI(){
     const user=currentAuthUser;
+    // Expose synthetic ELYSIAN integration controls only to the signed-in
+    // owner on the isolated staging Firebase. No production access or writes.
+    for(const id of ['ccSyncMultiProjectTestRun','ccSyncMultiProjectTestDecember']){
+        const testButton=$(id);
+        if(testButton)testButton.hidden=!(
+            firebaseConfig.projectId==='cash-control-staging'&&
+            !!user&&isCashControlOwner());
+    }
     if(user){
         $('cashAuthChip').classList.add('show');
         $('cashAuthName').textContent=String(user.email||"").split("@")[0]||"Đã đăng nhập";
@@ -8047,6 +8055,11 @@ function ccGoogleSyncInitializeGooglePilot(){
   const multiTestButton=$('ccSyncMultiProjectTestRun');
   const multiDecemberButton=$('ccSyncMultiProjectTestDecember');
   const multiTestButtons=[multiTestButton,multiDecemberButton].filter(Boolean);
+  // Authentication is async; reflect current account if already available.
+  // Keep hidden until owner signs in; never expose on production.
+  for(const button of multiTestButtons){
+    button.hidden=!(CC_SYNC_DEMO_ALLOWED&&currentAuthUser&&isCashControlOwner());
+  }
   if(CC_SYNC_DEMO_ALLOWED&&multiTestButtons.length===2){
     const runMultiProjectTest=async includeDecember=>{
       if(!currentAuthUser||!isCashControlOwner()||
