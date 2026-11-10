@@ -32,8 +32,9 @@ function createGoogleTestAdapter({project,accessToken,adminVerified=false,
       ...(body?{body:JSON.stringify(body)}:{}),
       signal:AbortSignal.timeout(15000)
     });
-    if(!response.ok)reject('GOOGLE_HTTP',
-      'Google Sheets TEST HTTP '+response.status+'; chưa xác nhận đồng bộ.');
+    if(!response.ok)reject('GOOGLE_HTTP_'+response.status,
+      'Google Sheets TEST HTTP '+response.status+
+      '; chưa xác nhận đồng bộ. Kiểm tra quyền file TEST và OAuth.');
     return response.json();
   }
   const tabQuote=title=>"'"+title.replace(/'/g,"''")+"'";
@@ -108,6 +109,26 @@ function createGoogleTestAdapter({project,accessToken,adminVerified=false,
       viewTab:tabs.view,mirrorTab:tabs.mirror,mirror,view:viewData.view,
       formulas:viewData.formulas};
   }
+  // Diagnostic only. Returns counts and whether each derived TEST tab exists;
+  // does not return financial contents, touch history, or write any sheet.
+  async function readStatus(){
+    await refreshMeta();
+    const mirror=await inspect(tabs.mirror),view=await inspect(tabs.view);
+    const count=async(tab,max)=>{
+      const rows=await call(valuesPath(tab,'A1:A'+max));
+      if(!Array.isArray(rows.values)||rows.values.length>max)
+        reject('STATUS_SCHEMA','Không đọc được trạng thái tab TEST.');
+      return Math.max(0,rows.values.length-1);
+    };
+    const [mirrorRows,viewRows]=await Promise.all([
+      mirror?count(tabs.mirror,20000):0,
+      view?count(tabs.view,10001):0
+    ]);
+    return {mode:'TEST_ONLY',project,readOnly:true,
+      mirrorPresent:mirror,viewPresent:view,mirrorRows,viewRows,
+      // Tab presence is NEVER proof that a write was fully verified.
+      verified:false,canWrite:false};
+  }
   async function ensureTab(name,header,endColumn){
     await refreshMeta();
     if(await inspect(name))return;
@@ -165,7 +186,7 @@ function createGoogleTestAdapter({project,accessToken,adminVerified=false,
     await refreshMeta();
     return {adminVerified:true,testOnly:true,spreadsheetId:TEST_SPREADSHEET_ID};
   }
-  return {checkAuthority,readSnapshot,writeMirrorAdditions,writeView,
+  return {checkAuthority,readSnapshot,readStatus,writeMirrorAdditions,writeView,
     readAfterWrite,recompare};
 }
 module.exports={createGoogleTestAdapter};
