@@ -137,7 +137,7 @@
         typeof raw==='string'&&raw.trim()!==''?Number(raw):NaN;
       const bucket=bucketOf(p);
       if(!p.id||!Number.isFinite(amount)||amount<0||
-         !Number.isSafeInteger(Math.round(amount*1e6))||!buckets.includes(bucket)){
+         amount>1e15||!buckets.includes(bucket)){
         unknownPaymentValues++;continue;
       }
       if(expected.has(id))duplicatePaymentIds++;
