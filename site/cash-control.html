@@ -5562,6 +5562,9 @@ function ccSyncLoadAuditSession(){
 // queries per invocation; never scans the whole company. A project already
 // loaded into the current tab is never queried again until Admin refreshes.
 // This is intentionally hidden on Firebase staging and does not authorize sync.
+// Only projects successfully fetched through this explicit Admin action are eligible
+// for in-memory Payment-ID diagnostics. Not a source-completeness certificate.
+const ccSyncExplicitPaymentLoaded=new Set();
 async function ccSyncLoadLinkedPaymentBatch(){
   const button=$('ccSyncLoadLinkedSourceBatch');
   const status=$('ccSyncLinkedSourceBatchStatus');
@@ -5605,6 +5608,7 @@ async function ccSyncLoadLinkedPaymentBatch(){
       // Rebuild only the in-memory Cash Control state; refresh:false avoids
       // renderAll and scheduled balance-snapshot writes.
       rebuildPaymentsFromLoadedMonths();
+      ccSyncExplicitPaymentLoaded.add(project);
       success++;
     }
     const remaining=ccSyncProjectCatalogNames().filter(project=>
@@ -5633,7 +5637,7 @@ function ccSyncCompareAlreadyLoadedProjects(){
   const table=document.createElement('table');
   table.style.cssText='width:100%;border-collapse:collapse;font-size:11px';
   const header=document.createElement('tr');
-  for(const label of ['Dự án','Nguồn trong phiên','Ứng viên khớp','Chỉ ở Google','Chỉ ở Cash Control','Xung đột HĐ/IPC','Kết luận']){
+  for(const label of ['Dự án','Nguồn trong phiên','Ứng viên khớp','Chỉ ở Google','Chỉ ở Cash Control','Xung đột HĐ/IPC','Payment theo ID','Kết luận']){
     const th=document.createElement('th');th.textContent=label;
     th.style.cssText='text-align:left;padding:5px;border-bottom:1px solid #cbd5e1';
     header.append(th);
@@ -5651,19 +5655,24 @@ function ccSyncCompareAlreadyLoadedProjects(){
     const cache=ccSyncInMemoryHistory.get(project);
     const matching=cache&&cache.link===ccSyncProjectLinkDraft[project];
     const production=firebaseConfig.projectId==='cscecmep-payment';
-    const sourceReady=production&&paymentMonths.has(project);
-    let cells=[project,'Chưa đủ dữ liệu','—','—','—','—','CHƯA ĐỐI CHIẾU'];
+    const sourceReady=production&&paymentMonths.has(project)&&ccSyncExplicitPaymentLoaded.has(project);
+    let cells=[project,'Chưa đủ dữ liệu','—','—','—','—','Chưa kiểm tra','CHƯA ĐỐI CHIẾU'];
     if(!matching){
-      cells[6]='Cần đọc lịch sử Google lại trong phiên';
+      cells[7]='Cần đọc lịch sử Google lại trong phiên';
     }else if(!sourceReady){
-      cells[1]=production?'Payment dự án chưa tải':'TEST không có Payment thật';
-      cells[6]='KHÔNG ĐỦ NGUỒN · không ghi';
+      cells[1]=production?'Payment chưa xác nhận qua nút tải giới hạn':'TEST không có Payment thật';
+      cells[7]='KHÔNG ĐỦ NGUỒN · không ghi';
     }else{
       try{
         const sourceRows=[];
         for(const period of periods)sourceRows.push(...legacyCashExportRows(period,project));
         // One-project Payment cache is already loaded by an explicit Admin
         // action. Comparing IDs locally does not consume additional Firestore reads.
+        const checked=window.CashSyncPaymentCoverage.checkBoundedBatch([{
+          project,loaded:true,complete:true,
+          payments:paymentMonths.get(project)||[],ledger:sourceRows
+        }],{maxProjects:1});
+        const paymentProof=checked.results[0];
         const coverage=window.CashSyncPaymentCoverage.check(project,
           paymentMonths.get(project)||[],sourceRows);
         // Verify EVERY paid local expense and internal transfer has a stable
@@ -5684,11 +5693,16 @@ function ccSyncCompareAlreadyLoadedProjects(){
         cells=[project,String(result.sourceScope),String(result.matched||0),
           String(result.historicalOnly||0),String(result.cashOnly||0),
           String(result.identityConflict||0),
+          paymentProof.status==='empty-payment-snapshot-unverified'?
+            'Rỗng: chưa thể xác minh':
+          paymentProof.paymentSnapshotVerified?
+            'Đã khớp '+paymentProof.matched+' ID trong bộ nhớ (chưa đủ nguồn)':
+            'CHẶN: thiếu/trùng/sai ngày Payment',
           result.status==='requires-tax-mapping'?'FOXCONN: cần phân loại thuế riêng':
           !lineage.inMemoryLineageVerified?
             'Thiếu hoặc trùng nguồn lương / thuế / chuyển tiền / nhập tay · không ghi':
-          !coverage.paidPaymentIdsCovered?
-            'Payment chưa phủ đủ trong Cash Control · không ghi':
+          !paymentProof.paymentSnapshotVerified||!coverage.paidPaymentIdsCovered?
+            'Payment thiếu / chưa chứng minh đầy đủ · không ghi':
           !inspected.sourceStructureValid?
             'ID / tiền nguồn chưa hợp lệ · không ghi':
           !['internally-consistent','review-date-order'].includes(cache.auditStatus)?
@@ -5699,7 +5713,7 @@ function ccSyncCompareAlreadyLoadedProjects(){
               'CÒN CHÊNH LỆCH / CHƯA XÁC MINH · không ghi':
               'ỨNG VIÊN KHỚP · chưa chứng minh đủ nguồn, không ghi'];
       }catch(error){
-        cells[6]='Lỗi đối chiếu trong bộ nhớ · không ghi';
+        cells[7]='Lỗi đối chiếu trong bộ nhớ · không ghi';
       }
     }
     const tr=document.createElement('tr');
