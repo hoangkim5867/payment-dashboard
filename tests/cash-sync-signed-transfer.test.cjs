@@ -36,3 +36,23 @@ test('duplicate transfers still fail closed',()=>{
    row('transfer:t:out',-50),row('transfer:t:out',-50)]),
  /Invalid, duplicate/);
 });
+
+test('same signed transfer passes the PHU HUNG-derived multiproject balance calculator',()=>{
+ const {planTestSync}=require('../server/cash-sync-multiproject-write-plan.cjs');
+ const base=(date,amount)=>({
+   date,company:'Vendor A',contractNo:'LAB-01',content:'IPC',
+   ipc:'IPC1',type:'Chi',income:0,subcontract:amount,material:0,
+   otherDirect:0,indirect:0,financial:0,otherPayable:0
+ });
+ const history=[{...base('2026-10-01',100),rowId:2,balance:900},
+   {...base('2026-10-02',100),rowId:3,balance:800}];
+ const transfer={...base('2026-11-09',0),project:'ELYSIAN',
+   id:'transfer:tx123:out',company:'Nội bộ',contractNo:'',ipc:'',
+   content:'Chuyển nội bộ',type:'Transfer',income:-500};
+ const result=planTestSync({project:'ELYSIAN',history,source:[transfer],
+   sourceComplete:true,destinationConfirmed:true});
+ assert.equal(result.preview.openingBalance,1000);
+ assert.equal(result.preview.closingBalance,300);
+ assert.equal(result.preview.additions,1);
+ assert.equal(result.preview.canWrite,false);
+});
