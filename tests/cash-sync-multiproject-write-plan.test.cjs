@@ -54,14 +54,51 @@ test('existing view never overwritten blindly; matching view is unchanged',()=>{
     expectedViewSignature:viewSignature(rows)});
   assert.equal(compatible.preview.wouldChange,true); // mirror still missing
 });
-test('readback cannot claim balance verification without evaluated formulas',()=>{
+function readbackFor(p){
+  const view=p.expectedView.map((row,i)=>({
+    values:row.values.map((cell,j)=>i>0&&j===13?p.expectedBalances[i-1]:
+      cell.userEnteredValue?.numberValue??
+      cell.userEnteredValue?.stringValue??
+      cell.userEnteredValue?.boolValue??'')
+  }));
+  const formulas=p.expectedView.slice(1).map(row=>[
+    row.values[13].userEnteredValue.formulaValue
+  ]);
+  return {view,formulas};
+}
+test('full Google readback verifies amount, ID, formulas and calculated balances',()=>{
   const p=planTestSync(data);
   const found=[{...src,signature:token(src),status:'synced'}];
-  denied(()=>verifyAfterWrite(p,{mirror:[],view:[]}),'WRITE_NOT_VERIFIED');
-  const v=verifyAfterWrite(p,{mirror:found,view:p.expectedView.map(x=>({values:x.values}))});
-  assert.equal(v.status,'SNAPSHOT_MATCH_ONLY');
-  assert.equal(v.balancesVerified,false);
+  const readback=readbackFor(p);
+  denied(()=>verifyAfterWrite(p,{mirror:[],...readback}),'WRITE_NOT_VERIFIED');
+  denied(()=>verifyAfterWrite(p,{mirror:found,view:readback.view}),
+    'VIEW_NOT_VERIFIED');
+  const v=verifyAfterWrite(p,{mirror:found,...readback});
+  assert.equal(v.status,'FULL_READBACK_VERIFIED');
+  assert.equal(v.balancesVerified,true);
+  assert.equal(v.closingBalance,650);
   assert.equal(v.canWrite,false);
+});
+test('Google calculated balance mismatch blocks even with correct formula',()=>{
+  const p=planTestSync(data),r=readbackFor(p);
+  r.view[2].values[13]+=1;
+  denied(()=>verifyAfterWrite(p,{mirror:[{...src,signature:token(src),status:'synced'}],...r}),
+    'BALANCE_NOT_VERIFIED');
+});
+test('Google formula changed to hard-coded amount is rejected',()=>{
+  const p=planTestSync(data),r=readbackFor(p);
+  r.formulas[0][0]='900';
+  denied(()=>verifyAfterWrite(p,{mirror:[{...src,signature:token(src),status:'synced'}],...r}),
+    'FORMULA_NOT_VERIFIED');
+});
+test('Google altered source ID or amount is rejected even if final balance matches',()=>{
+  const p=planTestSync(data),found=[{...src,signature:token(src),status:'synced'}];
+  const r=readbackFor(p);
+  r.view[3].values[15]='WRONG-ID';
+  denied(()=>verifyAfterWrite(p,{mirror:found,...r}),'VIEW_NOT_VERIFIED');
+  r.view[3].values[15]=src.id;
+  r.view[3].values[7]+=20;
+  denied(()=>verifyAfterWrite(p,{mirror:found,...r}),'VIEW_NOT_VERIFIED');
 });
 test('empty project cannot take historic ledger path without opening approval',()=>{
   denied(()=>planTestSync({...data,project:'S19-3',history:[],source:[]}),
