@@ -54,7 +54,14 @@ function auditSourceSnapshot(project,records){
        row.amounts.some(v=>typeof v!=='number'||!Number.isFinite(v)))
       fail('Invalid, duplicate or cross-project Cash Control transaction');
     const [income,...expenses]=row.amounts;
-    if(income<0||expenses.some(n=>n<0))fail('Negative category amount requires manual review');
+    // Cash Control exports an INTERNAL OUT transfer as signed income
+    // (income < 0), not as an expense. Other negative category amounts
+    // remain invalid. Only a transfer:...:out source ID may use this form.
+    const signedInternalOut=income<0&&
+      /^transfer:.+:out$/.test(row.id)&&expenses.every(n=>n===0);
+    if((income<0&&!signedInternalOut)||expenses.some(n=>n<0)||
+       (signedInternalOut&&row.amounts.some(v=>!Number.isSafeInteger(v))))
+      fail('Negative category amount requires a verified transfer-out source');
     ids.add(row.id);
     net+=income-expenses.reduce((s,n)=>s+n,0);
     if(!Number.isSafeInteger(net))fail('Unsafe balance arithmetic');
