@@ -20,6 +20,10 @@ module.exports=async function handler(req,res){
     // No override flag, no production rollout through this route.
     if(process.env.VERCEL_ENV!=='preview')
       httpError(403,'Multi-project connector is TEST Preview only.');
+    // Fail with an actionable staging-only diagnostic. Never guess Admin UID
+    // and never reuse the production Admin UID for the separate Firebase Auth.
+    if(!process.env.CASH_SYNC_ADMIN_UID)
+      httpError(503,'Vercel Preview chưa cấu hình CASH_SYNC_ADMIN_UID. Lấy UID tài khoản Admin thật tại Firebase cash-control-staging > Authentication > Users; đặt biến cho riêng nhánh TEST, rồi redeploy Preview.');
     const config=readConfig(process.env);
     if(config.project!=='cash-control-staging')
       httpError(403,'Only isolated Firebase staging can call this route.');
