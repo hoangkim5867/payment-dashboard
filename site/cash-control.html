@@ -6,6 +6,7 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="assets/js/cash-sync-historical-audit.js"></script>
 <script src="assets/js/cash-sync-source-diagnostics.js"></script>
+<script src="assets/js/cash-sync-payment-coverage.js"></script>
 <link rel="stylesheet" href="assets/css/cash-control.css" data-stage1-extracted="primary">
 <style id="cc-no-double-sidebar-gap">
 /* Fix: sidebar already occupies a CSS-grid column; do not offset main twice. */
@@ -5585,6 +5586,10 @@ function ccSyncCompareAlreadyLoadedProjects(){
       try{
         const sourceRows=[];
         for(const period of periods)sourceRows.push(...legacyCashExportRows(period,project));
+        // One-project Payment cache is already loaded by an explicit Admin
+        // action. Comparing IDs locally does not consume additional Firestore reads.
+        const coverage=window.CashSyncPaymentCoverage.check(project,
+          paymentMonths.get(project)||[],sourceRows);
         const inspected=window.CashSyncSourceDiagnostics.inspect(project,
           periods.map(period=>({month:period,rows:legacyCashExportRows(period,project)
             .map(row=>({...row,project}))})),{
@@ -5599,6 +5604,8 @@ function ccSyncCompareAlreadyLoadedProjects(){
           String(result.historicalOnly||0),String(result.cashOnly||0),
           String(result.identityConflict||0),
           result.status==='requires-tax-mapping'?'FOXCONN: cần phân loại thuế riêng':
+          !coverage.paidPaymentIdsCovered?
+            'Payment chưa phủ đủ trong Cash Control · không ghi':
           !inspected.sourceStructureValid?
             'ID / tiền nguồn chưa hợp lệ · không ghi':
           !['internally-consistent','review-date-order'].includes(cache.auditStatus)?
