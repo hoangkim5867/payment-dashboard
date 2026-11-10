@@ -82,6 +82,8 @@
     let provisionalBalanceRows=0;
     const examples=[];
     const financialExamples=[];
+    const dateOrderExamples=[];
+    let previousDateRow=0;
     const issue=(kind,row,detail)=>{
       if((kind==='balance'||kind==='rounding'||kind==='missing-balance'||kind==='invalid-money')&&financialExamples.length<60)
         financialExamples.push({kind,row,detail});
@@ -106,10 +108,17 @@
       count++;
       if(!firstDate)firstDate=date;
       lastDate=date;
-      if(previousDate&&date<previousDate){nonMonotonicDates++;issue('date-order',i+1,date)}
+      if(previousDate&&date<previousDate){
+        nonMonotonicDates++;issue('date-order',i+1,date);
+        if(dateOrderExamples.length<100)dateOrderExamples.push({
+          previousRow:previousDateRow,previousDate,dateRow:i+1,date,
+          crossesMonth:date.slice(0,7)!==previousDate.slice(0,7)
+        });
+      }
       if(previousDate&&date.slice(0,7)!==previousDate.slice(0,7))
         monthTransitions++;
       previousDate=date;
+      previousDateRow=i+1;
       // Each historical section is read using its own verified header.
       const useTax=foxconn&&activeLayout&&!activeLayout.invalid;
       if(foxconn&&activeLayout?.invalid){
@@ -183,7 +192,11 @@
     return Object.freeze({status,transactionRows:count,firstDate,lastDate,
       openingBalance:opening,closingBalance:closing,monthTransitions,
       invalidMoney,missingBalance,continuityErrors,roundingDifferences,
-      nonMonotonicDates,missingEveryBalance,financialIssues,
+      nonMonotonicDates,dateOrderExamples,
+      dateOrderOnly:status==='review-date-order'&&
+        continuityErrors===0&&roundingDifferences===0&&
+        missingBalance===0&&invalidMoney===0&&layoutErrors===0,
+      missingEveryBalance,financialIssues,
       taxColumnsDetected,taxRows,taxTotal,layoutErrors,provisionalBalanceRows,
       balanceColumnUnconfirmed:foxconn&&!!activeLayout?.requiresBalanceSelection,
       taxColumn:foxconn&&activeLayout&&!activeLayout.invalid?activeLayout.taxIndex+1:null,
