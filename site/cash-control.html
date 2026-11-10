@@ -5830,6 +5830,9 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
                   ' · chỉ có ở Google: '+report.historicalOnly+
                   ' · chỉ có trong Cash Control: '+report.cashOnly+
                   ' · chữ ký trùng không phân biệt được: '+report.ambiguous+
+                  ' · khớp đủ công ty/HĐ/IPC: '+report.identityConsistent+
+                  ' · xung đột công ty/HĐ/IPC: '+report.identityConflict+
+                  ' · thiếu thông tin nhận diện: '+report.identityUnverified+
                   ' · giá trị chưa đọc được: '+(report.invalidHistory+report.invalidSource)+
                   '\\n'+(complete?'Đã tải toàn bộ Payment của dự án trong phiên.':
                     'CHƯA tải đủ Payment của dự án. So khớp này chỉ để tham khảo.')+
