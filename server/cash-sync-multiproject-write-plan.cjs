@@ -106,7 +106,13 @@ function planTestSync({project,history,source,openingBalance=null,
   };
   // Plain data, not a Google mutation payload. A future restricted API must
   // recheck destination and snapshot fingerprints before performing writes.
-  return Object.freeze({preview,mirrorAdditions:newEntries,
+  // Capture the ENTIRE expected machine-controlled mirror. A post-write read
+  // must prove both old and newly appended records are unchanged. Checking only
+  // newly appended IDs could conceal concurrent edits or extra records.
+  const expectedMirror=nextMirror.map(r=>Object.freeze({
+    id:r.id,project:r.project,month:r.month,signature:r.signature,status:r.status
+  }));
+  return Object.freeze({preview,mirrorAdditions:newEntries,expectedMirror,
     expectedView:result.grid,expectedBalances:result.rows.map(row=>row.balance),
     mirrorHeader:MIRROR_HEADER,viewHeader:VIEW_HEADER});
 }
@@ -116,6 +122,22 @@ function verifyAfterWrite(prepared,{mirror=[],view=[],formulas=[]}={}){
   if(!prepared||!prepared.preview)deny('MISSING_PLAN','Không có kế hoạch đã xác nhận.');
   const p=prepared.preview;
   const found=validateMirror(p.project,mirror);
+  // Verify the complete mirror, including all existing records and absence
+  // of unexpected extra rows. The source ID, month, signature and status are
+  // all immutable after initial synchronization.
+  const expectedMirror=prepared.expectedMirror;
+  if(!Array.isArray(expectedMirror)||expectedMirror.length!==found.size)
+    deny('MIRROR_NOT_VERIFIED','Số giao dịch mirror sau ghi không khớp kế hoạch.');
+  const expectedIds=new Set();
+  for(const item of expectedMirror){
+    if(!item||typeof item.id!=='string'||expectedIds.has(item.id))
+      deny('MIRROR_NOT_VERIFIED','Kế hoạch mirror có ID trùng hoặc không hợp lệ.');
+    expectedIds.add(item.id);
+    const actual=mirror.find(r=>r.id===item.id);
+    if(!actual||actual.project!==item.project||actual.month!==item.month||
+       actual.signature!==item.signature||actual.status!==item.status)
+      deny('MIRROR_NOT_VERIFIED','Dữ liệu mirror cũ hoặc mới đã thay đổi: '+item.id.slice(0,60));
+  }
   const required=new Map(prepared.mirrorAdditions.map(r=>[r.id,r.signature]));
   for(const [id,signature] of required)
     if(found.get(id)?.signature!==signature)
