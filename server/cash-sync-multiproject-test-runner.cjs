@@ -3,7 +3,7 @@
 // Injected adapter only: no credentials, HTTP calls, Firebase reads or writes
 // in this module. The adapter MUST independently enforce a TEST file allowlist.
 // A production writer is intentionally not wired up by this module.
-const {verifyAfterWrite,viewSignature}=require('./cash-sync-multiproject-write-plan.cjs');
+const {verifyAfterWrite,viewSignature,sourceSnapshotFingerprint}=require('./cash-sync-multiproject-write-plan.cjs');
 function abort(code,message){
   const error=new Error(message);error.code=code;throw error;
 }
@@ -43,6 +43,11 @@ async function runTestOnlySync({prepared,adapter,explicitAdminConsent=false,
      before.project!==p.project||before.viewTab!==p.viewTab||
      before.mirrorTab!==p.mirrorTab)
     abort('TARGET_CHANGED','File/tab hoặc dự án không còn đúng cấu hình TEST.');
+  // Check the actual just-read destination against the snapshot used to
+  // prepare the plan; a client-provided recompare flag is insufficient.
+  if(sourceSnapshotFingerprint({project:p.project,mirror:before.mirror,
+    currentView:before.view})!==p.beforeFingerprint)
+    abort('DESTINATION_CHANGED','Google Sheets thay đổi sau lần so sánh; chưa ghi.');
   // A fresh comparison is required after the user's confirmation.
   if(typeof adapter.recompare!=='function')
     abort('RECOMPARE_REQUIRED','Không có bước tính lại từ nguồn Payment và đích.');
