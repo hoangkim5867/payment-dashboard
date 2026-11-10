@@ -5784,8 +5784,8 @@ function ccSyncRenderBatchOverview(){
     if(hasLink&&!audit){stage='CHƯA KIỂM TRA';detail='Chưa có kết quả đối chiếu Google Sheets trong phiên này'}
     else if(hasLink&&audit){
       const dateOrderOnly=audit.status==='review-date-order'&&
-        Number(a.continuityErrors)===0&&Number(a.roundingDifferences)===0&&
-        Number(a.missingBalance)===0&&Number(a.invalidMoney)===0;
+        Number(audit.continuityErrors)===0&&Number(audit.roundingDifferences)===0&&
+        Number(audit.missingBalance)===0&&Number(audit.invalidMoney)===0;
       stage=audit.cached?'KẾT QUẢ ĐÃ LƯU':
         (audit.ok?'LỊCH SỬ ĐÃ KIỂM TRA':
         dateOrderOnly?'SỐ DƯ KHỚP · XEM THỨ TỰ NGÀY':'CẦN XỬ LÝ');
