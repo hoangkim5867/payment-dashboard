@@ -44,7 +44,7 @@ function auditHistoricalLedger(project,rawGoogleRows,sourceRows,opts={}){
   catch(error){fail('Cannot parse Google historical tab: '+error.message)}
   // Protect against partial parsers silently ignoring malformed transaction rows.
   // Every valid historical row must have a safe recorded running balance.
-  const balances=history.map(x=>x.values[13]);
+  // A balanced ledger is not necessarily chronological. Never approve historical\n  // verification when source rows move backward in time; do not reorder them.\n  const dateOrderExamples=[];\n  for(let i=1;i<history.length;i++){\n    if(history[i].values[0]<history[i-1].values[0]&&dateOrderExamples.length<30)\n      dateOrderExamples.push({previousRow:history[i-1].sheetRow,\n        row:history[i].sheetRow,previousDate:history[i-1].values[0],date:history[i].values[0]});\n  }\n  const balances=history.map(x=>x.values[13]);
   const opening=round(balances[0]-flow(history[0].values.slice(6,13)));
   if(!Number.isSafeInteger(opening))fail('Unsupported opening balance or precision');
   let previous=opening;
@@ -76,7 +76,7 @@ function auditHistoricalLedger(project,rawGoogleRows,sourceRows,opts={}){
   }
   const openingFromCash=opts.confirmedOpeningBalance;
   const openingConfirmed=Number.isSafeInteger(openingFromCash)&&close(opening,openingFromCash);
-  const historyVerified=continuityErrors.length===0&&missing===0&&ambiguous===0;
+  const historyVerified=continuityErrors.length===0&&missing===0&&ambiguous===0&&\n    dateOrderExamples.length===0;
   const closingVerified=historyVerified&&openingConfirmed&&extra===0&&
     close(balances.at(-1),round(openingFromCash+source.netChange));
   return Object.freeze({project:key,kind:'historical-tab',
@@ -84,7 +84,7 @@ function auditHistoricalLedger(project,rawGoogleRows,sourceRows,opts={}){
     openingBalance:opening,historicalClosingBalance:balances.at(-1),
     sourceNetChange:source.netChange,rowsMatched:matched,
     unmatchedHistorical:missing,unmatchedSource:extra,ambiguousMatches:ambiguous,
-    continuityErrorCount:continuityErrors.length,
+    dateOrderRegressions:dateOrderExamples.length,dateOrderExamples,\n    continuityErrorCount:continuityErrors.length,
     continuityExamples:continuityErrors.slice(0,8),unmatchedExamples:examples,
     openingConfirmed,historicalRowsVerified:historyVerified,
     closingBalanceVerified:closingVerified,
