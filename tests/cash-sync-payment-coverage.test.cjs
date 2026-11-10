@@ -80,3 +80,15 @@ test('unpaid or deleted Payment from another project cannot hide in a batch',()=
  assert.throws(()=>check('ELYSIAN',[
   {id:'deleted-other',project:'EATON',deleted:true}],[]),/project mismatch/);
 });
+
+test('batch project names normalize spaces identically to Payment documents',()=>{
+ const result=checkBoundedBatch([{project:'  ELYSIAN   ',loaded:true,complete:true,
+  payments:[paid('abc')],ledger:[ledger('abc')]}]);
+ assert.equal(result.results[0].project,'ELYSIAN');
+ assert.equal(result.results[0].matched,1);
+ assert.equal(result.canWrite,false);
+ assert.throws(()=>checkBoundedBatch([
+  {project:'EATON P1',loaded:false,complete:false},
+  {project:'EATON  P1',loaded:false,complete:false}
+ ]),/Repeated project/);
+});
