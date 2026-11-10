@@ -90,9 +90,12 @@ function planTestSync({project,history,source,openingBalance=null,
   // Plain data, not a Google mutation payload. A future restricted API must
   // recheck destination and snapshot fingerprints before performing writes.
   return Object.freeze({preview,mirrorAdditions:newEntries,
-    expectedView:result.grid,mirrorHeader:MIRROR_HEADER,viewHeader:VIEW_HEADER});
+    expectedView:result.grid,expectedBalances:result.rows.map(row=>row.balance),
+    mirrorHeader:MIRROR_HEADER,viewHeader:VIEW_HEADER});
 }
-function verifyAfterWrite(prepared,{mirror=[],view=[]}={}){
+// Google API readback must supply separately read UNFORMATTED_VALUE cells
+// and FORMULA cells. Google calculated N is not derivable from formula text.
+function verifyAfterWrite(prepared,{mirror=[],view=[],formulas=[]}={}){
   if(!prepared||!prepared.preview)deny('MISSING_PLAN','Không có kế hoạch đã xác nhận.');
   const p=prepared.preview;
   const found=validateMirror(p.project,mirror);
@@ -100,14 +103,55 @@ function verifyAfterWrite(prepared,{mirror=[],view=[]}={}){
   for(const [id,signature] of required)
     if(found.get(id)?.signature!==signature)
       deny('WRITE_NOT_VERIFIED','Google Sheets chưa lưu/khớp nguồn: '+id.slice(0,60));
-  // Validate actual calculated balances separately at the Google read stage.
-  // A matching output grid alone cannot certify Sheets formula evaluation.
   const rows=asRows(view,'VIEW');
-  if(rows.length!==p.totalRows+1)
-    deny('VIEW_NOT_VERIFIED','Số dòng Google Sheets sau ghi chưa đúng.');
-  return {status:'SNAPSHOT_MATCH_ONLY',project:p.project,
+  const formulaRows=asRows(formulas,'VIEW formulas');
+  const expected=prepared.expectedView;
+  if(!Array.isArray(expected)||rows.length!==expected.length||
+     formulaRows.length!==expected.length-1)
+    deny('VIEW_NOT_VERIFIED','Thiếu dòng hoặc thiếu công thức Google Sheets sau ghi.');
+  // The metadata/header must be exact; no unexpected transaction/ID can hide
+  // behind a matching row count or a coincidentally matching closing balance.
+  for(let i=0;i<rows.length;i++){
+    const actual=rows[i]?.values;
+    const cells=expected[i]?.values;
+    if(!Array.isArray(actual)||!Array.isArray(cells)||actual.length>17)
+      deny('VIEW_NOT_VERIFIED','Bố cục tab VIEW bị thay đổi tại hàng '+(i+1)+'.');
+    for(let j=0;j<17;j++){
+      const expectedCell=cells[j]?.userEnteredValue||{};
+      const expectedFormula=expectedCell.formulaValue;
+      const raw=actual[j]??'';
+      if(i>0&&j===13){
+        if(!Number.isFinite(raw))
+          deny('BALANCE_NOT_VERIFIED','Số dư N chưa được Google tính tại hàng '+(i+1)+'.');
+        const expectedBalance=Number(prepared.expectedBalances?.[i-1]);
+        if(!Number.isFinite(expectedBalance)||Math.abs(raw-expectedBalance)>0.000001)
+          deny('BALANCE_NOT_VERIFIED','Số dư N của Google không đúng tại hàng '+(i+1)+'.');
+        if(String(formulaRows[i-1]?.[0]??'').replace(/\\s+/g,'')!==String(expectedFormula).replace(/\\s+/g,''))
+          deny('FORMULA_NOT_VERIFIED','Công thức số dư N bị sửa tại hàng '+(i+1)+'.');
+        continue;
+      }
+      if(expectedFormula!==undefined){
+        // No formula in any other column is allowed by this view schema.
+        deny('VIEW_NOT_VERIFIED','Công thức không đúng vị trí.');
+      }
+      const expectedValue=expectedCell.numberValue??expectedCell.stringValue??
+        expectedCell.boolValue??'';
+      if(typeof expectedValue==='number'){
+        if(typeof raw!=='number'||!Number.isFinite(raw)||
+           Math.abs(raw-expectedValue)>0.000001)
+          deny('VIEW_NOT_VERIFIED','Giá trị tiền thay đổi tại hàng '+(i+1)+', cột '+(j+1)+'.');
+      }else if(String(raw)!==String(expectedValue)){
+        deny('VIEW_NOT_VERIFIED','Nội dung/ID thay đổi tại hàng '+(i+1)+', cột '+(j+1)+'.');
+      }
+    }
+  }
+  if(expected.length<2)deny('BALANCE_NOT_VERIFIED','Chưa có giao dịch để xác nhận số dư cuối.');
+  const last=rows.at(-1).values;
+  if(Math.abs(Number(last[13])-p.closingBalance)>0.000001)
+    deny('BALANCE_NOT_VERIFIED','Số dư cuối trên Google Sheets không khớp.');
+  return {status:'FULL_READBACK_VERIFIED',project:p.project,
     verifiedMirrorAdditions:required.size,verifiedViewRows:rows.length,
-    balancesVerified:false,canWrite:false};
+    closingBalance:Number(last[13]),balancesVerified:true,canWrite:false};
 }
 module.exports={VIEW_NAME,MIRROR_NAME,VIEW_HEADER,MIRROR_HEADER,
   viewSignature,planTestSync,verifyAfterWrite};
