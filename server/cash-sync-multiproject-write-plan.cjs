@@ -62,17 +62,24 @@ function planTestSync({project,history,source,openingBalance=null,
   for(const id of oldIds)if(!newIds.has(id))
     deny('MIRROR_REMOVED','Khoản đã đồng bộ không còn trong nguồn.');
   const newEntries=nextMirror.filter(r=>!oldIds.has(r.id));
+  // Reconstruct the CURRENT view solely from immutable historical rows and
+  // previously-synced mirror IDs. A legitimate new source changes the desired
+  // view, but must never make an edited existing view appear trustworthy.
+  let originalViewSignature=null;
   if(currentView.length){
-    if(!expectedViewSignature||expectedViewSignature!==viewSignature(currentView))
-      deny('VIEW_CONFLICT','Tab VIEW thay đổi từ lần kiểm tra trước.');
-    if(currentView.length!==result.rows.length+1)
-      deny('VIEW_REVIEW','Tab VIEW có số hàng khác kế hoạch; không tự xóa hoặc ghi đè.');
-    // Only an identical existing tab is safe to mark as already synced.
-    const expected=result.grid.map(row=>({values:row.values.map(c=>
+    const oldSource=mirror.map(row=>({...row,id:row.id,project}));
+    const prior=prepareProjectView({project,history,source:oldSource,openingBalance});
+    if(prior.renderer!=='REUSED_PHU_HUNG_BUILD_LEDGER')
+      deny('VIEW_REVIEW','Chưa xác minh được bản tổng hợp đã có.');
+    const originalGrid=prior.grid.map(row=>({values:row.values.map(c=>
       c.userEnteredValue?.formulaValue??c.userEnteredValue?.numberValue??
       c.userEnteredValue?.stringValue??'')}));
-    if(digest(currentView)!==digest(expected))
-      deny('VIEW_REVIEW','Tab VIEW có khác biệt, cần đọc/đối chiếu cụ thể trước cập nhật.');
+    originalViewSignature=viewSignature(currentView);
+    if(!expectedViewSignature||expectedViewSignature!==originalViewSignature)
+      deny('VIEW_CONFLICT','Tab VIEW thay đổi từ lần kiểm tra trước.');
+    if(currentView.length!==originalGrid.length||
+       digest(currentView)!==digest(originalGrid))
+      deny('VIEW_REVIEW','Tab VIEW khác sổ cũ được xác minh; không ghi đè chỉnh sửa tay.');
   }
   const preview={
     project,viewTab:VIEW_NAME,mirrorTab:MIRROR_NAME,
@@ -83,6 +90,7 @@ function planTestSync({project,history,source,openingBalance=null,
     beforeFingerprint:digest({project,mirror,currentView}),
     afterFingerprint:digest({view:result.grid,mirror:nextMirror}),
     viewExists:currentView.length>0,
+    originalViewSignature,
     wouldChange:currentView.length===0||newEntries.length>0,
     canWrite:false,needsExplicitAdminConfirmation:true,
     requiresServerAuthorization:true
