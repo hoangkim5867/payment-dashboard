@@ -5,7 +5,6 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="assets/js/cash-sync-historical-audit.js"></script>
-<script src="assets/js/cash-sync-local-comparison.js"></script>
 <link rel="stylesheet" href="assets/css/cash-control.css" data-stage1-extracted="primary">
 <style id="cc-no-double-sidebar-gap">
 /* Fix: sidebar already occupies a CSS-grid column; do not offset main twice. */
@@ -5923,53 +5922,7 @@ async function ccSyncProjectReadOnlyCheck(auditBalances=false){
                   '. Cần kiểm tra Rules/phiên đăng nhập, không tự nới quyền.';
               }finally{diagnoseButton.style.display='none'}
             });
-            // TEST-only manual Excel reconciliation. Does not query Firestore,
-            // upload the file, approve writes, or change the source ledger.
-            const importLabel=document.createElement('label');
-            importLabel.textContent='So với file Excel Cash Control đã xuất (chỉ máy này · không ghi): ';
-            importLabel.style.cssText='display:block;margin-top:8px;font-weight:600';
-            const importFile=document.createElement('input');
-            importFile.type='file';importFile.accept='.xlsx,.xls';
-            importFile.style.cssText='display:block;margin:6px 0;max-width:100%';
-            const importOutput=document.createElement('pre');
-            importOutput.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-width:620px';
-            importFile.addEventListener('change',async()=>{
-              importOutput.textContent='';
-              const file=importFile.files?.[0];
-              if(!file)return;
-              if(!currentAuthUser||!isCashControlOwner()){
-                importOutput.textContent='Chỉ Admin được đối chiếu.';importFile.value='';return;
-              }
-              if(file.size>12*1024*1024){
-                importOutput.textContent='File vượt quá 12 MB; không xử lý.';importFile.value='';return;
-              }
-              try{
-                if(!window.XLSX||!window.CashSyncLocalComparison)
-                  throw Error('Chưa tải được bộ đọc Excel. Tải lại TEST.');
-                const bytes=await file.arrayBuffer();
-                const workbook=window.XLSX.read(bytes,{type:'array',cellDates:false});
-                const sourceRows=window.CashSyncLocalComparison.importRows(
-                  workbook,project,window.CashSyncHistoricalAudit);
-                // An exported workbook cannot prove full Payment coverage.
-                const comparison=window.CashSyncHistoricalAudit.compareLoadedCashControl(
-                  rows,project,sourceRows,{sourceComplete:false});
-                importOutput.textContent=
-                  'Excel '+project+': '+sourceRows.length+' dòng đã đọc trong bộ nhớ'+
-                  '\\nGoogle lịch sử từ 10/2026: '+comparison.historicalScope+
-                  ' · Excel từ 10/2026: '+comparison.sourceScope+
-                  ' · ứng viên khớp: '+comparison.matched+
-                  ' · chỉ Google: '+comparison.historicalOnly+
-                  ' · chỉ Excel: '+comparison.cashOnly+
-                  ' · chữ ký giống nhau không phân biệt được: '+comparison.ambiguous+
-                  '\\nĐây chỉ là so khớp ngày + 7 cột thu/chi, không xác định ID giao dịch.'+
-                  '\\nCHƯA xác minh toàn bộ Payment thật, không cho phép đồng bộ/ghi.';
-              }catch(error){
-                importOutput.textContent='Không thể đối chiếu Excel: '+
-                  String(error?.message||error).slice(0,220);
-              }finally{importFile.value=''}
-            });
-            importLabel.append(importFile);
-            details.append(button,loadButton,diagnoseButton,pre,importLabel,importOutput);
+            details.append(button,loadButton,diagnoseButton,pre);
             cells[4].append(document.createElement('div'),details);
           }
           if(result.financialExamples?.length&&project!=='FOXCONN'){
