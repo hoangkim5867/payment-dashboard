@@ -9,6 +9,8 @@ const {runTestOnlySync}=
   require('../server/cash-sync-multiproject-test-runner.cjs');
 const {createGoogleTestAdapter}=
   require('../server/cash-sync-multiproject-google-test-adapter.cjs');
+const {auditExistingTest}=
+  require('../server/cash-sync-elysian-test-audit.cjs');
 function httpError(code,message){const e=new Error(message);e.statusCode=code;throw e}
 module.exports=async function handler(req,res){
   res.setHeader('Cache-Control','no-store, max-age=0');
@@ -36,9 +38,9 @@ module.exports=async function handler(req,res){
       JSON.stringify(raw).length>600000)
       httpError(413,'Invalid/oversized TEST request.');
     const {action,project,history,source,openingBalance}=raw;
-    if(!['preview','commit','status'].includes(action)||
+    if(!['preview','commit','status','audit'].includes(action)||
        typeof project!=='string'||project.trim().length<2||project.length>180||
-       (action!=='status'&&(!Array.isArray(history)||history.length>5000||
+       (!['status','audit'].includes(action)&&(!Array.isArray(history)||history.length>5000||
        !Array.isArray(source)||source.length>5000)))
       httpError(400,'Project/transaction snapshot invalid.');
     // Real Payment completeness is NOT attested here: only synthetic/supplied
@@ -51,6 +53,14 @@ module.exports=async function handler(req,res){
         project,accessToken:bearer.slice(7),adminVerified:true
       });
       return res.status(200).json(await inspector.readStatus());
+    }
+    if(action==='audit'){
+      if(project!=='ELYSIAN')
+        httpError(403,'Read-only audit is pinned to ELYSIAN TEST.');
+      const inspector=createGoogleTestAdapter({
+        project,accessToken:bearer.slice(7),adminVerified:true
+      });
+      return res.status(200).json(auditExistingTest(await inspector.readAfterWrite()));
     }
     const planInput={project,history,source,
       openingBalance:openingBalance??null,
