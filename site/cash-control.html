@@ -3367,10 +3367,25 @@ async function loadProjectPayments(project,{force=false,quiet=false,refresh=true
                 .map(row=>String(row?.project||'').trim())
                 .filter(raw=>raw && raw!==project &&
                     projectFromMisfiledContractCode(raw)===project))];
-            const snaps=await Promise.all([
-                getDocs(q),
-                ...legacyAliases.map(alias=>getDocs(query(paymentsRef,where('project','==',alias))))
-            ]);
+            const projectQueries=[
+                {label:'dự án '+project,request:getDocs(q)},
+                ...legacyAliases.map(alias=>({
+                    label:'tên dự án cũ '+alias,
+                    request:getDocs(query(paymentsRef,where('project','==',alias)))
+                }))
+            ];
+            // Keep the same read count. Do not retry or broaden the query.
+            // Annotate the failed request so one legacy alias cannot be
+            // mistaken for a failed primary project query.
+            const snaps=await Promise.all(projectQueries.map(async item=>{
+                try{return await item.request}
+                catch(error){
+                    const tagged=new Error(String(error?.message||error));
+                    tagged.code=error?.code||'unknown';
+                    tagged.cashQueryLabel=item.label;
+                    throw tagged;
+                }
+            }));
             console.info('[Firestore Read Audit] Cash Control project detail', {
                 project, queries:snaps.length,
                 documentsReturned:snaps.reduce((sum,snap)=>sum+snap.size,0),
@@ -3413,7 +3428,7 @@ async function loadProjectPayments(project,{force=false,quiet=false,refresh=true
 
             const code=String(error?.code||'');
             if(typeof onError==='function')onError(code.includes('permission-denied')?
-                'Firebase permission-denied (Rules từ chối truy vấn theo dự án)':
+                'Firebase permission-denied tại '+(error.cashQueryLabel||'truy vấn Payment')+' (cần kiểm tra phiên đăng nhập, project Firebase và Rules)':
                 code.includes('resource-exhausted')?
                 'Firebase resource-exhausted (có thể hết quota đọc)':
                 code.includes('unauthenticated')?
@@ -5451,14 +5466,14 @@ function ccSyncProjectCatalogRender(){
       input.setCustomValidity('');
       if(value)ccSyncProjectLinkDraft[p]=value;else delete ccSyncProjectLinkDraft[p];
       ccSyncProjectCatalogSaveDraft();
-      ccSyncProjectCatalogStatus('Đã lưu nháp trên máy này: '+Object.keys(ccSyncProjectLinkDraft).length+
-        ' dự án có link. Chưa kết nối hay ghi Google Sheets.');
+      ccSyncProjectCatalogStatus('Đã lưu trên trình duyệt này: '+Object.keys(ccSyncProjectLinkDraft).length+
+        ' link Google Sheets gốc. Chưa kết nối hay ghi Google Sheets.');
     });
     row.append(title,input);wrap.append(row);
   }
   ccSyncProjectCatalogStatus('Danh mục: '+catalog.length+' dự án · đang hiển thị '+visible.length+
     ' · '+Object.keys(ccSyncProjectLinkDraft).length+
-    ' dự án đã nhập link nháp. Dự án mới trong Cash Control tự vào danh sách.');
+    ' dự án đã nhập link Google Sheets gốc (chỉ lưu trên trình duyệt này). Dự án mới trong Cash Control tự vào danh sách.');
 }
 // Admin-only explicit read-only discovery: validates the selected historical
 // tab exists and is readable. This does NOT reconcile Cash Control/closing balances.
