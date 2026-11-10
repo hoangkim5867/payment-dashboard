@@ -58,3 +58,24 @@ test('historical balance differences are visible but never treated as approval',
  assert.equal(r.projects[0].status,'requires-manual-reconciliation');
  assert.equal(r.projects[0].canWrite,false);
 });
+
+test('multi-project review exposes backward dates without ever approving the project',()=>{
+ const reversed=[
+  ['DATE'],
+  ['2026-10-02','company','c','d','i','type',50,30,0,0,0,0,0,1020],
+  ['2026-10-01','company','c','d','i','type',100,20,0,0,0,0,0,1100]
+ ];
+ const rows=[...source,{project:'EATON',id:'t2',date:'2026-10-02',
+   amounts:[50,30,0,0,0,0,0]}];
+ const r=reviewMultiProjectDraft(draft,catalog,{EATON:{
+  metadata:meta('eaton_fake'),historicalRows:reversed,sourceRows:rows,
+  confirmedOpeningBalance:1000}});
+ const item=r.projects.find(x=>x.project==='EATON');
+ assert.equal(item.status,'requires-manual-reconciliation');
+ assert.equal(item.dateOrderRegressions,1);
+ assert.equal(item.dateOrderExamples.length,1);
+ assert.equal(item.continuityErrorCount,0);
+ assert.equal(item.historicalRowsVerified,false);
+ assert.equal(item.closingBalanceVerified,false);
+ assert.equal(item.canWrite,false);
+});
