@@ -12,7 +12,8 @@ const history=[{...tx('2026-10-01',100,'H-1'),rowId:2,balance:900}];
 const source=[{project:'ELYSIAN',id:'x1',...tx('2026-11-01',50,'H-2')}];
 const inputs={project:'ELYSIAN',history,source,sourceComplete:true,destinationConfirmed:true};
 const plan=()=>planTestSync(inputs);
-function mock(prepared,{mutate=false,stale=false,access=true,badBalance=false}={}){
+function mock(prepared,{mutate=false,stale=false,access=true,badBalance=false,
+  changedDestination=false}={}){
   const calls=[],state={mirror:[],view:[],formulas:[]};
   const normalizeView=()=>prepared.expectedView.map((r,i)=>({values:r.values.map((cell,j)=>
     i>0&&j===13?prepared.expectedBalances[i-1]+(badBalance?1:0):
@@ -20,7 +21,8 @@ function mock(prepared,{mutate=false,stale=false,access=true,badBalance=false}={
   const adapter={
     async checkAuthority(){calls.push('auth');return {adminVerified:access,testOnly:true,spreadsheetId:file}},
     async readSnapshot(){calls.push('read');return {project:'ELYSIAN',spreadsheetId:file,
-      viewTab:'PROJECT_VIEW',mirrorTab:'DATA_CASHCONTROL',mirror:[],view:[]}},
+      viewTab:'PROJECT_VIEW',mirrorTab:'DATA_CASHCONTROL',
+      mirror:changedDestination?[{id:'injected',project:'ELYSIAN'}]:[],view:[]}},
     async recompare(){calls.push('compare');const p=plan();return stale?{...p,preview:{...p.preview,afterFingerprint:'changed'}}:p},
     async writeMirrorAdditions(rows){calls.push('mirror');if(mutate)throw Error('Write failed');state.mirror.push(...rows)},
     async writeView(){calls.push('view');state.view=normalizeView();
@@ -50,6 +52,12 @@ test('wrong verified Admin blocks before reads and writes',async()=>{
   await denied(()=>runTestOnlySync({prepared:p,adapter:m.adapter,
     expectedTestSpreadsheetId:file,explicitAdminConsent:true}),'AUTH_FAILED');
   assert.deepEqual(m.calls,['auth']);
+});
+test('destination changes after preview are blocked before writes',async()=>{
+  const p=plan(),m=mock(p,{changedDestination:true});
+  await denied(()=>runTestOnlySync({prepared:p,adapter:m.adapter,
+    expectedTestSpreadsheetId:file,explicitAdminConsent:true}),'DESTINATION_CHANGED');
+  assert.deepEqual(m.calls,['auth','read']);
 });
 test('stale plan blocks before any write',async()=>{
   const p=plan(),m=mock(p,{stale:true});
