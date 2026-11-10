@@ -13,9 +13,10 @@ function source(id,date,amount){return {project:'ELYSIAN',id,date,company:'B',
   contractNo:'LAB-'+id,content:'IPC',ipc:'IPC02',type:'支出',income:0,
   subcontract:amount,material:0,otherDirect:0,indirect:0,financial:0,
   otherPayable:0};}
-function fakeSheets({corrupt=false}={}){
+function fakeSheets({corrupt=false,failViewOnce=false,ackLostOnce=false}={}){
   const sheets=new Map([['PHU HUNG',{id:0,rows:[],formulas:[]}]]);
   let nextId=50,writes=0;const requests=[];
+  let viewFailurePending=failViewOnce,ackLossPending=ackLostOnce;
   const reply=(body,status=200)=>({ok:status<400,status,json:async()=>body});
   const calls=async(url,opts={})=>{
     const method=opts.method||'GET',u=new URL(url),base='/v4/spreadsheets/'+TEST_SPREADSHEET_ID;
@@ -42,7 +43,9 @@ function fakeSheets({corrupt=false}={}){
           row.slice(7,13).reduce((n,x)=>n+Number(x||0),0);
         row[13]=corrupt?bal+1:bal;
       }
-      writes++;return reply({replies:[{}]});
+      writes++;
+      if(viewFailurePending){viewFailurePending=false;return reply({error:'simulated view failure'},503)}
+      return reply({replies:[{}]});
     }
     const match=/^\/values\/'([^']+)'!([^?]+)$/.exec(path);
     if(!match)return reply({error:'invalid path'},400);
@@ -56,7 +59,9 @@ function fakeSheets({corrupt=false}={}){
       sh.rows=[body.values[0]];writes++;return reply({updatedRows:1});
     }
     if(method==='POST'&&range==='A:S:append'){
-      sh.rows.push(...body.values);writes++;return reply({updates:{updatedRows:body.values.length}});
+      sh.rows.push(...body.values);writes++;
+      if(ackLossPending){ackLossPending=false;return reply({error:'lost acknowledgement'},503)}
+      return reply({updates:{updatedRows:body.values.length}});
     }
     return reply({error:'write forbidden'},403);
   };
@@ -135,5 +140,45 @@ test('wrong balance from Google API blocks verification, no silent success',asyn
   await assert.rejects(runTestOnlySync({prepared:p,adapter:client.adapter,
     expectedTestSpreadsheetId:TEST_SPREADSHEET_ID,explicitAdminConsent:true}),
     e=>e.code==='BALANCE_NOT_VERIFIED');
+  assert.equal(remote.sheets.get('PHU HUNG').rows.length,0);
+});
+
+test('TEST mirror append succeeds but Google acknowledgement is lost: rerun does not append twice',async()=>{
+  const remote=fakeSheets({ackLostOnce:true}),client=setup(remote,[source('a','2026-11-02',50)]);
+  const first=await client.compare();
+  await assert.rejects(()=>runTestOnlySync({prepared:first,adapter:client.adapter,
+    expectedTestSpreadsheetId:TEST_SPREADSHEET_ID,explicitAdminConsent:true}),
+    /Google Sheets TEST HTTP 503/);
+  const tabs=tabNames('ELYSIAN');
+  assert.equal(remote.sheets.get(tabs.mirror).rows.length,2);
+  // The original request must not be blindly repeated; fresh preview detects
+  // the accepted mirror row and schedules ONLY the still-missing VIEW.
+  const newPlan=await client.compare();
+  assert.equal(newPlan.preview.additions,0);
+  assert.equal(newPlan.preview.viewExists,false);
+  const checked=await runTestOnlySync({prepared:newPlan,adapter:client.adapter,
+    expectedTestSpreadsheetId:TEST_SPREADSHEET_ID,explicitAdminConsent:true});
+  assert.equal(checked.status,'FULL_READBACK_VERIFIED');
+  assert.equal(checked.closingBalance,850);
+  assert.equal(remote.sheets.get(tabs.mirror).rows.length,2);
+  assert.equal(remote.sheets.get('PHU HUNG').rows.length,0);
+});
+test('TEST view write reports failure after reaching Google: fresh preview is read-only',async()=>{
+  const remote=fakeSheets({failViewOnce:true}),client=setup(remote,[source('a','2026-11-02',50)]);
+  const first=await client.compare();
+  await assert.rejects(()=>runTestOnlySync({prepared:first,adapter:client.adapter,
+    expectedTestSpreadsheetId:TEST_SPREADSHEET_ID,explicitAdminConsent:true}),
+    /Google Sheets TEST HTTP 503/);
+  const tabs=tabNames('ELYSIAN');
+  assert.equal(remote.sheets.get(tabs.mirror).rows.length,2);
+  assert.equal(remote.sheets.get(tabs.view).rows.length,3);
+  const newPlan=await client.compare();
+  assert.equal(newPlan.preview.additions,0);
+  assert.equal(newPlan.preview.wouldChange,false);
+  const before=remote.writes;
+  const checked=await runTestOnlySync({prepared:newPlan,adapter:client.adapter,
+    expectedTestSpreadsheetId:TEST_SPREADSHEET_ID,explicitAdminConsent:true});
+  assert.equal(checked.alreadySynced,true);
+  assert.equal(remote.writes,before);
   assert.equal(remote.sheets.get('PHU HUNG').rows.length,0);
 });
