@@ -38,3 +38,13 @@ test('date-only disorder has its own report label without approving sync',()=>{
  assert.match(overview,/Number\(a\.continuityErrors\)===0/);
  assert.match(overview,/CHƯA dự án nào được phê duyệt ghi/);
 });
+
+test('all-project overview uses the scoped audit, never an undefined a alias',()=>{
+ const overview=html.slice(html.indexOf('function ccSyncRenderBatchOverview(){'),
+   html.indexOf('async function ccSyncProjectReadOnlyCheck('));
+ const entry=overview.slice(overview.indexOf('const entries=catalog.map(project=>{'),
+   overview.indexOf('return {project,stage,detail,hasLink,sourceInfo};'));
+ assert.match(entry,/Number\(audit\.continuityErrors\)===0/);
+ assert.match(entry,/Number\(audit\.roundingDifferences\)===0/);
+ assert.doesNotMatch(entry,/Number\(a\.(?:continuityErrors|roundingDifferences|missingBalance|invalidMoney)\)/);
+});
