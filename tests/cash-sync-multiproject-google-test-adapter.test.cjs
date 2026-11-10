@@ -91,6 +91,13 @@ test('real Google API shapes: first TEST append, monthly update, repeat without 
   const p2=await client.compare();
   assert.equal(p2.preview.additions,0);
   assert.equal(p2.preview.wouldChange,false);
+  const beforeNoop=remote.writes;
+  const v2=await runTestOnlySync({prepared:p2,adapter:client.adapter,
+    expectedTestSpreadsheetId:TEST_SPREADSHEET_ID,explicitAdminConsent:true});
+  assert.equal(v2.status,'FULL_READBACK_VERIFIED');
+  assert.equal(v2.alreadySynced,true);
+  assert.equal(v2.writesConfirmed,false);
+  assert.equal(remote.writes,beforeNoop,'A second identical sync must issue ZERO Google writes');
   const b=source('b','2026-12-02',25);
   client.setRows([a,b]);
   const p3=await client.compare();
@@ -101,6 +108,14 @@ test('real Google API shapes: first TEST append, monthly update, repeat without 
   assert.equal(v3.closingBalance,825);
   assert.equal(remote.sheets.get(tabs.mirror).rows.length,3); // header + 2 distinct rows
   assert.equal(remote.sheets.get(tabs.view).rows.length,4); // header + history + 2
+  const p4=await client.compare();
+  assert.equal(p4.preview.additions,0);
+  const writesAfterDecember=remote.writes;
+  const v4=await runTestOnlySync({prepared:p4,adapter:client.adapter,
+    expectedTestSpreadsheetId:TEST_SPREADSHEET_ID,explicitAdminConsent:true});
+  assert.equal(v4.alreadySynced,true);
+  assert.equal(v4.closingBalance,825);
+  assert.equal(remote.writes,writesAfterDecember);
 });
 test('wrong file ID and unverified Admin prevent all Google requests',async()=>{
   const remote=fakeSheets();
