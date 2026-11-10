@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {check}=require('../site/assets/js/cash-sync-payment-coverage.js');
+const {check,checkBoundedBatch}=require('../site/assets/js/cash-sync-payment-coverage.js');
 const paid=(id,date='2026-10-15')=>({id,project:'ELYSIAN',processPaymentDate:date});
 const ledger=(id,date='2026-10-15')=>({date,_syncIds:['expense:pay_'+id]});
 test('paid Payment ID covered by Cash Control does not approve sync',()=>{
@@ -33,4 +33,35 @@ test('invalid date, removed Payment and unpaid Payment are differentiated',()=>{
   assert.equal(r.blockers.invalidDates,1);
   assert.equal(r.deleted,1);assert.equal(r.unpaid,1);
   assert.equal(r.paidPaymentIdsCovered,false);
+});
+
+test('bounded batch refuses missing or incomplete Payment snapshot with zero network reads',()=>{
+ const result=checkBoundedBatch([{project:'ELYSIAN',loaded:false,complete:false}]);
+ assert.equal(result.results[0].status,'incomplete-payment-snapshot');
+ assert.equal(result.results[0].paymentSnapshotVerified,false);
+ assert.equal(result.canWrite,false);
+ assert.equal(result.sourceCompletenessVerified,false);
+});
+test('bounded batch checks loaded Payment IDs without approving sync',()=>{
+ const result=checkBoundedBatch([{project:'ELYSIAN',loaded:true,complete:true,
+  payments:[paid('abc')],ledger:[ledger('abc')]}]);
+ assert.equal(result.results[0].paymentSnapshotVerified,true);
+ assert.equal(result.results[0].matched,1);
+ assert.equal(result.sourceCompletenessVerified,false);
+ assert.equal(result.canWrite,false);
+});
+test('bounded batch catches missed paid Payment and refuses silent completeness inference',()=>{
+ const result=checkBoundedBatch([{project:'ELYSIAN',loaded:true,complete:true,
+  payments:[paid('abc'),paid('def')],ledger:[ledger('abc')]}]);
+ assert.equal(result.results[0].status,'payment-coverage-blocked');
+ assert.equal(result.results[0].blockers.missingPayments,1);
+ assert.equal(result.allPaymentSnapshotsVerified,false);
+});
+test('bounded batch blocks duplicate project and over-three or oversized requests',()=>{
+ const item={project:'ELYSIAN',loaded:false,complete:false};
+ assert.throws(()=>checkBoundedBatch([item,item]),/Repeated project/);
+ assert.throws(()=>checkBoundedBatch([item,item,item,item]),/unbounded/);
+ assert.throws(()=>checkBoundedBatch([item],{maxProjects:4}),/unbounded/);
+ assert.throws(()=>checkBoundedBatch([{project:'ELYSIAN',loaded:true,complete:true}]),
+  /explicit source arrays/);
 });
