@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {planTestSync,verifyAfterWrite,viewSignature}=require('../server/cash-sync-multiproject-write-plan.cjs');
+const {planTestSync,verifyAfterWrite,viewSignature,tabNames}=require('../server/cash-sync-multiproject-write-plan.cjs');
 const {token}=require('../site/assets/js/cash-sync-multiproject-planner.js');
 const tx=(date,amount,contractNo)=>({date,company:'Supplier A',contractNo,
   content:'IPC',ipc:'IPC01',type:'支出',income:0,subcontract:amount,
@@ -18,8 +18,8 @@ test('real PHU HUNG renderer is reused for read-only multi-project compare',()=>
   assert.equal(p.preview.historicCount,2);
   assert.equal(p.preview.additions,1);
   assert.equal(p.expectedView.length,4);
-  assert.equal(p.preview.viewTab,'PROJECT_VIEW');
-  assert.equal(p.preview.mirrorTab,'DATA_CASHCONTROL');
+  assert.equal(p.preview.viewTab,tabNames('ELYSIAN').view);
+  assert.equal(p.preview.mirrorTab,tabNames('ELYSIAN').mirror);
   assert.equal(p.preview.canWrite,false);
   assert.equal(p.preview.requiresServerAuthorization,true);
 });
