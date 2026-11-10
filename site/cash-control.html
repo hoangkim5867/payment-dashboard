@@ -1454,7 +1454,8 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" type="button" id="ccGoogleSyncAuthorize">Kết nối Google</button>
         <button class="btn primary" type="button" id="ccGoogleSyncDirectSync">Đồng bộ PHU HUNG → Google Sheets TEST</button>
-        <button class="btn" type="button" id="ccSyncMultiProjectTestRun" hidden>Chạy ELYSIAN giả → Google TEST</button>
+        <button class="btn" type="button" id="ccSyncMultiProjectTestRun" hidden>Kiểm tra ELYSIAN TEST · không trùng</button>
+        <button class="btn" type="button" id="ccSyncMultiProjectTestDecember" hidden>Thêm giao dịch tháng 12 TEST</button>
         <button class="btn" type="button" id="ccGoogleSyncCompare">So sánh dữ liệu (chỉ đọc)</button>
         <button class="btn" type="button" id="ccGoogleSyncOriginalAudit" hidden>Đối chiếu file PHU HUNG gốc (chỉ đọc)</button>
       </div>
@@ -7617,24 +7618,30 @@ function ccGoogleSyncInitializeGooglePilot(){
   const demoFourth=$('ccGoogleSyncDemoFourth'),demoFourthEdit=$('ccGoogleSyncDemoFourthEdit');
   const demoView=$('ccGoogleSyncDemoView');
   const multiTestButton=$('ccSyncMultiProjectTestRun');
-  if(multiTestButton&&CC_SYNC_DEMO_ALLOWED){
-    multiTestButton.hidden=!(currentAuthUser&&isCashControlOwner());
-    multiTestButton.addEventListener('click',async()=>{
-      if(!currentAuthUser||!isCashControlOwner()||!ccGoogleSyncToken){
-        ccGoogleSyncStatus('Cần đăng nhập Admin TEST và bấm Kết nối Google trước.');return;
+  const multiDecemberButton=$('ccSyncMultiProjectTestDecember');
+  const multiTestButtons=[multiTestButton,multiDecemberButton].filter(Boolean);
+  if(CC_SYNC_DEMO_ALLOWED&&multiTestButtons.length===2){
+    const runMultiProjectTest=async includeDecember=>{
+      if(!currentAuthUser||!isCashControlOwner()||
+         firebaseConfig.projectId!=='cash-control-staging'||!ccGoogleSyncToken){
+        ccGoogleSyncStatus('Cần Admin TEST đăng nhập và bấm Kết nối Google.');return;
       }
-      if(multiTestButton.disabled)return;
-      multiTestButton.disabled=true;
+      if(multiTestButtons.some(button=>button.disabled))return;
+      multiTestButtons.forEach(button=>button.disabled=true);
       const values=(date,company,contractNo,content,ipc,subcontract)=>({
         date,company,contractNo,content,ipc,type:'支出',income:0,
         subcontract,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0
       });
+      const first={...values('2026-11-02','DEMO VENDOR','TEST-LAB-001',
+        'ELYSIAN giả trên PHU HUNG TEST COPY','IPC01',50),
+        project:'ELYSIAN',id:'MULTI-TEST-ELYSIAN-001'};
+      const december={...values('2026-12-02','DEMO VENDOR 12','TEST-LAB-002',
+        'Giao dịch giả tháng 12, không phải thanh toán thật','IPC02',25),
+        project:'ELYSIAN',id:'MULTI-TEST-ELYSIAN-002'};
       const payload={project:'ELYSIAN',testDataOnly:true,openingBalance:1000,
         history:[{...values('2026-10-01','DEMO HISTORY','TEST-H001',
           'Lịch sử giả, không phải giao dịch thật','IPC00',100),rowId:2,balance:900}],
-        source:[{...values('2026-11-02','DEMO VENDOR','TEST-LAB-001',
-          'ELYSIAN giả trên PHU HUNG TEST COPY','IPC01',50),
-          project:'ELYSIAN',id:'MULTI-TEST-ELYSIAN-001'}]};
+        source:includeDecember?[first,december]:[first]};
       try{
         const jwt=await currentAuthUser.getIdToken();
         const request=async data=>{
@@ -7647,31 +7654,51 @@ function ccGoogleSyncInitializeGooglePilot(){
           if(!response.ok)throw Error(String(result.error||response.status));
           return result;
         };
-        ccGoogleSyncStatus('Đang so sánh ELYSIAN giả với bản sao Google TEST (0 Firestore reads)…');
+        const goal=includeDecember?'thêm tháng 12':'kiểm tra không trùng';
+        ccGoogleSyncStatus('Đang '+goal+' · chỉ đọc Google TEST, không đọc Firestore…');
         const initial=await request({...payload,action:'preview'});
         if(initial.mode!=='TEST_ONLY'||!initial.preview)throw Error('Thiếu kế hoạch TEST.');
         if(!initial.preview.wouldChange){
-          ccGoogleSyncStatus('ELYSIAN TEST đã khớp, không có giao dịch mới; không ghi.');return;
+          ccGoogleSyncStatus('ĐẠT KIỂM TRA KHÔNG TRÙNG: ELYSIAN TEST đã khớp '+
+            initial.preview.totalRows+' giao dịch, số dư cuối '+
+            Number(initial.preview.closingBalance).toLocaleString('vi-VN')+
+            '. Không ghi thêm dòng hoặc tạo tab mới.');
+          return;
         }
-        if(!confirm('CHỈ GHI ELYSIAN GIẢ VÀO PHU HUNG TEST COPY.\n'+
-          'Số dòng mới: '+initial.preview.additions+
-          '\nKhông sửa PHU HUNG lịch sử, ELYSIAN thật hay 17 Google Sheets gốc. Tiếp tục?')){
+        if(includeDecember&&initial.preview.existingMirror!==1){
+          throw Error('Chưa xác nhận có đúng 1 giao dịch tháng 11 trên Google TEST. Hãy bấm Kiểm tra không trùng trước.');
+        }
+        if(!includeDecember&&initial.preview.existingMirror!==0){
+          throw Error('TEST hiện có dữ liệu khác mẫu tháng 11. Không ghi đè.');
+        }
+        const expectedBalance=includeDecember?825:850;
+        if(initial.preview.closingBalance!==expectedBalance||
+           initial.preview.additions!==1)
+          throw Error('Kế hoạch TEST không đúng một giao dịch mới hoặc số dư mong đợi.');
+        if(!confirm('CHỈ GHI DỮ LIỆU GIẢ VÀO PHU HUNG TEST COPY.\n'+
+          (includeDecember?'Thêm đúng 1 khoản tháng 12 (25 VND), số dư 850 → 825.':
+            'Thêm đúng 1 khoản tháng 11 (50 VND), số dư 900 → 850.')+
+          '\nKhông sửa PHU HUNG lịch sử hoặc Google Sheets ELYSIAN gốc. Tiếp tục?')){
           ccGoogleSyncStatus('Đã hủy thử ghi.');return;
         }
         const done=await request({...payload,action:'commit',confirmTestWrite:true,
           beforeFingerprint:initial.preview.beforeFingerprint,
           afterFingerprint:initial.preview.afterFingerprint});
-        if(done.status!=='FULL_READBACK_VERIFIED'||done.balancesVerified!==true)
-          throw Error('Chưa xác minh Google Sheets hoàn chỉnh.');
-        ccGoogleSyncStatus('TEST ĐÃ XÁC MINH: '+done.verifiedMirrorAdditions+
-          ' giao dịch giả · số dư cuối '+Number(done.closingBalance).toLocaleString('vi-VN')+
-          '. Chỉ tab TEST riêng; không sửa dữ liệu thật.');
+        if(done.status!=='FULL_READBACK_VERIFIED'||done.balancesVerified!==true||
+           done.verifiedMirrorAdditions!==1||done.closingBalance!==expectedBalance)
+          throw Error('Google Sheets chưa khớp đủ số tiền, công thức và số dư TEST.');
+        ccGoogleSyncStatus('ĐÃ XÁC MINH GOOGLE TEST: '+(includeDecember?'đã thêm tháng 12':'đã thêm tháng 11')+
+          ' · 1 giao dịch giả · số dư cuối '+
+          Number(done.closingBalance).toLocaleString('vi-VN')+
+          '. Bấm kiểm tra lần nữa để xác nhận không ghi trùng.');
       }catch(error){
         ccGoogleSyncStatus('CHƯA HOÀN TẤT GOOGLE TEST: '+
-          String(error?.message||error).slice(0,170)+
-          '. Không tự ghi lại; cần so sánh lại.');
-      }finally{multiTestButton.disabled=false}
-    });
+          String(error?.message||error).slice(0,180)+
+          '. Không tự ghi lại; cần kiểm tra trạng thái.');
+      }finally{multiTestButtons.forEach(button=>button.disabled=false)}
+    };
+    multiTestButton.addEventListener('click',()=>runMultiProjectTest(false));
+    multiDecemberButton.addEventListener('click',()=>runMultiProjectTest(true));
   }
   if(CC_SYNC_DEMO_ALLOWED){
     demoToggle.hidden=false;
@@ -13615,7 +13642,10 @@ onAuthStateChanged(auth,async user=>{
     const pilotExportButton=$('cashPhuHungExportSource');
     if(pilotExportButton)pilotExportButton.hidden=!isCashControlOwner();
     const multiTestButton=$('ccSyncMultiProjectTestRun');
-    if(multiTestButton)multiTestButton.hidden=!(firebaseConfig.projectId==='cash-control-staging'&&isCashControlOwner());
+    const multiDecemberButton=$('ccSyncMultiProjectTestDecember');
+    for(const button of [multiTestButton,multiDecemberButton]){
+      if(button)button.hidden=!(firebaseConfig.projectId==='cash-control-staging'&&isCashControlOwner());
+    }
     const originalSyncPanel=$('ccGoogleSyncOriginalPanel');
     if(originalSyncPanel)originalSyncPanel.hidden=!(firebaseConfig.projectId==='cscecmep-payment'&&isCashControlOwner());
     const projectLinkCatalog=$('ccGoogleSyncProjectLinkCatalog');
