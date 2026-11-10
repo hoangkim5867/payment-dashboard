@@ -51,6 +51,27 @@ test('guards date reversal without hiding it',()=>{
  assert.equal(r.status,'review-date-order');
 });
 
+test('captures exact date reversal row pairs without treating valid running sums as errors',()=>{
+ const rows=[row('2026-11-02',100,0,1100),row('2026-10-31',20,0,1120),
+   row('2026-11-04',30,0,1150),row('2026-11-03',10,0,1160)];
+ const a=audit(rows,{project:'ELYSIAN'});
+ assert.equal(a.dateOrderOnly,true);
+ assert.equal(a.continuityErrors,0);
+ assert.equal(a.nonMonotonicDates,2);
+ assert.deepEqual(a.dateOrderExamples,[
+   {previousRow:1,previousDate:'2026-11-02',dateRow:2,date:'2026-10-31',crossesMonth:true},
+   {previousRow:3,previousDate:'2026-11-04',dateRow:4,date:'2026-11-03',crossesMonth:false}
+ ]);
+ assert.equal(a.canWrite,false);
+});
+test('financial mismatch never receives date-order-only classification',()=>{
+ const a=audit([row('2026-11-02',100,0,1100),
+   row('2026-10-31',20,0,1130)]);
+ assert.equal(a.nonMonotonicDates,1);
+ assert.equal(a.dateOrderOnly,false);
+ assert.equal(a.continuityErrors,1);
+ assert.equal(a.canWrite,false);
+});
 test('missing every N value indicates unsupported ledger layout, not confirmed loss',()=>{
  const r=audit([row('2026-10-01',100,0,''),row('2026-10-02',0,50,'')]);
  assert.equal(r.status,'unsupported-layout');
