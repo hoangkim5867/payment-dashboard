@@ -1430,6 +1430,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <div id="ccSyncPaymentPreflight" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0" hidden>
           <select id="ccSyncPaymentPreflightProject" aria-label="Dự án cần đếm Payment" style="min-width:180px;padding:7px;border:1px solid #cad4e3;border-radius:7px"></select>
           <button class="btn" id="ccSyncPaymentPreflightCount" type="button">Đếm Payment 1 dự án (có Firestore reads)</button>
+          <button class="btn" id="ccSyncPaymentInspectOne" type="button" hidden>Kiểm tra chi tiết dự án (có Firestore reads)</button>
           <span id="ccSyncPaymentPreflightStatus" aria-live="polite" style="font-size:12px;color:#44546b">Chưa kiểm tra.</span>
         </div>
         <div id="ccSyncProjectCatalogEntries" style="max-height:420px;overflow:auto;display:grid;gap:7px"></div>
@@ -1950,6 +1951,7 @@ import {
     query,
     where,
     getDocs,
+    limit,
     getCountFromServer,
     doc,
     getDoc,
@@ -5412,6 +5414,8 @@ function ccSyncProjectCatalogLoadDraft(){
     }
   }catch{/* ignore malformed local draft without ever overwriting cloud data */}
 }
+const ccSyncCountedProjectTotals=new Map();
+const CC_SYNC_INSPECT_MAX_DOCS=150;
 // Read-only production preflight: ONE project-count aggregation per explicit
 // Admin click. This never downloads raw Payment documents or changes any cache.
 async function ccSyncCountOneProject(){
@@ -5435,14 +5439,97 @@ async function ccSyncCountOneProject(){
   try{
     const snap=await getCountFromServer(query(paymentsRef,where('project','==',project)));
     const count=Number(snap.data()?.count);
+    if(Number.isSafeInteger(count)&&count>=0)ccSyncCountedProjectTotals.set(project,count);
+    else ccSyncCountedProjectTotals.delete(project);
+    ccSyncPaymentInspectButtonRefresh();
     status.textContent=Number.isSafeInteger(count)&&count>=0
       ?project+': '+count.toLocaleString('vi-VN')+
          ' chứng từ theo tên chuẩn · 1 truy vấn đếm. Chưa tính tên cũ, chưa tải hồ sơ, KHÔNG cho phép đồng bộ.'
       :'Không xác minh được số lượng; không đồng bộ.';
   }catch(error){
+    ccSyncCountedProjectTotals.delete(project);
+    ccSyncPaymentInspectButtonRefresh();
     status.textContent='Lỗi đếm Payment: '+String(error?.code||'không xác định')+
       '. Không tự thử lại, không đồng bộ.';
   }finally{button.disabled=false}
+}
+function ccSyncPaymentInspectButtonRefresh(){
+  const button=$('ccSyncPaymentInspectOne');
+  if(!button)return;
+  const project=normProject($('ccSyncPaymentPreflightProject')?.value||'');
+  const count=ccSyncCountedProjectTotals.get(project);
+  const canInspect=!!currentAuthUser&&isCashControlOwner()&&
+    firebaseConfig.projectId==='cscecmep-payment'&&
+    Number.isSafeInteger(count)&&count>0&&count<=CC_SYNC_INSPECT_MAX_DOCS;
+  button.hidden=!canInspect;
+  button.style.display=canInspect?'inline-flex':'none';
+  if(canInspect)button.textContent='Kiểm tra '+project+' · '+count+
+    ' chứng từ (có Firestore reads)';
+}
+// Only runs from a separate Admin click, never from rendering or a timer.
+// Max 151 documents; a count mismatch invalidates rather than approves the audit.
+async function ccSyncInspectOneProject(){
+  const button=$('ccSyncPaymentInspectOne');
+  const status=$('ccSyncPaymentPreflightStatus');
+  const project=normProject($('ccSyncPaymentPreflightProject')?.value||'');
+  const expectedCount=ccSyncCountedProjectTotals.get(project);
+  if(!button||!status||button.disabled||button.hidden)return;
+  if(!currentAuthUser||!isCashControlOwner()||
+      firebaseConfig.projectId!=='cscecmep-payment')return;
+  if(!project||!ccSyncProjectCatalogNames().includes(project)||
+      !Number.isSafeInteger(expectedCount)||expectedCount<1||
+      expectedCount>CC_SYNC_INSPECT_MAX_DOCS)return;
+  if(!confirm('Đọc tối đa '+(CC_SYNC_INSPECT_MAX_DOCS+1)+
+    ' Payment của duy nhất '+project+' để thống kê đã trả/chưa trả. '+
+    'Có Firestore reads; không ghi, không đồng bộ và không tự tải thêm. Tiếp tục?'))return;
+  button.disabled=true;
+  status.textContent='Đang kiểm tra chứng từ '+project+'…';
+  try{
+    const snap=await getDocs(query(paymentsRef,where('project','==',project),
+      limit(CC_SYNC_INSPECT_MAX_DOCS+1)));
+    if(snap.size!==expectedCount||snap.size>CC_SYNC_INSPECT_MAX_DOCS){
+      ccSyncCountedProjectTotals.delete(project);
+      status.textContent='DỪNG: số chứng từ hiện tại '+snap.size+
+        ' khác số đã đếm '+expectedCount+
+        ' hoặc vượt giới hạn. Phải đếm lại trước khi đối chiếu. KHÔNG đồng bộ.';
+      return;
+    }
+    let paid=0,unpaid=0,deleted=0,needsReview=0,invalidPaidDates=0,invalidPaidAmounts=0;
+    snap.forEach(d=>{
+      const p=d.data();
+      if(p.deleted===true){deleted++;return}
+      const date=String(p.processPaymentDate||'').trim();
+      const actual=p.processActualAmount;
+      const hasActual=actual!==''&&actual!=null;
+      const actualNumber=hasActual?Number(actual):NaN;
+      const validAmount=hasActual&&Number.isFinite(actualNumber)&&actualNumber>=0;
+      if(!date&&!hasActual){unpaid++;return}
+      let validDate=false;
+      if(date){
+        const day=date.slice(0,10);
+        validDate=/^20\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(day)&&
+          !Number.isNaN(Date.parse(day+'T00:00:00Z'))&&
+          new Date(day+'T00:00:00Z').toISOString().slice(0,10)===day;
+        if(!validDate)invalidPaidDates++;
+        if(!validAmount)invalidPaidAmounts++;
+      }
+      if(date&&validDate&&validAmount)paid++;
+      else needsReview++;
+    });
+    status.textContent=project+': '+snap.size+' chứng từ · '+paid+
+      ' đủ ngày và tiền thực trả · '+unpaid+' chưa có ngày/tiền trả · '+
+      needsReview+' cần kiểm tra · '+deleted+' đánh dấu xóa'+
+      ' · '+invalidPaidDates+' ngày trả sai · '+invalidPaidAmounts+
+      ' số tiền thực trả thiếu/sai. Đây chỉ là kiểm tra trường dữ liệu, '+
+      'CHƯA xác nhận trạng thái thanh toán thực tế. CHƯA so với Cash Control/Google Sheets, '+
+      'chưa tính tên dự án cũ. KHÔNG cho phép đồng bộ.';
+  }catch(error){
+    status.textContent='Lỗi đọc chi tiết: '+String(error?.code||'không xác định')+
+      '. Không thử lại tự động, KHÔNG đồng bộ.';
+  }finally{
+    button.disabled=false;
+    ccSyncPaymentInspectButtonRefresh();
+  }
 }
 function ccSyncProjectCatalogRender(){
   const wrap=$('ccSyncProjectCatalogEntries');
@@ -5467,6 +5554,7 @@ function ccSyncProjectCatalogRender(){
     }
     if(catalog.includes(previous))selector.value=previous;
   }
+  ccSyncPaymentInspectButtonRefresh();
   wrap.replaceChildren();
   for(const p of visible){
     const row=document.createElement('label');
@@ -5515,6 +5603,12 @@ function ccSyncProjectCatalogInitialize(){
   search?.addEventListener('input',ccSyncProjectCatalogRender);
   $('ccSyncProjectCatalogRefresh')?.addEventListener('click',ccSyncProjectCatalogRender);
   $('ccSyncPaymentPreflightCount')?.addEventListener('click',ccSyncCountOneProject);
+  $('ccSyncPaymentInspectOne')?.addEventListener('click',ccSyncInspectOneProject);
+  $('ccSyncPaymentPreflightProject')?.addEventListener('change',()=>{
+    const status=$('ccSyncPaymentPreflightStatus');
+    if(status)status.textContent='Chọn dự án và đếm lại để kiểm tra chi tiết.';
+    ccSyncPaymentInspectButtonRefresh();
+  });
   $('ccSyncProjectCatalogExport')?.addEventListener('click',()=>{
     const payload={schema:'CASH_SYNC_PROJECT_LINK_DRAFT_V1',projects:ccSyncProjectLinkDraft,
       note:'Local draft only; does not authorize Google Sheets sync'};
