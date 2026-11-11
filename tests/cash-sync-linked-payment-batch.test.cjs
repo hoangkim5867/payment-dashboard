@@ -16,7 +16,7 @@ test('bounded explicit read with no automatic retries or write actions',()=>{
  assert.match(fn,/if\(!confirm\(/);
  assert.match(fn,/await loadProjectPayments\(project/);
  assert.match(fn,/refresh:false/);
- assert.match(fn,/if\(!ok\|\|!paymentMonths\.has\(project\)\)/);
+ assert.match(fn,/if\(!ok\|\|!paymentMonths\.has\(project\)\|\|!receipt/);
  assert.match(fn,/failed\+\+;/);
  assert.match(fn,/break;/);
  assert.doesNotMatch(fn,/\b(setDoc|updateDoc|addDoc|deleteDoc|persistCashCloud|scheduleProjectBalanceSnapshot|renderAll)\s*\(/);
