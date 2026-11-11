@@ -43,3 +43,13 @@ test('cross-preview link recovery is local JSON only and never auto-fetches Goog
  assert.match(render,/trình duyệt không tự chuyển dữ liệu giữa các tên miền/);
  assert.doesNotMatch(render,/\b(?:getDocs|getCountFromServer|fetch|setDoc|updateDoc|addDoc)\s*\(/);
 });
+
+test('catalog status distinguishes matched links from out-of-catalog drafts without dropping either',()=>{
+ const begin=html.indexOf('function ccSyncProjectCatalogRender(){');
+ const end=html.indexOf('function ccSyncProjectCatalogInitialize(){',begin);
+ const render=html.slice(begin,end);
+ assert.match(render,/linkedNames\.filter\(p=>!catalog\.includes\(p\)\)/);
+ assert.match(render,/linkedCount-outsideCatalog\.length/);
+ assert.match(render,/outsideCatalog\.join\(', '\)/);
+ assert.doesNotMatch(render,/delete ccSyncProjectLinkDraft/);
+});
