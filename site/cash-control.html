@@ -5492,9 +5492,14 @@ function ccSyncProjectCatalogRender(){
     });
     row.append(title,input);wrap.append(row);
   }
-  const linkedCount=Object.keys(ccSyncProjectLinkDraft).length;
+  const linkedNames=Object.keys(ccSyncProjectLinkDraft);
+  const linkedCount=linkedNames.length;
+  const outsideCatalog=linkedNames.filter(p=>!catalog.includes(p));
+  const linkedInCatalog=linkedCount-outsideCatalog.length;
   ccSyncProjectCatalogStatus('Danh mục: '+catalog.length+' dự án · đang hiển thị '+visible.length+
-    ' · '+linkedCount+' dự án đã nhập link nháp. '+
+    ' · '+linkedCount+' link nháp ('+linkedInCatalog+' thuộc danh mục'+
+    (outsideCatalog.length?' · '+outsideCatalog.length+
+      ' ngoài danh mục: '+outsideCatalog.join(', '):'')+'). '+
     (linkedCount===0?
       'Nếu đã nhập link ở tên miền Preview khác: trình duyệt không tự chuyển dữ liệu giữa các tên miền. '+
       'Mở Preview cũ → Xuất danh sách / link (JSON) → trở lại đây → Nhập lại danh sách đã xuất. '+
