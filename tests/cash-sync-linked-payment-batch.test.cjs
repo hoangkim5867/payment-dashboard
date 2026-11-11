@@ -22,7 +22,7 @@ test('bounded explicit read with no automatic retries or write actions',()=>{
  assert.doesNotMatch(fn,/\b(setDoc|updateDoc|addDoc|deleteDoc|persistCashCloud|scheduleProjectBalanceSnapshot|renderAll)\s*\(/);
  assert.doesNotMatch(fn,/\bsetTimeout\s*\(/);
 });
-test('already loaded project is skipped and no recurring scans',()=>{
+test('cached project only reloads by explicit Admin confirmation, without recurring scans',()=>{
  assert.match(fn,/!paymentMonths\.has\(project\)/);
  assert.doesNotMatch(fn,/setInterval|onSnapshot|window\.location\.reload/);
  assert.match(fn,/button\.disabled=true/);
@@ -77,8 +77,11 @@ test('cached Payment without query receipt stays blocked without a refresh',()=>
  const compare=html.slice(begin,stop);
  assert.match(html,/const ccSyncPaymentQueryReceipts=new Map\(\)/);
  assert.match(compare,/ccSyncPaymentQueryReceipts\.get\(project\)/);
- assert.match(compare,/receipt\.retained===paymentMonths\.get\(project\)\.length/);
- assert.match(fn,/Không tự tải lại để tránh reads/);
+ assert.match(html,/function ccSyncHasValidPaymentReceipt\(project\)/);
+ assert.match(compare,/ccSyncHasValidPaymentReceipt\(project\)/);
+ assert.match(fn,/force:paymentMonths\.has\(project\)/);
+ assert.match(fn,/if\(!confirm\(/);
+ assert.match(fn,/cached\.length\+' dự án đã có cache/);
  assert.match(compare,/biên nhận query hợp lệ/);
  assert.match(compare,/sourceComplete:false/);
 });
@@ -94,6 +97,19 @@ test('cached Payment contents must match receipt, not merely the same row count'
  assert.match(loader,/JSON\.stringify\(\[\.\.\.rows\]\.sort/);
  assert.match(loader,/snapshotStamp:ccSyncPaymentRowsStamp\(rows\)/);
  assert.match(fn,/receipt\.snapshotStamp!==ccSyncPaymentRowsStamp\(paymentMonths\.get\(project\)\)/);
- assert.match(compare,/receipt\.snapshotStamp===ccSyncPaymentRowsStamp\(paymentMonths\.get\(project\)\)/);
+ assert.match(html,/receipt\.snapshotStamp===ccSyncPaymentRowsStamp\(rows\)/);
  assert.doesNotMatch(compare,/\b(?:getDocs|fetch|onSnapshot|setDoc|updateDoc|addDoc|deleteDoc)\s*\(/);
+});
+
+test('no-query proof accepts exactly one fresh receipt and never writes Sheets',()=>{
+ const helperStart=html.indexOf('function ccSyncHasValidPaymentReceipt(project){');
+ const helperEnd=html.indexOf('async function ccSyncLoadLinkedPaymentBatch(){',helperStart);
+ const helper=html.slice(helperStart,helperEnd);
+ assert.ok(helperStart>0&&helperEnd>helperStart);
+ assert.match(helper,/receipt\.queryCount>=1/);
+ assert.match(helper,/receipt\.retained===rows\.length/);
+ assert.match(helper,/receipt\.snapshotStamp===ccSyncPaymentRowsStamp\(rows\)/);
+ assert.match(fn,/!ccSyncHasValidPaymentReceipt\(project\)/);
+ assert.match(fn,/force:paymentMonths\.has\(project\)/);
+ assert.doesNotMatch(fn,/\b(?:getDocs|onSnapshot|setDoc|updateDoc|addDoc|deleteDoc)\s*\(/);
 });
