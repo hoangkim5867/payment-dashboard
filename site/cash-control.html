@@ -5682,6 +5682,15 @@ async function ccSyncProjectBatchHistoricalAudit(){
         const otherDateColumn=layout.validDatesByColumn.slice(1).some(n=>n>0);
         const clean=report.status==='internally-consistent'&&
           dateSuspects===0&&!otherDateColumn&&report.transactionRows>0;
+        // Date reversal with consistent running balances is a presentation
+        // issue to review, not an instruction to sort historical transactions.
+        // It remains blocked for sync until source/identity checks finish.
+        const dateOnly=report.dateOrderOnly===true&&
+          dateSuspects===0&&!otherDateColumn&&report.transactionRows>0;
+        const reviewLabel=dateOnly?
+          'THỨ TỰ NGÀY CẦN RÀ SOÁT (SỐ DƯ KHỚP; KHÔNG SỬA SỔ GỐC)':
+          'CẦN KIỂM TRA: '+(dateSuspects||otherDateColumn?
+            'có ngày giao dịch chưa nhận dạng đủ':report.status);
         // Compare only the already-loaded, fully project-scoped Payment cache.
         // Never query Firestore or present candidate matches as proof of identity.
         let sourceNote=' · Cash Control: chưa tải đầy đủ Payment dự án trong phiên';
@@ -5710,9 +5719,7 @@ async function ccSyncProjectBatchHistoricalAudit(){
         if(clean)matched++;else review++;
         item.textContent=project+': '+report.transactionRows+' giao dịch đã nhận dạng · '+
           (report.closingBalance===null?'chưa xác định số dư':('số dư cuối '+report.closingBalance))+
-          ' · '+(clean?'SỔ TỰ KHỚP (NỘI BỘ)':
-            'CẦN KIỂM TRA: '+(dateSuspects||otherDateColumn?
-              'có ngày giao dịch chưa nhận dạng đủ':' '+report.status))+
+          ' · '+(clean?'SỔ TỰ KHỚP (NỘI BỘ)':reviewLabel)+
           ' · sai số dư '+report.continuityErrors+
           ' · làm tròn '+report.roundingDifferences+
           ' · ngày giảm dần '+report.nonMonotonicDates+
