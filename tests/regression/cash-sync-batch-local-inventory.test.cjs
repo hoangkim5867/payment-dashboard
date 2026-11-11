@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path');
 const html=fs.readFileSync(path.join(__dirname,'../../site/cash-control.html'),'utf8');
 const start=html.indexOf('function ccSyncProjectBatchLocalReport(){');
-const end=html.indexOf('function ccSyncProjectCatalogInitialize(){',start);
+const end=html.indexOf('async function ccSyncProjectBatchGoogleMetadata(){',start);
 const fn=html.slice(start,end);
 test('all-project local summary is Admin-only and manually triggered',()=>{
  assert.ok(start>0&&end>start);
