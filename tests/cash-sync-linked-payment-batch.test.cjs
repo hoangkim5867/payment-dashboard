@@ -85,9 +85,9 @@ test('cached Payment without query receipt stays blocked without a refresh',()=>
 
 test('cached Payment contents must match receipt, not merely the same row count',()=>{
  const loaderStart=html.indexOf('function ccSyncPaymentRowsStamp(rows){');
- const loaderEnd=html.indexOf('async function autoLoadPaymentPlanMonth(',loaderStart);
- assert.ok(loaderStart>0&&loaderEnd>loaderStart);
- const loader=html.slice(loaderStart,loaderEnd);
+ const paymentLoadStart=html.indexOf('async function loadProjectPayments(',loaderStart);
+ assert.ok(loaderStart>0&&paymentLoadStart>loaderStart);
+ const loader=html.slice(loaderStart,paymentLoadStart+6500);
  const begin=html.indexOf('function ccSyncCompareAlreadyLoadedProjects(){');
  const end=html.indexOf('// One Admin click:',begin);
  const compare=html.slice(begin,end);
