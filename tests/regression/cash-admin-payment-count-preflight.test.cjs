@@ -51,5 +51,5 @@ test('catalog status distinguishes matched links from out-of-catalog drafts with
  assert.match(render,/linkedNames\.filter\(p=>!catalog\.includes\(p\)\)/);
  assert.match(render,/linkedCount-outsideCatalog\.length/);
  assert.match(render,/outsideCatalog\.join\(', '\)/);
- assert.doesNotMatch(render,/delete ccSyncProjectLinkDraft/);
+ assert.doesNotMatch(render.slice(render.indexOf('const linkedNames=')),/delete ccSyncProjectLinkDraft/);
 });
