@@ -5719,6 +5719,32 @@ async function ccSyncProjectBatchHistoricalAudit(){
           (dateSuspects?' · '+dateSuspects+' dòng nghi ngày sai định dạng (tối đa 8 ví dụ)':'')+
           (otherDateColumn?' · ngày xuất hiện ở cột B/C':'')+
           sourceNote+'. KHÔNG cấp phép đồng bộ.';
+        // Show precise adjacent row/date reversals from the same Google read.
+        // No second Sheets request and no changes to the original workbook.
+        const reversals=Array.isArray(report.dateOrderExamples)?report.dateOrderExamples:[];
+        if(reversals.length){
+          const detail=document.createElement('details');
+          const summary=document.createElement('summary');
+          summary.textContent='Xem các dòng ngày đảo thứ tự ('+report.nonMonotonicDates+
+            ' vị trí; chỉ xem, không sửa sổ)';
+          detail.append(summary);
+          const examples=document.createElement('ol');
+          for(const issue of reversals.slice(0,20)){
+            const pair=document.createElement('li');
+            pair.textContent='Hàng '+issue.previousRow+' ('+issue.previousDate+
+              ') → hàng '+issue.dateRow+' ('+issue.date+')'+
+              (issue.crossesMonth?' · qua tháng':'');
+            examples.append(pair);
+          }
+          detail.append(examples);
+          if(report.nonMonotonicDates>reversals.length){
+            const note=document.createElement('p');
+            note.textContent='Còn '+(report.nonMonotonicDates-reversals.length)+
+              ' điểm ngày đảo thứ tự chưa có trong danh sách ví dụ.';
+            detail.append(note);
+          }
+          item.append(detail);
+        }
       }catch(error){
         failed++;
         item.textContent=project+': CHƯA KIỂM TRA ĐƯỢC · '+String(error?.message||'Lỗi').slice(0,110);
