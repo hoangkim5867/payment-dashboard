@@ -266,9 +266,9 @@
       // eight row-number examples and never disclose original cells/amounts.
       // This count must not stop at 8: otherwise "clean" could hide omissions.
       const suspect=!dateValue(a)&&raw&&(
-        numeric||/^\\d{1,2}[-/.]\\d{1,2}[-/.]\\d{2,4}$/.test(raw)||
-        /^\\d{4}[-/.]\\d{1,2}[-/.]\\d{1,2}/.test(raw)||
-        /^\\d{2,4}年\\d{1,2}月\\d{1,2}日?$/.test(raw));
+        numeric||/^\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}$/.test(raw)||
+        /^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}/.test(raw)||
+        /^\d{2,4}年\d{1,2}月\d{1,2}日?$/.test(raw));
       if(suspect){
         suspectCount++;
         if(suspectRows.length<8)suspectRows.push({row:i+1,type:numeric?'number':'text'});
