@@ -20,9 +20,9 @@
     let m=/^(20\d{2})-(\d{1,2})-(\d{1,2})$/.exec(t);
     if(m&&validDate(+m[1],+m[2],+m[3]))
       return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');
-    m=/^(\d{1,2})[\/.](\d{1,2})[\/.](20\d{2})$/.exec(t);
-    if(m&&validDate(+m[3],+m[2],+m[1]))
-      return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+    m=/^(\d{1,2})([-\/.])(\d{1,2})\2(20\d{2})$/.exec(t);
+    if(m&&validDate(+m[4],+m[3],+m[1]))
+      return m[4]+'-'+m[3].padStart(2,'0')+'-'+m[1].padStart(2,'0');
     return '';
   }
   function amount(v,blankZero=false){
