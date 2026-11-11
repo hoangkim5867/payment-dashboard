@@ -58,3 +58,13 @@ test('candidate report explicitly identifies month scope and contract IPC confli
  assert.match(fn,/Chỉ so các tháng có trong sổ lịch sử từ 10\/2026/);
  assert.match(fn,/chưa chứng nhận đủ nguồn/);
 });
+
+test('date reversals are displayed from existing audit results without extra reads or edits',()=>{
+ assert.match(fn,/report\.dateOrderExamples/);
+ assert.match(fn,/reversals\.slice\(0,20\)/);
+ assert.match(fn,/issue\.previousRow/);
+ assert.match(fn,/issue\.dateRow/);
+ assert.match(fn,/issue\.crossesMonth/);
+ assert.match(fn,/detail\.append\(examples\)/);
+ assert.doesNotMatch(fn,/\b(?:updateCells|batchUpdate|sortRange|setValues)\s*\(/);
+});
