@@ -13647,6 +13647,9 @@ onAuthStateChanged(auth,async user=>{
         }
         document.body.classList.remove('auth-checking');
         $('cashLoginModal').classList.remove('show');
+        // Initial catalog render happens before Firebase auth resolves.
+        // Recompute Admin-only Payment preflight visibility after auth succeeds.
+        ccSyncProjectCatalogRender();
         // Render once after auth is known; cloud snapshot will refresh again.
         requestAnimationFrame(()=>renderAll());
 
