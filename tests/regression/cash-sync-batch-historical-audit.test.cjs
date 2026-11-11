@@ -68,3 +68,11 @@ test('date reversals are displayed from existing audit results without extra rea
  assert.match(fn,/detail\.append\(examples\)/);
  assert.doesNotMatch(fn,/\b(?:updateCells|batchUpdate|sortRange|setValues)\s*\(/);
 });
+
+test('date-only disorder is labelled without modifying or approving Google history',()=>{
+ assert.match(fn,/report\.dateOrderOnly===true/);
+ assert.match(fn,/dateSuspects===0&&!otherDateColumn/);
+ assert.match(fn,/THỨ TỰ NGÀY CẦN RÀ SOÁT \(SỐ DƯ KHỚP; KHÔNG SỬA SỔ GỐC\)/);
+ assert.match(fn,/KHÔNG cấp phép đồng bộ/);
+ assert.doesNotMatch(fn,/\b(?:batchUpdate|sortRange|setValues|updateCells)\s*\(/);
+});
