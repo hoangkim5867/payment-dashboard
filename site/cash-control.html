@@ -5474,7 +5474,8 @@ async function ccSyncLoadOneProjectReadOnly(){
   button.disabled=true;
   status.textContent='Đang kiểm tra Payment '+project+(cached?' từ bộ nhớ':' từ Firestore')+'…';
   try{
-    const ok=cached||await loadProjectPayments(project,{quiet:true,refresh:true});
+    const ok=cached||await loadProjectPayments(project,{quiet:true,refresh:false});
+    if(ok)rebuildPaymentsFromLoadedMonths(); // in-memory only, no render side effects
     if(!ok||!paymentMonths.has(project))throw Error('Chưa tải được toàn bộ Payment dự án');
     const rows=paymentMonths.get(project);
     const paid=rows.filter(x=>x.deleted!==true&&x.processPaymentDate);
