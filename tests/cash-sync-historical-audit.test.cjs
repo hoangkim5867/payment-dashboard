@@ -159,6 +159,22 @@ test('FOXCONN real split header at rows 3 and 4 detects N tax without assuming O
  assert.ok(candidates.some(x=>x.column==='O'&&x.numericRows===1));
 });
 
+test('FOXCONN screenshot layout: row 3 O 余额 plus row 4 N import VAT verifies balance header',()=>{
+ const banner=Array(15).fill('');
+ banner[0]='日期';banner[6]='收入';banner[7]='支出';banner[14]='余额';
+ const sub=Array(15).fill('');
+ sub[7]='分包款';sub[8]='材料款';sub[13]='进口税+增值税';
+ const a=['2025-10-01','','','','','',2000000000,0,0,0,0,0,0,0,2000000000];
+ const b=['2025-10-02','','','','','',0,100,0,0,0,0,0,20,1999999880];
+ const report=audit([['FOXCONN项目现金流'],['期间'],banner,sub,a,b],{project:'FOXCONN'});
+ assert.equal(report.taxColumn,14);
+ assert.equal(report.balanceColumnUnconfirmed,false);
+ assert.equal(report.closingBalance,1999999880);
+ assert.equal(report.continuityErrors,0);
+ assert.equal(report.status,'internally-consistent');
+ assert.equal(report.canWrite,false);
+});
+
 test('FOXCONN O-column probe computes expenses including N tax but never authorizes sync',()=>{
  const header=['日期','','','','','','收入','支出'];
  const sub=Array(15).fill('');
