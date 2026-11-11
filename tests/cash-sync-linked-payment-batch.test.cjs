@@ -55,3 +55,30 @@ test('Admin cross-checks raw paid VND and expense bucket without extra Firestore
  assert.match(body,/sourceComplete:false/);
  assert.doesNotMatch(body,/\b(?:getDocs|onSnapshot|loadProjectPayments|fetch|setDoc|updateDoc|addDoc|deleteDoc)\s*\(/);
 });
+
+test('query receipt requires actual Firebase response, rejects cached-only success',()=>{
+ const loadStart=html.indexOf('async function loadProjectPayments(');
+ const loadEnd=html.indexOf('function stopPaymentsRealtime()',loadStart);
+ const loader=html.slice(loadStart,loadEnd);
+ assert.match(loader,/onAudit=null/);
+ assert.match(loader,/if\(typeof onAudit==='function'\)onAudit\(/);
+ assert.match(loader,/returned:snaps\.reduce/);
+ const batch=html.slice(start,end);
+ assert.match(batch,/let errorText='',receipt=null/);
+ assert.match(batch,/onAudit:info=>\{receipt=info\}/);
+ assert.match(batch,/!receipt/);
+ assert.match(batch,/receipt\.retained!==paymentMonths\.get\(project\)\.length/);
+ assert.match(batch,/ccSyncPaymentQueryReceipts\.set\(project,receipt\)/);
+ assert.doesNotMatch(batch,/\b(?:getDocs|onSnapshot|setDoc|updateDoc|addDoc|deleteDoc)\s*\(/);
+});
+test('cached Payment without query receipt stays blocked without a refresh',()=>{
+ const begin=html.indexOf('function ccSyncCompareAlreadyLoadedProjects(){');
+ const stop=html.indexOf('// One Admin click:',begin);
+ const compare=html.slice(begin,stop);
+ assert.match(html,/const ccSyncPaymentQueryReceipts=new Map\(\)/);
+ assert.match(compare,/ccSyncPaymentQueryReceipts\.get\(project\)/);
+ assert.match(compare,/receipt\.retained===paymentMonths\.get\(project\)\.length/);
+ assert.match(fn,/Không tự tải lại để tránh reads/);
+ assert.match(compare,/biên nhận query hợp lệ/);
+ assert.match(compare,/sourceComplete:false/);
+});
