@@ -251,26 +251,31 @@
   // Structural counts only. Never disclose or automatically reinterpret
   // unrecognized dates; an old project with 0 recognized dates is not blank.
   function dateLayoutDiagnostic(rows){
-    if(!Array.isArray(rows))return {nonemptyRows:0,validDatesByColumn:[0,0,0],suspectRows:[]};
+    if(!Array.isArray(rows))return {nonemptyRows:0,validDatesByColumn:[0,0,0],
+      suspectCount:0,suspectRows:[],truncatedExamples:false};
     const validDatesByColumn=[0,0,0],suspectRows=[];
-    let nonemptyRows=0;
+    let nonemptyRows=0,suspectCount=0;
     for(let i=0;i<rows.length;i++){
       const row=rows[i];
       if(!Array.isArray(row)||!row.some(v=>String(v??'').trim()))continue;
       nonemptyRows++;
       for(let j=0;j<3;j++)if(dateValue(row[j]))validDatesByColumn[j]++;
-      if(suspectRows.length<8){
-        const a=row[0];
-        const raw=String(a??'').trim();
-        const numeric=typeof a==='number'&&Number.isFinite(a);
-        // Only report row numbers and input types, never personal/money cells.
-        if(!dateValue(a)&&raw&&(
-          numeric||/^\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}$/.test(raw)||
-          /^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}/.test(raw)))
-          suspectRows.push({row:i+1,type:numeric?'number':'text'});
+      const a=row[0],raw=String(a??'').trim();
+      const numeric=typeof a==='number'&&Number.isFinite(a);
+      // Count EVERY date-like value that cannot be parsed, but retain only
+      // eight row-number examples and never disclose original cells/amounts.
+      // This count must not stop at 8: otherwise "clean" could hide omissions.
+      const suspect=!dateValue(a)&&raw&&(
+        numeric||/^\\d{1,2}[-/.]\\d{1,2}[-/.]\\d{2,4}$/.test(raw)||
+        /^\\d{4}[-/.]\\d{1,2}[-/.]\\d{1,2}/.test(raw)||
+        /^\\d{2,4}年\\d{1,2}月\\d{1,2}日?$/.test(raw));
+      if(suspect){
+        suspectCount++;
+        if(suspectRows.length<8)suspectRows.push({row:i+1,type:numeric?'number':'text'});
       }
     }
-    return {nonemptyRows,validDatesByColumn,suspectRows};
+    return {nonemptyRows,validDatesByColumn,suspectCount,suspectRows,
+      truncatedExamples:suspectCount>suspectRows.length};
   }
   // Candidate reconciliation on already loaded in-memory Cash Control only.
   // A date + seven-category amount signature is NOT a unique transaction ID;
