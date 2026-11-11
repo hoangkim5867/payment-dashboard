@@ -185,6 +185,17 @@ test('FOXCONN balance heading with internal space in row 3 is recognized',()=>{
  assert.equal(r.status,'internally-consistent');
  assert.equal(r.canWrite,false);
 });
+test('FOXCONN O3 balance with invisible marks and VND unit is confirmed from text',()=>{
+ const h=Array(15).fill('');h[14]='\uFEFF余\u200B额 (VND)';
+ const sub=Array(15).fill('');sub[13]='进口税+增值税';
+ const a=['2025-10-01','','','','','',2000,0,0,0,0,0,0,0,2000];
+ const b=['2025-10-02','','','','','',0,0,0,0,0,0,0,100,1900];
+ const result=audit([h,sub,a,b],{project:'FOXCONN'});
+ assert.equal(result.balanceColumnUnconfirmed,false);
+ assert.equal(result.status,'internally-consistent');
+ assert.equal(result.closingBalance,1900);
+ assert.equal(result.canWrite,false);
+});
 test('FOXCONN O-column probe computes expenses including N tax but never authorizes sync',()=>{
  const header=['日期','','','','','','收入','支出'];
  const sub=Array(15).fill('');
