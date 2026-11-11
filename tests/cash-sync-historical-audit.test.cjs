@@ -175,6 +175,16 @@ test('FOXCONN screenshot layout: row 3 O 余额 plus row 4 N import VAT verifies
  assert.equal(report.canWrite,false);
 });
 
+test('FOXCONN balance heading with internal space in row 3 is recognized',()=>{
+ const top=Array(15).fill('');top[14]='余 额';
+ const sub=Array(15).fill('');sub[13]='进口税+增值税';
+ const one=['2025-10-01','','','','','',1000,0,0,0,0,0,0,0,1000];
+ const r=audit([top,sub,one],{project:'FOXCONN'});
+ assert.equal(r.balanceColumnUnconfirmed,false);
+ assert.equal(r.closingBalance,1000);
+ assert.equal(r.status,'internally-consistent');
+ assert.equal(r.canWrite,false);
+});
 test('FOXCONN O-column probe computes expenses including N tax but never authorizes sync',()=>{
  const header=['日期','','','','','','收入','支出'];
  const sub=Array(15).fill('');
