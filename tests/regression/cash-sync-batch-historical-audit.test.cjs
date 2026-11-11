@@ -76,3 +76,12 @@ test('date-only disorder is labelled without modifying or approving Google histo
  assert.match(fn,/KHÔNG cấp phép đồng bộ/);
  assert.doesNotMatch(fn,/\b(?:batchUpdate|sortRange|setValues|updateCells)\s*\(/);
 });
+
+test('FOXCONN O balance is only a read-only probe, never a confirmed sheet layout',()=>{
+ assert.match(fn,/project==='FOXCONN'&&report\.balanceColumnUnconfirmed/);
+ assert.match(fn,/auditor\.audit\(values\.values,\{project,probeBalanceIndex:14\}\)/);
+ assert.match(fn,/auditor\.foxconnBalanceCandidates\(values\.values\)/);
+ assert.match(fn,/provisional-balance-review/);
+ assert.match(fn,/Chưa xác nhận cột O là số dư; KHÔNG cấp phép đồng bộ/);
+ assert.doesNotMatch(fn,/\b(?:batchUpdate|sortRange|updateCells|setValues)\s*\(/);
+});
