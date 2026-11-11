@@ -3327,7 +3327,7 @@ async function autoLoadActivePaymentMonth(month,{force=false,quiet=false}={}){
     return ok;
 }
 
-async function loadProjectPayments(project,{force=false,quiet=false,refresh=true,onError=null}={}){
+async function loadProjectPayments(project,{force=false,quiet=false,refresh=true,onError=null,onAudit=null}={}){
     project=normProject(project);
 
     if(!project){
@@ -3430,6 +3430,15 @@ async function loadProjectPayments(project,{force=false,quiet=false,refresh=true
                 if(item.deleted!==true)uniqueRows.set(item.id,item);
             }));
             const rows=[...uniqueRows.values()];
+            // Receipt only for an actual completed Firebase query, never for
+            // a pre-existing cache. The count is observational, NOT proof that
+            // all historical aliases or non-Payment Cash sources were loaded.
+            if(typeof onAudit==='function')onAudit(Object.freeze({
+                project,queryCount:snaps.length,
+                returned:snaps.reduce((total,snap)=>total+snap.size,0),
+                retained:rows.length,
+                deletedOrRepeated:snaps.reduce((total,snap)=>total+snap.size,0)-rows.length
+            }));
 
             paymentMonths.set(project,rows);
             if(refresh)rebuildPaymentsFromLoadedMonths();
@@ -5565,6 +5574,7 @@ function ccSyncLoadAuditSession(){
 // Only projects successfully fetched through this explicit Admin action are eligible
 // for in-memory Payment-ID diagnostics. Not a source-completeness certificate.
 const ccSyncExplicitPaymentLoaded=new Set();
+const ccSyncPaymentQueryReceipts=new Map();
 async function ccSyncLoadLinkedPaymentBatch(){
   const button=$('ccSyncLoadLinkedSourceBatch');
   const status=$('ccSyncLinkedSourceBatchStatus');
@@ -5579,8 +5589,12 @@ async function ccSyncLoadLinkedPaymentBatch(){
     project!=='PHU HUNG'&&ccSyncProjectLinkValid(ccSyncProjectLinkDraft[project])&&
     !paymentMonths.has(project));
   if(!eligible.length){
-    status.textContent='Các dự án có link đều đã tải Payment trong phiên. '+
-      'Chưa đủ chứng minh các nguồn ngoài Payment hoặc Google Sheets khớp.';
+    const uncertified=ccSyncProjectCatalogNames().filter(project=>
+      project!=='PHU HUNG'&&ccSyncProjectLinkValid(ccSyncProjectLinkDraft[project])&&
+      paymentMonths.has(project)&&!ccSyncPaymentQueryReceipts.has(project)).length;
+    status.textContent='Không có dự án chưa tải trong phiên. '+uncertified+
+      ' dự án đã có cache nhưng chưa có biên nhận truy vấn Admin; KHÔNG xác minh đủ nguồn. '+
+      'Không tự tải lại để tránh reads.';
     return;
   }
   const batch=eligible.slice(0,3);
@@ -5594,12 +5608,16 @@ async function ccSyncLoadLinkedPaymentBatch(){
       if(!currentAuthUser||!isCashControlOwner())break;
       status.textContent='Đang đọc '+project+' ('+(success+failed+1)+'/'+batch.length+
         '), không ghi Firebase hoặc Sheets…';
-      let errorText='';
+      let errorText='',receipt=null;
       const ok=await loadProjectPayments(project,{
         quiet:true,refresh:false,
-        onError:message=>{errorText=String(message||'')}
+        onError:message=>{errorText=String(message||'')},
+        onAudit:info=>{receipt=info}
       });
-      if(!ok||!paymentMonths.has(project)){
+      if(!ok||!paymentMonths.has(project)||!receipt||
+          receipt.project!==project||receipt.queryCount<1||
+          receipt.returned<receipt.retained||
+          receipt.retained!==paymentMonths.get(project).length){
         failed++;
         status.textContent='Dừng ở '+project+': '+(errorText||'chưa tải đủ Payment')+
           '. Không thử lại tự động để tránh reads.';
@@ -5609,14 +5627,15 @@ async function ccSyncLoadLinkedPaymentBatch(){
       // renderAll and scheduled balance-snapshot writes.
       rebuildPaymentsFromLoadedMonths();
       ccSyncExplicitPaymentLoaded.add(project);
+      ccSyncPaymentQueryReceipts.set(project,receipt);
       success++;
     }
     const remaining=ccSyncProjectCatalogNames().filter(project=>
       project!=='PHU HUNG'&&ccSyncProjectLinkValid(ccSyncProjectLinkDraft[project])&&
       !paymentMonths.has(project)).length;
-    status.textContent='Đã tải '+success+' dự án vào bộ nhớ · '+failed+
-      ' thất bại · còn '+remaining+' dự án có link chưa tải. '+
-      'Tải nguồn chỉ để kiểm tra, KHÔNG cấp quyền đồng bộ.';
+    status.textContent='Đã tải '+success+' dự án có biên nhận query · '+failed+
+      ' thất bại · còn '+remaining+' dự án chưa tải. '+
+      'Biên nhận chỉ xác nhận số chứng từ query trả về, KHÔNG chứng minh đủ nguồn và KHÔNG cấp quyền đồng bộ.';
   }finally{button.disabled=false}
 }
 function ccSyncSetLinkedBatchVisibility(){
@@ -5655,12 +5674,15 @@ function ccSyncCompareAlreadyLoadedProjects(){
     const cache=ccSyncInMemoryHistory.get(project);
     const matching=cache&&cache.link===ccSyncProjectLinkDraft[project];
     const production=firebaseConfig.projectId==='cscecmep-payment';
-    const sourceReady=production&&paymentMonths.has(project)&&ccSyncExplicitPaymentLoaded.has(project);
+    const receipt=ccSyncPaymentQueryReceipts.get(project);
+    const sourceReady=production&&paymentMonths.has(project)&&
+      ccSyncExplicitPaymentLoaded.has(project)&&receipt?.project===project&&
+      receipt.retained===paymentMonths.get(project).length;
     let cells=[project,'Chưa đủ dữ liệu','—','—','—','—','Chưa kiểm tra','CHƯA ĐỐI CHIẾU'];
     if(!matching){
       cells[7]='Cần đọc lịch sử Google lại trong phiên';
     }else if(!sourceReady){
-      cells[1]=production?'Payment chưa xác nhận qua nút tải giới hạn':'TEST không có Payment thật';
+      cells[1]=production?'Payment cache chưa có biên nhận query hợp lệ':'TEST không có Payment thật';
       cells[7]='KHÔNG ĐỦ NGUỒN · không ghi';
     }else{
       try{
@@ -5701,7 +5723,9 @@ function ccSyncCompareAlreadyLoadedProjects(){
         // Cash Control records have been reconciled. Stay explicitly incomplete.
         const result=window.CashSyncHistoricalAudit.compareLoadedCashControl(
           cache.rows,project,sourceRows,{sourceComplete:false});
-        cells=[project,String(result.sourceScope),String(result.matched||0),
+        cells=[project,String(result.sourceScope)+' · '+receipt.returned+
+          ' chứng từ Firebase trả về / '+receipt.queryCount+' query (chưa đủ nguồn)',
+          String(result.matched||0),
           String(result.historicalOnly||0),String(result.cashOnly||0),
           String(result.identityConflict||0),
           paymentProof.status==='empty-payment-snapshot-unverified'?
