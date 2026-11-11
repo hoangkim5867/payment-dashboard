@@ -79,3 +79,25 @@ test('multi-project review exposes backward dates without ever approving the pro
  assert.equal(item.closingBalanceVerified,false);
  assert.equal(item.canWrite,false);
 });
+
+test('one-pass overview includes all catalog projects without links or write approval',()=>{
+ const extended=[...catalog,'FOXCONN','OCEAN LINK','SSIS'];
+ const r=reviewMultiProjectDraft(draft,extended,{});
+ assert.equal(r.catalogCount,6);
+ assert.equal(r.linkedCount,3);
+ assert.equal(r.unlinkedCount,3);
+ assert.deepEqual(r.unlinkedProjects,['FOXCONN','OCEAN LINK','SSIS']);
+ assert.equal(r.statuses['missing-link'],3);
+ assert.equal(r.canWrite,false);
+ assert.equal(r.reviewedCount,3);
+ assert.ok(!JSON.stringify(r).includes('phu_hung_fake'));
+});
+test('empty link draft still reports all active projects as pending',()=>{
+ const empty={schema:'CASH_SYNC_PROJECT_LINK_DRAFT_V1',projects:{}};
+ const r=reviewMultiProjectDraft(empty,catalog,{});
+ assert.equal(r.catalogCount,3);
+ assert.equal(r.linkedCount,0);
+ assert.equal(r.unlinkedCount,3);
+ assert.equal(r.statuses['missing-link'],3);
+ assert.equal(r.canWrite,false);
+});
