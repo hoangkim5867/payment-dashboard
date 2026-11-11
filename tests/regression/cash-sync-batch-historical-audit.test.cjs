@@ -48,14 +48,14 @@ test('cached Cash Control candidates only use already loaded project Payments',(
  assert.match(fn,/sourceComplete:false/);
  assert.match(fn,/chưa chứng nhận đủ nguồn/);
  assert.match(fn,/chưa tải đầy đủ Payment dự án trong phiên/);
- assert.match(fn,/month>='2026-10'/);
+ assert.match(fn,/monthIndex\('2026-10'\)/);
  assert.doesNotMatch(fn,/\b(?:getDocs|getDoc|getCountFromServer|loadProjectPayments|setDoc|updateDoc|addDoc|deleteDoc|onSnapshot)\s*\(/);
 });
 
 test('candidate report explicitly identifies month scope and contract IPC conflicts',()=>{
- assert.match(fn,/comparison\.months\?\.join\(', '\)/);
+ assert.match(fn,/monthFromIndex\(startIndex\+i\)/);
  assert.match(fn,/comparison\.identityConflict/);
- assert.match(fn,/Chỉ so các tháng có trong sổ lịch sử từ 10\/2026/);
+ assert.match(fn,/Đã gồm tháng chưa có dòng trên Google/);
  assert.match(fn,/chưa chứng nhận đủ nguồn/);
 });
 
@@ -84,4 +84,12 @@ test('FOXCONN O balance is only a read-only probe, never a confirmed sheet layou
  assert.match(fn,/provisional-balance-review/);
  assert.match(fn,/Chưa xác nhận cột O là số dư; KHÔNG cấp phép đồng bộ/);
  assert.doesNotMatch(fn,/\b(?:batchUpdate|sortRange|updateCells|setValues)\s*\(/);
+});
+
+test('candidate comparison includes current and absent-from-history months without Firebase reads',()=>{
+ assert.match(fn,/startIndex=monthIndex\('2026-10'\),endIndex=monthIndex\(CURRENT\)/);
+ assert.match(fn,/endIndex-startIndex>35/);
+ assert.match(fn,/months\.flatMap\(month=>legacyCashExportRows\(month,project\)\)/);
+ assert.match(fn,/FOXCONN có cột thuế riêng, chưa thể so 7 nhóm tiền/);
+ assert.match(fn,/KHÔNG coi 0 giao dịch trùng là không có khoản trùng/);
 });
