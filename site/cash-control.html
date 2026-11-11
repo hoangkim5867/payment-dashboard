@@ -5637,7 +5637,7 @@ async function ccSyncProjectBatchHistoricalAudit(){
   button.disabled=true;output.hidden=false;output.replaceChildren();
   const heading=document.createElement('strong');output.append(heading);
   const list=document.createElement('ul');output.append(list);
-  let matched=0,review=0,failed=0;
+  let matched=0,review=0,dateOrderOnly=0,failed=0;
   try{
     for(const project of projects){
       const item=document.createElement('li');list.append(item);
@@ -5716,7 +5716,7 @@ async function ccSyncProjectBatchHistoricalAudit(){
               String(error?.message||'lỗi').slice(0,75)+')';
           }
         }
-        if(clean)matched++;else review++;
+        if(clean)matched++;else if(dateOnly)dateOrderOnly++;else review++;
         item.textContent=project+': '+report.transactionRows+' giao dịch đã nhận dạng · '+
           (report.closingBalance===null?'chưa xác định số dư':('số dư cuối '+report.closingBalance))+
           ' · '+(clean?'SỔ TỰ KHỚP (NỘI BỘ)':reviewLabel)+
@@ -5756,8 +5756,10 @@ async function ccSyncProjectBatchHistoricalAudit(){
         failed++;
         item.textContent=project+': CHƯA KIỂM TRA ĐƯỢC · '+String(error?.message||'Lỗi').slice(0,110);
       }
-      heading.textContent='Đã đọc '+(matched+review+failed)+'/'+projects.length+
-        ' · sổ tự khớp '+matched+' · cần kiểm tra '+review+
+      heading.textContent='Đã đọc '+(matched+dateOrderOnly+review+failed)+'/'+projects.length+
+        ' · sổ tự khớp '+matched+
+        ' · chỉ vướng thứ tự ngày (số dư khớp) '+dateOrderOnly+
+        ' · cần kiểm tra tài chính/bố cục/ngày không nhận dạng '+review+
         ' · lỗi truy cập/cấu trúc '+failed+
         '. Chỉ đọc Google, 0 Firestore reads, 0 writes; 0 dự án được phê duyệt đồng bộ.';
     }
