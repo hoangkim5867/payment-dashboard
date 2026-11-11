@@ -1435,6 +1435,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <div id="ccSyncPaymentPreflight" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0" hidden>
           <select id="ccSyncPaymentPreflightProject" aria-label="Dự án cần đếm Payment" style="min-width:180px;padding:7px;border:1px solid #cad4e3;border-radius:7px"></select>
           <button class="btn" id="ccSyncPaymentPreflightCount" type="button">Đếm Payment 1 dự án (có Firestore reads)</button>
+          <button class="btn" id="ccSyncPaymentPreflightLoad" type="button">Tải chi tiết Payment 1 dự án (chỉ đọc · có reads)</button>
           <span id="ccSyncPaymentPreflightStatus" aria-live="polite" style="font-size:12px;color:#44546b">Chưa kiểm tra.</span>
         </div>
         <div id="ccSyncProjectCatalogEntries" style="max-height:420px;overflow:auto;display:grid;gap:7px"></div>
@@ -5449,6 +5450,48 @@ async function ccSyncCountOneProject(){
       '. Không tự thử lại, không đồng bộ.';
   }finally{button.disabled=false}
 }
+// Manual one-project source inspection. Existing project loader performs
+// scoped Firestore queries, never writes; this is NOT sync authorization.
+async function ccSyncLoadOneProjectReadOnly(){
+  const button=$('ccSyncPaymentPreflightLoad');
+  const status=$('ccSyncPaymentPreflightStatus');
+  const project=normProject($('ccSyncPaymentPreflightProject')?.value||'');
+  if(!button||!status||button.disabled)return;
+  if(!currentAuthUser||!isCashControlOwner()){
+    status.textContent='Chỉ Admin được tải để đối chiếu.';return;
+  }
+  if(firebaseConfig.projectId!=='cscecmep-payment'){
+    status.textContent='Bản staging không tải nguồn production.';return;
+  }
+  if(!project||!ccSyncProjectCatalogNames().includes(project)){
+    status.textContent='Chọn một dự án hợp lệ.';return;
+  }
+  // Skip all Firestore reads if this project was already loaded in this session.
+  const cached=paymentMonths.has(project);
+  if(!cached&&!confirm('Tải chi tiết Payment chỉ dự án '+project+
+    '? Có Firestore reads theo số chứng từ (và truy vấn tên cũ nếu tồn tại). '+
+    'Không tải toàn công ty, không ghi Firebase/Google Sheets.'))return;
+  button.disabled=true;
+  status.textContent='Đang kiểm tra Payment '+project+(cached?' từ bộ nhớ':' từ Firestore')+'…';
+  try{
+    const ok=cached||await loadProjectPayments(project,{quiet:true,refresh:true});
+    if(!ok||!paymentMonths.has(project))throw Error('Chưa tải được toàn bộ Payment dự án');
+    const rows=paymentMonths.get(project);
+    const paid=rows.filter(x=>x.deleted!==true&&x.processPaymentDate);
+    const detail='Payment '+project+': '+rows.length.toLocaleString('vi-VN')+
+      ' chứng từ đã tải'+(cached?' (bộ nhớ, 0 reads mới)':' (đọc dự án theo yêu cầu)')+
+      ' · '+paid.length.toLocaleString('vi-VN')+' chứng từ có ngày thanh toán.'+
+      ' Chưa chứng minh đầy đủ tên dự án cũ, chuyển khoản nội bộ hay danh tính giao dịch.';
+    status.textContent=detail+
+      (project==='FOXCONN'?
+       ' FOXCONN có cột thuế nhập khẩu + VAT riêng: KHÔNG dùng đối chiếu 7 loại thông thường để kết luận trùng hoặc mới.':
+       ' Có thể dùng dữ liệu bộ nhớ để kiểm tra ứng viên khi kiểm tra sổ lịch sử lại.')+
+      ' CHƯA cấp phép đồng bộ, 0 writes.';
+  }catch(error){
+    status.textContent='CHẶN đối chiếu '+project+': '+
+      String(error?.message||'lỗi').slice(0,110)+'. Không tự đọc lại, 0 writes.';
+  }finally{button.disabled=false}
+}
 function ccSyncProjectCatalogRender(){
   const wrap=$('ccSyncProjectCatalogEntries');
   if(!wrap)return;
@@ -5857,6 +5900,7 @@ function ccSyncProjectCatalogInitialize(){
   $('ccSyncProjectBatchGoogleMetadata')?.addEventListener('click',ccSyncProjectBatchGoogleMetadata);
   $('ccSyncProjectBatchHistoricalAudit')?.addEventListener('click',ccSyncProjectBatchHistoricalAudit);
   $('ccSyncPaymentPreflightCount')?.addEventListener('click',ccSyncCountOneProject);
+  $('ccSyncPaymentPreflightLoad')?.addEventListener('click',ccSyncLoadOneProjectReadOnly);
   $('ccSyncProjectCatalogExport')?.addEventListener('click',()=>{
     const payload={schema:'CASH_SYNC_PROJECT_LINK_DRAFT_V1',projects:ccSyncProjectLinkDraft,
       note:'Local draft only; does not authorize Google Sheets sync'};
