@@ -5678,7 +5678,7 @@ async function ccSyncProjectBatchHistoricalAudit(){
         // A balanced subset is NOT a verified ledger if recognizable
         // transaction dates were skipped because their format/column differs.
         const layout=auditor.dateLayoutDiagnostic(values.values);
-        const dateSuspects=layout.suspectRows.length;
+        const dateSuspects=layout.suspectCount;
         const otherDateColumn=layout.validDatesByColumn.slice(1).some(n=>n>0);
         const clean=report.status==='internally-consistent'&&
           dateSuspects===0&&!otherDateColumn&&report.transactionRows>0;
