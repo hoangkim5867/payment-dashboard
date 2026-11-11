@@ -5675,15 +5675,25 @@ async function ccSyncProjectBatchHistoricalAudit(){
         const values=await valuesResponse.json();
         if(!Array.isArray(values.values))throw Error('Không có dữ liệu hàng hợp lệ');
         const report=auditor.audit(values.values,{project});
-        const clean=report.status==='internally-consistent';
+        // A balanced subset is NOT a verified ledger if recognizable
+        // transaction dates were skipped because their format/column differs.
+        const layout=auditor.dateLayoutDiagnostic(values.values);
+        const dateSuspects=layout.suspectRows.length;
+        const otherDateColumn=layout.validDatesByColumn.slice(1).some(n=>n>0);
+        const clean=report.status==='internally-consistent'&&
+          dateSuspects===0&&!otherDateColumn&&report.transactionRows>0;
         if(clean)matched++;else review++;
-        item.textContent=project+': '+report.transactionRows+' giao dịch · '+
+        item.textContent=project+': '+report.transactionRows+' giao dịch đã nhận dạng · '+
           (report.closingBalance===null?'chưa xác định số dư':('số dư cuối '+report.closingBalance))+
-          ' · '+(clean?'SỔ TỰ KHỚP':'CẦN KIỂM TRA: '+report.status)+
+          ' · '+(clean?'SỔ TỰ KHỚP (NỘI BỘ)':
+            'CẦN KIỂM TRA: '+(dateSuspects||otherDateColumn?
+              'có ngày giao dịch chưa nhận dạng đủ':' '+report.status))+
           ' · sai số dư '+report.continuityErrors+
           ' · làm tròn '+report.roundingDifferences+
           ' · ngày giảm dần '+report.nonMonotonicDates+
-          '. Chưa đối chiếu nguồn Cash Control.';
+          (dateSuspects?' · '+dateSuspects+' dòng nghi ngày sai định dạng (tối đa 8 ví dụ)':'')+
+          (otherDateColumn?' · ngày xuất hiện ở cột B/C':'')+
+          '. Chưa đối chiếu nguồn Cash Control; KHÔNG cấp phép đồng bộ.';
       }catch(error){
         failed++;
         item.textContent=project+': CHƯA KIỂM TRA ĐƯỢC · '+String(error?.message||'Lỗi').slice(0,110);
