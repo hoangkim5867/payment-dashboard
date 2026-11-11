@@ -40,3 +40,14 @@ test('historical self-match requires no suspicious skipped dates or shifted date
  assert.match(fn,/dateSuspects===0&&!otherDateColumn&&report\.transactionRows>0/);
  assert.match(fn,/KHÔNG cấp phép đồng bộ/);
 });
+
+test('cached Cash Control candidates only use already loaded project Payments',()=>{
+ assert.match(fn,/if\(paymentMonths\.has\(project\)\)/);
+ assert.match(fn,/legacyCashExportRows\(month,project\)/);
+ assert.match(fn,/auditor\.compareLoadedCashControl\(values\.values,project,cachedRows/);
+ assert.match(fn,/sourceComplete:false/);
+ assert.match(fn,/Chưa chứng nhận đủ nguồn/);
+ assert.match(fn,/chưa tải đầy đủ Payment dự án trong phiên/);
+ assert.match(fn,/month>='2026-10'/);
+ assert.doesNotMatch(fn,/\b(?:getDocs|getDoc|getCountFromServer|loadProjectPayments|setDoc|updateDoc|addDoc|deleteDoc|onSnapshot)\s*\(/);
+});
