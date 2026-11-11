@@ -51,3 +51,10 @@ test('cached Cash Control candidates only use already loaded project Payments',(
  assert.match(fn,/month>='2026-10'/);
  assert.doesNotMatch(fn,/\b(?:getDocs|getDoc|getCountFromServer|loadProjectPayments|setDoc|updateDoc|addDoc|deleteDoc|onSnapshot)\s*\(/);
 });
+
+test('candidate report explicitly identifies month scope and contract IPC conflicts',()=>{
+ assert.match(fn,/comparison\.months\?\.join\(', '\)/);
+ assert.match(fn,/comparison\.identityConflict/);
+ assert.match(fn,/Chỉ so các tháng có trong sổ lịch sử từ 10\/2026/);
+ assert.match(fn,/chưa chứng nhận đủ nguồn/);
+});
