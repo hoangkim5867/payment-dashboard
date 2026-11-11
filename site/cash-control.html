@@ -5689,7 +5689,7 @@ async function ccSyncProjectBatchHistoricalAudit(){
           try{
             const months=[...new Set(values.values.map(row=>
               auditor.dateValue(Array.isArray(row)?row[0]:null).slice(0,7))
-              .filter(month=>/^20\\d{2}-(0[1-9]|1[0-2])$/.test(month)&&month>='2026-10'))];
+              .filter(month=>/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)&&month>='2026-10'))];
             if(months.length>36)throw Error('Nhiều hơn 36 tháng, cần đối chiếu riêng');
             const cachedRows=months.flatMap(month=>legacyCashExportRows(month,project));
             const comparison=auditor.compareLoadedCashControl(values.values,project,cachedRows,
