@@ -98,6 +98,22 @@
         if(foxconn){
           const detected=foxconnHeader(row);
           if(detected){
+            // FOXCONN's merged section banner has O: 余额 on row 3, while
+            // N: 进口税+增值税 is on row 4. Confirm an adjacent balance header
+            // by its TEXT, not by O's position or arithmetic alone.
+            if(!detected.invalid&&detected.balanceIndex===null){
+              const nearby=[];
+              for(let back=1;back<=2&&i-back>=0;back++){
+                const prior=rows[i-back];
+                if(!Array.isArray(prior)||dateValue(prior[0]))break;
+                for(let col=0;col<Math.min(prior.length,32);col++)
+                  if(isBalance(prior[col]))nearby.push(col);
+              }
+              if(nearby.length===1&&nearby[0]>detected.taxIndex&&nearby[0]>=14)
+                detected.balanceIndex=nearby[0];
+              if(nearby.length>1)detected.invalid=true;
+              detected.requiresBalanceSelection=detected.balanceIndex===null;
+            }
             activeLayout=detected;
             if(detected.invalid){layoutErrors++;issue('tax-layout',i+1,'Ambiguous tax/balance header')}
             else taxColumnsDetected++;
