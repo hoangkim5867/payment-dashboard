@@ -5581,6 +5581,14 @@ function ccSyncLoadAuditSession(){
 // for in-memory Payment-ID diagnostics. Not a source-completeness certificate.
 const ccSyncExplicitPaymentLoaded=new Set();
 const ccSyncPaymentQueryReceipts=new Map();
+function ccSyncHasValidPaymentReceipt(project){
+  const receipt=ccSyncPaymentQueryReceipts.get(project);
+  const rows=paymentMonths.get(project);
+  return !!receipt&&Array.isArray(rows)&&receipt.project===project&&
+    receipt.queryCount>=1&&receipt.returned>=receipt.retained&&
+    receipt.retained===rows.length&&
+    receipt.snapshotStamp===ccSyncPaymentRowsStamp(rows);
+}
 async function ccSyncLoadLinkedPaymentBatch(){
   const button=$('ccSyncLoadLinkedSourceBatch');
   const status=$('ccSyncLinkedSourceBatchStatus');
@@ -5593,20 +5601,19 @@ async function ccSyncLoadLinkedPaymentBatch(){
   }
   const eligible=ccSyncProjectCatalogNames().filter(project=>
     project!=='PHU HUNG'&&ccSyncProjectLinkValid(ccSyncProjectLinkDraft[project])&&
-    !paymentMonths.has(project));
+    !ccSyncHasValidPaymentReceipt(project));
   if(!eligible.length){
-    const uncertified=ccSyncProjectCatalogNames().filter(project=>
-      project!=='PHU HUNG'&&ccSyncProjectLinkValid(ccSyncProjectLinkDraft[project])&&
-      paymentMonths.has(project)&&!ccSyncPaymentQueryReceipts.has(project)).length;
-    status.textContent='Không có dự án chưa tải trong phiên. '+uncertified+
-      ' dự án đã có cache nhưng chưa có biên nhận truy vấn Admin; KHÔNG xác minh đủ nguồn. '+
-      'Không tự tải lại để tránh reads.';
+    status.textContent='Các dự án đã có biên nhận truy vấn hợp lệ trong phiên. '+
+      'Vẫn CHƯA chứng minh đủ tất cả nguồn Cash Control hoặc được phép ghi.';
     return;
   }
   const batch=eligible.slice(0,3);
+  const cached=batch.filter(project=>paymentMonths.has(project));
   if(!confirm('Chỉ đọc Payment của '+batch.length+' dự án: '+
-    batch.join(', ')+'. Firestore tính reads theo số chứng từ trả về; '+
-    'không biết trước chính xác số reads. Không ghi dữ liệu. Tiếp tục?'))return;
+    batch.join(', ')+'. '+cached.length+' dự án đã có cache nhưng thiếu biên nhận '+
+    'hoặc biên nhận không còn khớp, cần tải lại có chủ đích. '+
+    'Firestore tính reads theo chứng từ trả về, không biết trước số reads. '+
+    'Không ghi dữ liệu. Tiếp tục?'))return;
   button.disabled=true;
   let success=0,failed=0;
   try{
@@ -5616,7 +5623,7 @@ async function ccSyncLoadLinkedPaymentBatch(){
         '), không ghi Firebase hoặc Sheets…';
       let errorText='',receipt=null;
       const ok=await loadProjectPayments(project,{
-        quiet:true,refresh:false,
+        force:paymentMonths.has(project),quiet:true,refresh:false,
         onError:message=>{errorText=String(message||'')},
         onAudit:info=>{receipt=info}
       });
@@ -5639,7 +5646,7 @@ async function ccSyncLoadLinkedPaymentBatch(){
     }
     const remaining=ccSyncProjectCatalogNames().filter(project=>
       project!=='PHU HUNG'&&ccSyncProjectLinkValid(ccSyncProjectLinkDraft[project])&&
-      !paymentMonths.has(project)).length;
+      !ccSyncHasValidPaymentReceipt(project)).length;
     status.textContent='Đã tải '+success+' dự án có biên nhận query · '+failed+
       ' thất bại · còn '+remaining+' dự án chưa tải. '+
       'Biên nhận chỉ xác nhận số chứng từ query trả về, KHÔNG chứng minh đủ nguồn và KHÔNG cấp quyền đồng bộ.';
@@ -5682,10 +5689,8 @@ function ccSyncCompareAlreadyLoadedProjects(){
     const matching=cache&&cache.link===ccSyncProjectLinkDraft[project];
     const production=firebaseConfig.projectId==='cscecmep-payment';
     const receipt=ccSyncPaymentQueryReceipts.get(project);
-    const sourceReady=production&&paymentMonths.has(project)&&
-      ccSyncExplicitPaymentLoaded.has(project)&&receipt?.project===project&&
-      receipt.retained===paymentMonths.get(project).length&&
-      receipt.snapshotStamp===ccSyncPaymentRowsStamp(paymentMonths.get(project));
+    const sourceReady=production&&ccSyncExplicitPaymentLoaded.has(project)&&
+      ccSyncHasValidPaymentReceipt(project);
     let cells=[project,'Chưa đủ dữ liệu','—','—','—','—','Chưa kiểm tra','CHƯA ĐỐI CHIẾU'];
     if(!matching){
       cells[7]='Cần đọc lịch sử Google lại trong phiên';
