@@ -5682,6 +5682,28 @@ async function ccSyncProjectBatchHistoricalAudit(){
         const otherDateColumn=layout.validDatesByColumn.slice(1).some(n=>n>0);
         const clean=report.status==='internally-consistent'&&
           dateSuspects===0&&!otherDateColumn&&report.transactionRows>0;
+        // Compare only the already-loaded, fully project-scoped Payment cache.
+        // Never query Firestore or present candidate matches as proof of identity.
+        let sourceNote=' · Cash Control: chưa tải đầy đủ Payment dự án trong phiên';
+        if(paymentMonths.has(project)){
+          try{
+            const months=[...new Set(values.values.map(row=>
+              auditor.dateValue(Array.isArray(row)?row[0]:null).slice(0,7))
+              .filter(month=>/^20\\d{2}-(0[1-9]|1[0-2])$/.test(month)&&month>='2026-10'))];
+            if(months.length>36)throw Error('Nhiều hơn 36 tháng, cần đối chiếu riêng');
+            const cachedRows=months.flatMap(month=>legacyCashExportRows(month,project));
+            const comparison=auditor.compareLoadedCashControl(values.values,project,cachedRows,
+              {sourceComplete:false});
+            sourceNote=' · Cash Control bộ nhớ: ứng viên trùng '+(comparison.matched||0)+
+              ', chỉ có ở lịch sử '+(comparison.historicalOnly||0)+
+              ', chỉ có ở Cash Control '+(comparison.cashOnly||0)+
+              ', trùng mơ hồ '+(comparison.ambiguous||0)+
+              '. Chưa chứng nhận đủ nguồn';
+          }catch(error){
+            sourceNote=' · Cash Control: chưa đối chiếu được từ bộ nhớ ('+
+              String(error?.message||'lỗi').slice(0,75)+')';
+          }
+        }
         if(clean)matched++;else review++;
         item.textContent=project+': '+report.transactionRows+' giao dịch đã nhận dạng · '+
           (report.closingBalance===null?'chưa xác định số dư':('số dư cuối '+report.closingBalance))+
@@ -5693,7 +5715,7 @@ async function ccSyncProjectBatchHistoricalAudit(){
           ' · ngày giảm dần '+report.nonMonotonicDates+
           (dateSuspects?' · '+dateSuspects+' dòng nghi ngày sai định dạng (tối đa 8 ví dụ)':'')+
           (otherDateColumn?' · ngày xuất hiện ở cột B/C':'')+
-          '. Chưa đối chiếu nguồn Cash Control; KHÔNG cấp phép đồng bộ.';
+          sourceNote+'. KHÔNG cấp phép đồng bộ.';
       }catch(error){
         failed++;
         item.textContent=project+': CHƯA KIỂM TRA ĐƯỢC · '+String(error?.message||'Lỗi').slice(0,110);
