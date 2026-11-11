@@ -26,7 +26,9 @@ test('preflight UI is hidden for non-owner and never uses production from stagin
  const render=html.slice(html.indexOf('function ccSyncProjectCatalogRender(){'),
   html.indexOf('function ccSyncProjectCatalogSaveDraft(',html.indexOf('function ccSyncProjectCatalogRender(){'))>0?
   html.indexOf('function ccSyncProjectCatalogSaveDraft(',html.indexOf('function ccSyncProjectCatalogRender(){')):undefined);
- assert.match(render,/preflight\.hidden=!currentAuthUser\|\|!isCashControlOwner\(\)/);
+ assert.match(render,/preflight\.hidden=!allowed/);
+ assert.match(render,/preflight\.style\.display=allowed\?'flex':'none'/);
+ assert.match(html,/id="ccSyncPaymentPreflight" style="display:none/);
  assert.match(render,/firebaseConfig\.projectId!=='cscecmep-payment'/);
  assert.match(html,/ccSyncPaymentPreflightCount'\)\?\.addEventListener\('click',ccSyncCountOneProject\)/);
 });
