@@ -32,3 +32,11 @@ test('historical checker requires known tab and reports incomplete audits separa
  assert.match(fn,/report\.nonMonotonicDates/);
  assert.match(fn,/finally\{button\.disabled=false\}/);
 });
+
+test('historical self-match requires no suspicious skipped dates or shifted date column',()=>{
+ assert.match(fn,/auditor\.dateLayoutDiagnostic\(values\.values\)/);
+ assert.match(fn,/layout\.suspectRows\.length/);
+ assert.match(fn,/layout\.validDatesByColumn\.slice\(1\)\.some\(n=>n>0\)/);
+ assert.match(fn,/dateSuspects===0&&!otherDateColumn&&report\.transactionRows>0/);
+ assert.match(fn,/KHÔNG cấp phép đồng bộ/);
+});
