@@ -82,3 +82,16 @@ test('cached Payment without query receipt stays blocked without a refresh',()=>
  assert.match(compare,/biên nhận query hợp lệ/);
  assert.match(compare,/sourceComplete:false/);
 });
+
+test('cached Payment contents must match receipt, not merely the same row count',()=>{
+ const loader=html.slice(html.indexOf('function ccSyncPaymentRowsStamp(rows){'),
+  html.indexOf('function stopPaymentsRealtime()'));
+ const begin=html.indexOf('function ccSyncCompareAlreadyLoadedProjects(){');
+ const end=html.indexOf('// One Admin click:',begin);
+ const compare=html.slice(begin,end);
+ assert.match(loader,/JSON\.stringify\(\[\.\.\.rows\]\.sort/);
+ assert.match(loader,/snapshotStamp:ccSyncPaymentRowsStamp\(rows\)/);
+ assert.match(fn,/receipt\.snapshotStamp!==ccSyncPaymentRowsStamp\(paymentMonths\.get\(project\)\)/);
+ assert.match(compare,/receipt\.snapshotStamp===ccSyncPaymentRowsStamp\(paymentMonths\.get\(project\)\)/);
+ assert.doesNotMatch(compare,/\b(?:getDocs|fetch|onSnapshot|setDoc|updateDoc|addDoc|deleteDoc)\s*\(/);
+});
