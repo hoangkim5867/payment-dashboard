@@ -52,7 +52,22 @@ if(require.main===module){
  // Preserve the current main Payment V2 safeguards while validating only
  // the manually-triggered PHU HUNG Sheets code on this isolated release branch.
  require('node:child_process').execFileSync(process.execPath,[
-   '--test',path.join(__dirname,'../tests/cash-sync-gate.test.cjs'),
+   '--test',path.join(__dirname,'../tests/cash-sync-multiproject-google-test-adapter.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-multiproject-test-runner.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-multiproject-write-plan.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-multiproject-phu-adapter.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-multiproject-planner.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-multiproject-readiness.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-historical-audit.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-source-diagnostics.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-batch-guard.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-payment-coverage.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-lineage-audit.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-linked-payment-batch.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-signed-transfer.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-staging-elysian-ui.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-one-click-audit.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-gate.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-original-audit.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-live-core.test.cjs'),
    path.join(__dirname,'../google-sheets-sync/pilot.test.cjs')

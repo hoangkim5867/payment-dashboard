@@ -1,0 +1,50 @@
+'use strict';
+const test=require('node:test'),assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path');
+const html=fs.readFileSync(path.join(__dirname,'../site/cash-control.html'),'utf8');
+const a=html.indexOf('async function ccSyncOneClickAudit(){');
+const b=html.indexOf('function ccSyncRenderBatchOverview(){',a);
+const fn=html.slice(a,b);
+test('one-click audit reuses existing Google historical read and in-memory overview',()=>{
+ assert.ok(a>0&&b>a);
+ assert.match(fn,/await ccSyncProjectReadOnlyCheck\(true\)/);
+ assert.match(fn,/ccSyncRenderBatchOverview\(\)/);
+ assert.match(html,/ccSyncOneClickAudit'\)\?\.addEventListener\('click',ccSyncOneClickAudit\)/);
+});
+test('one-click audit requires Admin and Google consent, no background sync or writes',()=>{
+ assert.match(fn,/isCashControlOwner\(\)/);
+ assert.match(fn,/if\(!ccGoogleSyncToken\)/);
+ assert.match(fn,/button\.disabled=true/);
+ assert.match(fn,/finally\{button\.disabled=false\}/);
+ assert.doesNotMatch(fn,/\b(getDocs|onSnapshot|setDoc|updateDoc|addDoc|deleteDoc|loadProjectPayments|fetch|ccGoogleSyncCommit|setInterval|setTimeout)\s*\(/);
+});
+test('one-click audit never reports historical consistency as write approval',()=>{
+ assert.match(fn,/0 dự án được cấp quyền ghi/);
+ assert.match(fn,/không ghi Google Sheets/);
+ assert.match(fn,/const absent=catalog\.length-catalog\.filter/);
+});
+
+test('only active, valid, linked projects are scanned; stale local links are not counted',()=>{
+ const scanner=html.slice(html.indexOf('async function ccSyncProjectReadOnlyCheck('),
+   html.indexOf('function ccSyncProjectCatalogInitialize()',html.indexOf('async function ccSyncProjectReadOnlyCheck(')));
+ assert.match(scanner,/activeProjects\.has\(project\)/);
+ assert.match(scanner,/ccSyncProjectLinkValid\(url\)/);
+ assert.match(fn,/link nháp dự án cũ không nằm trong danh mục/);
+});
+test('date-only disorder has its own report label without approving sync',()=>{
+ const overview=html.slice(html.indexOf('function ccSyncRenderBatchOverview(){'),
+   html.indexOf('async function ccSyncProjectReadOnlyCheck('));
+ assert.match(overview,/SỐ DƯ KHỚP · XEM THỨ TỰ NGÀY/);
+ assert.match(overview,/Number\(audit\.continuityErrors\)===0/);
+ assert.match(overview,/CHƯA dự án nào được phê duyệt ghi/);
+});
+
+test('all-project overview uses the scoped audit, never an undefined a alias',()=>{
+ const overview=html.slice(html.indexOf('function ccSyncRenderBatchOverview(){'),
+   html.indexOf('async function ccSyncProjectReadOnlyCheck('));
+ const entry=overview.slice(overview.indexOf('const entries=catalog.map(project=>{'),
+   overview.indexOf('return {project,stage,detail,hasLink,sourceInfo};'));
+ assert.match(entry,/Number\(audit\.continuityErrors\)===0/);
+ assert.match(entry,/Number\(audit\.roundingDifferences\)===0/);
+ assert.doesNotMatch(entry,/Number\(a\.(?:continuityErrors|roundingDifferences|missingBalance|invalidMoney)\)/);
+});

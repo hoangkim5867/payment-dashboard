@@ -4,6 +4,10 @@
 <meta name="description" content="Quản lý dòng tiền, công nợ, hồ sơ IPC, đề nghị thanh toán, bảo lãnh và tín dụng cho dự án MEP.">
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="assets/js/cash-sync-historical-audit.js"></script>
+<script src="assets/js/cash-sync-source-diagnostics.js"></script>
+<script src="assets/js/cash-sync-payment-coverage.js"></script>
+<script src="assets/js/cash-sync-lineage-audit.js"></script>
 <link rel="stylesheet" href="assets/css/cash-control.css" data-stage1-extracted="primary">
 <style id="cc-no-double-sidebar-gap">
 /* Fix: sidebar already occupies a CSS-grid column; do not offset main twice. */
@@ -1426,6 +1430,21 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <button class="btn" id="ccSyncProjectCatalogImport" type="button">Nhập lại danh sách đã xuất</button>
           <input type="file" accept="application/json,.json" id="ccSyncProjectCatalogImportFile" hidden>
         </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0">
+          <button class="btn" id="ccSyncProjectReadOnlyCheck" type="button">Kiểm tra link Google Sheets (chỉ đọc)</button>
+          <button class="btn" id="ccSyncHistoryContinuityCheck" type="button">So sánh lịch sử & điều kiện đồng bộ (chỉ đọc)</button>
+          <button class="btn primary" id="ccSyncOneClickAudit" type="button">Kiểm tra & tổng hợp tất cả dự án (chỉ đọc)</button>
+          <button class="btn" id="ccSyncBatchOverview" type="button">Tổng hợp tất cả dự án (0 reads)</button>
+          <button class="btn" id="ccSyncLoadedBatchCompare" type="button">Đối chiếu các dự án đã tải (0 reads)</button>
+          <button class="btn" id="ccSyncLoadLinkedSourceBatch" type="button" hidden>Tải Payment cho tối đa 3 dự án có link (có reads)</button>
+          <small style="font-size:11px;color:#64748b">Admin bấm thủ công · cần Kết nối Google phía dưới · không đọc Firestore, không ghi Sheets</small>
+        </div>
+        <div id="ccSyncProjectReadOnlyResult" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
+        <div id="ccSyncHistoryContinuityResult" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
+        <div id="ccSyncOneClickAuditStatus" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
+        <div id="ccSyncBatchOverviewResult" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
+        <div id="ccSyncLoadedBatchCompareResult" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
+        <div id="ccSyncLinkedSourceBatchStatus" role="status" aria-live="polite" style="font-size:12px;margin-bottom:8px"></div>
         <p id="ccSyncProjectCatalogStatus" style="font-size:12px;color:#44546b"></p>
         <div id="ccSyncProjectCatalogEntries" style="max-height:420px;overflow:auto;display:grid;gap:7px"></div>
       </details>
@@ -1446,6 +1465,10 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" type="button" id="ccGoogleSyncAuthorize">Kết nối Google</button>
         <button class="btn primary" type="button" id="ccGoogleSyncDirectSync">Đồng bộ PHU HUNG → Google Sheets TEST</button>
+        <button class="btn" type="button" id="ccSyncMultiProjectTestRun" hidden>Kiểm tra ELYSIAN TEST · không trùng</button>
+        <button class="btn" type="button" id="ccSyncMultiProjectTestDecember" hidden>Thêm giao dịch tháng 12 TEST</button>
+        <button class="btn" type="button" id="ccSyncMultiProjectTestStatus" hidden>Kiểm tra trạng thái ELYSIAN TEST (chỉ đọc)</button>
+        <button class="btn" type="button" id="ccSyncMultiProjectTestAudit" hidden>Xác minh dữ liệu ELYSIAN TEST (chỉ đọc)</button>
         <button class="btn" type="button" id="ccGoogleSyncCompare">So sánh dữ liệu (chỉ đọc)</button>
         <button class="btn" type="button" id="ccGoogleSyncOriginalAudit" hidden>Đối chiếu file PHU HUNG gốc (chỉ đọc)</button>
       </div>
@@ -1936,6 +1959,7 @@ import {
     signInWithEmailAndPassword,
     signOut,
     onAuthStateChanged,
+    getIdTokenResult,
     setPersistence,
     browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -2674,6 +2698,14 @@ function setPayConnection(status,message,error=false){
 }
 function updateCashAuthUI(){
     const user=currentAuthUser;
+    // Expose synthetic ELYSIAN integration controls only to the signed-in
+    // owner on the isolated staging Firebase. No production access or writes.
+    for(const id of ['ccSyncMultiProjectTestStatus','ccSyncMultiProjectTestAudit']){
+        const testButton=$(id);
+        if(testButton)testButton.hidden=!(
+            firebaseConfig.projectId==='cash-control-staging'&&
+            !!user&&isCashControlOwner());
+    }
     if(user){
         $('cashAuthChip').classList.add('show');
         $('cashAuthName').textContent=String(user.email||"").split("@")[0]||"Đã đăng nhập";
@@ -3295,7 +3327,12 @@ async function autoLoadActivePaymentMonth(month,{force=false,quiet=false}={}){
     return ok;
 }
 
-async function loadProjectPayments(project,{force=false,quiet=false,refresh=true}={}){
+function ccSyncPaymentRowsStamp(rows){
+    // Match the exact query-result contents, not merely a document count.
+    // Stored only in memory; this does not read Firestore or persist raw data.
+    return JSON.stringify([...rows].sort((a,b)=>String(a.id).localeCompare(String(b.id))));
+}
+async function loadProjectPayments(project,{force=false,quiet=false,refresh=true,onError=null,onAudit=null}={}){
     project=normProject(project);
 
     if(!project){
@@ -3304,6 +3341,7 @@ async function loadProjectPayments(project,{force=false,quiet=false,refresh=true
     }
 
     if(!currentAuthUser){
+        if(typeof onError==='function')onError('Chưa đăng nhập Firebase');
         setPayConnection('idle','Cần đăng nhập để đọc Payment');
         return false;
     }
@@ -3358,10 +3396,34 @@ async function loadProjectPayments(project,{force=false,quiet=false,refresh=true
                 .map(row=>String(row?.project||'').trim())
                 .filter(raw=>raw && raw!==project &&
                     projectFromMisfiledContractCode(raw)===project))];
-            const snaps=await Promise.all([
-                getDocs(q),
-                ...legacyAliases.map(alias=>getDocs(query(paymentsRef,where('project','==',alias))))
-            ]);
+            // Hard bound: the Admin read-audit must never fan out to an
+            // unbounded number of obsolete project-name queries.
+            if(typeof onAudit==='function'&&legacyAliases.length>2){
+                if(typeof onError==='function')onError(
+                    'Có '+legacyAliases.length+' tên dự án cũ; vượt giới hạn 2. '+
+                    'Chưa gửi truy vấn Firebase, cần xác minh tên dự án trước.'
+                );
+                return false;
+            }
+            const projectQueries=[
+                {label:'dự án '+project,request:getDocs(q)},
+                ...legacyAliases.map(alias=>({
+                    label:'tên dự án cũ '+alias,
+                    request:getDocs(query(paymentsRef,where('project','==',alias)))
+                }))
+            ];
+            // Keep the same read count. Do not retry or broaden the query.
+            // Annotate the failed request so one legacy alias cannot be
+            // mistaken for a failed primary project query.
+            const snaps=await Promise.all(projectQueries.map(async item=>{
+                try{return await item.request}
+                catch(error){
+                    const tagged=new Error(String(error?.message||error));
+                    tagged.code=error?.code||'unknown';
+                    tagged.cashQueryLabel=item.label;
+                    throw tagged;
+                }
+            }));
             console.info('[Firestore Read Audit] Cash Control project detail', {
                 project, queries:snaps.length,
                 documentsReturned:snaps.reduce((sum,snap)=>sum+snap.size,0),
@@ -3372,6 +3434,7 @@ async function loadProjectPayments(project,{force=false,quiet=false,refresh=true
                 generation!==paymentLoadGeneration ||
                 !currentAuthUser
             ){
+                if(typeof onError==='function')onError('Phiên đăng nhập hoặc dữ liệu đã thay đổi khi tải');
                 return false;
             }
 
@@ -3381,6 +3444,16 @@ async function loadProjectPayments(project,{force=false,quiet=false,refresh=true
                 if(item.deleted!==true)uniqueRows.set(item.id,item);
             }));
             const rows=[...uniqueRows.values()];
+            // Receipt only for an actual completed Firebase query, never for
+            // a pre-existing cache. The count is observational, NOT proof that
+            // all historical aliases or non-Payment Cash sources were loaded.
+            if(typeof onAudit==='function')onAudit(Object.freeze({
+                project,queryCount:snaps.length,
+                returned:snaps.reduce((total,snap)=>total+snap.size,0),
+                retained:rows.length,
+                snapshotStamp:ccSyncPaymentRowsStamp(rows),
+                deletedOrRepeated:snaps.reduce((total,snap)=>total+snap.size,0)-rows.length
+            }));
 
             paymentMonths.set(project,rows);
             if(refresh)rebuildPaymentsFromLoadedMonths();
@@ -3402,6 +3475,15 @@ async function loadProjectPayments(project,{force=false,quiet=false,refresh=true
             console.error('PROJECT PAYMENT LOAD ERROR',error);
 
             const code=String(error?.code||'');
+            if(typeof onError==='function')onError(code.includes('permission-denied')?
+                'Firebase permission-denied tại '+(error.cashQueryLabel||'truy vấn Payment')+' (cần kiểm tra phiên đăng nhập, project Firebase và Rules)':
+                code.includes('resource-exhausted')?
+                'Firebase resource-exhausted (có thể hết quota đọc)':
+                code.includes('unauthenticated')?
+                'Firebase unauthenticated (phiên đăng nhập không hợp lệ)':
+                code.includes('unavailable')?
+                'Firebase unavailable (kết nối/máy chủ không sẵn sàng)':
+                'Không tải được Payment'+(code?' · '+code:''));
 
             const msg=
                 code.includes('permission-denied')
@@ -5432,23 +5514,927 @@ function ccSyncProjectCatalogRender(){
       input.setCustomValidity('');
       if(value)ccSyncProjectLinkDraft[p]=value;else delete ccSyncProjectLinkDraft[p];
       ccSyncProjectCatalogSaveDraft();
-      ccSyncProjectCatalogStatus('Đã lưu nháp trên máy này: '+Object.keys(ccSyncProjectLinkDraft).length+
-        ' dự án có link. Chưa kết nối hay ghi Google Sheets.');
+      ccSyncProjectCatalogStatus('Đã lưu trên trình duyệt này: '+Object.keys(ccSyncProjectLinkDraft).length+
+        ' link Google Sheets gốc. Chưa kết nối hay ghi Google Sheets.');
     });
     row.append(title,input);wrap.append(row);
   }
   ccSyncProjectCatalogStatus('Danh mục: '+catalog.length+' dự án · đang hiển thị '+visible.length+
     ' · '+Object.keys(ccSyncProjectLinkDraft).length+
-    ' dự án đã nhập link nháp. Dự án mới trong Cash Control tự vào danh sách.');
+    ' dự án đã nhập link Google Sheets gốc (chỉ lưu trên trình duyệt này). Chế độ nhiều dự án hiện chỉ đọc; ghi vẫn chỉ hỗ trợ PHU HUNG TEST. Dự án mới tự vào danh sách.');
 }
+// Only the current tab session retains the last audit outcome.
+// No Firestore or Google reads occur when rendering the batch overview.
+const ccSyncLastHistoricalAudit=Object.create(null);
+// Raw Google ledger rows exist only in this browser tab after Admin explicitly audits.
+// Never persist financial rows to localStorage and never use a saved audit as fresh input.
+const ccSyncInMemoryHistory=new Map();
+const CC_SYNC_AUDIT_CACHE_KEY='ccGoogleSyncHistoryAuditCacheV2';
+const CC_SYNC_AUDIT_MAX_AGE_MS=7*24*60*60*1000;
+// Keep only diagnostic metadata on this browser. This is never authorization
+// for Google writes or proof that a Google file is unchanged.
+function ccSyncSaveAuditSession(){
+  try{
+    const now=Date.now();
+    const rows=Object.entries(ccSyncLastHistoricalAudit).filter(([project,audit])=>
+      ccSyncProjectLinkValid(ccSyncProjectLinkDraft[project])&&
+      Number.isFinite(audit.checkedAt)&&now-audit.checkedAt<=CC_SYNC_AUDIT_MAX_AGE_MS
+    ).map(([project,audit])=>({
+      project,link:ccSyncProjectLinkDraft[project],
+      checkedAt:audit.checkedAt,
+      ok:audit.ok===true,status:String(audit.status||'').slice(0,100),
+      note:String(audit.note||'').slice(0,500),
+      nonMonotonicDates:Number(audit.nonMonotonicDates)||0,
+      dateOrderOnly:audit.dateOrderOnly===true,
+      continuityErrors:Number(audit.continuityErrors)||0,
+      roundingDifferences:Number(audit.roundingDifferences)||0,
+      missingBalance:Number(audit.missingBalance)||0,
+      invalidMoney:Number(audit.invalidMoney)||0,
+      layoutErrors:Number(audit.layoutErrors)||0
+    }));
+    localStorage.setItem(CC_SYNC_AUDIT_CACHE_KEY,JSON.stringify(rows));
+  }catch{/* audit remains available in memory; no network retries */}
+}
+function ccSyncLoadAuditSession(){
+  try{
+    const rows=JSON.parse(localStorage.getItem(CC_SYNC_AUDIT_CACHE_KEY)||'[]');
+    if(!Array.isArray(rows)||rows.length>1000)return;
+    const now=Date.now();
+    for(const row of rows){
+      if(!row||typeof row.project!=='string'||!row.project||
+         row.link!==ccSyncProjectLinkDraft[row.project]||
+         !ccSyncProjectLinkValid(row.link)||typeof row.note!=='string'||
+         !Number.isFinite(row.checkedAt)||row.checkedAt>now||
+         now-row.checkedAt>CC_SYNC_AUDIT_MAX_AGE_MS)continue;
+      ccSyncLastHistoricalAudit[row.project]={
+        ok:row.ok===true,status:String(row.status||'').slice(0,100),
+        note:row.note.slice(0,500),checkedAt:row.checkedAt,cached:true,
+        nonMonotonicDates:Number(row.nonMonotonicDates)||0,
+        dateOrderOnly:row.dateOrderOnly===true,
+        continuityErrors:Number(row.continuityErrors)||0,
+        roundingDifferences:Number(row.roundingDifferences)||0,
+        missingBalance:Number(row.missingBalance)||0,
+        invalidMoney:Number(row.invalidMoney)||0,
+        layoutErrors:Number(row.layoutErrors)||0
+      };
+    }
+  }catch{/* invalid cache is never considered verified */}
+}
+// Batch reconciliation uses only existing memory. No Google API calls, no
+// Firestore queries, no local file input, no promises and no write authorization.
+// Production-only, explicitly initiated Admin read. At most THREE project
+// queries per invocation; never scans the whole company. A project already
+// loaded into the current tab is never queried again until Admin refreshes.
+// This is intentionally hidden on Firebase staging and does not authorize sync.
+// Only projects successfully fetched through this explicit Admin action are eligible
+// for in-memory Payment-ID diagnostics. Not a source-completeness certificate.
+const ccSyncExplicitPaymentLoaded=new Set();
+const ccSyncPaymentQueryReceipts=new Map();
+function ccSyncHasValidPaymentReceipt(project){
+  const receipt=ccSyncPaymentQueryReceipts.get(project);
+  const rows=paymentMonths.get(project);
+  return !!receipt&&Array.isArray(rows)&&receipt.project===project&&
+    receipt.queryCount>=1&&receipt.returned>=receipt.retained&&
+    receipt.retained===rows.length&&
+    receipt.snapshotStamp===ccSyncPaymentRowsStamp(rows);
+}
+async function ccSyncLoadLinkedPaymentBatch(){
+  const button=$('ccSyncLoadLinkedSourceBatch');
+  const status=$('ccSyncLinkedSourceBatchStatus');
+  if(!button||!status)return;
+  if(button.disabled||!currentAuthUser||!isCashControlOwner()){
+    status.textContent='Chỉ Admin được tải nguồn Payment.';return;
+  }
+  if(firebaseConfig.projectId!=='cscecmep-payment'){
+    status.textContent='Preview TEST tách khỏi Payment thật; không được tải nguồn production.';return;
+  }
+  const eligible=ccSyncProjectCatalogNames().filter(project=>
+    project!=='PHU HUNG'&&ccSyncProjectLinkValid(ccSyncProjectLinkDraft[project])&&
+    !ccSyncHasValidPaymentReceipt(project));
+  if(!eligible.length){
+    status.textContent='Các dự án đã có biên nhận truy vấn hợp lệ trong phiên. '+
+      'Vẫn CHƯA chứng minh đủ tất cả nguồn Cash Control hoặc được phép ghi.';
+    return;
+  }
+  const batch=eligible.slice(0,3);
+  const cached=batch.filter(project=>paymentMonths.has(project));
+  if(!confirm('Chỉ đọc Payment của '+batch.length+' dự án: '+
+    batch.join(', ')+'. '+cached.length+' dự án đã có cache nhưng thiếu biên nhận '+
+    'hoặc biên nhận không còn khớp, cần tải lại có chủ đích. '+
+    'Tối đa 3 truy vấn mỗi dự án (1 tên chuẩn + tối đa 2 tên cũ đã biết); '+
+    'reads tính theo số chứng từ trả về và có thể phát sinh chi phí. '+
+    'Không ghi dữ liệu. Tiếp tục?'))return;
+  button.disabled=true;
+  let success=0,failed=0;
+  try{
+    for(const project of batch){
+      if(!currentAuthUser||!isCashControlOwner())break;
+      status.textContent='Đang đọc '+project+' ('+(success+failed+1)+'/'+batch.length+
+        '), không ghi Firebase hoặc Sheets…';
+      let errorText='',receipt=null;
+      const ok=await loadProjectPayments(project,{
+        force:paymentMonths.has(project),quiet:true,refresh:false,
+        onError:message=>{errorText=String(message||'')},
+        onAudit:info=>{receipt=info}
+      });
+      if(!ok||!paymentMonths.has(project)||!receipt||
+          receipt.project!==project||receipt.queryCount<1||
+          receipt.returned<receipt.retained||
+          receipt.retained!==paymentMonths.get(project).length||
+          receipt.snapshotStamp!==ccSyncPaymentRowsStamp(paymentMonths.get(project))){
+        failed++;
+        status.textContent='Dừng ở '+project+': '+(errorText||'chưa tải đủ Payment')+
+          '. Không thử lại tự động để tránh reads.';
+        break;
+      }
+      // Rebuild only the in-memory Cash Control state; refresh:false avoids
+      // renderAll and scheduled balance-snapshot writes.
+      rebuildPaymentsFromLoadedMonths();
+      ccSyncExplicitPaymentLoaded.add(project);
+      ccSyncPaymentQueryReceipts.set(project,receipt);
+      success++;
+    }
+    const remaining=ccSyncProjectCatalogNames().filter(project=>
+      project!=='PHU HUNG'&&ccSyncProjectLinkValid(ccSyncProjectLinkDraft[project])&&
+      !ccSyncHasValidPaymentReceipt(project)).length;
+    status.textContent='Đã tải '+success+' dự án có biên nhận query · '+failed+
+      ' thất bại · còn '+remaining+' dự án chưa tải. '+
+      'Biên nhận chỉ xác nhận số chứng từ query trả về, KHÔNG chứng minh đủ nguồn và KHÔNG cấp quyền đồng bộ.';
+  }finally{button.disabled=false}
+}
+function ccSyncSetLinkedBatchVisibility(){
+  const button=$('ccSyncLoadLinkedSourceBatch');
+  if(button)button.hidden=firebaseConfig.projectId!=='cscecmep-payment';
+}
+function ccSyncCompareAlreadyLoadedProjects(){
+  const output=$('ccSyncLoadedBatchCompareResult');
+  if(!output)return;
+  if(!currentAuthUser||!isCashControlOwner()){
+    output.textContent='Chỉ Admin được đối chiếu.';return;
+  }
+  output.replaceChildren();
+  const note=document.createElement('p');
+  note.textContent='ĐỐI CHIẾU TRONG BỘ NHỚ · 0 Firestore reads · 0 Google reads/writes. '+
+    'Kết quả khớp chỉ là ứng viên, KHÔNG cấp phép đồng bộ.';
+  output.append(note);
+  const table=document.createElement('table');
+  table.style.cssText='width:100%;border-collapse:collapse;font-size:11px';
+  const header=document.createElement('tr');
+  for(const label of ['Dự án','Nguồn trong phiên','Ứng viên khớp','Chỉ ở Google','Chỉ ở Cash Control','Xung đột HĐ/IPC','Payment theo ID','Kết luận']){
+    const th=document.createElement('th');th.textContent=label;
+    th.style.cssText='text-align:left;padding:5px;border-bottom:1px solid #cbd5e1';
+    header.append(th);
+  }
+  table.append(header);
+  const cutover='2026-10',last=CURRENT;
+  const periods=[];
+  for(let year=2026;year<=Number(last.slice(0,4));year++){
+    for(let month=year===2026?10:1;month<=(year===Number(last.slice(0,4))?
+      Number(last.slice(5,7)):12);month++){
+      periods.push(year+'-'+String(month).padStart(2,'0'));
+    }
+  }
+  for(const project of ccSyncProjectCatalogNames().filter(p=>ccSyncProjectLinkDraft[p]&&p!=='PHU HUNG')){
+    const cache=ccSyncInMemoryHistory.get(project);
+    const matching=cache&&cache.link===ccSyncProjectLinkDraft[project];
+    const production=firebaseConfig.projectId==='cscecmep-payment';
+    const receipt=ccSyncPaymentQueryReceipts.get(project);
+    const sourceReady=production&&ccSyncExplicitPaymentLoaded.has(project)&&
+      ccSyncHasValidPaymentReceipt(project);
+    let cells=[project,'Chưa đủ dữ liệu','—','—','—','—','Chưa kiểm tra','CHƯA ĐỐI CHIẾU'];
+    if(!matching){
+      cells[7]='Cần đọc lịch sử Google lại trong phiên';
+    }else if(!sourceReady){
+      cells[1]=production?'Payment cache chưa có biên nhận query hợp lệ':'TEST không có Payment thật';
+      cells[7]='KHÔNG ĐỦ NGUỒN · không ghi';
+    }else{
+      try{
+        const sourceRows=[];
+        for(const period of periods)sourceRows.push(...legacyCashExportRows(period,project));
+        // One-project Payment cache is already loaded by an explicit Admin
+        // action. Comparing IDs locally does not consume additional Firestore reads.
+        const checked=window.CashSyncPaymentCoverage.checkBoundedBatch([{
+          project,loaded:true,complete:true,
+          payments:paymentMonths.get(project)||[],ledger:sourceRows
+        }],{maxProjects:1});
+        const paymentProof=checked.results[0];
+        // Compare the RAW paid amount to the exported expense column. This
+        // resolves columns through the existing Cash Control classification;
+        // it does not independently certify the business cost classification.
+        const moneyProof=window.CashSyncPaymentCoverage.checkMoney(project,
+          paymentMonths.get(project)||[],sourceRows,{
+            bucketOf:p=>{
+              const bucket=excelProjectCostBucket(normalizePayment(p));
+              return bucket==='labor'||bucket==='taxDeposit'?'otherDirect':
+                bucket==='other'?'otherPayable':bucket;
+            }
+          });
+        const coverage=window.CashSyncPaymentCoverage.check(project,
+          paymentMonths.get(project)||[],sourceRows);
+        // Verify EVERY paid local expense and internal transfer has a stable
+        // origin ID in the grouped Cash Control ledger (including quarterly tax).
+        const lineage=window.CashSyncLineageAudit.inspect(project,periods,
+          allExpenses(),allTransfers(),
+          periods.map(period=>legacyCashExportRows(period,project)));
+        const inspected=window.CashSyncSourceDiagnostics.inspect(project,
+          periods.map(period=>({month:period,rows:legacyCashExportRows(period,project)
+            .map(row=>({...row,project}))})),{
+            paymentProjectLoaded:true,firebaseProject:firebaseConfig.projectId
+          });
+        // The Payment query can load the whole Payment collection for a project,
+        // but that alone cannot prove that all manual/inflow/transfer/quarterly-tax
+        // Cash Control records have been reconciled. Stay explicitly incomplete.
+        const result=window.CashSyncHistoricalAudit.compareLoadedCashControl(
+          cache.rows,project,sourceRows,{sourceComplete:false});
+        cells=[project,String(result.sourceScope)+' · '+receipt.returned+
+          ' chứng từ Firebase trả về / '+receipt.queryCount+' query (chưa đủ nguồn)',
+          String(result.matched||0),
+          String(result.historicalOnly||0),String(result.cashOnly||0),
+          String(result.identityConflict||0),
+          paymentProof.status==='empty-payment-snapshot-unverified'?
+            'Rỗng: chưa thể xác minh':
+          paymentProof.paymentSnapshotVerified&&moneyProof.moneyAndBucketVerified?
+            'ID: '+paymentProof.matched+' · tiền/cột xuất: '+moneyProof.checkedRows+
+              ' dòng khớp (chưa duyệt nghiệp vụ)':
+          paymentProof.paymentSnapshotVerified?
+            'ID khớp nhưng tiền/cột xuất CHƯA xác minh · lệch '+
+              moneyProof.amountMismatches+' · chưa rõ '+moneyProof.unverifiedRows:
+            'CHẶN: thiếu/trùng/sai ngày Payment',
+          result.status==='requires-tax-mapping'?'FOXCONN: cần phân loại thuế riêng':
+          !lineage.inMemoryLineageVerified?
+            'Thiếu hoặc trùng nguồn lương / thuế / chuyển tiền / nhập tay · không ghi':
+          !paymentProof.paymentSnapshotVerified||!coverage.paidPaymentIdsCovered?
+            'Payment thiếu / chưa chứng minh đầy đủ · không ghi':
+          !moneyProof.moneyAndBucketVerified?
+            'Tiền thực trả hoặc cột chi phí chưa khớp / chưa rõ · không ghi':
+          !inspected.sourceStructureValid?
+            'ID / tiền nguồn chưa hợp lệ · không ghi':
+          !['internally-consistent','review-date-order'].includes(cache.auditStatus)?
+            'Lịch sử chưa được xác minh · không ghi':
+          result.invalidHistory||result.invalidSource||result.ambiguous||
+            result.identityConflict||result.identityUnverified||
+            result.historicalOnly||result.cashOnly?
+              'CÒN CHÊNH LỆCH / CHƯA XÁC MINH · không ghi':
+              'ỨNG VIÊN KHỚP · chưa chứng minh đủ nguồn, không ghi'];
+      }catch(error){
+        cells[7]='Lỗi đối chiếu trong bộ nhớ · không ghi';
+      }
+    }
+    const tr=document.createElement('tr');
+    for(const item of cells){
+      const td=document.createElement('td');td.textContent=item;
+      td.style.cssText='padding:6px;border-bottom:1px solid #e2e8f0;vertical-align:top';
+      tr.append(td);
+    }
+    table.append(tr);
+  }
+  output.append(table);
+}
+// One Admin click: re-read all linked historical Google tabs ONCE, then
+// classify already-read audit results in browser memory. Never reads Firebase
+// and never writes Sheets. The existing per-file scanner owns error handling,
+// so a failed file does not stop unrelated projects from being classified.
+async function ccSyncOneClickAudit(){
+  const button=$('ccSyncOneClickAudit'),status=$('ccSyncOneClickAuditStatus');
+  if(!button||!status)return;
+  if(!currentAuthUser||!isCashControlOwner()){
+    status.textContent='Chỉ Admin được kiểm tra hàng loạt.';return;
+  }
+  if(!ccGoogleSyncToken){
+    status.textContent='Bấm Kết nối Google một lần trước khi kiểm tra.';return;
+  }
+  if(button.disabled||$('ccSyncHistoryContinuityCheck')?.disabled)return;
+  button.disabled=true;
+  try{
+    const catalog=ccSyncProjectCatalogNames();
+    const linked=catalog.filter(p=>p!=='PHU HUNG'&&
+      ccSyncProjectLinkValid(ccSyncProjectLinkDraft[p]));
+    const stale=Object.keys(ccSyncProjectLinkDraft).filter(p=>
+      p!=='PHU HUNG'&&!catalog.includes(p)&&
+      ccSyncProjectLinkValid(ccSyncProjectLinkDraft[p])).length;
+    status.textContent='Đang kiểm tra lịch sử '+linked.length+' dự án đã có link. '+
+      'Google chỉ đọc, không đọc Firebase, không ghi Google Sheets…';
+    await ccSyncProjectReadOnlyCheck(true);
+    // This function only summarizes cached metadata; zero additional calls.
+    ccSyncRenderBatchOverview();
+    const fresh=catalog.filter(p=>{
+      const x=ccSyncLastHistoricalAudit[p];
+      return x&&!x.cached&&ccSyncProjectLinkValid(ccSyncProjectLinkDraft[p]);
+    });
+    const ok=fresh.filter(p=>ccSyncLastHistoricalAudit[p].ok===true).length;
+    const blocked=fresh.length-ok;
+    const datesOnly=fresh.filter(p=>{
+      const a=ccSyncLastHistoricalAudit[p];
+      return !a.ok&&a.status==='review-date-order'&&
+        Number(a.continuityErrors)===0&&Number(a.roundingDifferences)===0&&
+        Number(a.missingBalance)===0&&Number(a.invalidMoney)===0;
+    }).length;
+    const absent=catalog.length-catalog.filter(p=>
+      ccSyncProjectLinkValid(ccSyncProjectLinkDraft[p])).length;
+    status.textContent='ĐÃ PHÂN NHÓM '+catalog.length+' DỰ ÁN · '+
+      ok+' lịch sử tự khớp/chưa phát sinh · '+datesOnly+
+      ' số dư khớp nhưng thứ tự ngày cần xem lại · '+
+      (blocked-datesOnly)+' lỗi/bố cục khác cần kiểm tra · '+
+      absent+' chưa có link · '+
+      (linked.length-fresh.length)+' chưa kiểm tra được trong lượt này'+
+      (stale?' · '+stale+' link nháp dự án cũ không nằm trong danh mục':'')+'. '+
+      'Chưa đối chiếu đủ nguồn Cash Control/Payment; 0 dự án được cấp quyền ghi. '+
+      'Không có Google writes hoặc Firestore reads trong thao tác này.';
+  }catch(error){
+    status.textContent='CHƯA HOÀN TẤT KIỂM TRA HÀNG LOẠT: '+
+      String(error?.message||error).slice(0,140)+
+      '. Không ghi dữ liệu; xem kết quả từng dự án bên dưới.';
+    ccSyncRenderBatchOverview();
+  }finally{button.disabled=false}
+}
+function ccSyncRenderBatchOverview(){
+  const output=$('ccSyncBatchOverviewResult');
+  if(!output)return;
+  if(!currentAuthUser||!isCashControlOwner()){
+    output.textContent='Chỉ Admin được xem báo cáo tổng hợp.';return;
+  }
+  const catalog=ccSyncProjectCatalogNames();
+  const entries=catalog.map(project=>{
+    const link=ccSyncProjectLinkDraft[project];
+    const audit=ccSyncLastHistoricalAudit[project];
+    const hasLink=typeof link==='string'&&ccSyncProjectLinkValid(link);
+    let stage='CHƯA CÓ LINK',detail='Nhập link Google Sheets để kiểm tra lịch sử';
+    if(hasLink&&!audit){stage='CHƯA KIỂM TRA';detail='Chưa có kết quả đối chiếu Google Sheets trong phiên này'}
+    else if(hasLink&&audit){
+      const dateOrderOnly=audit.status==='review-date-order'&&
+        Number(audit.continuityErrors)===0&&Number(audit.roundingDifferences)===0&&
+        Number(audit.missingBalance)===0&&Number(audit.invalidMoney)===0;
+      stage=audit.cached?'KẾT QUẢ ĐÃ LƯU':
+        (audit.ok?'LỊCH SỬ ĐÃ KIỂM TRA':
+        dateOrderOnly?'SỐ DƯ KHỚP · XEM THỨ TỰ NGÀY':'CẦN XỬ LÝ');
+      detail=(audit.cached?'Kết quả cũ (chưa xác nhận Google còn nguyên): ':'')+audit.note;
+    }
+    // Inspect source already loaded in memory; never query Firebase here.
+    // A loaded Payment collection does NOT establish Cash Control completeness.
+    let sourceInfo='Nguồn Payment: chưa tải đủ (0 reads khi tổng hợp)';
+    if(firebaseConfig.projectId!=='cscecmep-payment'){
+      sourceInfo='Nguồn Payment thật: không có trong TEST staging';
+    }else if(paymentMonths.has(project)&&window.CashSyncSourceDiagnostics){
+      try{
+        const now=CURRENT;
+        const inspected=[];
+        for(let year=2026;year<=Number(now.slice(0,4));year++){
+          for(let month=year===2026?10:1;month<=(year===Number(now.slice(0,4))?
+            Number(now.slice(5,7)):12);month++){
+            const period=year+'-'+String(month).padStart(2,'0');
+            inspected.push({month:period,rows:legacyCashExportRows(period,project)
+              .map(row=>({...row,project}))});
+          }
+        }
+        const info=window.CashSyncSourceDiagnostics.inspect(project,inspected,{
+          paymentProjectLoaded:true,firebaseProject:firebaseConfig.projectId
+        });
+        sourceInfo='Nguồn đã tải: '+info.transactions+' giao dịch · '+
+          (info.sourceStructureValid?'ID có cấu trúc hợp lệ':'CẦN KIỂM TRA: '+
+            info.reasons.join('; '))+' · chưa duyệt đồng bộ';
+      }catch(error){
+        sourceInfo='Nguồn Payment cần kiểm tra: '+String(error.message||error).slice(0,90);
+      }
+    }
+    return {project,stage,detail,hasLink,sourceInfo};
+  });
+  // Group audit causes instead of asking Admin to inspect all projects one-by-one.
+  // These are historical diagnostics ONLY, never write eligibility.
+  const issueGroups=[
+    {name:'Ngày lịch sử chưa tăng dần',
+      matches:a=>a.status==='review-date-order'||a.nonMonotonicDates>0,
+      action:'Đối chiếu thứ tự dòng và ngày tại các vị trí hiển thị. Nếu phép tính số dư vẫn khớp, chỉ phân loại lỗi thứ tự ngày; không thay đổi sổ gốc hay cấp quyền ghi.'},
+    {name:'Bố cục / cột số dư đặc biệt',
+      matches:a=>['unsupported-layout','unsupported-tax-layout',
+        'provisional-balance-review','new-project-no-transactions-review'].includes(a.status)||
+        Number(a.layoutErrors)>0,
+      action:'Xác minh cột thu/chi, thuế, số dư và dòng tiêu đề trước khi chuẩn hóa.'},
+    {name:'Số dư / công thức / tiền không khớp',
+      matches:a=>a.status==='needs-financial-review'||a.continuityErrors>0||
+        a.roundingDifferences>0||a.missingBalance>0||a.invalidMoney>0,
+      action:'Rà các dòng sai số dư/thiếu công thức hoặc số tiền không đọc được; không sửa số gốc.'},
+    {name:'Lỗi đọc hoặc chưa nhận diện',
+      matches:a=>true,
+      action:'Kiểm tra quyền truy cập file hoặc kiểu dữ liệu lịch sử, rồi đối chiếu lại.'}
+  ];
+  const grouped=issueGroups.map(x=>({...x,projects:[]}));
+  for(const entry of entries.filter(x=>x.stage==='CẦN XỬ LÝ'||
+    x.stage==='SỐ DƯ KHỚP · XEM THỨ TỰ NGÀY'||
+    x.stage==='KẾT QUẢ ĐÃ LƯU'&&ccSyncLastHistoricalAudit[x.project]?.ok===false)){
+    const audit=ccSyncLastHistoricalAudit[entry.project]||{};
+    grouped.find(group=>group.matches(audit)).projects.push(entry.project);
+  }
+  const tally=entries.reduce((map,row)=>(map[row.stage]=(map[row.stage]||0)+1,map),{});
+  output.replaceChildren();
+  const intro=document.createElement('p');
+  intro.textContent='TỔNG HỢP '+catalog.length+' DỰ ÁN · '+entries.filter(x=>x.hasLink).length+
+    ' có link · '+(tally['LỊCH SỬ ĐÃ KIỂM TRA']||0)+' lịch sử đã kiểm tra · '+
+    (tally['SỐ DƯ KHỚP · XEM THỨ TỰ NGÀY']||0)+' số dư khớp nhưng cần xem thứ tự ngày · '+
+    (tally['CẦN XỬ LÝ']||0)+' lỗi khác cần xử lý · '+(tally['KẾT QUẢ ĐÃ LƯU']||0)+' kết quả cũ · '+(tally['CHƯA KIỂM TRA']||0)+
+    ' chưa kiểm tra · '+(tally['CHƯA CÓ LINK']||0)+' chưa có link.';
+  const warning=document.createElement('p');
+  warning.textContent='CHƯA dự án nào được phê duyệt ghi. Kết quả đã lưu chỉ để tham khảo, không chứng minh Google Sheets hiện tại chưa thay đổi. Lịch sử tự khớp KHÔNG có nghĩa đã đối chiếu đủ Payment. Nút tổng hợp: 0 Firestore reads, 0 Google Sheets reads/writes.';
+  warning.style.cssText='font-weight:600;color:#8a4f0a';
+  const table=document.createElement('table');
+  table.style.cssText='width:100%;border-collapse:collapse;font-size:12px';
+  const tr=document.createElement('tr');
+  for(const head of ['Dự án','Tình trạng','Việc tiếp theo']){
+    const th=document.createElement('th');th.textContent=head;
+    th.style.cssText='text-align:left;border-bottom:1px solid #cbd5e1;padding:6px';
+    tr.append(th);
+  }
+  table.append(tr);
+  for(const item of entries){
+    const row=document.createElement('tr');
+    for(const value of [item.project,item.stage,item.detail+' · '+item.sourceInfo]){
+      const td=document.createElement('td');td.textContent=value;
+      td.style.cssText='border-bottom:1px solid #e2e8f0;padding:6px;vertical-align:top';
+      row.append(td);
+    }
+    table.append(row);
+  }
+  const issueHeader=document.createElement('p');
+  issueHeader.textContent='NHÓM CẦN XỬ LÝ (gồm kết quả cũ để tham khảo; chưa được phép ghi):';
+  issueHeader.style.cssText='font-weight:700;margin:10px 0 6px';
+  const groupWrap=document.createElement('div');
+  groupWrap.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px';
+  for(const group of grouped.filter(x=>x.projects.length)){
+    const section=document.createElement('details');
+    section.style.cssText='border:1px solid #dbe4f0;padding:8px;border-radius:8px;max-width:100%;flex:1 1 240px';
+    const summary=document.createElement('summary');
+    summary.style.cssText='font-weight:700;cursor:pointer';
+    summary.textContent=group.name+' · '+group.projects.length+' dự án';
+    const desc=document.createElement('p');
+    desc.textContent=group.action;desc.style.cssText='margin:6px 0;font-size:12px';
+    const projects=document.createElement('p');
+    projects.textContent=group.projects.join(' · ');
+    projects.style.cssText='overflow-wrap:anywhere;font-size:12px;margin:6px 0';
+    section.append(summary,desc,projects);
+    groupWrap.append(section);
+  }
+  const ready=entries.filter(x=>x.stage==='LỊCH SỬ ĐÃ KIỂM TRA');
+  if(ready.length){
+    const section=document.createElement('details');
+    section.style.cssText='border:1px solid #dbe4f0;padding:8px;border-radius:8px;max-width:100%;margin-bottom:10px';
+    const summary=document.createElement('summary');
+    summary.textContent='Lịch sử đã tự khớp · '+ready.length+' dự án (vẫn CHƯA đủ điều kiện ghi)';
+    const desc=document.createElement('p');
+    desc.textContent=ready.map(x=>x.project).join(' · ')+
+      '. Còn phải đối chiếu toàn bộ Payment / Cash Control và kiểm tra trùng trước khi được ghi.';
+    desc.style.cssText='overflow-wrap:anywhere;font-size:12px';
+    section.append(summary,desc);
+    groupWrap.append(section);
+  }
+  output.append(intro,warning,issueHeader,groupWrap,table);
+}
+// Admin-only explicit read-only discovery: validates the selected historical
+// tab exists and is readable. This does NOT reconcile Cash Control/closing balances.
+async function ccSyncProjectReadOnlyCheck(auditBalances=false){
+  const output=$(auditBalances?'ccSyncHistoryContinuityResult':'ccSyncProjectReadOnlyResult'),
+    button=$(auditBalances?'ccSyncHistoryContinuityCheck':'ccSyncProjectReadOnlyCheck');
+  if(!output||!button)return;
+  if(auditBalances&&!window.CashSyncHistoricalAudit){
+    output.textContent='Chưa tải bộ kiểm tra số dư. Tải lại trang TEST.';return;
+  }
+  if(!currentAuthUser||!isCashControlOwner()){
+    output.textContent='Chỉ Admin được kiểm tra Google Sheets.';return;
+  }
+  if(!ccGoogleSyncToken){
+    output.textContent='Chưa kết nối Google. Bấm Kết nối Google ở phần 2 trước.';return;
+  }
+  // Only active Cash Control projects with valid saved links belong to this
+  // batch. Old local draft entries for renamed/deleted projects must not
+  // silently inflate the Google file count (e.g. 17 versus 16 active links).
+  const activeProjects=new Set(ccSyncProjectCatalogNames());
+  const items=Object.entries(ccSyncProjectLinkDraft)
+    .filter(([project,url])=>project!=='PHU HUNG'&&
+      activeProjects.has(project)&&ccSyncProjectLinkValid(url));
+  if(!items.length){output.textContent='Chưa có link dự án cần kiểm tra.';return}
+  if(button.disabled)return;
+  button.disabled=true;
+  output.replaceChildren();
+  const note=document.createElement('p');
+  note.textContent=(auditBalances?'Đối chiếu thu/chi/số dư lịch sử ':'Bắt đầu kiểm tra ')+items.length+' file. Chỉ đọc Google Sheets, không truy vấn Firestore, không ghi dữ liệu. Không kết luận đủ điều kiện đồng bộ.';
+  const table=document.createElement('table');
+  table.style.cssText='width:100%;border-collapse:collapse;font-size:12px';
+  const heading=document.createElement('tr');
+  for(const name of (auditBalances?
+    ['Dự án','Đối chiếu số dư','Số giao dịch','Số dư cuối · VND','Lỗi / chênh lệch','Điều kiện đồng bộ']: 
+    ['Dự án','Kết quả','Tab đã chọn','Dòng dữ liệu (ước tính)'])){
+    const th=document.createElement('th');
+    th.textContent=name;th.style.cssText='text-align:left;border-bottom:1px solid #cbd5e1;padding:6px';
+    heading.append(th);
+  }
+  table.append(heading);
+  output.append(note,table);
+  let passed=0,blocked=0;
+  // Keep earlier diagnostics until each Google file is re-read successfully.
+  // Mark old results historical immediately; never mistake them for fresh checks.
+  if(auditBalances){
+    ccSyncInMemoryHistory.clear();
+    for(const audit of Object.values(ccSyncLastHistoricalAudit))audit.cached=true;
+  }
+  try{
+    for(const [project,link] of items){
+      const tr=document.createElement('tr');
+      const cells=Array.from({length:auditBalances?6:4},()=>document.createElement('td'));
+      cells.forEach(td=>{td.style.cssText='border-bottom:1px solid #e2e8f0;padding:6px';tr.append(td)});
+      cells[0].textContent=project;cells[1].textContent='Đang kiểm tra…';
+      table.append(tr);
+      try{
+        const url=new URL(link);
+        if(url.protocol!=='https:'||url.hostname!=='docs.google.com')
+          throw Error('Đường dẫn Google Sheets không hợp lệ');
+        const match=/^\/spreadsheets\/d\/([A-Za-z0-9_-]{20,})\/edit\/?$/.exec(url.pathname);
+        if(!match)throw Error('Thiếu File ID');
+        const gid=url.searchParams.get('gid')||/^#gid=(\d+)$/.exec(url.hash)?.[1];
+        if(!/^\d+$/.test(String(gid??'')))throw Error('Link thiếu gid');
+        const base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(match[1]);
+        const headers={Authorization:'Bearer '+ccGoogleSyncToken};
+        const metaResponse=await fetch(base+'?fields=spreadsheetId,sheets(properties(sheetId,title,hidden))',
+          {method:'GET',headers,cache:'no-store'});
+        if(!metaResponse.ok)throw Error('Google HTTP '+metaResponse.status);
+        const meta=await metaResponse.json();
+        if(meta.spreadsheetId!==match[1])throw Error('File ID không khớp');
+        const selected=(meta.sheets||[]).map(s=>s.properties)
+          .find(s=>String(s?.sheetId)===String(gid));
+        if(!selected||selected.hidden===true)throw Error('Không tìm thấy tab hoặc tab đang ẩn');
+        // FOXCONN reads A:O only, including N tax and provisional O balance.
+        // Columns P onward are scratch notes and must remain untouched.
+        const lastColumn=project==='FOXCONN'?'O':project==='CHAOMED'?'R':'N';
+        const range="'"+selected.title.replace(/'/g,"''")+"'!A1:"+lastColumn+"20000";
+        const dataUrl=base+'/values/'+encodeURIComponent(range)+
+          '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER';
+        let response=await fetch(dataUrl,{method:'GET',headers,cache:'no-store'});
+        // One bounded retry for temporary Google 503; no repeated full-file scans.
+        if(response.status===503){
+          await new Promise(resolve=>setTimeout(resolve,700));
+          response=await fetch(dataUrl,{method:'GET',headers,cache:'no-store'});
+        }
+        if(!response.ok)throw Error('Google HTTP '+response.status+' khi đọc tab');
+        const data=await response.json();
+        if(!Array.isArray(data.values)&&data.values!==undefined)throw Error('Cấu trúc dữ liệu không hợp lệ');
+        const rows=data.values||[];
+        // Count candidate transaction dates only. Does not prove financial correctness.
+        const count=rows.filter(row=>{
+          const d=row?.[0];
+          return typeof d==='number'&&d>10000&&d<100000||
+            typeof d==='string'&&/^20\d{2}-\d{2}-\d{2}$/.test(d);
+        }).length;
+        if(auditBalances){
+          // FOXCONN: O may be the balance and N may be import tax.
+          // Never treat an unverified column as an approved ledger.
+          const result=window.CashSyncHistoricalAudit.audit(rows,
+            {project,...(project==='FOXCONN'?{probeBalanceIndex:14}:{})});
+          // Retain only a successful, fresh in-session read, with its
+          // validation status. This cache never authorizes any write.
+          ccSyncInMemoryHistory.set(project,{link,rows,auditStatus:result.status});
+          const titles={'new-project-no-transactions':'Dự án mới · chưa có phát sinh',
+            'blank-tab':'File trắng · cần xác minh số dư đầu kỳ',
+            'unsupported-layout':'Chưa xác định được cột số dư (N)',
+            'unsupported-tax-layout':'FOXCONN: chưa xác định cột thuế/số dư',
+            'provisional-balance-review':'FOXCONN: thử tính số dư O · chưa xác nhận',
+            'needs-financial-review':'Số dư / dữ liệu tiền cần kiểm tra',
+            'review-date-order':'Thứ tự ngày cần xem lại · số dư tự khớp',
+            'internally-consistent':'Sổ tự khớp · chưa so Cash Control'};
+          cells[1].textContent=project==='中健厂房'&&result.transactionRows===0?
+            '0 giao dịch nhận diện · cần kiểm tra dữ liệu lịch sử':
+            titles[result.status]||'Cần kiểm tra';
+          cells[2].textContent=String(result.transactionRows);
+          cells[3].textContent=result.closingBalance===null?'—':
+            result.closingBalance.toLocaleString('vi-VN',{maximumFractionDigits:2});
+          cells[4].textContent='Sai số dư: '+result.continuityErrors+
+            ' · sai số làm tròn: '+result.roundingDifferences+
+            ' · thiếu N: '+result.missingBalance+
+            ' · tiền không đọc được: '+result.invalidMoney+
+            ' · ngày không tăng dần: '+result.nonMonotonicDates+
+            (project==='FOXCONN'?' · cột thuế nhận diện: '+result.taxColumnsDetected+
+              ' · tổng thuế: '+result.taxTotal.toLocaleString('vi-VN')+
+              ' · bố cục chưa xác minh: '+result.layoutErrors+
+              ' · O thử tính: '+result.provisionalBalanceRows+'/'+result.transactionRows+
+              ' (chưa xác nhận cột số dư)':'');
+          // The first pass stays fail-closed: even a perfect historical balance
+          // is not authorization to write. No extra Firebase or Google calls.
+          const ready=window.CashSyncHistoricalAudit.assessProjectSyncReadiness(project,result,null);
+          cells[5].textContent=ready.note;
+          ccSyncLastHistoricalAudit[project]={
+            ok:result.status==='internally-consistent'||
+              result.status==='blank-tab'||result.status==='new-project-no-transactions',
+            note:ready.note,
+            status:result.status,checkedAt:Date.now(),cached:false,
+            transactionRows:result.transactionRows,
+            nonMonotonicDates:result.nonMonotonicDates,
+            dateOrderOnly:result.dateOrderOnly===true,
+            continuityErrors:result.continuityErrors,
+            roundingDifferences:result.roundingDifferences,
+            missingBalance:result.missingBalance,
+            invalidMoney:result.invalidMoney,
+            layoutErrors:result.layoutErrors
+          };
+          if(result.nonMonotonicDates>0){
+            const details=document.createElement('details');
+            const summary=document.createElement('summary');
+            summary.textContent=(result.dateOrderOnly?
+              'Chỉ lỗi thứ tự ngày; phép tính số dư theo dòng vẫn khớp · ':
+              'Ngày không tăng dần, còn vấn đề khác cần xác minh · ')+
+              result.nonMonotonicDates+' điểm (chỉ đọc)';
+            const pre=document.createElement('pre');
+            pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-width:680px';
+            const events=result.dateOrderExamples||[];
+            pre.textContent='Vị trí dòng Google Sheets theo thứ tự hiện có. Không tự sắp xếp lại và không cho phép ghi.\n'+
+              events.map(x=>'Dòng '+x.previousRow+' ('+x.previousDate+
+                ') → dòng '+x.dateRow+' ('+x.date+')'+
+                (x.crossesMonth?' · lùi sang tháng trước':' · lùi ngày trong tháng')).join('\n')+
+              (events.length<result.nonMonotonicDates?
+                '\nCòn '+(result.nonMonotonicDates-events.length)+' điểm chưa hiển thị.':'');
+            details.append(summary,pre);
+            cells[4].append(document.createElement('div'),details);
+          }
+          // Explicit per-project candidate comparison against current in-memory
+          // Cash Control source. Never invokes loadProjectPayments or any Firebase API.
+          if(result.transactionRows>0&&project!=='FOXCONN'){
+            const details=document.createElement('details');
+            const summary=document.createElement('summary');
+            summary.textContent='So trùng với Cash Control đã tải (chỉ bộ nhớ, không đọc Firebase)';
+            details.append(summary);
+            const pre=document.createElement('pre');
+            pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-width:620px';
+            const button=document.createElement('button');
+            button.type='button';button.className='btn';
+            button.textContent='Đối chiếu ứng viên trùng · không ghi';
+            const runCandidateComparison=()=>{
+              try{
+                const cashRows=[];
+                // Explicitly include all months since the Cash Control cutover,
+                // including months absent from Google Sheets history.
+                const through=/^20\\d{2}-(0[1-9]|1[0-2])$/.test(CURRENT)?CURRENT:'2026-11';
+                for(let year=2026;year<=Number(through.slice(0,4));year++){
+                  for(let month=year===2026?10:1;
+                      month<=(year===Number(through.slice(0,4))?
+                        Number(through.slice(5,7)):12);month++){
+                    cashRows.push(...legacyCashExportRows(
+                      year+'-'+String(month).padStart(2,'0'),project));
+                  }
+                }
+                // A staging cache is never proof that real production Payment is loaded.
+                const complete=firebaseConfig.projectId==='cscecmep-payment'&&
+                  paymentMonths.has(project);
+                const report=window.CashSyncHistoricalAudit.compareLoadedCashControl(
+                  rows,project,cashRows,{sourceComplete:complete});
+                pre.textContent='Google từ 10/2026: '+report.historicalScope+
+                  ' · Cash Control hiện có: '+report.sourceScope+
+                  ' · ứng viên khớp: '+report.matched+
+                  ' · chỉ có ở Google: '+report.historicalOnly+
+                  ' · chỉ có trong Cash Control: '+report.cashOnly+
+                  ' · chữ ký trùng không phân biệt được: '+report.ambiguous+
+                  ' · khớp đủ công ty/HĐ/IPC: '+report.identityConsistent+
+                  ' · xung đột công ty/HĐ/IPC: '+report.identityConflict+
+                  ' · thiếu thông tin nhận diện: '+report.identityUnverified+
+                  ' · giá trị chưa đọc được: '+(report.invalidHistory+report.invalidSource)+
+                  '\\n'+(complete?'Đã tải toàn bộ Payment của dự án trong phiên.':
+                    'CHƯA tải đủ Payment của dự án. So khớp này chỉ để tham khảo.')+
+                  '\\n'+window.CashSyncHistoricalAudit.assessProjectSyncReadiness(project,result,report).note+
+                  '\\nKHÔNG xác nhận khoản nào sẽ ghi hoặc được phép đồng bộ.';
+              }catch(e){pre.textContent='Không đối chiếu được: '+String(e.message||e).slice(0,110)}
+            };
+            button.addEventListener('click',runCandidateComparison);
+            const loadButton=document.createElement('button');
+            loadButton.type='button';loadButton.className='btn';
+            const stagingSource=firebaseConfig.projectId!=='cscecmep-payment';
+            loadButton.textContent=stagingSource?
+              'Payment thật không có trên Preview TEST · không cần bấm':
+              'Tải riêng Payment '+project+' (có Firestore reads) và so lại';
+            loadButton.disabled=stagingSource;
+            loadButton.title=stagingSource?
+              'Firebase TEST tách biệt production; không truy vấn dữ liệu thật tại đây.':'';
+            if(stagingSource){
+              pre.textContent='Bản TEST chỉ xác minh lịch sử Google Sheets. '+
+                'Không có Payment thật nên chưa thể đối chiếu chống trùng. '+
+                'Không cần xuất Excel, không bấm tải Payment trên Preview.';
+            }
+            loadButton.addEventListener('click',async()=>{
+              if(!currentAuthUser||!isCashControlOwner()){
+                pre.textContent='Chỉ Admin được đọc nguồn Cash Control.';
+                return;
+              }
+              if(paymentMonths.has(project)){
+                rebuildPaymentsFromLoadedMonths();
+                runCandidateComparison();
+                return;
+              }
+              // Preview builds replace Firebase configuration with an isolated
+              // staging project. Real Payment records are not present there.
+              // Fail locally to avoid an irrelevant permission-denied query.
+              if(firebaseConfig.projectId!=='cscecmep-payment'){
+                pre.textContent='Bản Preview đang kết nối Firebase '+firebaseConfig.projectId+
+                  ', không phải Payment thật của cscecmep-payment.'+
+                  '\\nKhông truy vấn Firestore staging. 17 Google Sheets gốc vẫn chỉ đọc.'+
+                  '\\nChỉ đối chiếu Payment thật trên bản phát hành đã kiểm chứng.';
+                return;
+              }
+              // Explicit consent before the one-project Firestore query.
+              // No listener, company-wide scan or background refresh.
+              if(!confirm('Chỉ tải Payment của '+project+
+                ' từ Firestore (có tính lượt đọc theo số bản ghi). '+
+                'Không ghi dữ liệu. Tiếp tục?'))return;
+              loadButton.disabled=true;
+              pre.textContent='Đang tải đúng một dự án '+project+'…';
+              try{
+                let loadFailure='';
+                const loaded=await loadProjectPayments(project,
+                  {force:false,quiet:true,refresh:false,onError:msg=>{loadFailure=msg}});
+                if(!loaded||!paymentMonths.has(project)){
+                  pre.textContent=(loadFailure||'Không tải đủ Payment của dự án')+
+                    '. Chưa so trùng, không ghi. Không tự thử lại để tránh reads.';
+                  // The zero-Firestore-read diagnostic is always available to Admin.
+                  return;
+                }
+                // Rebuild in-memory normalized Cash Control data only.
+                // refresh:false explicitly avoids renderAll/scheduled balance writes.
+                rebuildPaymentsFromLoadedMonths();
+                runCandidateComparison();
+              }catch(error){
+                pre.textContent='Đọc Payment thất bại: '+
+                  String(error?.message||error).slice(0,120);
+              }finally{loadButton.disabled=false}
+            });
+            const diagnoseButton=document.createElement('button');
+            diagnoseButton.type='button';diagnoseButton.className='btn';
+            diagnoseButton.textContent='Kiểm tra phiên Firebase (0 Firestore reads)';
+            // Always visible: users must not repeat a costly denied query to diagnose.
+            diagnoseButton.addEventListener('click',async()=>{
+              if(!currentAuthUser||!isCashControlOwner()){
+                pre.textContent='Tài khoản hiện tại không phải Admin Cash Control.';return;
+              }
+              diagnoseButton.disabled=true;
+              try{
+                // Auth ID token inspection only: zero Firestore reads, zero writes.
+                // Do not expose the raw token or UID in UI.
+                const identity=await getIdTokenResult(currentAuthUser,false);
+                const userIdMatches=identity.claims.user_id===currentAuthUser.uid;
+                const expectedAdminUid='HTx2QuATHxh8zgAawwreg88w65M2';
+                const expectedEmail='lehoangoanh@cscecmep.internal';
+                const tokenEmail=String(identity.claims.email||'').toLowerCase();
+                const tokenProject=String(identity.claims.aud||'');
+                const issuer=String(identity.claims.iss||'');
+                const checks=[
+                  'Firebase Project: '+firebaseConfig.projectId,
+                  'Auth token project khớp: '+(tokenProject===firebaseConfig.projectId?'CÓ':'KHÔNG'),
+                  'Auth token issuer khớp: '+(issuer==='https://securetoken.google.com/'+firebaseConfig.projectId?'CÓ':'KHÔNG'),
+                  'UID phiên và token khớp: '+(userIdMatches?'CÓ':'KHÔNG'),
+                  'UID Admin gốc khớp: '+(currentAuthUser.uid===expectedAdminUid?'CÓ':'KHÔNG'),
+                  'Email Admin gốc khớp: '+(tokenEmail===expectedEmail?'CÓ':'KHÔNG'),
+                  'Token hết hạn: '+identity.expirationTime,
+                  'Chẩn đoán không đọc Payment, không đọc authUsers, không ghi dữ liệu.'
+                ];
+                pre.textContent=checks.join('\\n')+
+                  '\\nNếu các mục đều khớp nhưng truy vấn vẫn permission-denied, phải kiểm tra Rules được Publish thực tế; file GitHub không chứng minh Rules đã Publish.';
+              }catch(error){
+                pre.textContent='Không đọc được hồ sơ quyền hiện tại: '+
+                  String(error?.code||'unknown')+
+                  '. Cần kiểm tra Rules/phiên đăng nhập, không tự nới quyền.';
+              }finally{diagnoseButton.style.display='none'}
+            });
+            details.append(button,loadButton,diagnoseButton,pre);
+            cells[4].append(document.createElement('div'),details);
+          }
+          if(result.financialExamples?.length&&project!=='FOXCONN'){
+            const details=document.createElement('details');
+            const summary=document.createElement('summary');
+            summary.textContent='Xem '+result.financialExamples.length+
+              ' dòng chênh lệch/không đọc được (chỉ đọc)';
+            details.append(summary);
+            const pre=document.createElement('pre');
+            pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-width:620px';
+            pre.textContent=result.financialExamples.map(x=>
+              'Dòng '+x.row+' · '+
+              (x.kind==='balance'?'Chênh lệch số dư: ':
+               x.kind==='rounding'?'Chênh lệch làm tròn: ':
+               x.kind==='missing-balance'?'Thiếu số dư: ':'Số tiền không đọc được: ')+
+              (typeof x.detail==='number'?
+                 x.detail.toLocaleString('vi-VN',{maximumFractionDigits:6})+' VND':
+                 String(x.detail))).join('\\n');
+            details.append(pre);
+            cells[4].append(document.createElement('div'),details);
+          }
+          if(project==='中健厂房'&&result.transactionRows===0){
+            const diagnostic=window.CashSyncHistoricalAudit.dateLayoutDiagnostic(rows);
+            const details=document.createElement('details');
+            const summary=document.createElement('summary');
+            summary.textContent='中健厂房: kiểm tra vì sao không nhận diện được giao dịch';
+            details.append(summary);
+            const pre=document.createElement('pre');
+            pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-width:620px';
+            pre.textContent='Dòng có dữ liệu: '+diagnostic.nonemptyRows+
+              ' · ngày hợp lệ cột A/B/C: '+diagnostic.validDatesByColumn.join('/')+
+              (diagnostic.suspectRows.length?
+                '\\nDòng cột A giống ngày nhưng chưa đọc được: '+
+                diagnostic.suspectRows.map(x=>x.row+' ('+x.type+')').join(', '):'')+
+              '\\nKhông tự đổi định dạng ngày hoặc coi lịch sử là file trắng.';
+            details.append(pre);
+            cells[4].append(document.createElement('div'),details);
+          }
+          if(project==='CHAOMED'&&result.status==='unsupported-layout'){
+            const candidates=window.CashSyncHistoricalAudit.balanceColumnCandidates(rows,13,17);
+            const details=document.createElement('details');
+            const summary=document.createElement('summary');
+            summary.textContent='CHAOMED: xem cột số dư có thể có (chưa xác nhận)';
+            details.append(summary);
+            const pre=document.createElement('pre');
+            pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-width:620px';
+            pre.textContent=candidates.length?
+              candidates.map(x=>x.column+': '+x.numericRows+'/'+x.totalRows+' dòng có số').join(' | '):
+              'Không thấy cột số dư dạng số trong N:R. Không tự chọn cột.';
+            details.append(pre);
+            cells[4].append(document.createElement('div'),details);
+          }
+          if(project==='FOXCONN'&&result.status==='provisional-balance-review'){
+            const mismatches=(result.financialExamples||[]).filter(x=>x.kind==='balance'||x.kind==='rounding');
+            const details=document.createElement('details');
+            const summary=document.createElement('summary');
+            summary.textContent='FOXCONN: xem dòng chênh lệch số dư O (chỉ đọc)';
+            details.append(summary);
+            const pre=document.createElement('pre');
+            pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-width:560px';
+            pre.textContent=mismatches.length?
+              mismatches.map(x=>'Dòng '+x.row+' · chênh lệch O so với thu/chi/thuế: '+
+                Number(x.detail).toLocaleString('vi-VN',{maximumFractionDigits:6})+' VND').join('\\n'):
+              'Không có chênh lệch trong các ví dụ đã ghi nhận. Nếu báo sai số dư, xem dữ liệu chi tiết.';
+            details.append(pre);
+            cells[4].append(document.createElement('div'),details);
+          }
+          if(project==='FOXCONN'&&result.status==='unsupported-tax-layout'){
+            const diagnostic=window.CashSyncHistoricalAudit.diagnoseHeaders(rows);
+            const details=document.createElement('details');
+            const summary=document.createElement('summary');
+            summary.textContent='Xem vị trí tiêu đề FOXCONN để nhận diện cột thuế/số dư';
+            details.append(summary);
+            const pre=document.createElement('pre');
+            pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;max-width:560px';
+            const candidates=window.CashSyncHistoricalAudit.foxconnBalanceCandidates(rows);
+            const candidateText=candidates.length?
+              'Cột có số ở dòng giao dịch (CHƯA xác nhận số dư): '+
+                candidates.map(x=>x.column+' '+x.numericRows+'/'+x.totalRows).join(' | '):
+              'Không tìm được cột số dư tiềm năng trong O:X.';
+            pre.textContent=(diagnostic.length?
+              diagnostic.map(x=>'Hàng '+x.row+': '+x.columns.join(' | ')).join('\\n'):
+              'Không tìm thấy tiêu đề thuế/số dư trong A:AF.')+
+              '\\n'+candidateText;
+            details.append(pre);
+            const copy=document.createElement('button');
+            copy.type='button';copy.className='btn';
+            copy.textContent='Sao chép vị trí cột (không có số tiền)';
+            copy.addEventListener('click',()=>navigator.clipboard?.writeText(pre.textContent));
+            details.append(copy);
+            cells[4].append(document.createElement('div'),details);
+          }
+          if(result.status==='internally-consistent'||result.status==='blank-tab'||
+             result.status==='new-project-no-transactions')
+            passed++;else blocked++;
+        }else{
+          cells[1].textContent='Đọc được · chưa đối chiếu số dư';
+          cells[2].textContent=selected.title;
+          cells[3].textContent=count+' dòng nhận diện';
+          passed++;
+        }
+      }catch(error){
+        cells[1].textContent='Cần kiểm tra: '+String(error.message||'Không đọc được').slice(0,90);
+        if(auditBalances){
+          cells[5].textContent='CHẶN: Chưa đọc và kiểm chứng được lịch sử Google Sheets.';
+          ccSyncLastHistoricalAudit[project]={
+            ok:false,checkedAt:Date.now(),cached:false,
+            note:'Không thể đọc hoặc xác minh lịch sử: '+
+              String(error.message||'Không rõ lỗi').slice(0,90)
+          };
+        }
+        blocked++;
+      }
+      note.textContent='Đã kiểm tra '+(passed+blocked)+'/'+items.length+
+        ' file · '+(auditBalances?'sổ tự khớp hoặc chưa phát sinh ':'đọc được ')+passed+' · cần kiểm tra '+blocked+
+        '. Chưa có dự án nào được phê duyệt đồng bộ.';
+    }
+  }finally{
+    if(auditBalances)ccSyncSaveAuditSession();
+    button.disabled=false;
+  }
+}
+
 function ccSyncProjectCatalogInitialize(){
   const wrap=$('ccGoogleSyncProjectLinkCatalog');
   if(!wrap||wrap.dataset.initialized==='yes')return;
   wrap.dataset.initialized='yes';
   ccSyncProjectCatalogLoadDraft();
+  ccSyncLoadAuditSession();
   const search=$('ccSyncProjectCatalogSearch');
   search?.addEventListener('input',ccSyncProjectCatalogRender);
   $('ccSyncProjectCatalogRefresh')?.addEventListener('click',ccSyncProjectCatalogRender);
+  $('ccSyncProjectReadOnlyCheck')?.addEventListener('click',()=>ccSyncProjectReadOnlyCheck(false));
+  $('ccSyncHistoryContinuityCheck')?.addEventListener('click',()=>ccSyncProjectReadOnlyCheck(true));
+  $('ccSyncOneClickAudit')?.addEventListener('click',ccSyncOneClickAudit);
+  $('ccSyncBatchOverview')?.addEventListener('click',ccSyncRenderBatchOverview);
+  $('ccSyncLoadedBatchCompare')?.addEventListener('click',ccSyncCompareAlreadyLoadedProjects);
+  $('ccSyncLoadLinkedSourceBatch')?.addEventListener('click',ccSyncLoadLinkedPaymentBatch);
+  ccSyncSetLinkedBatchVisibility();
   $('ccSyncProjectCatalogExport')?.addEventListener('click',()=>{
     const payload={schema:'CASH_SYNC_PROJECT_LINK_DRAFT_V1',projects:ccSyncProjectLinkDraft,
       note:'Local draft only; does not authorize Google Sheets sync'};
@@ -7219,6 +8205,174 @@ function ccGoogleSyncInitializeGooglePilot(){
   const demoToggle=$('ccGoogleSyncDemoToggle'),demoChange=$('ccGoogleSyncDemoChange'),demoAdd=$('ccGoogleSyncDemoAdd');
   const demoFourth=$('ccGoogleSyncDemoFourth'),demoFourthEdit=$('ccGoogleSyncDemoFourthEdit');
   const demoView=$('ccGoogleSyncDemoView');
+  const multiTestButton=$('ccSyncMultiProjectTestRun');
+  const multiDecemberButton=$('ccSyncMultiProjectTestDecember');
+  const multiStatusButton=$('ccSyncMultiProjectTestStatus');
+  const multiAuditButton=$('ccSyncMultiProjectTestAudit');
+  const multiTestButtons=[multiTestButton,multiDecemberButton].filter(Boolean);
+  // Authentication is async; reflect current account if already available.
+  // Keep hidden until owner signs in; never expose on production.
+  // Keep historical write controls hidden after an uncertain Google write;
+  // only read-only diagnostics are exposed until reconciliation is verified.
+  for(const button of multiTestButtons)button.hidden=true;
+  for(const button of [multiStatusButton,multiAuditButton].filter(Boolean)){
+    button.hidden=!(CC_SYNC_DEMO_ALLOWED&&currentAuthUser&&isCashControlOwner());
+  }
+  if(CC_SYNC_DEMO_ALLOWED&&multiAuditButton){
+    multiAuditButton.addEventListener('click',async()=>{
+      if(multiAuditButton.disabled||!currentAuthUser||!isCashControlOwner()||
+        firebaseConfig.projectId!=='cash-control-staging'||!ccGoogleSyncToken){
+        ccGoogleSyncStatus('Cần Admin TEST đăng nhập và Kết nối Google.');return;
+      }
+      multiAuditButton.disabled=true;
+      try{
+        const response=await fetch('/api/cash-sync-multiproject-test',{
+          method:'POST',headers:{'Content-Type':'application/json',
+            'X-Firebase-ID-Token':await currentAuthUser.getIdToken(),
+            Authorization:'Bearer '+ccGoogleSyncToken},
+          body:JSON.stringify({action:'audit',project:'ELYSIAN',testDataOnly:true}),
+          cache:'no-store'
+        });
+        const result=await response.json().catch(()=>({}));
+        if(!response.ok)throw Error((result.code?result.code+': ':'')+
+          String(result.error||'Lỗi xác minh Google TEST'));
+        if(result.mode!=='TEST_ONLY'||result.readOnly!==true||result.canWrite!==false)
+          throw Error('Máy chủ không xác nhận kiểm tra chỉ đọc.');
+        if(result.verified===true){
+          ccGoogleSyncStatus('ĐẠT XÁC MINH ELYSIAN TEST · '+
+            (result.fixture==='NOVEMBER_AND_DECEMBER_DEMO'?
+              'Có 1 giao dịch giả tháng 11 và 1 giao dịch giả tháng 12 trước đó':
+              'Có 1 giao dịch giả tháng 11')+
+            ' · ID, tiền, công thức và số dư đều khớp · Số dư cuối: '+
+            Number(result.closingBalance).toLocaleString('vi-VN')+
+            ' VND. Chỉ đọc, 0 Google writes. Không có phát sinh tháng 12 thật.');
+        }else{
+          ccGoogleSyncStatus('CHƯA ĐẠT XÁC MINH ELYSIAN TEST · '+
+            String(result.reason||'UNKNOWN')+
+            ' · '+result.mirrorRows+' dòng dữ liệu · '+result.viewRows+
+            ' dòng tổng hợp. Không ghi lại, không sửa dữ liệu; gửi dòng này để xử lý.');
+        }
+      }catch(error){
+        ccGoogleSyncStatus('KHÔNG XÁC MINH ĐƯỢC ELYSIAN TEST: '+
+          String(error?.message||error).slice(0,180)+
+          '. Không bấm lại nút ghi.');
+      }finally{multiAuditButton.disabled=false}
+    });
+  }
+  // Explicit READ-ONLY inspection. This is safe to use after a failed
+  // Google TEST write; it never calls preview/commit or retries any append.
+  if(CC_SYNC_DEMO_ALLOWED&&multiStatusButton){
+    multiStatusButton.addEventListener('click',async()=>{
+      if(multiStatusButton.disabled||!currentAuthUser||!isCashControlOwner()||
+         firebaseConfig.projectId!=='cash-control-staging'||!ccGoogleSyncToken){
+        ccGoogleSyncStatus('Cần đăng nhập Admin TEST và Kết nối Google.');return;
+      }
+      multiStatusButton.disabled=true;
+      try{
+        const token=await currentAuthUser.getIdToken();
+        const response=await fetch('/api/cash-sync-multiproject-test',{
+          method:'POST',headers:{'Content-Type':'application/json',
+            'X-Firebase-ID-Token':token,Authorization:'Bearer '+ccGoogleSyncToken},
+          body:JSON.stringify({action:'status',project:'ELYSIAN',testDataOnly:true}),
+          cache:'no-store'
+        });
+        const status=await response.json().catch(()=>({}));
+        if(!response.ok)throw Error((status.code?status.code+': ':'')+
+          String(status.error||'Không kiểm tra được trạng thái'));
+        if(status.mode!=='TEST_ONLY'||status.readOnly!==true)
+          throw Error('Máy chủ không xác nhận chế độ chỉ đọc.');
+        ccGoogleSyncStatus('TRẠNG THÁI ELYSIAN TEST · '+
+          (status.mirrorPresent?'Tab dữ liệu: '+status.mirrorRows+' dòng':'Chưa có tab dữ liệu')+
+          ' · '+(status.viewPresent?'Tab tổng hợp: '+status.viewRows+' dòng':'Chưa có tab tổng hợp')+
+          '. CHƯA XÁC NHẬN ghi thành công. Không bấm lại nút ghi. '+
+          'Gửi mình đúng dòng trạng thái này để xử lý tiếp.');
+      }catch(error){
+        ccGoogleSyncStatus('KHÔNG ĐỌC ĐƯỢC TRẠNG THÁI TEST: '+
+          String(error?.message||error).slice(0,200)+'. Không bấm lại nút ghi.');
+      }finally{multiStatusButton.disabled=false}
+    });
+  }
+  if(CC_SYNC_DEMO_ALLOWED&&multiTestButtons.length===2){
+    const runMultiProjectTest=async includeDecember=>{
+      if(!currentAuthUser||!isCashControlOwner()||
+         firebaseConfig.projectId!=='cash-control-staging'||!ccGoogleSyncToken){
+        ccGoogleSyncStatus('Cần Admin TEST đăng nhập và bấm Kết nối Google.');return;
+      }
+      if(multiTestButtons.some(button=>button.disabled))return;
+      multiTestButtons.forEach(button=>button.disabled=true);
+      const values=(date,company,contractNo,content,ipc,subcontract)=>({
+        date,company,contractNo,content,ipc,type:'支出',income:0,
+        subcontract,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0
+      });
+      const first={...values('2026-11-02','DEMO VENDOR','TEST-LAB-001',
+        'ELYSIAN giả trên PHU HUNG TEST COPY','IPC01',50),
+        project:'ELYSIAN',id:'MULTI-TEST-ELYSIAN-001'};
+      const december={...values('2026-12-02','DEMO VENDOR 12','TEST-LAB-002',
+        'Giao dịch giả tháng 12, không phải thanh toán thật','IPC02',25),
+        project:'ELYSIAN',id:'MULTI-TEST-ELYSIAN-002'};
+      const payload={project:'ELYSIAN',testDataOnly:true,openingBalance:1000,
+        history:[{...values('2026-10-01','DEMO HISTORY','TEST-H001',
+          'Lịch sử giả, không phải giao dịch thật','IPC00',100),rowId:2,balance:900}],
+        source:includeDecember?[first,december]:[first]};
+      try{
+        const jwt=await currentAuthUser.getIdToken();
+        const request=async data=>{
+          const response=await fetch('/api/cash-sync-multiproject-test',{
+            method:'POST',headers:{'Content-Type':'application/json',
+              Authorization:'Bearer '+ccGoogleSyncToken,'X-Firebase-ID-Token':jwt},
+            body:JSON.stringify(data),cache:'no-store'
+          });
+          const result=await response.json();
+          if(!response.ok)throw Error((result.code?result.code+': ':'')+
+            String(result.error||response.status));
+          return result;
+        };
+        const goal=includeDecember?'thêm tháng 12':'kiểm tra không trùng';
+        ccGoogleSyncStatus('Đang '+goal+' · chỉ đọc Google TEST, không đọc Firestore…');
+        const initial=await request({...payload,action:'preview'});
+        if(initial.mode!=='TEST_ONLY'||!initial.preview)throw Error('Thiếu kế hoạch TEST.');
+        if(!initial.preview.wouldChange){
+          ccGoogleSyncStatus('ĐẠT KIỂM TRA KHÔNG TRÙNG: ELYSIAN TEST đã khớp '+
+            initial.preview.totalRows+' giao dịch, số dư cuối '+
+            Number(initial.preview.closingBalance).toLocaleString('vi-VN')+
+            '. Không ghi thêm dòng hoặc tạo tab mới.');
+          return;
+        }
+        if(includeDecember&&initial.preview.existingMirror!==1){
+          throw Error('Chưa xác nhận có đúng 1 giao dịch tháng 11 trên Google TEST. Hãy bấm Kiểm tra không trùng trước.');
+        }
+        if(!includeDecember&&initial.preview.existingMirror!==0){
+          throw Error('TEST hiện có dữ liệu khác mẫu tháng 11. Không ghi đè.');
+        }
+        const expectedBalance=includeDecember?825:850;
+        if(initial.preview.closingBalance!==expectedBalance||
+           initial.preview.additions!==1)
+          throw Error('Kế hoạch TEST không đúng một giao dịch mới hoặc số dư mong đợi.');
+        if(!confirm('CHỈ GHI DỮ LIỆU GIẢ VÀO PHU HUNG TEST COPY.\n'+
+          (includeDecember?'Thêm đúng 1 khoản tháng 12 (25 VND), số dư 850 → 825.':
+            'Thêm đúng 1 khoản tháng 11 (50 VND), số dư 900 → 850.')+
+          '\nKhông sửa PHU HUNG lịch sử hoặc Google Sheets ELYSIAN gốc. Tiếp tục?')){
+          ccGoogleSyncStatus('Đã hủy thử ghi.');return;
+        }
+        const done=await request({...payload,action:'commit',confirmTestWrite:true,
+          beforeFingerprint:initial.preview.beforeFingerprint,
+          afterFingerprint:initial.preview.afterFingerprint});
+        if(done.status!=='FULL_READBACK_VERIFIED'||done.balancesVerified!==true||
+           done.verifiedMirrorAdditions!==1||done.closingBalance!==expectedBalance)
+          throw Error('Google Sheets chưa khớp đủ số tiền, công thức và số dư TEST.');
+        ccGoogleSyncStatus('ĐÃ XÁC MINH GOOGLE TEST: '+(includeDecember?'đã thêm tháng 12':'đã thêm tháng 11')+
+          ' · 1 giao dịch giả · số dư cuối '+
+          Number(done.closingBalance).toLocaleString('vi-VN')+
+          '. Bấm lại cùng nút để xác nhận không ghi trùng.');
+      }catch(error){
+        ccGoogleSyncStatus('CHƯA HOÀN TẤT GOOGLE TEST: '+
+          String(error?.message||error).slice(0,180)+
+          '. Không tự ghi lại; cần kiểm tra trạng thái.');
+      }finally{multiTestButtons.forEach(button=>button.disabled=false)}
+    };
+    multiTestButton.addEventListener('click',()=>runMultiProjectTest(false));
+    multiDecemberButton.addEventListener('click',()=>runMultiProjectTest(true));
+  }
   if(CC_SYNC_DEMO_ALLOWED){
     demoToggle.hidden=false;
     demoToggle.addEventListener('click',()=>{
@@ -13160,6 +14314,11 @@ onAuthStateChanged(auth,async user=>{
     currentAuthUser=user||null;
     const pilotExportButton=$('cashPhuHungExportSource');
     if(pilotExportButton)pilotExportButton.hidden=!isCashControlOwner();
+    const multiTestButton=$('ccSyncMultiProjectTestRun');
+    const multiDecemberButton=$('ccSyncMultiProjectTestDecember');
+    for(const button of [multiTestButton,multiDecemberButton]){
+      if(button)button.hidden=!(firebaseConfig.projectId==='cash-control-staging'&&isCashControlOwner());
+    }
     const originalSyncPanel=$('ccGoogleSyncOriginalPanel');
     if(originalSyncPanel)originalSyncPanel.hidden=!(firebaseConfig.projectId==='cscecmep-payment'&&isCashControlOwner());
     const projectLinkCatalog=$('ccGoogleSyncProjectLinkCatalog');
