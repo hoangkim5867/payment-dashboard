@@ -1427,6 +1427,11 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <input type="file" accept="application/json,.json" id="ccSyncProjectCatalogImportFile" hidden>
         </div>
         <p id="ccSyncProjectCatalogStatus" style="font-size:12px;color:#44546b"></p>
+        <div id="ccSyncPaymentPreflight" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0" hidden>
+          <select id="ccSyncPaymentPreflightProject" aria-label="Dự án cần đếm Payment" style="min-width:180px;padding:7px;border:1px solid #cad4e3;border-radius:7px"></select>
+          <button class="btn" id="ccSyncPaymentPreflightCount" type="button">Đếm Payment 1 dự án (có Firestore reads)</button>
+          <span id="ccSyncPaymentPreflightStatus" aria-live="polite" style="font-size:12px;color:#44546b">Chưa kiểm tra.</span>
+        </div>
         <div id="ccSyncProjectCatalogEntries" style="max-height:420px;overflow:auto;display:grid;gap:7px"></div>
       </details>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
@@ -1945,6 +1950,7 @@ import {
     query,
     where,
     getDocs,
+    getCountFromServer,
     doc,
     getDoc,
     setDoc,
@@ -5406,12 +5412,57 @@ function ccSyncProjectCatalogLoadDraft(){
     }
   }catch{/* ignore malformed local draft without ever overwriting cloud data */}
 }
+// Read-only production preflight: ONE project-count aggregation per explicit
+// Admin click. This never downloads raw Payment documents or changes any cache.
+async function ccSyncCountOneProject(){
+  const button=$('ccSyncPaymentPreflightCount');
+  const status=$('ccSyncPaymentPreflightStatus');
+  const project=normProject($('ccSyncPaymentPreflightProject')?.value||'');
+  if(!button||!status||button.disabled)return;
+  if(!currentAuthUser||!isCashControlOwner()){
+    status.textContent='Chỉ Admin được kiểm tra.';return;
+  }
+  if(firebaseConfig.projectId!=='cscecmep-payment'){
+    status.textContent='Preview STAGING không truy cập Payment production.';return;
+  }
+  if(!project||!ccSyncProjectCatalogNames().includes(project)){
+    status.textContent='Chọn đúng một dự án trong danh mục.';return;
+  }
+  if(!confirm('Chỉ đếm Payment của '+project+' bằng 1 truy vấn tổng hợp. '+
+      'Firestore có tính reads cho truy vấn này. Không tải chi tiết và KHÔNG ghi. Tiếp tục?'))return;
+  button.disabled=true;
+  status.textContent='Đang đếm '+project+'…';
+  try{
+    const snap=await getCountFromServer(query(paymentsRef,where('project','==',project)));
+    const count=Number(snap.data()?.count);
+    status.textContent=Number.isSafeInteger(count)&&count>=0
+      ?project+': '+count.toLocaleString('vi-VN')+
+         ' chứng từ theo tên chuẩn · 1 truy vấn đếm. Chưa tính tên cũ, chưa tải hồ sơ, KHÔNG cho phép đồng bộ.'
+      :'Không xác minh được số lượng; không đồng bộ.';
+  }catch(error){
+    status.textContent='Lỗi đếm Payment: '+String(error?.code||'không xác định')+
+      '. Không tự thử lại, không đồng bộ.';
+  }finally{button.disabled=false}
+}
 function ccSyncProjectCatalogRender(){
   const wrap=$('ccSyncProjectCatalogEntries');
   if(!wrap)return;
   const term=String($('ccSyncProjectCatalogSearch')?.value||'').trim().toLocaleLowerCase('vi');
   const catalog=ccSyncProjectCatalogNames();
   const visible=catalog.filter(p=>p.toLocaleLowerCase('vi').includes(term));
+  const preflight=$('ccSyncPaymentPreflight');
+  const selector=$('ccSyncPaymentPreflightProject');
+  if(preflight)preflight.hidden=!currentAuthUser||!isCashControlOwner()||
+      firebaseConfig.projectId!=='cscecmep-payment';
+  if(selector){
+    const previous=selector.value;
+    selector.replaceChildren();
+    for(const p of catalog){
+      const option=document.createElement('option');
+      option.value=p;option.textContent=p;selector.append(option);
+    }
+    if(catalog.includes(previous))selector.value=previous;
+  }
   wrap.replaceChildren();
   for(const p of visible){
     const row=document.createElement('label');
@@ -5449,6 +5500,7 @@ function ccSyncProjectCatalogInitialize(){
   const search=$('ccSyncProjectCatalogSearch');
   search?.addEventListener('input',ccSyncProjectCatalogRender);
   $('ccSyncProjectCatalogRefresh')?.addEventListener('click',ccSyncProjectCatalogRender);
+  $('ccSyncPaymentPreflightCount')?.addEventListener('click',ccSyncCountOneProject);
   $('ccSyncProjectCatalogExport')?.addEventListener('click',()=>{
     const payload={schema:'CASH_SYNC_PROJECT_LINK_DRAFT_V1',projects:ccSyncProjectLinkDraft,
       note:'Local draft only; does not authorize Google Sheets sync'};
