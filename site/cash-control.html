@@ -5492,9 +5492,14 @@ function ccSyncProjectCatalogRender(){
     });
     row.append(title,input);wrap.append(row);
   }
+  const linkedCount=Object.keys(ccSyncProjectLinkDraft).length;
   ccSyncProjectCatalogStatus('Danh mục: '+catalog.length+' dự án · đang hiển thị '+visible.length+
-    ' · '+Object.keys(ccSyncProjectLinkDraft).length+
-    ' dự án đã nhập link nháp. Dự án mới trong Cash Control tự vào danh sách.');
+    ' · '+linkedCount+' dự án đã nhập link nháp. '+
+    (linkedCount===0?
+      'Nếu đã nhập link ở tên miền Preview khác: trình duyệt không tự chuyển dữ liệu giữa các tên miền. '+
+      'Mở Preview cũ → Xuất danh sách / link (JSON) → trở lại đây → Nhập lại danh sách đã xuất. '+
+      'Không cần nhập từng link, chưa đọc hoặc ghi Firebase/Google Sheets.':
+      'Link lưu riêng trong trình duyệt ở tên miền này. Nên Xuất JSON để sao lưu trước khi đổi Preview.'));
 }
 function ccSyncProjectCatalogInitialize(){
   const wrap=$('ccGoogleSyncProjectLinkCatalog');
