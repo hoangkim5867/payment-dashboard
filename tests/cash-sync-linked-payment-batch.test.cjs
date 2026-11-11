@@ -84,8 +84,10 @@ test('cached Payment without query receipt stays blocked without a refresh',()=>
 });
 
 test('cached Payment contents must match receipt, not merely the same row count',()=>{
- const loader=html.slice(html.indexOf('function ccSyncPaymentRowsStamp(rows){'),
-  html.indexOf('function stopPaymentsRealtime()'));
+ const loaderStart=html.indexOf('function ccSyncPaymentRowsStamp(rows){');
+ const loaderEnd=html.indexOf('async function autoLoadPaymentPlanMonth(',loaderStart);
+ assert.ok(loaderStart>0&&loaderEnd>loaderStart);
+ const loader=html.slice(loaderStart,loaderEnd);
  const begin=html.indexOf('function ccSyncCompareAlreadyLoadedProjects(){');
  const end=html.indexOf('// One Admin click:',begin);
  const compare=html.slice(begin,end);
