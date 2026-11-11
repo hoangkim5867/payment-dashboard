@@ -1423,6 +1423,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <input id="ccSyncProjectCatalogSearch" type="search" placeholder="Tìm dự án…" style="flex:1;min-width:160px;padding:8px;border:1px solid #ccd6e4;border-radius:7px">
           <button class="btn" id="ccSyncProjectCatalogRefresh" type="button">Cập nhật danh sách</button>
           <button class="btn" id="ccSyncProjectBatchLocalReport" type="button">Tổng hợp tất cả dự án / link nháp (0 reads)</button>
+          <button class="btn" id="ccSyncProjectBatchGoogleMetadata" type="button">Kiểm tra file & tab Google (chỉ đọc)</button>
           <button class="btn" id="ccSyncProjectCatalogExport" type="button">Xuất danh sách / link (JSON)</button>
           <button class="btn" id="ccSyncProjectCatalogImport" type="button">Nhập lại danh sách đã xuất</button>
           <input type="file" accept="application/json,.json" id="ccSyncProjectCatalogImportFile" hidden>
@@ -5537,6 +5538,73 @@ function ccSyncProjectBatchLocalReport(){
   }
   output.hidden=false;
 }
+// Manual Google metadata-only inspection of linked active projects.
+// No Firebase calls, transaction reads, Sheets values reads, or writes.
+async function ccSyncProjectBatchGoogleMetadata(){
+  const button=$('ccSyncProjectBatchGoogleMetadata');
+  const output=$('ccSyncProjectBatchLocalResult');
+  if(!button||!output||button.disabled)return;
+  if(!currentAuthUser||!isCashControlOwner()){
+    output.hidden=false;output.textContent='Chỉ Admin được kiểm tra.';return;
+  }
+  if(!ccGoogleSyncToken){
+    output.hidden=false;
+    output.textContent='Cần bấm Kết nối Google ở phần bên dưới trước khi kiểm tra.';
+    return;
+  }
+  const projects=ccSyncProjectCatalogNames().filter(p=>p!=='PHU HUNG'&&
+    ccSyncProjectLinkValid(ccSyncProjectLinkDraft[p]||''));
+  if(!projects.length){
+    output.hidden=false;output.textContent='Chưa có dự án nào có link Google hợp lệ để kiểm tra.';return;
+  }
+  if(projects.length>40){
+    output.hidden=false;output.textContent='Vượt giới hạn 40 file mỗi lần kiểm tra; không tự đọc.';return;
+  }
+  if(!confirm('Kiểm tra metadata tối đa '+projects.length+
+    ' file Google Sheets bằng tài khoản Google đang kết nối? Chỉ đọc tên tab và ID tab; '+
+    'không đọc giao dịch, không đọc Firestore, không ghi.'))return;
+  button.disabled=true;
+  output.hidden=false;output.replaceChildren();
+  const heading=document.createElement('strong');output.append(heading);
+  const list=document.createElement('ul');output.append(list);
+  let verified=0,failed=0;
+  try{
+    for(const project of projects){
+      const item=document.createElement('li');list.append(item);
+      try{
+        const raw=new URL(ccSyncProjectLinkDraft[project]);
+        const id=/^\/spreadsheets\/d\/([A-Za-z0-9_-]{20,})(?:\/|$)/.exec(raw.pathname)?.[1];
+        if(!id||raw.hostname!=='docs.google.com'||raw.protocol!=='https:')
+          throw Error('Link file không hợp lệ');
+        const response=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+
+          encodeURIComponent(id)+'?fields=spreadsheetId,sheets(properties(sheetId,title,hidden))',{
+          method:'GET',headers:{Authorization:'Bearer '+ccGoogleSyncToken},
+          cache:'no-store'
+        });
+        if(!response.ok)throw Error('Google HTTP '+response.status);
+        const meta=await response.json();
+        const tabs=Array.isArray(meta.sheets)?meta.sheets.map(x=>x.properties):[];
+        if(meta.spreadsheetId!==id||!tabs.length||
+          tabs.some(t=>!t||!Number.isSafeInteger(t.sheetId)||
+            typeof t.title!=='string'))
+          throw Error('Google metadata không hợp lệ');
+        const gid=raw.searchParams.get('gid')||
+          (/^#gid=(\d+)$/.exec(raw.hash)?.[1]??null);
+        const selected=gid===null?null:tabs.find(t=>String(t.sheetId)===gid);
+        if(gid!==null&&!selected)throw Error('GID không tồn tại trong file');
+        verified++;
+        item.textContent=project+': đọc metadata thành công · '+tabs.length+
+          ' tab'+(selected?' · '+selected.title:' · chưa chọn tab lịch sử');
+      }catch(error){
+        failed++;
+        item.textContent=project+': cần kiểm tra link/quyền/tab · '+
+          String(error?.message||'Lỗi không xác định').slice(0,100);
+      }
+      heading.textContent='Google metadata: '+verified+' file đọc được · '+failed+
+        ' cần kiểm tra / '+projects.length+' dự án. Chưa xác minh lịch sử/số dư; 0 Firestore reads, 0 writes.';
+    }
+  }finally{button.disabled=false}
+}
 function ccSyncProjectCatalogInitialize(){
   const wrap=$('ccGoogleSyncProjectLinkCatalog');
   if(!wrap||wrap.dataset.initialized==='yes')return;
@@ -5546,6 +5614,7 @@ function ccSyncProjectCatalogInitialize(){
   search?.addEventListener('input',ccSyncProjectCatalogRender);
   $('ccSyncProjectCatalogRefresh')?.addEventListener('click',ccSyncProjectCatalogRender);
   $('ccSyncProjectBatchLocalReport')?.addEventListener('click',ccSyncProjectBatchLocalReport);
+  $('ccSyncProjectBatchGoogleMetadata')?.addEventListener('click',ccSyncProjectBatchGoogleMetadata);
   $('ccSyncPaymentPreflightCount')?.addEventListener('click',ccSyncCountOneProject);
   $('ccSyncProjectCatalogExport')?.addEventListener('click',()=>{
     const payload={schema:'CASH_SYNC_PROJECT_LINK_DRAFT_V1',projects:ccSyncProjectLinkDraft,
