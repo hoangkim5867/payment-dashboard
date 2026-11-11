@@ -5694,11 +5694,14 @@ async function ccSyncProjectBatchHistoricalAudit(){
             const cachedRows=months.flatMap(month=>legacyCashExportRows(month,project));
             const comparison=auditor.compareLoadedCashControl(values.values,project,cachedRows,
               {sourceComplete:false});
-            sourceNote=' · Cash Control bộ nhớ: ứng viên trùng '+(comparison.matched||0)+
+            sourceNote=' · Cash Control bộ nhớ ('+
+              (comparison.months?.join(', ')||'chưa xác định kỳ')+
+              '): ứng viên trùng '+(comparison.matched||0)+
               ', chỉ có ở lịch sử '+(comparison.historicalOnly||0)+
               ', chỉ có ở Cash Control '+(comparison.cashOnly||0)+
               ', trùng mơ hồ '+(comparison.ambiguous||0)+
-              '. Chưa chứng nhận đủ nguồn';
+              ', xung đột thông tin HĐ/IPC '+(comparison.identityConflict||0)+
+              '. Chỉ so các tháng có trong sổ lịch sử từ 10/2026; chưa chứng nhận đủ nguồn';
           }catch(error){
             sourceNote=' · Cash Control: chưa đối chiếu được từ bộ nhớ ('+
               String(error?.message||'lỗi').slice(0,75)+')';
