@@ -4,6 +4,7 @@
 <meta name="description" content="Quản lý dòng tiền, công nợ, hồ sơ IPC, đề nghị thanh toán, bảo lãnh và tín dụng cho dự án MEP.">
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="assets/js/cash-sync-historical-audit.js"></script>
 <link rel="stylesheet" href="assets/css/cash-control.css" data-stage1-extracted="primary">
 <style id="cc-no-double-sidebar-gap">
 /* Fix: sidebar already occupies a CSS-grid column; do not offset main twice. */
@@ -1424,6 +1425,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <button class="btn" id="ccSyncProjectCatalogRefresh" type="button">Cập nhật danh sách</button>
           <button class="btn" id="ccSyncProjectBatchLocalReport" type="button">Tổng hợp tất cả dự án / link nháp (0 reads)</button>
           <button class="btn" id="ccSyncProjectBatchGoogleMetadata" type="button">Kiểm tra file & tab Google (chỉ đọc)</button>
+          <button class="btn" id="ccSyncProjectBatchHistoricalAudit" type="button">Kiểm tra số dư lịch sử các dự án (Google chỉ đọc)</button>
           <button class="btn" id="ccSyncProjectCatalogExport" type="button">Xuất danh sách / link (JSON)</button>
           <button class="btn" id="ccSyncProjectCatalogImport" type="button">Nhập lại danh sách đã xuất</button>
           <input type="file" accept="application/json,.json" id="ccSyncProjectCatalogImportFile" hidden>
@@ -5605,6 +5607,94 @@ async function ccSyncProjectBatchGoogleMetadata(){
     }
   }finally{button.disabled=false}
 }
+// Manual bounded historical audit for already-linked projects.
+// Does not load Payment, mutate data, persist financial rows, or authorize sync.
+async function ccSyncProjectBatchHistoricalAudit(){
+  const button=$('ccSyncProjectBatchHistoricalAudit');
+  const output=$('ccSyncProjectBatchLocalResult');
+  if(!button||!output||button.disabled)return;
+  if(!currentAuthUser||!isCashControlOwner()){
+    output.hidden=false;output.textContent='Chỉ Admin được kiểm tra.';return;
+  }
+  if(!ccGoogleSyncToken){
+    output.hidden=false;output.textContent='Cần bấm Kết nối Google trước.';return;
+  }
+  const auditor=window.CashSyncHistoricalAudit;
+  if(!auditor||typeof auditor.audit!=='function'){
+    output.hidden=false;output.textContent='Chưa tải được bộ kiểm tra lịch sử.';return;
+  }
+  const projects=ccSyncProjectCatalogNames().filter(p=>p!=='PHU HUNG'&&
+    ccSyncProjectLinkValid(ccSyncProjectLinkDraft[p]||''));
+  if(!projects.length){
+    output.hidden=false;output.textContent='Chưa có link dự án hợp lệ để đối chiếu.';return;
+  }
+  if(projects.length>40){
+    output.hidden=false;output.textContent='Vượt giới hạn 40 file; không tự đọc.';return;
+  }
+  if(!confirm('Đọc sổ lịch sử tối đa '+projects.length+
+    ' file Google Sheets (mỗi file tối đa 20.000 hàng × 33 cột) để kiểm tra công thức và số dư? '+
+    'Có Google API reads, không đọc Firebase, không ghi, không cấp phép đồng bộ.'))return;
+  button.disabled=true;output.hidden=false;output.replaceChildren();
+  const heading=document.createElement('strong');output.append(heading);
+  const list=document.createElement('ul');output.append(list);
+  let matched=0,review=0,failed=0;
+  try{
+    for(const project of projects){
+      const item=document.createElement('li');list.append(item);
+      try{
+        const url=new URL(ccSyncProjectLinkDraft[project]);
+        if(url.protocol!=='https:'||url.hostname!=='docs.google.com')throw Error('Link Google không hợp lệ');
+        const id=/^\/spreadsheets\/d\/([A-Za-z0-9_-]{20,})(?:\/|$)/.exec(url.pathname)?.[1];
+        if(!id)throw Error('Không tìm được ID file');
+        const headers={Authorization:'Bearer '+ccGoogleSyncToken};
+        const metadataResponse=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+
+          encodeURIComponent(id)+'?fields=spreadsheetId,sheets(properties(sheetId,title,hidden,gridProperties(rowCount)))',{
+          method:'GET',headers,cache:'no-store'
+        });
+        if(!metadataResponse.ok)throw Error('Google metadata HTTP '+metadataResponse.status);
+        const metadata=await metadataResponse.json();
+        const tabs=Array.isArray(metadata.sheets)?metadata.sheets.map(x=>x.properties):[];
+        if(metadata.spreadsheetId!==id||!tabs.length)throw Error('Không xác minh được file Google');
+        const queryGid=url.searchParams.get('gid');
+        const hashGid=/^#gid=(\d+)$/.exec(url.hash)?.[1]??null;
+        if(queryGid!==null&&!/^\d+$/.test(queryGid))throw Error('GID không hợp lệ');
+        if(queryGid!==null&&hashGid!==null&&queryGid!==hashGid)throw Error('GID xung đột');
+        const gid=queryGid??hashGid;
+        const visible=tabs.filter(t=>t&&t.hidden!==true);
+        const tab=gid!==null?visible.find(t=>String(t.sheetId)===gid):
+          visible.length===1?visible[0]:null;
+        if(!tab)throw Error('Cần chọn tab lịch sử (gid) rõ ràng');
+        if(tab.gridProperties?.rowCount>20000)throw Error('File vượt 20.000 hàng, cần phương án đọc riêng');
+        const range="'"+tab.title.replace(/'/g,"''")+"'!A1:AG20000";
+        const valuesResponse=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+
+          encodeURIComponent(id)+'/values/'+encodeURIComponent(range)+
+          '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER',{
+          method:'GET',headers,cache:'no-store'
+        });
+        if(!valuesResponse.ok)throw Error('Google values HTTP '+valuesResponse.status);
+        const values=await valuesResponse.json();
+        if(!Array.isArray(values.values))throw Error('Không có dữ liệu hàng hợp lệ');
+        const report=auditor.audit(values.values,{project});
+        const clean=report.status==='internally-consistent';
+        if(clean)matched++;else review++;
+        item.textContent=project+': '+report.transactionRows+' giao dịch · '+
+          (report.closingBalance===null?'chưa xác định số dư':('số dư cuối '+report.closingBalance))+
+          ' · '+(clean?'SỔ TỰ KHỚP':'CẦN KIỂM TRA: '+report.status)+
+          ' · sai số dư '+report.continuityErrors+
+          ' · làm tròn '+report.roundingDifferences+
+          ' · ngày giảm dần '+report.nonMonotonicDates+
+          '. Chưa đối chiếu nguồn Cash Control.';
+      }catch(error){
+        failed++;
+        item.textContent=project+': CHƯA KIỂM TRA ĐƯỢC · '+String(error?.message||'Lỗi').slice(0,110);
+      }
+      heading.textContent='Đã đọc '+(matched+review+failed)+'/'+projects.length+
+        ' · sổ tự khớp '+matched+' · cần kiểm tra '+review+
+        ' · lỗi truy cập/cấu trúc '+failed+
+        '. Chỉ đọc Google, 0 Firestore reads, 0 writes; 0 dự án được phê duyệt đồng bộ.';
+    }
+  }finally{button.disabled=false}
+}
 function ccSyncProjectCatalogInitialize(){
   const wrap=$('ccGoogleSyncProjectLinkCatalog');
   if(!wrap||wrap.dataset.initialized==='yes')return;
@@ -5615,6 +5705,7 @@ function ccSyncProjectCatalogInitialize(){
   $('ccSyncProjectCatalogRefresh')?.addEventListener('click',ccSyncProjectCatalogRender);
   $('ccSyncProjectBatchLocalReport')?.addEventListener('click',ccSyncProjectBatchLocalReport);
   $('ccSyncProjectBatchGoogleMetadata')?.addEventListener('click',ccSyncProjectBatchGoogleMetadata);
+  $('ccSyncProjectBatchHistoricalAudit')?.addEventListener('click',ccSyncProjectBatchHistoricalAudit);
   $('ccSyncPaymentPreflightCount')?.addEventListener('click',ccSyncCountOneProject);
   $('ccSyncProjectCatalogExport')?.addEventListener('click',()=>{
     const payload={schema:'CASH_SYNC_PROJECT_LINK_DRAFT_V1',projects:ccSyncProjectLinkDraft,
