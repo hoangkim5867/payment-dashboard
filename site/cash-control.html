@@ -5779,6 +5779,32 @@ async function ccSyncProjectBatchHistoricalAudit(){
             (headerEvidence.join(' · ')||'không phát hiện nhãn N/O trong 50 hàng đầu')+
             '. Nếu báo thiếu nhãn, cần kiểm tra đúng tab/gid và cách Google API trả tiêu đề; không tự đoán vị trí số dư.';
           item.append(diagnostic);
+          // Inspect labels only (no financial values): Google API sometimes
+          // represents merged headings in the anchor cell, not the visual column.
+          const layoutEvidence=[];
+          const headerNames=['收入','支出','余额','结余','结存','进口税','增值税'];
+          for(let h=0;h<Math.min(6,values.values.length);h++){
+            const cells=values.values[h];
+            if(!Array.isArray(cells)||auditor.dateValue(cells[0]))continue;
+            const labels=[];
+            for(let col=6;col<=16;col++){
+              const raw=typeof cells[col]==='string'?cells[col].trim():'';
+              if(!raw||!headerNames.some(word=>raw.includes(word)))continue;
+              const compact=raw.replace(/\\s/g,'');
+              const type=/进口税/.test(compact)&&/增值税/.test(compact)?'thuế nhập khẩu + VAT':
+                /余额|结余|结存/.test(compact)?'số dư':
+                /收入/.test(compact)?'thu':'chi';
+              labels.push(String.fromCharCode(65+col)+'='+type);
+            }
+            if(labels.length)layoutEvidence.push('hàng '+(h+1)+': '+labels.join(', '));
+          }
+          const physical=document.createElement('p');
+          physical.textContent='VỊ TRÍ TIÊU ĐỀ GOOGLE API (chỉ tên nhóm, không hiện số tiền): '+
+            (layoutEvidence.join(' · ')||'không tìm thấy nhãn ở cột G:Q hàng 1–6')+
+            ' · Ô O3: '+(typeof values.values[2]?.[14]==='string'&&
+              values.values[2][14].trim()?'có chữ':'trống/không trả về')+
+            '. Không sửa hoặc tự chuyển cột.';
+          item.append(physical);
         }
         // Show precise adjacent row/date reversals from the same Google read.
         // No second Sheets request and no changes to the original workbook.
