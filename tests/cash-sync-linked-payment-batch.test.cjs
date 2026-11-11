@@ -113,3 +113,18 @@ test('no-query proof accepts exactly one fresh receipt and never writes Sheets',
  assert.match(fn,/force:paymentMonths\.has\(project\)/);
  assert.doesNotMatch(fn,/\b(?:getDocs|onSnapshot|setDoc|updateDoc|addDoc|deleteDoc)\s*\(/);
 });
+
+test('explicit Admin Payment read caps obsolete-name Firestore query fanout',()=>{
+ const loadStart=html.indexOf('async function loadProjectPayments(');
+ const loadEnd=html.indexOf('async function loadPaidPaymentMonth(',loadStart);
+ const loader=html.slice(loadStart,loadEnd);
+ const guard=loader.indexOf("legacyAliases.length>2");
+ const firstRequest=loader.indexOf("request:getDocs(q)");
+ assert.ok(guard>=0&&firstRequest>guard,
+  'too many obsolete aliases must block before constructing Firestore requests');
+ assert.match(loader,/typeof onAudit==='function'&&legacyAliases\.length>2/);
+ assert.match(loader,/vượt giới hạn 2/);
+ assert.match(fn,/Tối đa 3 truy vấn mỗi dự án/);
+ assert.match(fn,/if\(!confirm\(/);
+ assert.match(fn,/eligible\.slice\(0,3\)/);
+});
