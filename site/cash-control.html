@@ -1427,7 +1427,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <input type="file" accept="application/json,.json" id="ccSyncProjectCatalogImportFile" hidden>
         </div>
         <p id="ccSyncProjectCatalogStatus" style="font-size:12px;color:#44546b"></p>
-        <div id="ccSyncPaymentPreflight" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0" hidden>
+        <div id="ccSyncPaymentPreflight" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0" hidden>
           <select id="ccSyncPaymentPreflightProject" aria-label="Dự án cần đếm Payment" style="min-width:180px;padding:7px;border:1px solid #cad4e3;border-radius:7px"></select>
           <button class="btn" id="ccSyncPaymentPreflightCount" type="button">Đếm Payment 1 dự án (có Firestore reads)</button>
           <span id="ccSyncPaymentPreflightStatus" aria-live="polite" style="font-size:12px;color:#44546b">Chưa kiểm tra.</span>
@@ -5452,8 +5452,12 @@ function ccSyncProjectCatalogRender(){
   const visible=catalog.filter(p=>p.toLocaleLowerCase('vi').includes(term));
   const preflight=$('ccSyncPaymentPreflight');
   const selector=$('ccSyncPaymentPreflightProject');
-  if(preflight)preflight.hidden=!currentAuthUser||!isCashControlOwner()||
-      firebaseConfig.projectId!=='cscecmep-payment';
+  if(preflight){
+    const allowed=!!currentAuthUser&&isCashControlOwner()&&
+      firebaseConfig.projectId==='cscecmep-payment';
+    preflight.hidden=!allowed;
+    preflight.style.display=allowed?'flex':'none';
+  }
   if(selector){
     const previous=selector.value;
     selector.replaceChildren();
