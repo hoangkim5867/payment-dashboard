@@ -12,7 +12,7 @@ test('batch comparison never authorizes completeness from a Payment project cach
 });
 test('batch comparison has no Firestore reads, Google fetches or write operations',()=>{
  assert.doesNotMatch(body,/\b(getDocs|onSnapshot|fetch|ccGoogleSyncApi|addDoc|setDoc|updateDoc|deleteDoc)\s*\(/);
- assert.match(body,/paymentMonths\.has\(project\)/);
+ assert.match(body,/ccSyncHasValidPaymentReceipt\(project\)/);
 });
 test('Google history cache requires current in-session audit and keeps its status',()=>{
  const marker='ccSyncInMemoryHistory.set(project,{link,rows,auditStatus:result.status})';
