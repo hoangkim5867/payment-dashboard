@@ -5494,26 +5494,35 @@ async function ccSyncInspectOneProject(){
         ' hoặc vượt giới hạn. Phải đếm lại trước khi đối chiếu. KHÔNG đồng bộ.';
       return;
     }
-    let paid=0,unpaid=0,deleted=0,invalidPaidDates=0,invalidPaidAmounts=0;
+    let paid=0,unpaid=0,deleted=0,needsReview=0,invalidPaidDates=0,invalidPaidAmounts=0;
     snap.forEach(d=>{
       const p=d.data();
       if(p.deleted===true){deleted++;return}
       const date=String(p.processPaymentDate||'').trim();
-      if(!date){unpaid++;return}
-      paid++;
-      const day=date.slice(0,10);
-      if(!/^20\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(day)||
-          Number.isNaN(Date.parse(day+'T00:00:00Z'))||
-          new Date(day+'T00:00:00Z').toISOString().slice(0,10)!==day)invalidPaidDates++;
-      const raw=p.processActualAmount!==''&&p.processActualAmount!=null
-        ?p.processActualAmount:p.amount;
-      if(raw==null||raw===''||!Number.isFinite(Number(raw))||Number(raw)<0)
-        invalidPaidAmounts++;
+      const actual=p.processActualAmount;
+      const hasActual=actual!==''&&actual!=null;
+      const actualNumber=hasActual?Number(actual):NaN;
+      const validAmount=hasActual&&Number.isFinite(actualNumber)&&actualNumber>=0;
+      if(!date&&!hasActual){unpaid++;return}
+      let validDate=false;
+      if(date){
+        const day=date.slice(0,10);
+        validDate=/^20\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(day)&&
+          !Number.isNaN(Date.parse(day+'T00:00:00Z'))&&
+          new Date(day+'T00:00:00Z').toISOString().slice(0,10)===day;
+        if(!validDate)invalidPaidDates++;
+        if(!validAmount)invalidPaidAmounts++;
+      }
+      if(date&&validDate&&validAmount)paid++;
+      else needsReview++;
     });
     status.textContent=project+': '+snap.size+' chứng từ · '+paid+
-      ' đã trả · '+unpaid+' chưa trả · '+deleted+' đánh dấu xóa'+
+      ' đủ ngày và tiền thực trả · '+unpaid+' chưa có ngày/tiền trả · '+
+      needsReview+' cần kiểm tra · '+deleted+' đánh dấu xóa'+
       ' · '+invalidPaidDates+' ngày trả sai · '+invalidPaidAmounts+
-      ' số tiền thiếu/sai. CHƯA so với Cash Control/Google Sheets, chưa tính tên dự án cũ. KHÔNG cho phép đồng bộ.';
+      ' số tiền thực trả thiếu/sai. Đây chỉ là kiểm tra trường dữ liệu, '+
+      'CHƯA xác nhận trạng thái thanh toán thực tế. CHƯA so với Cash Control/Google Sheets, '+
+      'chưa tính tên dự án cũ. KHÔNG cho phép đồng bộ.';
   }catch(error){
     status.textContent='Lỗi đọc chi tiết: '+String(error?.code||'không xác định')+
       '. Không thử lại tự động, KHÔNG đồng bộ.';
