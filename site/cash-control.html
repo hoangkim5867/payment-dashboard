@@ -5726,6 +5726,29 @@ async function ccSyncProjectBatchHistoricalAudit(){
           (dateSuspects?' · '+dateSuspects+' dòng nghi ngày sai định dạng (tối đa 8 ví dụ)':'')+
           (otherDateColumn?' · ngày xuất hiện ở cột B/C':'')+
           sourceNote+'. KHÔNG cấp phép đồng bộ.';
+        // FOXCONN uses a split tax header in some historical workbooks.
+        // Probe O only as a financial hypothesis; NEVER accept the inferred
+        // balance column as confirmed or allow a sync from this result.
+        if(project==='FOXCONN'&&report.balanceColumnUnconfirmed){
+          const probe=auditor.audit(values.values,{project,probeBalanceIndex:14});
+          const candidates=auditor.foxconnBalanceCandidates(values.values);
+          const row=document.createElement('p');
+          const validO=probe.provisionalBalanceRows>0&&
+            probe.status==='provisional-balance-review'&&
+            probe.continuityErrors===0&&probe.roundingDifferences===0&&
+            probe.invalidMoney===0&&probe.missingBalance===0;
+          row.textContent='FOXCONN · cột N: thuế nhập khẩu + VAT (theo tiêu đề)'+
+            ' · cột O: '+(validO?'THỬ TÍNH SỐ DƯ KHỚP':'CHƯA XÁC MINH ĐƯỢC SỐ DƯ')+
+            ' · '+probe.provisionalBalanceRows+'/'+report.transactionRows+
+            ' giao dịch kiểm tra thử · số dư cuối giả định '+
+            (probe.closingBalance===null?'chưa có':probe.closingBalance)+
+            ' · sai số dư '+probe.continuityErrors+
+            ' · làm tròn '+probe.roundingDifferences+
+            ' · cột số dư có số ở '+candidates.map(x=>x.column+
+              ' ('+x.numericRows+'/'+x.totalRows+')').join(', ')+
+            '. Chưa xác nhận cột O là số dư; KHÔNG cấp phép đồng bộ.';
+          item.append(row);
+        }
         // Show precise adjacent row/date reversals from the same Google read.
         // No second Sheets request and no changes to the original workbook.
         const reversals=Array.isArray(report.dateOrderExamples)?report.dateOrderExamples:[];
