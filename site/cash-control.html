@@ -5755,6 +5755,30 @@ async function ccSyncProjectBatchHistoricalAudit(){
               ' ('+x.numericRows+'/'+x.totalRows+')').join(', ')+
             '. Chưa xác nhận cột O là số dư; KHÔNG cấp phép đồng bộ.';
           item.append(row);
+          // Expose only header labels already read from Sheets, never amounts.
+          // This tells Admin why the split-row O header could not be confirmed.
+          const headerEvidence=[];
+          for(let h=0;h<Math.min(values.values.length,50);h++){
+            const cells=values.values[h];
+            if(!Array.isArray(cells)||auditor.dateValue(cells[0]))continue;
+            const n=typeof cells[13]==='string'?cells[13].trim():'';
+            const o=typeof cells[14]==='string'?cells[14].trim():'';
+            if(!n&&!o)continue;
+            const hasTax=/进口税/.test(n)&&/增值税/.test(n);
+            const hasBalance=/余额|结余|结存|balance/i.test(o);
+            if(hasTax||hasBalance){
+              headerEvidence.push('hàng '+(h+1)+': N='+
+                (hasTax?'THUẾ':'không phải nhãn thuế')+
+                ', O='+(hasBalance?'CÓ NHÃN SỐ DƯ':'không nhận nhãn số dư')+
+                (hasBalance?' ('+o.slice(0,24)+')':''));
+            }
+            if(headerEvidence.length>=8)break;
+          }
+          const diagnostic=document.createElement('p');
+          diagnostic.textContent='CHẨN ĐOÁN TIÊU ĐỀ FOXCONN (chỉ đọc): '+
+            (headerEvidence.join(' · ')||'không phát hiện nhãn N/O trong 50 hàng đầu')+
+            '. Nếu báo thiếu nhãn, cần kiểm tra đúng tab/gid và cách Google API trả tiêu đề; không tự đoán vị trí số dư.';
+          item.append(diagnostic);
         }
         // Show precise adjacent row/date reversals from the same Google read.
         // No second Sheets request and no changes to the original workbook.
