@@ -316,3 +316,21 @@ test('candidate match without identifying fields is unverified rather than appro
  assert.equal(r.identityConsistent,0);
  assert.equal(r.canWrite,false);
 });
+
+test('date diagnostics count every suspicious date even after eight examples',()=>{
+ const rows=Array.from({length:12},(_,i)=>['31-02-2026','company','','','','',0,0,0,0,0,0,0,i]);
+ const r=require('../site/assets/js/cash-sync-historical-audit.js').dateLayoutDiagnostic(rows);
+ assert.equal(r.suspectCount,12);
+ assert.equal(r.suspectRows.length,8);
+ assert.equal(r.truncatedExamples,true);
+ assert.equal(r.nonemptyRows,12);
+});
+test('date diagnostics do not expose transaction amounts or raw cell text',()=>{
+ const r=require('../site/assets/js/cash-sync-historical-audit.js').dateLayoutDiagnostic([
+  ['2026年11月30日','PRIVATE PAYEE','SENSITIVE CONTRACT',0,0,0,9999999]
+ ]);
+ assert.equal(r.suspectCount,1);
+ assert.deepEqual(r.suspectRows,[{row:1,type:'text'}]);
+ assert.ok(!JSON.stringify(r).includes('PRIVATE PAYEE'));
+ assert.ok(!JSON.stringify(r).includes('9999999'));
+});
