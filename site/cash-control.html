@@ -3396,6 +3396,15 @@ async function loadProjectPayments(project,{force=false,quiet=false,refresh=true
                 .map(row=>String(row?.project||'').trim())
                 .filter(raw=>raw && raw!==project &&
                     projectFromMisfiledContractCode(raw)===project))];
+            // Hard bound: the Admin read-audit must never fan out to an
+            // unbounded number of obsolete project-name queries.
+            if(typeof onAudit==='function'&&legacyAliases.length>2){
+                if(typeof onError==='function')onError(
+                    'Có '+legacyAliases.length+' tên dự án cũ; vượt giới hạn 2. '+
+                    'Chưa gửi truy vấn Firebase, cần xác minh tên dự án trước.'
+                );
+                return false;
+            }
             const projectQueries=[
                 {label:'dự án '+project,request:getDocs(q)},
                 ...legacyAliases.map(alias=>({
@@ -5612,7 +5621,8 @@ async function ccSyncLoadLinkedPaymentBatch(){
   if(!confirm('Chỉ đọc Payment của '+batch.length+' dự án: '+
     batch.join(', ')+'. '+cached.length+' dự án đã có cache nhưng thiếu biên nhận '+
     'hoặc biên nhận không còn khớp, cần tải lại có chủ đích. '+
-    'Firestore tính reads theo chứng từ trả về, không biết trước số reads. '+
+    'Tối đa 3 truy vấn mỗi dự án (1 tên chuẩn + tối đa 2 tên cũ đã biết); '+
+    'reads tính theo số chứng từ trả về và có thể phát sinh chi phí. '+
     'Không ghi dữ liệu. Tiếp tục?'))return;
   button.disabled=true;
   let success=0,failed=0;
