@@ -1422,11 +1422,13 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0">
           <input id="ccSyncProjectCatalogSearch" type="search" placeholder="Tìm dự án…" style="flex:1;min-width:160px;padding:8px;border:1px solid #ccd6e4;border-radius:7px">
           <button class="btn" id="ccSyncProjectCatalogRefresh" type="button">Cập nhật danh sách</button>
+          <button class="btn" id="ccSyncProjectBatchLocalReport" type="button">Tổng hợp 1 lần · 35 dự án / link nháp (0 reads)</button>
           <button class="btn" id="ccSyncProjectCatalogExport" type="button">Xuất danh sách / link (JSON)</button>
           <button class="btn" id="ccSyncProjectCatalogImport" type="button">Nhập lại danh sách đã xuất</button>
           <input type="file" accept="application/json,.json" id="ccSyncProjectCatalogImportFile" hidden>
         </div>
         <p id="ccSyncProjectCatalogStatus" style="font-size:12px;color:#44546b"></p>
+        <div id="ccSyncProjectBatchLocalResult" hidden aria-live="polite" style="margin:8px 0;max-height:280px;overflow:auto;font-size:12px;border:1px solid #dbe4f0;border-radius:7px;padding:9px"></div>
         <div id="ccSyncPaymentPreflight" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0" hidden>
           <select id="ccSyncPaymentPreflightProject" aria-label="Dự án cần đếm Payment" style="min-width:180px;padding:7px;border:1px solid #cad4e3;border-radius:7px"></select>
           <button class="btn" id="ccSyncPaymentPreflightCount" type="button">Đếm Payment 1 dự án (có Firestore reads)</button>
@@ -5506,6 +5508,35 @@ function ccSyncProjectCatalogRender(){
       'Không cần nhập từng link, chưa đọc hoặc ghi Firebase/Google Sheets.':
       'Link lưu riêng trong trình duyệt ở tên miền này. Nên Xuất JSON để sao lưu trước khi đổi Preview.'));
 }
+// Explicit Admin-only local inventory. No Firestore or Google API reads/writes.
+function ccSyncProjectBatchLocalReport(){
+  const output=$('ccSyncProjectBatchLocalResult');
+  if(!output||!currentAuthUser||!isCashControlOwner())return;
+  const catalog=ccSyncProjectCatalogNames();
+  const current=new Set(catalog);
+  const linked=catalog.filter(p=>ccSyncProjectLinkValid(ccSyncProjectLinkDraft[p]||''));
+  const unlinked=catalog.filter(p=>!ccSyncProjectLinkValid(ccSyncProjectLinkDraft[p]||''));
+  const stale=Object.keys(ccSyncProjectLinkDraft).filter(p=>!current.has(p));
+  output.replaceChildren();
+  const title=document.createElement('strong');
+  title.textContent='Danh mục '+catalog.length+' dự án · '+linked.length+
+    ' có link nháp · '+unlinked.length+' chưa có link · '+stale.length+
+    ' link ngoài danh mục. 0 Firestore reads / 0 Google reads / 0 writes.';
+  output.append(title);
+  const note=document.createElement('p');
+  note.textContent='Chỉ kiểm tra link đang lưu trên trình duyệt này, KHÔNG xác minh quyền truy cập Google, lịch sử, số dư, nguồn Payment hoặc phê duyệt đồng bộ. PHU HUNG được bảo vệ riêng.';
+  output.append(note);
+  for(const [heading,names] of [
+    ['Đã có link nháp (chưa phê duyệt)',linked],
+    ['Chưa có link',unlinked],
+    ['Link cũ ngoài danh mục hiện tại',stale]
+  ]){
+    const line=document.createElement('p');
+    line.textContent=heading+': '+(names.join(', ')||'Không có');
+    output.append(line);
+  }
+  output.hidden=false;
+}
 function ccSyncProjectCatalogInitialize(){
   const wrap=$('ccGoogleSyncProjectLinkCatalog');
   if(!wrap||wrap.dataset.initialized==='yes')return;
@@ -5514,6 +5545,7 @@ function ccSyncProjectCatalogInitialize(){
   const search=$('ccSyncProjectCatalogSearch');
   search?.addEventListener('input',ccSyncProjectCatalogRender);
   $('ccSyncProjectCatalogRefresh')?.addEventListener('click',ccSyncProjectCatalogRender);
+  $('ccSyncProjectBatchLocalReport')?.addEventListener('click',ccSyncProjectBatchLocalReport);
   $('ccSyncPaymentPreflightCount')?.addEventListener('click',ccSyncCountOneProject);
   $('ccSyncProjectCatalogExport')?.addEventListener('click',()=>{
     const payload={schema:'CASH_SYNC_PROJECT_LINK_DRAFT_V1',projects:ccSyncProjectLinkDraft,
