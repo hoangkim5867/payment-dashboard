@@ -32,3 +32,14 @@ test('preflight UI is hidden for non-owner and never uses production from stagin
  assert.match(render,/firebaseConfig\.projectId!=='cscecmep-payment'/);
  assert.match(html,/ccSyncPaymentPreflightCount'\)\?\.addEventListener\('click',ccSyncCountOneProject\)/);
 });
+
+test('cross-preview link recovery is local JSON only and never auto-fetches Google',()=>{
+ const renderStart=html.indexOf('function ccSyncProjectCatalogRender(){');
+ const renderEnd=html.indexOf('function ccSyncProjectCatalogInitialize(){',renderStart);
+ const render=html.slice(renderStart,renderEnd);
+ assert.match(render,/linkedCount===0/);
+ assert.match(render,/Xuất danh sách \/ link \(JSON\)/);
+ assert.match(render,/Nhập lại danh sách đã xuất/);
+ assert.match(render,/trình duyệt không tự chuyển dữ liệu giữa các tên miền/);
+ assert.doesNotMatch(render,/\b(?:getDocs|getCountFromServer|fetch|setDoc|updateDoc|addDoc)\s*\(/);
+});
