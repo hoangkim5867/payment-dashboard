@@ -31,3 +31,11 @@ test('detail audit classifies paid, unpaid, deleted and suspicious paid fields',
   assert.match(fn,/invalidPaidAmounts/);
   assert.match(fn,/CHƯA so với Cash Control\/Google Sheets/);
 });
+
+test('detail audit never counts date-only or amount-only rows as confirmed paid',()=>{
+  assert.match(fn,/const actual=p\.processActualAmount/);
+  assert.match(fn,/if\(!date&&!hasActual\)\{unpaid\+\+;return\}/);
+  assert.match(fn,/if\(date&&validDate&&validAmount\)paid\+\+/);
+  assert.match(fn,/else needsReview\+\+/);
+  assert.match(fn,/CHƯA xác nhận trạng thái thanh toán thực tế/);
+});
