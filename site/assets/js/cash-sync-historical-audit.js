@@ -46,9 +46,16 @@
   // FOXCONN historical workbook has a separate 进口税+增值税 expense column.
   // Identify its position AND the running-balance position from each section's
   // actual header; never assume all monthly sections use the same template.
-  const normHeader=v=>String(v??'').replace(/[\s　:：()（）+＋\\/_-]/g,'').toLowerCase();
+  // Sheets may return invisible Unicode marks or an appended currency/unit
+  // with a visual 余额 header. Normalize text, never infer by O's position.
+  const normHeader=v=>String(v??'').normalize('NFKC')
+    .replace(/[\u200B-\u200D\u2060\uFEFF\u00AD\uFE0E\uFE0F]/g,'')
+    .replace(/[\s　:：()（）+＋\\/_-]/g,'').toLowerCase();
   const isTax=v=>/进口税/.test(String(v??''))&&/增值税/.test(String(v??''));
-  const isBalance=v=>/^(?:余额|结余|累计余额|期末余额|资金余额|结存|剩余金额|balance|runningbalance)$/.test(normHeader(v));
+  const isBalance=v=>{
+    const s=normHeader(v);
+    return /^(?:余额|余額|結余|结余|累计余额|期末余额|资金余额|结存|剩余金额|balance|runningbalance)(?:vnd|đ|元|人民币|越南盾)?$/.test(s);
+  };
   function foxconnHeader(row){
     if(!Array.isArray(row)||dateValue(row[0]))return null;
     const taxCols=[],balanceCols=[];
