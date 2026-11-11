@@ -4,7 +4,7 @@
 const {validateLinkDraft}=require('./cash-sync-link-draft.cjs');
 const {verifyDestinationMetadata}=require('./cash-sync-multiproject-preflight.cjs');
 const {auditHistoricalLedger}=require('./cash-sync-multiproject-reconcile.cjs');
-const {normalizeProject}=require('./cash-sync-project-registry.cjs');
+const {normalizeProject,buildCatalog}=require('./cash-sync-project-registry.cjs');
 
 function makeProjectReview(entry, input){
   const project=entry.project;
@@ -64,7 +64,16 @@ function reviewMultiProjectDraft(draft,catalog,snapshots={}){
     makeProjectReview(entry,normalized.get(entry.project)));
   const statuses={};
   for(const item of projects)statuses[item.status]=(statuses[item.status]||0)+1;
-  return Object.freeze({linkedCount:validated.linkedCount,reviewedCount:projects.length,
+  // Include every currently active catalog project in the one-pass summary.
+  // Unlinked projects remain explicitly pending, rather than vanishing from
+  // the report and being mistaken for audited or successfully synchronized.
+  const allNames=buildCatalog(catalog).map(item=>item.key);
+  const linked=new Set(validated.entries.map(item=>item.project));
+  const unlinkedProjects=allNames.filter(project=>!linked.has(project));
+  statuses['missing-link']=unlinkedProjects.length;
+  return Object.freeze({catalogCount:allNames.length,
+    linkedCount:validated.linkedCount,unlinkedCount:unlinkedProjects.length,
+    unlinkedProjects:Object.freeze(unlinkedProjects),reviewedCount:projects.length,
     statuses:Object.freeze(statuses),projects:Object.freeze(projects),canWrite:false});
 }
 module.exports={reviewMultiProjectDraft,makeProjectReview};
