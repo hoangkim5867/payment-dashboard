@@ -798,6 +798,44 @@
       canWrite:false
     });
   }
+  // One shared, conservative dry-run for every project. Position sets are
+  // diagnostic only: the Google history has no immutable source ID column.
+  // Zero source rows are authorized for insertion by this function.
+  function buildReadOnlySyncPlan(project,comparison,sourceRows){
+    if(!Array.isArray(sourceRows)||sourceRows.length>20000||
+       !comparison||typeof comparison!=='object')throw Error('Invalid dry-run snapshot');
+    const safePositions=values=>{
+      if(!Array.isArray(values))return [];
+      return [...new Set(values.filter(v=>Number.isSafeInteger(v)&&v>=1&&v<=sourceRows.length))].sort((a,b)=>a-b);
+    };
+    const sourceOnly=safePositions(comparison.sourceOnlyPositions);
+    const ambiguous=safePositions(comparison.ambiguousSourcePositions);
+    const conflict=safePositions(comparison.identityConflictPositions);
+    const missing=safePositions(comparison.identityUnverifiedPositions);
+    const review=new Set([...ambiguous,...conflict,...missing]);
+    const absentCandidates=sourceOnly.filter(position=>!review.has(position));
+    // Even the unmatched source rows are merely candidates for insertion:
+    // missing aliases, old history and transfer counterparts can still hide duplicates.
+    const report=Object.freeze({
+      project:String(project||''),sourceScope:Number(comparison.sourceScope||0),
+      historyScope:Number(comparison.historicalScope||0),
+      existingCandidates:Number(comparison.candidates??comparison.matched??0),
+      newUnverifiedPositions:Object.freeze(absentCandidates),
+      ambiguousPositions:Object.freeze(ambiguous),
+      identityConflictPositions:Object.freeze(conflict),
+      identityUnverifiedPositions:Object.freeze(missing),
+      googleOnlyCount:Number(comparison.historyOnly??comparison.historicalOnly??0),
+      unmatchedCount:Number(comparison.sourceOnly??comparison.cashOnly??0),
+      invalidSource:Number(comparison.invalidSource||0),
+      invalidHistory:Number(comparison.invalidHistory||0),
+      unmappedTax:Number(comparison.unmappedTax||0),
+      incompleteSource:comparison.sourceComplete!==true,
+      verifiedNewCount:0,approvedWrites:0,canWrite:false,
+      status:'REVIEW_ONLY_NO_WRITES',
+      note:'Ứng viên mới CHƯA được phép ghi: cần ID nguồn, đối chiếu lịch sử và kiểm tra số dư.'
+    });
+    return report;
+  }
   // Pure read-only release gate for real project Sheets. A consistent ledger
   // is not proof that payments are complete or that automatic writes are safe.
   // This function deliberately NEVER returns write authorization.
@@ -841,5 +879,5 @@
         'CHẶN ĐỒNG BỘ: '+blockers.map(x=>x.message).join(' '):
         'Đã qua điều kiện kiểm tra sơ bộ. Vẫn cần kiểm tra ID, nối số dư và xác nhận Admin; chưa được ghi.'});
   }
-  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,compareFoxconnCandidates,resolvePaymentCollisionCandidates,resolveFoxconnNonPaymentCandidates,assessUnmatchedTransfers,verifyTransferSourceLegs,classifyCashSource,auditFoxconnIdentityGroups,assessProjectSyncReadiness});
+  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,compareFoxconnCandidates,resolvePaymentCollisionCandidates,resolveFoxconnNonPaymentCandidates,assessUnmatchedTransfers,verifyTransferSourceLegs,classifyCashSource,auditFoxconnIdentityGroups,buildReadOnlySyncPlan,assessProjectSyncReadiness});
 });
