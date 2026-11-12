@@ -427,3 +427,33 @@ test('known Payment origin wins over misleading payroll words in description',()
  assert.equal(result.needsContractIpc,true);
  assert.equal(result.canWrite,false);
 });
+
+test('unique numeric-only nonpayment counterpart exposes Google row but does not verify identity',()=>{
+ const header=[...Array(13).fill(''),'进口税+增值税','余额'];
+ const history=[header,['2026-10-15','ACME','','越籍员工工资','','间接费',0,0,0,0,100,0,0,0,0]];
+ const row={date:'2026-10-15',content:'Lương Việt Nam · Tháng 09/2026',type:'Chi phí nhân sự',
+   _syncIds:['expense:salary'],income:0,subcontract:0,material:0,otherDirect:0,
+   indirect:100,financial:0,otherPayable:0,importTaxVat:0};
+ const records=new Map([['salary',{source:'payroll'}]]);
+ const x=auditor.resolveFoxconnNonPaymentCandidates(history,[row],
+   {identityConflictPositions:[1]},records);
+ assert.equal(x.supportedCount,0);
+ assert.equal(x.numericOnlyCount,1);
+ assert.deepEqual(x.numericOnly.map(v=>v.googleRow),[2]);
+ assert.equal(x.numericOnly[0].reason,'same-numbers-different-description');
+ assert.equal(x.canWrite,false);
+ const duplicated=auditor.resolveFoxconnNonPaymentCandidates([...history,history[1]],
+   [row],{identityConflictPositions:[1]},records);
+ assert.equal(duplicated.numericOnlyCount,0);
+ assert.deepEqual(duplicated.unresolved,[1]);
+});
+test('Google numeric-only row is visibly labeled unverified and never writes',()=>{
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ const fn=code.slice(start,end);
+ assert.match(fn,/nonPaymentResolution\.numericOnly\.find/);
+ assert.match(fn,/trùng số tiền, khác nội dung; CHƯA xác nhận/);
+ assert.match(fn,/phi Payment cùng số liệu nhưng khác nội dung/);
+ assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
+ assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
+});
