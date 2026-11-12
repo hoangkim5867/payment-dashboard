@@ -217,6 +217,18 @@ test('FOXCONN exact eight financial columns produce candidates only, never write
  assert.equal(r.identityVerified,false);
  assert.equal(r.canWrite,false);
 });
+test('FOXCONN matching money but different IPC is identity conflict and blocks writing',()=>{
+ const api=require('../site/assets/js/cash-sync-historical-audit.js');
+ const history=[['2026-10-01','VENDOR','FOX-CONTRACT','','IPC017','',1000,100,0,0,0,0,0,50,850]];
+ const source=[{date:'2026-10-01',company:'VENDOR',contractNo:'FOX-CONTRACT',ipc:'IPC018',
+  income:1000,subcontract:100,material:0,otherDirect:0,indirect:0,financial:0,
+  otherPayable:0,importTaxVat:50}];
+ const result=api.compareFoxconnCandidates(history,source);
+ assert.equal(result.candidates,1);
+ assert.equal(result.identityConflict,1);
+ assert.equal(result.identityConsistent,0);
+ assert.equal(result.canWrite,false);
+});
 test('FOXCONN O-column probe computes expenses including N tax but never authorizes sync',()=>{
  const header=['日期','','','','','','收入','支出'];
  const sub=Array(15).fill('');
