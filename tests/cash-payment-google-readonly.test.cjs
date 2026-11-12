@@ -247,3 +247,17 @@ test('FOXCONN exception table labels transfer, Payment and payroll source withou
  assert.match(fn,/sourceKind\(row\)/);
  assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
 });
+
+test('read-only FOXCONN fetch failure names the failing stage without hidden retries',()=>{
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ const fn=code.slice(start,end);
+ for(const stage of ['Tải Payment','Đếm chứng từ Firestore',
+   'Đọc danh mục tab Google Sheets','Đọc giao dịch Google Sheets']){
+   assert.ok(fn.includes(stage),stage);
+ }
+ assert.match(fn,/Bước: '\+readStage/);
+ assert.match(fn,/Failed to fetch/);
+ assert.match(fn,/Không tự thử lại, 0 writes/);
+ assert.doesNotMatch(fn,/setDoc\(|addDoc\(|updateDoc\(|deleteDoc\(|writeBatch\(/);
+});
