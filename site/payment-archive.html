@@ -902,6 +902,7 @@
         viewer.classList.remove("show");viewer.innerHTML="";
         showEmptyKey("loginRequired","loginRequiredDetail");return;
       }
+      let archiveLoadStep="authUsers";
       try{
         const profile=await getDoc(doc(db,"authUsers",user.uid));
         if(authToken!==archiveAuthToken)return;
@@ -917,16 +918,28 @@
         const isAdmin=String(profile.data()?.role||"").trim().toLowerCase()==="admin";
         // Allow typing while loading; apply the query after all indexes arrive.
         companySearch.disabled=false;
+        archiveLoadStep="paymentArchives";
         const snapshot=await getDocs(query(collection(db,"paymentArchives"),orderBy("month","desc")));
         if(authToken!==archiveAuthToken)return;
         const archives=snapshot.docs.map(item=>({id:item.id,...item.data()}));
         renderArchives(archives,isAdmin);
       }catch(error){
         if(authToken!==archiveAuthToken)return;
-        console.error("PAYMENT ARCHIVE LOAD ERROR:",error);
+        console.error("PAYMENT ARCHIVE LOAD ERROR:",archiveLoadStep,error);
         companySearch.disabled=true;
         monthSelect.disabled=true;
-        showEmptyKey("cannotLoad","cannotLoadDetail");
+        // Display only the phase and SDK error code, never credentials or user IDs.
+        const errorCode=String(error?.code||"unknown").replace(/[^a-z0-9/_-]/gi,"").slice(0,70)||"unknown";
+        const phase=archiveLoadStep==="authUsers"?"Xác minh tài khoản":"Đọc danh sách tháng";
+        const hints={
+          "permission-denied":"Firebase từ chối quyền đọc. Không sửa Rules khi chưa xác minh.",
+          "resource-exhausted":"Firebase có thể đã hết quota đọc. Không tự thử lại liên tục.",
+          "unavailable":"Không kết nối được Firestore. Kiểm tra mạng rồi thử lại.",
+          "unauthenticated":"Phiên Firebase không hợp lệ trên tên miền Preview này."
+        };
+        showEmpty(t("cannotLoad"),phase+" · "+errorCode+". "+(hints[errorCode]||"Chưa xác định nguyên nhân; gửi dòng này để kiểm tra tiếp.")+
+          " Đăng nhập trên chính tên miền bản thử qua Trang chủ, rồi quay lại Kho.");
+
       }
     });
   </script>
