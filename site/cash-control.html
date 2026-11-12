@@ -4,7 +4,7 @@
 <meta name="description" content="Quản lý dòng tiền, công nợ, hồ sơ IPC, đề nghị thanh toán, bảo lãnh và tín dụng cho dự án MEP.">
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="assets/js/cash-sync-historical-audit.js?v=foxconn-unicode-balance-20261111c"></script>
+<script src="assets/js/cash-sync-historical-audit.js?v=foxconn-candidate-readonly-20261112"></script>
 <link rel="stylesheet" href="assets/css/cash-control.css" data-stage1-extracted="primary">
 <style id="cc-no-double-sidebar-gap">
 /* Fix: sidebar already occupies a CSS-grid column; do not offset main twice. */
@@ -5750,11 +5750,16 @@ async function ccSyncProjectBatchHistoricalAudit(){
             const months=Array.from({length:endIndex-startIndex+1},(_,i)=>
               monthFromIndex(startIndex+i));
             const cachedRows=months.flatMap(month=>legacyCashExportRows(month,project));
-            const comparison=auditor.compareLoadedCashControl(values.values,project,cachedRows,
-              {sourceComplete:false});
-            if(comparison.status==='requires-tax-mapping'){
-              sourceNote=' · Cash Control: FOXCONN có cột thuế riêng, chưa thể so 7 nhóm tiền;'+
-                ' KHÔNG coi 0 giao dịch trùng là không có khoản trùng';
+            const comparison=project==='FOXCONN'?
+              auditor.compareFoxconnCandidates(values.values,cachedRows,{startMonth:'2026-10'}):
+              auditor.compareLoadedCashControl(values.values,project,cachedRows,
+                {sourceComplete:false});
+            if(project==='FOXCONN'){
+              sourceNote=' · Cash Control FOXCONN: '+comparison.sourceScope+
+                ' dòng nguồn trong bộ nhớ, '+comparison.unmappedTax+
+                ' dòng chưa có cột thuế nhập khẩu + VAT riêng; '+
+                comparison.candidates+' ứng viên cùng ngày và 8 nhóm tiền. '+
+                'CHƯA chứng nhận nguồn đủ / ID trùng; KHÔNG cấp phép ghi';
             }else{
               sourceNote=' · Cash Control bộ nhớ (10/2026–'+CURRENT+
                 '): ứng viên trùng '+comparison.matched+
