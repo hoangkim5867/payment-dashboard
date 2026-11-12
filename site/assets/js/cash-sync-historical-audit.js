@@ -533,6 +533,66 @@
       candidateOnly:true,sourceComplete:false,canWrite:false
     });
   }
+  // Conservative non-Payment counterpart candidates using the same already
+  // downloaded worksheet. A one-to-one numeric signature plus textual
+  // description supports a review candidate, not an immutable transaction ID.
+  function resolveFoxconnNonPaymentCandidates(historicalRows,sourceRows,matched,recordsById){
+    if(!Array.isArray(historicalRows)||!Array.isArray(sourceRows)||
+       historicalRows.length>20000||sourceRows.length>20000)
+      throw Error('Invalid non-Payment candidate input');
+    const norm=v=>String(v??'').normalize('NFKC').trim().replace(/\s+/g,' ').toUpperCase();
+    const fields=['income','subcontract','material','otherDirect','indirect','financial','otherPayable','importTaxVat'];
+    const key=(date,values)=>JSON.stringify([date,...values.map(rounded)]);
+    const history=new Map(),source=new Map();
+    const append=(map,k,item)=>map.set(k,[...(map.get(k)||[]),item]);
+    let taxHeaderValid=false;
+    for(const [i,row] of historicalRows.entries()){
+      if(!Array.isArray(row))continue;
+      const date=dateValue(row[0]);
+      if(!date){
+        const head=foxconnHeader(row);
+        if(head)taxHeaderValid=!head.invalid&&head.taxIndex===13&&
+          (head.balanceIndex===null||head.balanceIndex===14);
+        continue;
+      }
+      if(date<'2026-10-01'||!taxHeaderValid)continue;
+      const values=row.slice(6,14).map(x=>amount(x,true));
+      if(values.length!==8||values.some(v=>!Number.isFinite(v)))continue;
+      append(history,key(date,values),{position:i+1,description:norm(row[3]),type:norm(row[5])});
+    }
+    const flagged=new Set([
+      ...(matched?.identityConflictPositions||[]),
+      ...(matched?.identityUnverifiedPositions||[])
+    ]);
+    for(const [i,row] of sourceRows.entries()){
+      const position=i+1,date=dateValue(row?.date);
+      if(!flagged.has(position)||!date||date<'2026-10-01')continue;
+      const classification=classifyCashSource(row,recordsById);
+      if(!['personnel','tax-or-aggregate','receipt'].includes(classification.kind))continue;
+      if(!Object.hasOwn(row,'importTaxVat')||
+         row.importTaxVat==null||String(row.importTaxVat).trim()==='')continue;
+      const values=fields.map(k=>amount(row[k],true));
+      if(values.some(v=>!Number.isFinite(v)))continue;
+      append(source,key(date,values),{position,kind:classification.kind,
+        description:norm(row.content),type:norm(row.type)});
+    }
+    const supported=[],unresolved=[];
+    for(const [k,items] of source){
+      const candidates=history.get(k)||[];
+      for(const item of items){
+        // Never treat matching date and amount alone as proof.
+        const pairs=candidates.filter(h=>(item.description&&h.description===item.description)||
+          (item.type&&h.type===item.type&&item.description&&h.description&&
+           (h.description.includes(item.description)||item.description.includes(h.description))));
+        if(items.length===1&&candidates.length===1&&pairs.length===1)
+          supported.push({sourcePosition:item.position,googleRow:pairs[0].position,
+            kind:item.kind});
+        else unresolved.push(item.position);
+      }
+    }
+    return Object.freeze({supported,unresolved,supportedCount:supported.length,
+      candidateOnly:true,sourceComplete:false,canWrite:false});
+  }
   // Shared reconciliation routing. This is a classification hint, never a
   // transaction identity or write eligibility. Source IDs are already loaded
   // into Cash Control RAM; no network calls or mutation are needed.
@@ -641,5 +701,5 @@
         'CHẶN ĐỒNG BỘ: '+blockers.map(x=>x.message).join(' '):
         'Đã qua điều kiện kiểm tra sơ bộ. Vẫn cần kiểm tra ID, nối số dư và xác nhận Admin; chưa được ghi.'});
   }
-  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,compareFoxconnCandidates,resolvePaymentCollisionCandidates,classifyCashSource,auditFoxconnIdentityGroups,assessProjectSyncReadiness});
+  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,compareFoxconnCandidates,resolvePaymentCollisionCandidates,resolveFoxconnNonPaymentCandidates,classifyCashSource,auditFoxconnIdentityGroups,assessProjectSyncReadiness});
 });
