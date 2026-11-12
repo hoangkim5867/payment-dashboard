@@ -1432,7 +1432,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         </div>
         <p id="ccSyncProjectCatalogStatus" style="font-size:12px;color:#44546b"></p>
         <div id="ccSyncProjectBatchLocalResult" hidden aria-live="polite" style="margin:8px 0;max-height:280px;overflow:auto;font-size:12px;border:1px solid #dbe4f0;border-radius:7px;padding:9px"></div>
-        <div id="ccSyncPaymentPreflight" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0" hidden>
+        <div id="ccSyncPaymentPreflight" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0">
           <select id="ccSyncPaymentPreflightProject" aria-label="Dự án cần đếm Payment" style="min-width:180px;padding:7px;border:1px solid #cad4e3;border-radius:7px"></select>
           <button class="btn" id="ccSyncPaymentPreflightCount" type="button">Đếm Payment 1 dự án (có Firestore reads)</button>
           <button class="btn" id="ccSyncPaymentPreflightLoad" type="button">Tải chi tiết Payment 1 dự án (chỉ đọc · có reads)</button>
@@ -5501,11 +5501,13 @@ function ccSyncProjectCatalogRender(){
   const visible=catalog.filter(p=>p.toLocaleLowerCase('vi').includes(term));
   const preflight=$('ccSyncPaymentPreflight');
   const selector=$('ccSyncPaymentPreflightProject');
+  // The entire parent catalog is already Admin-gated after auth.
+  // Keep this read-only preflight visible inside it; previously rendering
+  // before Firebase auth hid this child with no reliable later refresh.
+  // Every action still independently checks Admin and the production project.
   if(preflight){
-    const allowed=!!currentAuthUser&&isCashControlOwner()&&
-      firebaseConfig.projectId==='cscecmep-payment';
-    preflight.hidden=!allowed;
-    preflight.style.display=allowed?'flex':'none';
+    preflight.hidden=false;
+    preflight.style.display='flex';
   }
   if(selector){
     const previous=selector.value;
