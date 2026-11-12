@@ -383,45 +383,56 @@
     if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(startMonth))
       throw Error('Invalid month');
     const key=(date,amounts)=>JSON.stringify([date,...amounts.map(v=>Math.round(v*1e6)/1e6)]);
-    const counts=new Map(),sourceCounts=new Map();
+    const clean=v=>String(v??'').normalize('NFKC').trim().replace(/\s+/g,' ').toUpperCase();
+    const signature=(company,contractNo,ipc)=>[clean(company),clean(contractNo),clean(ipc)];
+    const hMap=new Map(),sMap=new Map();
+    const add=(m,k,id)=>m.set(k,[...(m.get(k)||[]),id]);
     let historicalScope=0,sourceScope=0,invalidHistory=0,invalidSource=0,unmappedTax=0;
     for(const row of historicalRows){
       if(!Array.isArray(row))continue;
       const d=dateValue(row[0]);
       if(!d||d.slice(0,7)<startMonth)continue;
       historicalScope++;
-      // FOXCONN: G income, H:M 6 expenses, N tax.
+      // FOXCONN: G income, H:M 6 expenses, N tax; O is running balance.
       const values=row.slice(6,14).map(v=>amount(v,true));
       if(values.length!==8||values.some(v=>!Number.isFinite(v))){
         invalidHistory++;continue;
       }
-      const k=key(d,values);counts.set(k,(counts.get(k)||0)+1);
+      add(hMap,key(d,values),signature(row[1],row[2],row[4]));
     }
     for(const row of sourceRows){
       const d=dateValue(row?.date);
       if(!d||d.slice(0,7)<startMonth)continue;
       sourceScope++;
-      const fields=['income','subcontract','material','otherDirect','indirect','financial','otherPayable'];
       // A missing dedicated tax field MUST NOT be interpreted as zero.
       if(!Object.hasOwn(row,'importTaxVat')){
         unmappedTax++;continue;
       }
+      const fields=['income','subcontract','material','otherDirect','indirect','financial','otherPayable'];
       const values=[...fields.map(f=>amount(row[f],true)),amount(row.importTaxVat,true)];
       if(values.some(v=>!Number.isFinite(v))){invalidSource++;continue}
-      const k=key(d,values);sourceCounts.set(k,(sourceCounts.get(k)||0)+1);
+      add(sMap,key(d,values),signature(row.company,row.contractNo,row.ipc));
     }
     let candidates=0,historyOnly=0,sourceOnly=0,ambiguous=0;
-    for(const k of new Set([...counts.keys(),...sourceCounts.keys()])){
-      const a=counts.get(k)||0,b=sourceCounts.get(k)||0;
-      const matches=Math.min(a,b);
+    let identityConflict=0,identityUnverified=0,identityConsistent=0;
+    for(const k of new Set([...hMap.keys(),...sMap.keys()])){
+      const a=hMap.get(k)||[],b=sMap.get(k)||[];
+      const matches=Math.min(a.length,b.length);
       candidates+=matches;
-      if(a>1||b>1)ambiguous+=matches;
-      historyOnly+=Math.max(0,a-b);
-      sourceOnly+=Math.max(0,b-a);
+      if(a.length>1||b.length>1)ambiguous+=matches;
+      historyOnly+=Math.max(0,a.length-b.length);
+      sourceOnly+=Math.max(0,b.length-a.length);
+      if(a.length===1&&b.length===1){
+        const known=a[0].map((x,i)=>x&&b[0][i]?i:-1).filter(i=>i>=0);
+        if(known.some(i=>a[0][i]!==b[0][i]))identityConflict++;
+        else if(known.length===3)identityConsistent++;
+        else identityUnverified++;
+      }
     }
     return Object.freeze({project:'FOXCONN',status:unmappedTax?
       'blocked-tax-mapping':'candidates-only',historicalScope,sourceScope,
       candidates,historyOnly,sourceOnly,ambiguous,unmappedTax,
+      identityConflict,identityUnverified,identityConsistent,
       invalidHistory,invalidSource,
       sourceComplete:false,identityVerified:false,canWrite:false});
   }
