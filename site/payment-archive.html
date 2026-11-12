@@ -111,13 +111,14 @@
       renderMonthOptions();
     };
     const renderArchives=(archives,isAdmin=false)=>{
+      const pendingSearch=companySearch.value;
       emptyState=null;
       archiveItems=[...archives];
       archivesByMonth=new Map(archives.map(item=>[String(item.month||""),item]));
       currentUserIsAdmin=isAdmin;
       renderMonthOptions();
       monthSelect.disabled=!archives.length;
-      companySearch.value="";
+      companySearch.value=pendingSearch;
       companySearch.disabled=!archives.length;
       archiveDownload.classList.remove("show");
       archiveDownload.removeAttribute("href");
@@ -125,6 +126,7 @@
       viewer.classList.remove("show");
       viewer.innerHTML="";
       if(!archives.length){showViewerMessageKey("noClosedMonths");}
+      else if(normalizeSearch(pendingSearch)) runCompanySearch();
     };
 
     const showViewerMessage=(message,{scroll=true}={})=>{
@@ -913,6 +915,8 @@
           showEmptyKey("accessDenied","accessDeniedDetail");return;
         }
         const isAdmin=String(profile.data()?.role||"").trim().toLowerCase()==="admin";
+        // Allow typing while loading; apply the query after all indexes arrive.
+        companySearch.disabled=false;
         const snapshot=await getDocs(query(collection(db,"paymentArchives"),orderBy("month","desc")));
         if(authToken!==archiveAuthToken)return;
         const archives=snapshot.docs.map(item=>({id:item.id,...item.data()}));
@@ -920,6 +924,8 @@
       }catch(error){
         if(authToken!==archiveAuthToken)return;
         console.error("PAYMENT ARCHIVE LOAD ERROR:",error);
+        companySearch.disabled=true;
+        monthSelect.disabled=true;
         showEmptyKey("cannotLoad","cannotLoadDetail");
       }
     });
