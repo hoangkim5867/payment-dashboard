@@ -226,7 +226,7 @@ test('FOXCONN exception table is an Admin-driven DOM-only diagnostic',()=>{
  const fn=code.slice(start,end);
  assert.match(code,/id="ccSyncFoxconnExceptionPanel" hidden/);
  assert.match(code,/id="ccSyncFoxconnExceptionRows"/);
- assert.match(fn,/\['Vấn đề','Vị trí','Ngày','Nguồn','Loại','Nội dung','Hợp đồng','IPC'\]/);
+ assert.match(fn,/\['Vấn đề','Vị trí','Ngày','Nguồn','Loại','Nội dung','Hợp đồng','IPC','Quy tắc đối chiếu'\]/);
  assert.match(fn,/source\[position-1\]/);
  assert.match(fn,/row\.contractNo\|\|'—'/);
  assert.match(fn,/row\.ipc\|\|'—'/);
@@ -260,4 +260,40 @@ test('read-only FOXCONN fetch failure names the failing stage without hidden ret
  assert.match(fn,/Failed to fetch/);
  assert.match(fn,/Không tự thử lại, 0 writes/);
  assert.doesNotMatch(fn,/setDoc\(|addDoc\(|updateDoc\(|deleteDoc\(|writeBatch\(/);
+});
+
+test('shared Cash Control classification keeps non-payment rows out of required contract/IPC',()=>{
+ const map=new Map([
+   ['pay_1',{source:'payment'}],
+   ['salary_1',{source:'payroll'}],
+   ['inflow_1',{source:'manual',direction:'in',linkedModule:'inflow'}]
+ ]);
+ const classify=auditor.classifyCashSource;
+ const transfer=classify({_syncIds:['transfer:abc:out'],type:'Hoàn vay'},map);
+ assert.equal(transfer.kind,'transfer');
+ assert.equal(transfer.needsContractIpc,false);
+ const personnel=classify({_syncIds:['expense:salary_1'],type:'Chi phí nhân sự'},map);
+ assert.equal(personnel.kind,'personnel');
+ assert.equal(personnel.needsContractIpc,false);
+ const tax=classify({_syncIds:['expense:x','expense:y'],_taxQuarter:'2026-Q3'},map);
+ assert.equal(tax.kind,'tax-or-aggregate');
+ assert.equal(tax.needsContractIpc,false);
+ const receipt=classify({_syncIds:['expense:inflow_1'],ipc:'IPC06',income:10},map);
+ assert.equal(receipt.kind,'receipt');
+ assert.equal(receipt.needsContractIpc,false);
+ const payment=classify({_syncIds:['expense:pay_1'],ipc:'IPC005'},map);
+ assert.equal(payment.kind,'payment');
+ assert.equal(payment.needsContractIpc,true);
+ const unknown=classify({_syncIds:[],type:'Khác'},map);
+ assert.equal(unknown.kind,'unverified');
+ for(const output of [transfer,personnel,tax,receipt,payment,unknown])
+   assert.equal(output.canWrite,false);
+});
+test('transaction matching hints do not override coarse collision counts or write data',()=>{
+ const st=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',st);
+ const fn=code.slice(st,end);
+ assert.match(fn,/auditor\.classifyCashSource\(row,cashExpenseById\)\.rule/);
+ assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
+ assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
 });
