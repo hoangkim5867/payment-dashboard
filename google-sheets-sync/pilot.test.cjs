@@ -74,7 +74,7 @@ function fixture({month='2026-11',source=[tx(month)],demo=false,staging=false}={
     ccGoogleSyncSelectedProjects:()=>['PHU HUNG'],
     $:id=>nodes[id],
     fetch:mockFetch,crypto:webcrypto,TextEncoder,
-    window:{},localStorage:{getItem:()=>null,setItem:()=>{}},
+    window:{CashSharedTestSyncPlanner:require('../site/assets/js/cash-shared-test-sync-planner.js')},localStorage:{getItem:()=>null,setItem:()=>{}},
     google:{},confirm:()=>true,console
   };
   vm.createContext(context);
