@@ -461,8 +461,17 @@
         add('INVALID_TRANSACTIONS','Có dòng giao dịch chưa đọc được.');
       if(comparison.ambiguous>0)
         add('AMBIGUOUS_MATCH','Có nhiều giao dịch cùng ngày và cùng số tiền; không tự chọn bản ghi.');
-      if(comparison.historicalOnly>0||comparison.cashOnly>0)
+      if(Number(comparison.historicalOnly??comparison.historyOnly??0)>0||
+         Number(comparison.cashOnly??comparison.sourceOnly??0)>0)
         add('UNRESOLVED_MATCH','Còn giao dịch chỉ xuất hiện ở một nguồn; cần gắn ID trước khi ghi.');
+      if(Number(comparison.identityConflict||0)>0)
+        add('IDENTITY_CONFLICT','Hợp đồng/IPC hoặc công ty không khớp giữa hai nguồn.');
+      if(Number(comparison.identityUnverified||0)>0)
+        add('IDENTITY_UNVERIFIED','Chưa đủ thông tin định danh khoản thanh toán.');
+      if(Number(comparison.unmappedTax||0)>0)
+        add('TAX_UNMAPPED','Thuế nhập khẩu/VAT chưa ánh xạ được vào nguồn.');
+      if(Number(comparison.layoutErrors||0)>0)
+        add('SOURCE_LAYOUT','Bố cục nguồn chưa xác nhận.');
     }
     return Object.freeze({project,status:blockers.length?'blocked':'review-required',
       blockers,canWrite:false,
