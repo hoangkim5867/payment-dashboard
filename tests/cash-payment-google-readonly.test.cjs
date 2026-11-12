@@ -83,7 +83,7 @@ test('raw Firestore count is reported separately from filtered rows before Googl
  assert.match(fn,/const countUnverified=countDifference!==0\|\|cached/);
  assert.match(fn,/chưa xác nhận đủ nguồn/);
  assert.doesNotMatch(fn,/if\(rawCount!==rowsLoaded\)\s*throw/);
- assert.match(fn,/cached\?' \(bộ nhớ, có thể cũ\)'/);
+ assert.match(fn,/countUnverified\?' \(chênh lệch\/cached, chưa xác nhận đủ nguồn\)'/);
  assert.match(fn,/Even equal counts do NOT verify alias coverage/);
  assert.doesNotMatch(fn,/setDoc\(|addDoc\(|updateDoc\(|deleteDoc\(/);
 });
