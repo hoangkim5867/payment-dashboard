@@ -609,14 +609,16 @@
       return outcome('tax-or-aggregate','Loại thuế + quý + dự án + ngày + số tiền + ID nhóm',false);
     const paymentId=ids.length===1&&ids[0].startsWith('expense:')?ids[0].slice(8):null;
     const expense=paymentId&&recordsById?.get(paymentId);
+    // Stable Payment provenance outranks free-text keywords (e.g. a contract
+    // description can contain the word "lương"). Explicit inbound stays receipt.
+    if(expense?.source==='payment'&&expense?.direction!=='in')
+      return outcome('payment','Dự án + HĐ + IPC + ngày + số tiền + ID Payment',true);
     if(expense?.source==='payroll'||expense?.linkedModule==='payroll'||
        /lương|bảo hiểm|phí công đoàn|工资|保险|社保|工会费|职工薪酬/i.test(text))
       return outcome('personnel','Loại chi phí nhân sự + kỳ + ngày + số tiền + ID nguồn',false);
     if(expense?.linkedModule==='inflow'||expense?.direction==='in'||
        Number(row?.income||0)>0&&!!String(row?.ipc||'').trim())
       return outcome('receipt','Dự án + IPC thu tiền + ngày + số tiền + chứng từ thu',false);
-    if(expense?.source==='payment')
-      return outcome('payment','Dự án + HĐ + IPC + ngày + số tiền + ID Payment',true);
     return outcome('unverified','Loại nguồn chưa xác minh: đối chiếu thủ công, không suy đoán HĐ/IPC',false);
   }
   // Payment-only HĐ/IPC issues are distinct from missing counterpart
