@@ -54,9 +54,9 @@ test('TEST: stale revision refuses append',async()=>{
  let calls=0;
  const read=f.transport.readSnapshot;
  f.transport.readSnapshot=async (...args)=>{
-  calls++;const snapshot=await read(...args);
+  calls++;
   if(calls===2)f.store.revision++;
-  return snapshot;
+  return read(...args);
  };
  await assert.rejects(execute(f.transport),/TEST_SNAPSHOT_CHANGED/);
  assert.equal(f.store.writes,0);
