@@ -5560,14 +5560,15 @@ async function ccSyncCompareProjectGoogleReadOnly(){
     status.textContent='Link Google không xác định được file/tab lịch sử.';return;
   }
   if(!confirm('ĐỐI CHIẾU CHỈ ĐỌC '+project+
-    ': tải Payment của 1 dự án, xác minh số chứng từ bằng 1 truy vấn đếm '+
+    ': tải MỚI Payment của 1 dự án (có Firestore reads), đếm chứng từ '+
     'và đọc 1 tab Google. Có Firestore reads và Google API reads, '+
     'KHÔNG ghi hoặc cấp phép đồng bộ. Tiếp tục?'))return;
   button.disabled=true;
   status.textContent='Đang đối chiếu '+project+' (chỉ đọc)…';
   try{
-    const cached=paymentMonths.has(project);
-    const ok=cached||await loadProjectPayments(project,{quiet:true,refresh:false});
+    // Explicit Admin confirmation authorizes exactly one fresh project query.
+    // Never reconcile mutable payment documents using a potentially stale cache.
+    const ok=await loadProjectPayments(project,{force:true,quiet:true,refresh:false});
     if(!ok||!paymentMonths.has(project))throw Error('Payment dự án chưa được tải');
     if(!currentAuthUser||!isCashControlOwner())
       throw Error('Phiên Admin đã thay đổi');
@@ -5575,9 +5576,8 @@ async function ccSyncCompareProjectGoogleReadOnly(){
     rebuildPaymentsFromLoadedMonths();
     const rowsLoaded=paymentMonths.get(project).length;
     const authUid=currentAuthUser.uid;
-    // A one-project count aggregation must match the unfiltered Firestore
-    // document count. Deleted docs and concurrent changes can cause a
-    // mismatch; never silently call a filtered cache "complete".
+    // Aggregate includes soft-deleted raw documents; loaded rows exclude them.
+    // Equality is not a proof of stable identity or alias completeness.
     const countSnap=await getCountFromServer(query(paymentsRef,where('project','==',project)));
     const rawCount=Number(countSnap.data()?.count);
     if(!currentAuthUser||currentAuthUser.uid!==authUid||!isCashControlOwner())
@@ -5589,7 +5589,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
     // These numbers are not equivalent. Report the discrepancy without claiming
     // complete source coverage; continue the manual READ-ONLY comparison.
     const countDifference=rawCount-rowsLoaded;
-    const countUnverified=countDifference!==0||cached;
+    const countUnverified=countDifference!==0;
     // Even equal counts do NOT verify alias coverage, transferred records or
     // stable data revisions. This remains a candidate-only read check.
     const endpoint='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(fileId);
@@ -5658,7 +5658,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       dateRegressions>0||unparsedDates>0||!matched.sourceComplete;
     status.textContent=(blocked?'CHƯA ĐỦ ĐIỀU KIỆN · ':'CHỈ ĐỌC · ')+project+
       ' · Payment '+rowsLoaded+' hồ sơ đã tải; đếm Firestore tên chuẩn '+rawCount+
-      (countUnverified?' (chênh lệch/cached, chưa xác nhận đủ nguồn)':' (số lượng bằng nhau, chưa xác nhận đủ nguồn)')+
+      (countUnverified?' (chênh lệch, chưa xác nhận đủ nguồn)':' (số lượng bằng nhau, chưa xác nhận đủ nguồn)')+
       ' · tổng lịch sử Google '+history.transactionRows+' giao dịch'+
       ' · phạm vi so khớp từ 10/2026: Google '+matched.historicalScope+
       ', Cash Control '+matched.sourceScope+' dòng'+
