@@ -5703,7 +5703,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       table.style.cssText='width:100%;border-collapse:collapse;text-align:left';
       const thead=document.createElement('thead');
       const tr=document.createElement('tr');
-      for(const label of ['Vấn đề','Vị trí','Ngày','Nguồn','Loại','Nội dung','Hợp đồng','IPC','Quy tắc đối chiếu']){
+      for(const label of ['Vấn đề','Vị trí','Ngày','Nguồn','Loại','Nội dung','Hợp đồng','IPC','Đối ứng Google (ứng viên)','Quy tắc đối chiếu']){
         const th=document.createElement('th');
         th.textContent=label;th.style.padding='4px';tr.append(th);
       }
@@ -5713,7 +5713,13 @@ async function ccSyncCompareProjectGoogleReadOnly(){
         const row=source[position-1];
         if(!row)continue;
         const line=document.createElement('tr');
-        for(const value of [issue,position,row.date||'—',sourceKind(row),row.type||'—',row.content||'—',row.contractNo||'—',row.ipc||'—',auditor.classifyCashSource(row,cashExpenseById).rule]){
+        // A unique contract/IPC candidate is still not a verified persistent ID.
+        const linkedCandidate=paymentCollisionResolution.supported.find(
+          item=>item.sourcePosition===position
+        );
+        const googleCandidate=linkedCandidate?
+          'Dòng '+linkedCandidate.googleRow+' (ứng viên, chưa xác minh ID)':'Chưa xác định';
+        for(const value of [issue,position,row.date||'—',sourceKind(row),row.type||'—',row.content||'—',row.contractNo||'—',row.ipc||'—',googleCandidate,auditor.classifyCashSource(row,cashExpenseById).rule]){
           const td=document.createElement('td');
           td.textContent=String(value);
           td.style.cssText='padding:4px;border-top:1px solid #ddd;vertical-align:top';
