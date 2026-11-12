@@ -576,7 +576,41 @@
       append(source,key(date,values),{position,kind:classification.kind,
         description:norm(row.content),type:norm(row.type)});
     }
-    const supported=[],unresolved=[],numericOnly=[];
+    // Cross-language labels can differ while representing the same payroll,
+    // tax or receipt period. This supports a REVIEW CANDIDATE only, never an ID.
+    const period=text=>{
+      const zh=/(20\d{2})年(0?[1-9]|1[0-2])月/.exec(text);
+      const vi=/(0?[1-9]|1[0-2])\s*\/\s*(20\d{2})/.exec(text);
+      return zh?zh[1]+'-'+zh[2].padStart(2,'0'):
+        vi?vi[2]+'-'+vi[1].padStart(2,'0'):'';
+    };
+    const quarter=text=>{
+      const zh=/(20\d{2})年(?:第)?([1-4])季度/.exec(text);
+      const vi=/(?:QUÝ|QUY)\s*([1-4])\s*\/\s*(20\d{2})/.exec(text);
+      return zh?zh[1]+'-Q'+zh[2]:vi?vi[2]+'-Q'+vi[1]:'';
+    };
+    const semantic=(kind,text)=>{
+      const names={
+        personnel:[
+          ['salary',/LƯƠNG|工资/],
+          ['insurance',/BẢO HIỂM|社保|保险/],
+          ['union',/CÔNG ĐOÀN|工会/]
+        ],
+        'tax-or-aggregate':[['pit',/THUẾ TNCN|THUẾ THU NHẬP CÁ NHÂN|个人所得税/]],
+        receipt:[['receipt',/THU TIỀN|内部结算|业主收款/]]
+      };
+      const match=(names[kind]||[]).filter(([,re])=>re.test(text));
+      if(match.length!==1)return '';
+      const category=match[0][0];
+      if(category==='pit'){const q=quarter(text);return q?category+':'+q:''}
+      if(category==='receipt'){
+        const ipc=/\bIPC\s*0*([0-9]+)\b/.exec(text);
+        return ipc?category+':IPC'+Number(ipc[1]):'';
+      }
+      const p=period(text);
+      return p?category+':'+p:'';
+    };
+    const supported=[],unresolved=[],numericOnly=[],semanticCandidates=[];
     for(const [k,items] of source){
       const candidates=history.get(k)||[];
       for(const item of items){
@@ -586,9 +620,20 @@
         const pairs=candidates.filter(h=>(item.description&&h.description===item.description)||
           (item.type&&h.type===item.type&&item.description&&h.description&&
            (h.description.includes(item.description)||item.description.includes(h.description))));
+        const sourceSemantic=semantic(item.kind,item.description+' '+item.type);
+        const semanticMatches=candidates.filter(h=>sourceSemantic&&
+          semantic(item.kind,h.description+' '+h.type)===sourceSemantic);
         if(items.length===1&&candidates.length===1&&pairs.length===1){
           supported.push({sourcePosition:item.position,googleRow:pairs[0].position,
             kind:item.kind});
+        }else if(items.length===1&&candidates.length===1&&
+                  semanticMatches.length===1){
+          // A translated name plus an exact period/IPC is useful evidence,
+          // but never upgrades the reconciliation or authorizes a write.
+          semanticCandidates.push({sourcePosition:item.position,
+            googleRow:semanticMatches[0].position,kind:item.kind,
+            semanticKey:sourceSemantic,candidateOnly:true});
+          unresolved.push(item.position);
         }else{
           unresolved.push(item.position);
           if(items.length===1&&candidates.length===1&&pairs.length===0)
@@ -600,8 +645,9 @@
         }
       }
     }
-    return Object.freeze({supported,unresolved,numericOnly,
+    return Object.freeze({supported,unresolved,numericOnly,semanticCandidates,
       supportedCount:supported.length,numericOnlyCount:numericOnly.length,
+      semanticCandidateCount:semanticCandidates.length,
       candidateOnly:true,sourceComplete:false,canWrite:false});
   }
   // Review-only impact of transfer rows absent from the historical signature

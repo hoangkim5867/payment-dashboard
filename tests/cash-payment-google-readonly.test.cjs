@@ -524,3 +524,40 @@ test('source transfer leg validation remains read only and never confirms Sheets
  assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
  assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
 });
+
+test('FOXCONN bilingual personnel, tax and receipt candidates stay read-only',()=>{
+ const header=[...Array(13).fill(''),'进口税+增值税','余额'];
+ const details=[
+  ['2026-10-15','2026年09月越籍员工工资','职工薪酬','Lương Việt Nam · Tháng 09/2026','Chi phí nhân sự',100,'personnel'],
+  ['2026-10-17','2026年10月越南社保','职工薪酬','Bảo hiểm VN · Tháng 10/2026','Chi phí nhân sự',200,'personnel'],
+  ['2026-10-17','2026年10月工会经费','职工薪酬','Phí công đoàn · Tháng 10/2026','Chi phí nhân sự',300,'personnel'],
+  ['2026-10-20','2026年第3季度个人所得税','职工薪酬','Thuế TNCN · Quý 3/2026','Chi phí nhân sự',400,'tax'],
+  ['2026-10-22','内部结算IPC06','业主收款','Thu tiền · IPC06','Tiền thu chủ đầu tư',500,'receipt']
+ ];
+ const history=[header],source=[];
+ for(let i=0;i<details.length;i++){
+  const [date,zh,zhType,vi,viType,value,kind]=details[i];
+  history.push([date,'FOXCONN','',zh,kind==='receipt'?'IPC06':'',zhType,
+    kind==='receipt'?value:0,0,0,0,kind==='receipt'?0:value,0,0,0,0]);
+  source.push({date,content:vi,type:viType,ipc:kind==='receipt'?'IPC06':'',
+    _syncIds:kind==='tax'?['tax:q3:1','tax:q3:2']:['expense:'+i],
+    income:kind==='receipt'?value:0,subcontract:0,material:0,otherDirect:0,
+    indirect:kind==='receipt'?0:value,financial:0,otherPayable:0,importTaxVat:0});
+ }
+ const records=new Map(source.map((x,i)=>[String(i),{
+  source:i===4?'manual':'payroll',linkedModule:i===4?'inflow':'payroll',
+  direction:i===4?'in':'out'}]));
+ const report=auditor.resolveFoxconnNonPaymentCandidates(history,source,
+  {identityConflictPositions:[1,2,3],identityUnverifiedPositions:[4,5]},records);
+ assert.equal(report.semanticCandidateCount,5);
+ assert.equal(report.numericOnlyCount,0);
+ assert.deepEqual(report.semanticCandidates.map(x=>x.googleRow),[2,3,4,5,6]);
+ assert.equal(report.canWrite,false);
+ assert.equal(report.sourceComplete,false);
+ const wrongPeriod=history.map(row=>[...row]);
+ wrongPeriod[1][3]='2026年08月越籍员工工资';
+ const wrong=auditor.resolveFoxconnNonPaymentCandidates(wrongPeriod,source,
+  {identityConflictPositions:[1,2,3],identityUnverifiedPositions:[4,5]},records);
+ assert.equal(wrong.semanticCandidateCount,4);
+ assert.equal(wrong.numericOnlyCount,1);
+});
