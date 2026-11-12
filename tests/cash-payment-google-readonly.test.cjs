@@ -219,3 +219,17 @@ test('manual FOXCONN report exposes only candidate row positions and no writes',
  assert.match(code,/matched\.identityConflictPositions\?\.join/);
  assert.match(code,/matched\.identityUnverifiedPositions\?\.join/);
 });
+
+test('FOXCONN exception table is an Admin-driven DOM-only diagnostic',()=>{
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ const fn=code.slice(start,end);
+ assert.match(code,/id="ccSyncFoxconnExceptionPanel" hidden/);
+ assert.match(code,/id="ccSyncFoxconnExceptionRows"/);
+ assert.match(fn,/\['Vấn đề','Vị trí','Ngày','Hợp đồng','IPC'\]/);
+ assert.match(fn,/source\[position-1\]/);
+ assert.match(fn,/row\.contractNo\|\|'—'/);
+ assert.match(fn,/row\.ipc\|\|'—'/);
+ assert.match(fn,/td\.textContent=String\(value\)/);
+ assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
+});
