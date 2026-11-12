@@ -377,3 +377,43 @@ test('read-only FOXCONN matched Google row remains candidate-only',()=>{
  assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
  assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
 });
+
+test('non-Payment identical date/amount requires one unique textual counterpart',()=>{
+ const header=[...Array(13).fill(''),'进口税+增值税','余额'];
+ const history=[header,
+  ['2026-10-15','ACME','','Lương Việt Nam · Tháng 09/2026','','Chi phí nhân sự',0,0,0,0,100,0,0,0,0],
+  ['2026-10-17','ACME','','Bảo hiểm VN · Tháng 10/2026','','Chi phí nhân sự',0,0,0,0,200,0,0,0,0]
+ ];
+ const base=(date,content,amount,id)=>({date,content,type:'Chi phí nhân sự',
+  _syncIds:['expense:'+id],income:0,subcontract:0,material:0,otherDirect:0,
+  indirect:amount,financial:0,otherPayable:0,importTaxVat:0});
+ const rows=[base('2026-10-15','Lương Việt Nam · Tháng 09/2026',100,'sal1'),
+   base('2026-10-17','Bảo hiểm VN · Tháng 10/2026',200,'sal2')];
+ const map=new Map([['sal1',{source:'payroll'}],['sal2',{source:'payroll'}]]);
+ const matched={identityConflictPositions:[1,2]};
+ const x=auditor.resolveFoxconnNonPaymentCandidates(history,rows,matched,map);
+ assert.equal(x.supportedCount,2);
+ assert.deepEqual(x.supported.map(i=>i.googleRow),[2,3]);
+ assert.equal(x.canWrite,false);
+ const mismatch=[...history];
+ mismatch[1]=[...mismatch[1]];mismatch[1][3]='Different source description';
+ const m=auditor.resolveFoxconnNonPaymentCandidates(mismatch,rows,matched,map);
+ assert.equal(m.supportedCount,1);
+ assert.deepEqual(m.unresolved,[1]);
+ const duplicate=[...history,history[1]];
+ const d=auditor.resolveFoxconnNonPaymentCandidates(duplicate,rows,matched,map);
+ assert.equal(d.supportedCount,1);
+ assert.deepEqual(d.unresolved,[1]);
+});
+test('non-Payment counterpart candidates never include transfers or Payment',()=>{
+ const header=[...Array(13).fill(''),'进口税+增值税','余额'];
+ const history=[header,['2026-10-15','ACME','','Lương','','Chi phí nhân sự',0,0,0,0,100,0,0,0,0]];
+ const row={date:'2026-10-15',content:'Lương',type:'Chi phí nhân sự',
+   income:0,subcontract:0,material:0,otherDirect:0,indirect:100,financial:0,otherPayable:0,importTaxVat:0};
+ const matched={identityUnverifiedPositions:[1]};
+ const tx=auditor.resolveFoxconnNonPaymentCandidates(history,[{...row,_syncIds:['transfer:1:out']}],matched,new Map());
+ assert.equal(tx.supportedCount,0);
+ const pay=auditor.resolveFoxconnNonPaymentCandidates(history,[{...row,_syncIds:['expense:x']}],matched,new Map([['x',{source:'payment'}]]));
+ assert.equal(pay.supportedCount,0);
+ assert.equal(pay.canWrite,false);
+});
