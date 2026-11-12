@@ -229,18 +229,20 @@ test('FOXCONN matching money but different IPC is identity conflict and blocks w
  assert.equal(result.identityConsistent,0);
  assert.equal(result.canWrite,false);
 });
-test('FOXCONN explicit tax classification is isolated to read-only audit metadata',()=>{
+test('FOXCONN tax projection is read-only and standard export remains seven-column',()=>{
  const fs=require('node:fs'),path=require('node:path');
  const source=fs.readFileSync(path.join(__dirname,'../site/cash-control.html'),'utf8');
- assert.match(source,/const foxconnTaxReview=project==='FOXCONN'/);
- assert.match(source,/const foxconnImportTax=project==='FOXCONN'/);
- assert.match(source,/\.\.\.\(project==='FOXCONN'&&!foxconnTaxReview\?\{importTaxVat:foxconnImportTax\}:\{\}\)/);
- for(const category of ['subcontract','material','indirect','financial','otherPayable']){
-   const line=source.split('\n').find(s=>s.trim().startsWith(category+':x.direction'));
-   assert.ok(line,category+' must be mapped');
-   assert.ok(line.includes('&&!foxconnImportTax?amount:0,'),category+' must exclude import tax');
- }
-
+ const a=source.indexOf('function legacyCashExportRows(');
+ const b=source.indexOf('function foxconnAuditSourceRows(',a);
+ const d=source.indexOf('// Dedicated read-only, on-device source transfer',b);
+ assert.ok(a>0&&b>a&&d>b);
+ const standard=source.slice(a,b);
+ const audit=source.slice(b,d);
+ assert.ok(!standard.includes('importTaxVat'), 'normal Cash Control export must not gain the tax field');
+ assert.ok(!standard.includes('foxconnImportTax'), 'normal Cash Control bucket classification stays untouched');
+ assert.match(audit,/const result=\{\.\.\.row\}/);
+ assert.match(audit,/if\(!unknown\)result\.importTaxVat=importTaxVat/);
+ assert.match(source,/project==='FOXCONN'\?foxconnAuditSourceRows\(month\):legacyCashExportRows\(month,project\)/);
 });
 test('FOXCONN O-column probe computes expenses including N tax but never authorizes sync',()=>{
  const header=['日期','','','','','','收入','支出'];
