@@ -36,7 +36,7 @@ test('normal Cash Control export unchanged and FOXCONN tax separated as audit on
  assert.doesNotMatch(fn,/expense\.actualAmount\|\|expense\.amount/);
 });
 test('FOXCONN tax amount must have exact separate field',()=>{
- const history=[['2026-10-01','ACME','C1','','IPC1','',100,20,0,0,0,0,0,10,70]];
+ const history=[[...Array(13).fill(''),'进口税+增值税','余额'],['2026-10-01','ACME','C1','','IPC1','',100,20,0,0,0,0,0,10,70]];
  const missing=[{date:'2026-10-01',company:'ACME',contractNo:'C1',ipc:'IPC1',
    income:100,subcontract:20,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0}];
  const blocked=auditor.compareFoxconnCandidates(history,missing);
@@ -51,7 +51,7 @@ test('FOXCONN tax amount must have exact separate field',()=>{
  assert.equal(provisional.identityConsistent,1);
 });
 test('FOXCONN different IPC is identity conflict, never sync approval',()=>{
- const history=[['2026-10-01','ACME','C1','','IPC1','',100,20,0,0,0,0,0,10,70]];
+ const history=[[...Array(13).fill(''),'进口税+增值税','余额'],['2026-10-01','ACME','C1','','IPC1','',100,20,0,0,0,0,0,10,70]];
  const source=[{date:'2026-10-01',company:'ACME',contractNo:'C1',ipc:'IPC2',
    income:100,subcontract:20,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0,importTaxVat:10}];
  const result=auditor.compareFoxconnCandidates(history,source);
@@ -124,6 +124,25 @@ test('manual Google report blocks unmatched and unverified identity candidates',
  assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
 });
 
+test('FOXCONN refuses historical candidates without a verified tax heading',()=>{
+ const dated=['2026-10-01','ACME','C1','','IPC1','',100,20,0,0,0,0,0,10,70];
+ const source=[{date:'2026-10-01',company:'ACME',contractNo:'C1',ipc:'IPC1',
+   income:100,subcontract:20,material:0,otherDirect:0,indirect:0,
+   financial:0,otherPayable:0,importTaxVat:10}];
+ const noHeader=auditor.compareFoxconnCandidates([dated],source);
+ assert.equal(noHeader.candidates,0);
+ assert.equal(noHeader.invalidHistory,1);
+ const shifted=[Array(13).fill('')];
+ shifted[0][12]='进口税+增值税';
+ const badHeader=auditor.compareFoxconnCandidates([...shifted,dated],source);
+ assert.equal(badHeader.candidates,0);
+ assert.equal(badHeader.invalidHistory,1);
+ const goodHeader=[...Array(13).fill(''),'进口税+增值税','余额'];
+ const verified=auditor.compareFoxconnCandidates([goodHeader,dated],source);
+ assert.equal(verified.candidates,1);
+ assert.equal(verified.canWrite,false);
+});
+
 test('FOXCONN readiness blocks its native unmatched fields, identity and tax errors',()=>{
  const history={status:'internally-consistent',transactionRows:1,continuityErrors:0,
    roundingDifferences:0,missingBalance:0,invalidMoney:0,nonMonotonicDates:0};
@@ -138,7 +157,7 @@ test('FOXCONN readiness blocks its native unmatched fields, identity and tax err
 });
 
 test('FOXCONN blank tax mapping is unknown, but verified numeric zero is valid',()=>{
- const history=[['2026-10-01','ACME','C1','','IPC1','',100,20,0,0,0,0,0,0,80]];
+ const history=[[...Array(13).fill(''),'进口税+增值税','余额'],['2026-10-01','ACME','C1','','IPC1','',100,20,0,0,0,0,0,0,80]];
  const basic={date:'2026-10-01',company:'ACME',contractNo:'C1',ipc:'IPC1',
    income:100,subcontract:20,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0};
  for(const tax of [undefined,null,'']){
