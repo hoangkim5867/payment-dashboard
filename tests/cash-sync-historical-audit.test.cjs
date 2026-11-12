@@ -236,9 +236,9 @@ test('FOXCONN explicit tax classification is isolated to read-only audit metadat
  assert.match(source,/const foxconnImportTax=project==='FOXCONN'/);
  assert.match(source,/\.\.\.\(project==='FOXCONN'&&!foxconnTaxReview\?\{importTaxVat:foxconnImportTax\}:\{\}\)/);
  for(const category of ['subcontract','material','indirect','financial','otherPayable']){
-   const block=source.match(new RegExp(category+':x\\.direction===\\\'out\\\'[^\\n]*\\?amount:0,'));
-   assert.ok(block,category+' must be mapped');
-   assert.match(block[0],/!foxconnImportTax\\?amount:0/);
+   const line=source.split('\n').find(s=>s.trim().startsWith(category+':x.direction'));
+   assert.ok(line,category+' must be mapped');
+   assert.ok(line.includes('&&!foxconnImportTax?amount:0,'),category+' must exclude import tax');
  }
 
 });
