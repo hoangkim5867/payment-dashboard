@@ -604,6 +604,45 @@
       supportedCount:supported.length,numericOnlyCount:numericOnly.length,
       candidateOnly:true,sourceComplete:false,canWrite:false});
   }
+  // Review-only impact of transfer rows absent from the historical signature
+  // set. This is NOT a proposal to insert them: the source completeness,
+  // original cross-project transfer identity, and chronological balance
+  // formulas all remain unverified.
+  function assessUnmatchedTransfers(sourceRows,matched){
+    if(!Array.isArray(sourceRows)||sourceRows.length>20000)
+      throw Error('Invalid transfer projection');
+    const entries=[],seen=new Set(),errors=[];
+    let net=0;
+    for(const position of matched?.sourceOnlyPositions||[]){
+      if(!Number.isSafeInteger(position)||position<1||position>sourceRows.length){
+        errors.push('invalid-position');continue;
+      }
+      const row=sourceRows[position-1];
+      const ids=Array.isArray(row?._syncIds)?row._syncIds.map(String):[];
+      if(ids.length!==1||!/^transfer:.+:(?:in|out)$/.test(ids[0])){
+        errors.push('not-single-transfer:'+position);continue;
+      }
+      if(seen.has(ids[0])){errors.push('duplicate-id:'+position);continue}
+      seen.add(ids[0]);
+      const date=dateValue(row.date);
+      const value=amount(row.income);
+      const allOther=['subcontract','material','otherDirect','indirect',
+        'financial','otherPayable','importTaxVat'].map(k=>amount(row[k],true));
+      if(!date||!Number.isFinite(value)||value===0||
+         allOther.some(v=>!Number.isFinite(v)||v!==0)){
+        errors.push('invalid-amount-or-date:'+position);continue;
+      }
+      if(ids[0].endsWith(':out')&&value>=0||
+         ids[0].endsWith(':in')&&value<=0){
+        errors.push('direction-mismatch:'+position);continue;
+      }
+      entries.push(Object.freeze({position,date,sourceId:ids[0],
+        direction:value>0?'in':'out',signedAmount:value}));
+      net=rounded(net+value);
+    }
+    return Object.freeze({entries,net,errors,readyToWrite:false,
+      sourceComplete:false,googleTransferVerified:false,canWrite:false});
+  }
   // Shared reconciliation routing. This is a classification hint, never a
   // transaction identity or write eligibility. Source IDs are already loaded
   // into Cash Control RAM; no network calls or mutation are needed.
@@ -714,5 +753,5 @@
         'CHẶN ĐỒNG BỘ: '+blockers.map(x=>x.message).join(' '):
         'Đã qua điều kiện kiểm tra sơ bộ. Vẫn cần kiểm tra ID, nối số dư và xác nhận Admin; chưa được ghi.'});
   }
-  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,compareFoxconnCandidates,resolvePaymentCollisionCandidates,resolveFoxconnNonPaymentCandidates,classifyCashSource,auditFoxconnIdentityGroups,assessProjectSyncReadiness});
+  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,compareFoxconnCandidates,resolvePaymentCollisionCandidates,resolveFoxconnNonPaymentCandidates,assessUnmatchedTransfers,classifyCashSource,auditFoxconnIdentityGroups,assessProjectSyncReadiness});
 });
