@@ -475,6 +475,71 @@
       identityConflictPositions,identityUnverifiedPositions,
       sourceComplete:false,identityVerified:false,canWrite:false});
   }
+  // Shared reconciliation routing. This is a classification hint, never a
+  // transaction identity or write eligibility. Source IDs are already loaded
+  // into Cash Control RAM; no network calls or mutation are needed.
+  function classifyCashSource(row,recordsById){
+    const ids=Array.isArray(row?._syncIds)?row._syncIds.map(String):[];
+    const text=String(row?.content||'')+' '+String(row?.type||'');
+    const outcome=(kind,rule,needsContractIpc)=>Object.freeze({
+      kind,rule,needsContractIpc,canWrite:false
+    });
+    if(ids.some(id=>id.startsWith('transfer:')))
+      return outcome('transfer','Dự án đi/đến + loại điều chuyển + ngày + số tiền + ID nguồn',false);
+    if(ids.length>1||row?._taxQuarter||
+       /thuế tncn|个人所得税|thuế thu nhập cá nhân/i.test(text))
+      return outcome('tax-or-aggregate','Loại thuế + quý + dự án + ngày + số tiền + ID nhóm',false);
+    const paymentId=ids.length===1&&ids[0].startsWith('expense:')?ids[0].slice(8):null;
+    const expense=paymentId&&recordsById?.get(paymentId);
+    if(expense?.source==='payroll'||expense?.linkedModule==='payroll'||
+       /lương|bảo hiểm|phí công đoàn|工资|保险|社保|工会费|职工薪酬/i.test(text))
+      return outcome('personnel','Loại chi phí nhân sự + kỳ + ngày + số tiền + ID nguồn',false);
+    if(expense?.linkedModule==='inflow'||expense?.direction==='in'||
+       Number(row?.income||0)>0&&!!String(row?.ipc||'').trim())
+      return outcome('receipt','Dự án + IPC thu tiền + ngày + số tiền + chứng từ thu',false);
+    if(expense?.source==='payment')
+      return outcome('payment','Dự án + HĐ + IPC + ngày + số tiền + ID Payment',true);
+    return outcome('unverified','Loại nguồn chưa xác minh: đối chiếu thủ công, không suy đoán HĐ/IPC',false);
+  }
+  // Payment-only HĐ/IPC issues are distinct from missing counterpart
+  // metadata on payroll, tax, receipts and transfers. Never approve writes.
+  function auditFoxconnIdentityGroups(matched,sourceRows,recordsById){
+    const groups={
+      paymentIdentityReview:[],
+      nonPaymentCounterpartReview:[],
+      unknownSourceReview:[],
+      ambiguousPayment:[],
+      ambiguousOther:[]
+    };
+    const collect=(positions,kind)=>{
+      for(const position of positions||[]){
+        const row=sourceRows?.[position-1];
+        if(!row)continue;
+        const category=classifyCashSource(row,recordsById).kind;
+        if(kind==='ambiguous'){
+          (category==='payment'?groups.ambiguousPayment:groups.ambiguousOther).push(position);
+        }else if(category==='payment'){
+          groups.paymentIdentityReview.push(position);
+        }else if(category==='unverified'){
+          groups.unknownSourceReview.push(position);
+        }else{
+          groups.nonPaymentCounterpartReview.push(position);
+        }
+      }
+    };
+    collect(matched?.identityConflictPositions,'identity');
+    collect(matched?.identityUnverifiedPositions,'identity');
+    collect(matched?.ambiguousSourcePositions,'ambiguous');
+    for(const group of Object.values(groups))group.sort((a,b)=>a-b);
+    return Object.freeze({
+      ...groups,
+      identityReviewCount:groups.paymentIdentityReview.length,
+      nonPaymentReviewCount:groups.nonPaymentCounterpartReview.length,
+      pending:groups.paymentIdentityReview.length+groups.nonPaymentCounterpartReview.length+
+        groups.unknownSourceReview.length+groups.ambiguousPayment.length+groups.ambiguousOther.length,
+      canWrite:false
+    });
+  }
   // Pure read-only release gate for real project Sheets. A consistent ledger
   // is not proof that payments are complete or that automatic writes are safe.
   // This function deliberately NEVER returns write authorization.
@@ -518,5 +583,5 @@
         'CHẶN ĐỒNG BỘ: '+blockers.map(x=>x.message).join(' '):
         'Đã qua điều kiện kiểm tra sơ bộ. Vẫn cần kiểm tra ID, nối số dư và xác nhận Admin; chưa được ghi.'});
   }
-  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,compareFoxconnCandidates,assessProjectSyncReadiness});
+  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,compareFoxconnCandidates,classifyCashSource,auditFoxconnIdentityGroups,assessProjectSyncReadiness});
 });

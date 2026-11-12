@@ -5673,6 +5673,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       dateRegressions>0||unparsedDates>0||!matched.sourceComplete;
     // Show only exception metadata already held in memory; no extra reads,
     // downloads, Google writes or automated duplicate selections.
+    let identityGroups=null;
     if(project==='FOXCONN'&&exceptionPanel){
       const output=$('ccSyncFoxconnExceptionRows');
       const cases=[
@@ -5683,6 +5684,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       ];
       // Resolve only IDs already present in Cash Control RAM: no extra reads.
       const cashExpenseById=new Map(allExpenses().filter(x=>x?.id).map(x=>[String(x.id),x]));
+      identityGroups=auditor.auditFoxconnIdentityGroups(matched,source,cashExpenseById);
       const sourceKind=row=>{
         const ids=Array.isArray(row._syncIds)?row._syncIds:[];
         if(ids.some(id=>String(id).startsWith('transfer:')))return 'Điều chuyển nội bộ';
@@ -5693,11 +5695,13 @@ async function ccSyncCompareProjectGoogleReadOnly(){
         if(expense.source==='payroll'||expense.linkedModule==='payroll')return 'Lương / nhân sự';
         return 'Cash Control · '+String(expense.source||'ghi tay / lịch sử').slice(0,36);
       };
+      // Do not erase or reinterpret original numerical mismatch counts.
+      // Source-specific routing is a read-only hint, not an ID match.
       const table=document.createElement('table');
       table.style.cssText='width:100%;border-collapse:collapse;text-align:left';
       const thead=document.createElement('thead');
       const tr=document.createElement('tr');
-      for(const label of ['Vấn đề','Vị trí','Ngày','Nguồn','Loại','Nội dung','Hợp đồng','IPC']){
+      for(const label of ['Vấn đề','Vị trí','Ngày','Nguồn','Loại','Nội dung','Hợp đồng','IPC','Quy tắc đối chiếu']){
         const th=document.createElement('th');
         th.textContent=label;th.style.padding='4px';tr.append(th);
       }
@@ -5707,7 +5711,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
         const row=source[position-1];
         if(!row)continue;
         const line=document.createElement('tr');
-        for(const value of [issue,position,row.date||'—',sourceKind(row),row.type||'—',row.content||'—',row.contractNo||'—',row.ipc||'—']){
+        for(const value of [issue,position,row.date||'—',sourceKind(row),row.type||'—',row.content||'—',row.contractNo||'—',row.ipc||'—',auditor.classifyCashSource(row,cashExpenseById).rule]){
           const td=document.createElement('td');
           td.textContent=String(value);
           td.style.cssText='padding:4px;border-top:1px solid #ddd;vertical-align:top';
@@ -5734,7 +5738,11 @@ async function ccSyncCompareProjectGoogleReadOnly(){
         ' · vị trí mơ hồ (bản chiếu): '+(matched.ambiguousSourcePositions?.join(', ')||'0')+
         ' · vị trí xung đột HĐ/IPC (bản chiếu): '+(matched.identityConflictPositions?.join(', ')||'0')+
         ' · vị trí thiếu HĐ/IPC (bản chiếu): '+(matched.identityUnverifiedPositions?.join(', ')||'0')+
-        ' · thuế chưa xác minh '+matched.unmappedTax:'')+
+        ' · thuế chưa xác minh '+matched.unmappedTax+
+        ' · rà soát HĐ/IPC Payment thật '+(identityGroups?.identityReviewCount??'?')+
+        ' · giao dịch không dùng HĐ/IPC cần xác minh đối ứng '+(identityGroups?.nonPaymentReviewCount??'?')+
+        ' · nguồn chưa rõ '+(identityGroups?.unknownSourceReview.length??'?')+
+        ' · trùng Payment '+(identityGroups?.ambiguousPayment.length??'?'):'')+
       ' · ngày đảo thứ tự '+dateRegressions+
       ' · ngày chưa nhận dạng '+unparsedDates+
       ' · trạng thái sổ '+history.status+
