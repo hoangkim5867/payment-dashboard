@@ -32,6 +32,8 @@ test('normal Cash Control export unchanged and FOXCONN tax separated as audit on
  const fn=code.slice(b,code.indexOf('async function ccSyncCompareProjectGoogleReadOnly()',b));
  assert.match(fn,/result\.importTaxVat=tax/);
  assert.match(fn,/category==='taxDeposit'&&!explicit/);
+ assert.match(fn,/expense\.actualAmount\?\?expense\.amount\?\?0/);
+ assert.doesNotMatch(fn,/expense\.actualAmount\|\|expense\.amount/);
 });
 test('FOXCONN tax amount must have exact separate field',()=>{
  const history=[['2026-10-01','ACME','C1','','IPC1','',100,20,0,0,0,0,0,10,70]];
