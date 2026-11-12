@@ -16,14 +16,24 @@ test('Staff sync can change PIC and fill blank fields without replacing master i
 test('both create/update master validators deny critical wrong types',async()=>{await no(write('admin','contracts/invalid',{...contract,contractNo:5}));await no(s.updateDoc(ref('admin','contracts/existing'),{project:[]}));});
 test('Staff vendor upsert retains bank-list behavior but cannot rename/delete',async()=>{await yes(write('staff','vendorMasters/v',{company:'TEST VENDOR',bankAccount:'123',bankAccounts:['123']}));await yes(s.updateDoc(ref('staff','vendorMasters/v'),{bankAccount:'456',bankAccounts:['123','456']}));await no(s.updateDoc(ref('staff','vendorMasters/v'),{company:'Hijack'}));await no(s.deleteDoc(ref('staff','vendorMasters/v')));await no(s.updateDoc(ref('staff','vendorMasters/v'),{bankAccounts:'invalid'}));});
 for(const collection of ['paymentArchives','paymentArchiveDetails'])test(collection+' Admin writes, Staff read-only and validator on both paths',async()=>{const p=collection+'/2026-10';await yes(write('admin',p,{month:'2026-10',rows:[],companyIndex:[]}));await yes(s.getDocs(s.query(s.collection(db('staff'),collection),s.orderBy('month','desc'))));await yes(s.updateDoc(ref('admin',p),{rowCount:1}));await no(s.updateDoc(ref('staff',p),{rowCount:9}));await no(s.deleteDoc(ref('staff',p)));await no(write('admin',collection+'/2026-99',{month:'2026-99'}));await no(s.updateDoc(ref('admin',p),{month:'2026-11'}));});
-test('Owner Admin may list and get paymentArchives under approvedUser Rules',async()=>{
-  const month='2026-10',refOwner=ref(owner,'paymentArchives/'+month);
+test('Approved owner, non-owner Admin and Staff may GET/LIST Archive; disabled cannot',async()=>{
+  // Regression for PR #90: production Archive must never depend on the owner UID.
+  const month='2026-10';
   await env.withSecurityRulesDisabled(async c=>{
-    await s.setDoc(s.doc(c.firestore(),'paymentArchives/'+month),{month,companyIndex:[]});
+    for(const collectionName of ['paymentArchives','paymentArchiveDetails']){
+      await s.setDoc(s.doc(c.firestore(),collectionName+'/'+month),{month,companyIndex:[]});
+    }
   });
-  await yes(s.getDoc(refOwner));
-  await yes(s.getDocs(s.query(s.collection(db(owner),'paymentArchives'),s.orderBy('month','desc'))));
-  await yes(s.getDocs(s.query(s.collection(db(owner),'paymentArchives'),s.limit(1))));
+  for(const who of [owner,'admin','staff']){
+    for(const collectionName of ['paymentArchives','paymentArchiveDetails']){
+      const collectionRef=s.collection(db(who),collectionName);
+      await yes(s.getDoc(ref(who,collectionName+'/'+month)));
+      await yes(s.getDocs(s.query(collectionRef,s.orderBy('month','desc'))));
+      await yes(s.getDocs(s.query(collectionRef,s.limit(1))));
+    }
+  }
+  await no(s.getDoc(ref('disabled','paymentArchives/'+month)));
+  await no(s.getDocs(s.collection(db('disabled'),'paymentArchives')));
 });
 test('Funding snapshots owner only, preserve Cash and Plan fields during merge',async()=>{const p='cash_flow_monthly_snapshots/2026-10';await yes(write(owner,p,{month:'2026-10',balances:{TEST:{balance:1}},schemaVersion:4}));await yes(s.setDoc(ref(owner,p),{projectLocks:{TEST:{locked:true}}},{merge:true}));for(const uid of ['staff','admin']){await no(s.getDoc(ref(uid,p)));await no(s.updateDoc(ref(uid,p),{projectLocks:{}}));}await no(s.updateDoc(ref(owner,p),{balances:[]}));});
 test('Directory Admin update / Staff read-only; no privileged profile changes',async()=>{const p='appSettings/staffDirectory';await yes(write('admin',p,{names:{test:'Test Name'}}));await yes(s.getDoc(ref('staff',p)));await no(s.updateDoc(ref('staff',p),{names:{test:'Hijacked'}}));await no(s.updateDoc(ref('admin',p),{names:[]}));});
