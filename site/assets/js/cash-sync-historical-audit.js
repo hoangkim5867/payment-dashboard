@@ -405,11 +405,15 @@
       if(!d||d.slice(0,7)<startMonth)continue;
       sourceScope++;
       // A missing dedicated tax field MUST NOT be interpreted as zero.
-      if(!Object.hasOwn(row,'importTaxVat')){
+      // A present-but-blank tax field is not a verified zero.
+      // The read-only projection must explicitly provide a finite number.
+      if(!Object.hasOwn(row,'importTaxVat')||
+         row.importTaxVat===null||row.importTaxVat===undefined||
+         String(row.importTaxVat).trim()===''){
         unmappedTax++;continue;
       }
       const fields=['income','subcontract','material','otherDirect','indirect','financial','otherPayable'];
-      const values=[...fields.map(f=>amount(row[f],true)),amount(row.importTaxVat,true)];
+      const values=[...fields.map(f=>amount(row[f],true)),amount(row.importTaxVat)];
       if(values.some(v=>!Number.isFinite(v))){invalidSource++;continue}
       add(sMap,key(d,values),signature(row.company,row.contractNo,row.ipc));
     }
