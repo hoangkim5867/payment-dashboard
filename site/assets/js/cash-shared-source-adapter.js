@@ -49,7 +49,7 @@
     }
     return {rows:converted,blocked};
   }
-  function projectHistory({project,values,foxconn=false}={}){
+  function projectHistory({project,values,foxconn=false,dateValue}={}){
     if(!norm(project)||!Array.isArray(values)||values.length>20000)
       throw Error('Invalid Google history');
     const rows=[],blocked=[];
@@ -57,7 +57,7 @@
       if(!Array.isArray(r))continue;
       // Google date serials and ambiguous date formats require the historical
       // auditor; this adapter never guesses their interpretation.
-      const date=norm(r[0]);
+      const date=typeof dateValue==='function'?dateValue(r[0]):norm(r[0]);
       if(!/^20\d{2}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/.test(date)){
         continue;
       }
@@ -72,10 +72,10 @@
     }
     return {rows,blocked,historyComplete:false};
   }
-  function preview({project,cashRows,googleValues,expensesById,foxconn,month,planner}={}){
+  function preview({project,cashRows,googleValues,expensesById,foxconn,month,planner,dateValue}={}){
     if(!planner?.prepare)throw Error('Shared TEST planner unavailable');
     const cash=projectSource({project,rows:cashRows,expensesById,foxconn});
-    const google=projectHistory({project,values:googleValues,foxconn});
+    const google=projectHistory({project,values:googleValues,foxconn,dateValue});
     // Critical: a read-only inspection does NOT prove complete Payment aliases,
     // transfer counterpart Google entries, or ledger date/header layout.
     const outcome=planner.prepare({project,month,
