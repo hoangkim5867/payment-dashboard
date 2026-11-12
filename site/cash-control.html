@@ -5646,10 +5646,14 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       Number(history.continuityErrors||0)>0||
       Number(history.roundingDifferences||0)>0;
     const invalidMatchRows=Number(matched.invalidHistory||0);
+    // Date/amount candidates can still represent different payments.
+    // Differences, absent contract/IPC identity and one-sided rows block sync.
+    const unmatchedRows=Number(h||0)+Number(s||0);
+    const missingIdentity=Number(matched.identityUnverified||0);
     const blocked=historyUnverified||invalidMatchRows>0||
       sourceMissing>0||matched.ambiguous>0||
-      matched.identityConflict>0||dateRegressions>0||
-      unparsedDates>0||!matched.sourceComplete;
+      matched.identityConflict>0||missingIdentity>0||unmatchedRows>0||
+      dateRegressions>0||unparsedDates>0||!matched.sourceComplete;
     status.textContent=(blocked?'CHƯA ĐỦ ĐIỀU KIỆN · ':'CHỈ ĐỌC · ')+project+
       ' · Payment '+rowsLoaded+' hồ sơ (đếm khớp tên chuẩn)'+(cached?' (bộ nhớ, có thể cũ)':'')+
       ' · tổng lịch sử Google '+history.transactionRows+' giao dịch'+
@@ -5657,7 +5661,9 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       ', Cash Control '+matched.sourceScope+' dòng'+
       ' · ứng viên '+m+' · chỉ Google trong phạm vi '+h+
       ' · chỉ Cash Control trong phạm vi '+s+
-      ' · mơ hồ '+matched.ambiguous+' · xung đột HĐ/IPC '+matched.identityConflict+
+      ' · mơ hồ '+matched.ambiguous+
+      ' · chưa đủ danh tính HĐ/IPC '+missingIdentity+
+      ' · xung đột HĐ/IPC '+matched.identityConflict+
       (project==='FOXCONN'?' · thuế chưa xác minh '+matched.unmappedTax:'')+
       ' · ngày đảo thứ tự '+dateRegressions+
       ' · ngày chưa nhận dạng '+unparsedDates+
