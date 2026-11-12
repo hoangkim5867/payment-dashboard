@@ -595,3 +595,48 @@ test('generic exception table reuses loaded Google and Cash Control arrays only'
  assert.match(fn,/payload\.values\[position-1\]:source\[position-1\]/);
  assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
 });
+
+test('shared dry-run blocks inserts for generic project, including unseen rows',()=>{
+ const result=auditor.buildReadOnlySyncPlan('ELYSIAN',{
+   sourceScope:4,historicalScope:3,matched:2,sourceOnlyPositions:[4],
+   ambiguousSourcePositions:[2],identityConflictPositions:[3],
+   sourceComplete:false,sourceOnly:1,historyOnly:0
+ },[{},{},{},{}]);
+ assert.deepEqual(result.newUnverifiedPositions,[4]);
+ assert.deepEqual(result.ambiguousPositions,[2]);
+ assert.deepEqual(result.identityConflictPositions,[3]);
+ assert.equal(result.verifiedNewCount,0);
+ assert.equal(result.approvedWrites,0);
+ assert.equal(result.canWrite,false);
+ assert.equal(result.incompleteSource,true);
+});
+test('shared dry-run preserves FOXCONN unresolved transfer positions without write approval',()=>{
+ const result=auditor.buildReadOnlySyncPlan('FOXCONN',{
+   sourceScope:20,historicalScope:18,candidates:18,
+   sourceOnlyPositions:[16,20],ambiguousSourcePositions:[6,7,8],
+   identityConflictPositions:[11,12,13],identityUnverifiedPositions:[14,15],
+   sourceOnly:2,sourceComplete:false
+ },Array.from({length:20},()=>({})));
+ assert.deepEqual(result.newUnverifiedPositions,[16,20]);
+ assert.equal(result.existingCandidates,18);
+ assert.equal(result.canWrite,false);
+ assert.equal(result.approvedWrites,0);
+});
+test('shared dry-run never promotes excess duplicate positions to new rows',()=>{
+ const plan=auditor.buildReadOnlySyncPlan('SSIS',{
+   sourceOnlyPositions:[2,3,3,99,-1],ambiguousSourcePositions:[3],
+   sourceComplete:true
+ },[{}, {}, {}]);
+ assert.deepEqual(plan.newUnverifiedPositions,[2]);
+ assert.deepEqual(plan.ambiguousPositions,[3]);
+ assert.equal(plan.canWrite,false);
+});
+test('shared dry-run in manual Google compare makes no writes',()=>{
+ const begin=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',begin);
+ const fn=code.slice(begin,end);
+ assert.match(fn,/auditor\.buildReadOnlySyncPlan\(project,matched,source\)/);
+ assert.match(fn,/syncPlan\.verifiedNewCount/);
+ assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
+ assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
+});
