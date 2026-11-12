@@ -229,6 +229,14 @@ test('FOXCONN matching money but different IPC is identity conflict and blocks w
  assert.equal(result.identityConsistent,0);
  assert.equal(result.canWrite,false);
 });
+test('FOXCONN explicit tax classification is isolated to read-only audit metadata',()=>{
+ const fs=require('node:fs'),path=require('node:path');
+ const source=fs.readFileSync(path.join(__dirname,'../site/cash-control.html'),'utf8');
+ assert.match(source,/const foxconnTaxReview=project==='FOXCONN'/);
+ assert.match(source,/const foxconnImportTax=project==='FOXCONN'/);
+ assert.match(source,/\.\.\.\(project==='FOXCONN'&&!foxconnTaxReview\?\{importTaxVat:foxconnImportTax\}:\{\}\)/);
+ assert.match(source,/!foxconnImportTax\?amount:0/);
+});
 test('FOXCONN O-column probe computes expenses including N tax but never authorizes sync',()=>{
  const header=['日期','','','','','','收入','支出'];
  const sub=Array(15).fill('');
