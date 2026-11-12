@@ -452,7 +452,7 @@
       }
     };
 
-    const renderGlobalCompanySearch=searchTerm=>{
+    const renderGlobalCompanySearch=(searchTerm,visibleCount=200)=>{
       archiveItems.forEach(enrichArchiveIndexFromSessionDetails);
       const matches=[];
       archiveItems.forEach(archive=>{
@@ -489,8 +489,9 @@
       const monthCount=new Set(matches.map(item=>item.month)).size;
       const totalPaid=matches.reduce((sum,item)=>sum+(Number(item.actualAmount)||0),0);
       currentGlobalSearchRows=[...matches];
-      const rows=matches.map(item=>`<tr><td class="center">${escapeHtml(moneyMonth(item.month))}</td><td>${escapeHtml(item.company)}</td><td>${escapeHtml(item.project)}</td><td>${escapeHtml(item.contractNo)}</td><td class="center">${escapeHtml(item.ipcNo)}</td><td class="right">${formatMoney(item.actualAmount)}</td><td class="center"><button type="button" class="search-open-month" data-search-month="${escapeHtml(item.month)}">${escapeHtml(t("openMonth"))}</button></td></tr>`).join("");
-      const adminSearchSummary=currentUserIsAdmin
+      const rows=matches.slice(0,visibleCount).map(item=>`<tr><td class="center">${escapeHtml(moneyMonth(item.month))}</td><td>${escapeHtml(item.company)}</td><td>${escapeHtml(item.project)}</td><td>${escapeHtml(item.contractNo)}</td><td class="center">${escapeHtml(item.ipcNo)}</td><td class="right">${formatMoney(item.actualAmount)}</td><td class="center"><button type="button" class="search-open-month" data-search-month="${escapeHtml(item.month)}">${escapeHtml(t("openMonth"))}</button></td></tr>`).join("");
+      const moreResults=matches.length>visibleCount ? `<div class="viewer-message" style="padding:10px 12px"><span>Đang hiển thị ${formatMoney(Math.min(visibleCount,matches.length))}/${formatMoney(matches.length)} kết quả. </span><button type="button" id="archiveSearchMore">Xem thêm kết quả</button></div>` : "";
+       const adminSearchSummary=currentUserIsAdmin
         ? `<span><b>${formatMoney(totalPaid)}</b>VND · ${escapeHtml(t("searchTotal"))}</span>`
         : "";
       const adminSearchExport=currentUserIsAdmin&&matches.length
@@ -498,7 +499,7 @@
         : "";
 
       viewer.classList.add("show");
-      viewer.innerHTML=`<div class="viewer-heading"><div><h2>${escapeHtml(t("searchResults"))}</h2></div><div style="display:flex;align-items:center;gap:7px">${adminSearchExport}<button class="viewer-close" type="button" id="closeArchiveViewer">${escapeHtml(t("close"))}</button></div></div>${indexWarning}<div class="viewer-summary"><span><b>${formatMoney(matches.length)}</b>${escapeHtml(t("searchResults"))}</span><span><b>${formatMoney(monthCount)}</b>${escapeHtml(t("monthColumn"))}</span>${adminSearchSummary}</div><div class="viewer-table-wrap"><table class="viewer-table global-search-table"><thead><tr><th>${escapeHtml(t("monthColumn"))}</th><th>${escapeHtml(t("company"))}</th><th>${escapeHtml(t("project"))}</th><th>${escapeHtml(t("contractNo"))}</th><th>IPC</th><th>${escapeHtml(t("actualAmount"))}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="center">${escapeHtml(t("noCompanyMatches"))}</td></tr>`}</tbody></table></div>`;
+      viewer.innerHTML=`<div class="viewer-heading"><div><h2>${escapeHtml(t("searchResults"))}</h2></div><div style="display:flex;align-items:center;gap:7px">${adminSearchExport}<button class="viewer-close" type="button" id="closeArchiveViewer">${escapeHtml(t("close"))}</button></div></div>${indexWarning}<div class="viewer-summary"><span><b>${formatMoney(matches.length)}</b>${escapeHtml(t("searchResults"))}</span><span><b>${formatMoney(monthCount)}</b>${escapeHtml(t("monthColumn"))}</span>${adminSearchSummary}</div><div class="viewer-table-wrap"><table class="viewer-table global-search-table"><thead><tr><th>${escapeHtml(t("monthColumn"))}</th><th>${escapeHtml(t("company"))}</th><th>${escapeHtml(t("project"))}</th><th>${escapeHtml(t("contractNo"))}</th><th>IPC</th><th>${escapeHtml(t("actualAmount"))}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="center">${escapeHtml(t("noCompanyMatches"))}</td></tr>`}</tbody></table></div>${moreResults}`;
     };
 
     const exportGlobalSearchExcel=async()=>{
@@ -760,7 +761,17 @@
     });
     companySearch.addEventListener("input",handleCompanySearchInput);
     viewer.addEventListener("click",event=>{
-      const exportSearchButton=event.target.closest("#exportSearchResultsBtn");
+      const moreResultsButton=event.target.closest("#archiveSearchMore");
+       if(moreResultsButton){
+         event.preventDefault();
+         const searchTerm=normalizeSearch(companySearch.value);
+         if(viewerMode==="global-search"&&searchTerm){
+           const visible=viewer.querySelectorAll(".global-search-table tbody tr").length;
+           renderGlobalCompanySearch(searchTerm,visible+200);
+         }
+         return;
+       }
+       const exportSearchButton=event.target.closest("#exportSearchResultsBtn");
       if(exportSearchButton){
         event.preventDefault();
         exportGlobalSearchExcel();
