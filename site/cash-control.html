@@ -5,6 +5,8 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="assets/js/cash-sync-historical-audit.js?v=review-readonly-20261112"></script>
+<script src="assets/js/cash-shared-test-sync-planner.js?v=offline-multiproject"></script>
+<script src="assets/js/cash-shared-source-adapter.js?v=offline-multiproject"></script>
 <link rel="stylesheet" href="assets/css/cash-control.css" data-stage1-extracted="primary">
 <style id="cc-no-double-sidebar-gap">
 /* Fix: sidebar already occupies a CSS-grid column; do not offset main twice. */
@@ -1434,6 +1436,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <button class="btn" id="ccSyncPaymentPreflightLoad" type="button">Tải Payment 1 dự án · chỉ đọc</button>
           <button class="btn" id="ccSyncProjectCompareGoogle" type="button">Đối chiếu Payment ↔ Google · chỉ đọc</button>
           <span id="ccSyncPaymentPreflightStatus" aria-live="polite" style="font-size:12px;color:#44546b">Chưa kiểm tra.</span>
+          <span id="ccSyncSharedAdapterStatus" aria-live="polite" style="font-size:12px;color:#704e10"></span>
         </div>
         <div id="ccSyncGenericExceptionPanel" hidden style="margin:8px 0;padding:10px;border:1px solid #cad4e3;border-radius:8px">
           <strong style="font-size:13px">Dòng cần rà soát · đối chiếu chỉ đọc</strong>
@@ -5657,6 +5660,24 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       auditor.compareFoxconnCandidates(payload.values,source,{startMonth:'2026-10'}):
       auditor.compareLoadedCashControl(payload.values,project,source,{sourceComplete:false});
     const syncPlan=auditor.buildReadOnlySyncPlan(project,matched,source);
+    // Additional OFFLINE adapter shared by every project. Uses the same
+    // authenticated in-memory Payment and Google rows; no extra requests.
+    const adapter=window.CashSharedSourceAdapter;
+    const planner=window.CashSharedTestSyncPlanner;
+    if(!adapter?.preview||!planner?.prepare)
+      throw Error('Bộ chống trùng chung chưa tải; không kiểm tra được');
+    const sourceExpenses=new Map(allExpenses().filter(x=>x?.id)
+      .map(x=>[String(x.id),x]));
+    const preview=adapter.preview({project,cashRows:source,
+      googleValues:payload.values,expensesById:sourceExpenses,
+      foxconn:project==='FOXCONN',month:CURRENT,planner,dateValue:auditor.dateValue});
+    const previewStatus=$('ccSyncSharedAdapterStatus');
+    if(previewStatus)previewStatus.textContent=
+      'Bộ chống trùng chung · '+project+': nguồn '+preview.sourceCount+
+      ', lịch sử trong phạm vi '+preview.historyCount+
+      ', chưa rõ danh tính '+preview.sourceBlockers.length+
+      ', xung đột lịch sử '+preview.plan.historicCandidates.length+
+      ' · đủ điều kiện ghi 0 (CHỈ ĐỌC, KHÔNG GHI).';
     const m=project==='FOXCONN'?matched.candidates:matched.matched;
     const h=project==='FOXCONN'?matched.historyOnly:matched.historicalOnly;
     const s=project==='FOXCONN'?matched.sourceOnly:matched.cashOnly;
