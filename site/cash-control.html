@@ -1435,6 +1435,11 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <button class="btn" id="ccSyncProjectCompareGoogle" type="button">Đối chiếu Payment ↔ Google · chỉ đọc</button>
           <span id="ccSyncPaymentPreflightStatus" aria-live="polite" style="font-size:12px;color:#44546b">Chưa kiểm tra.</span>
         </div>
+        <div id="ccSyncGenericExceptionPanel" hidden style="margin:8px 0;padding:10px;border:1px solid #cad4e3;border-radius:8px">
+          <strong style="font-size:13px">Dòng cần rà soát · đối chiếu chỉ đọc</strong>
+          <p style="font-size:12px;margin:5px 0">Vị trí Cash Control là số thứ tự bản chiếu từ 10/2026, KHÔNG phải số hàng Google. Dòng cùng ngày và số tiền chỉ là ứng viên; không tự thêm, sửa hoặc cấp phép đồng bộ.</p>
+          <div id="ccSyncGenericExceptionRows" style="max-height:240px;overflow:auto;font-size:12px"></div>
+        </div>
         <div id="ccSyncFoxconnExceptionPanel" hidden style="margin:8px 0;padding:10px;border:1px solid #cad4e3;border-radius:8px">
           <strong style="font-size:13px">FOXCONN · Các dòng cần rà soát (chỉ đọc)</strong>
           <p style="font-size:12px;margin:5px 0">Vị trí trong bản chiếu Cash Control từ 10/2026, KHÔNG phải số hàng Google Sheets. Dòng trùng chữ ký ngày/số tiền không xác định là khoản mới.</p>
@@ -5535,6 +5540,11 @@ async function ccSyncCompareProjectGoogleReadOnly(){
   const button=$('ccSyncProjectCompareGoogle');
   const status=$('ccSyncPaymentPreflightStatus');
   const project=normProject($('ccSyncPaymentPreflightProject')?.value||'');
+  const genericPanel=$('ccSyncGenericExceptionPanel');
+  if(genericPanel){
+    genericPanel.hidden=true;
+    $('ccSyncGenericExceptionRows')?.replaceChildren();
+  }
   const exceptionPanel=$('ccSyncFoxconnExceptionPanel');
   if(exceptionPanel){
     exceptionPanel.hidden=true;
@@ -5671,6 +5681,43 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       sourceMissing>0||matched.ambiguous>0||
       matched.identityConflict>0||missingIdentity>0||unmatchedRows>0||
       dateRegressions>0||unparsedDates>0||!matched.sourceComplete;
+    // Reuse the SAME offline reconciliation for every normal-layout project.
+    // No additional Firebase/Google read, no mutation or automatic pairing.
+    if(project!=='FOXCONN'&&genericPanel){
+      const output=$('ccSyncGenericExceptionRows');
+      const cases=[
+        ['Chỉ Cash Control',matched.sourceOnlyPositions,'cash'],
+        ['Chữ ký ngày/tiền trùng',matched.ambiguousSourcePositions,'cash'],
+        ['Xung đột HĐ/IPC',matched.identityConflictPositions,'cash'],
+        ['Thiếu danh tính',matched.identityUnverifiedPositions,'cash'],
+        ['Chỉ Google',matched.historyOnlyPositions,'google']
+      ];
+      const table=document.createElement('table');
+      table.style.cssText='width:100%;border-collapse:collapse;text-align:left';
+      const header=document.createElement('tr');
+      for(const title of ['Vấn đề','Vị trí','Ngày','Nội dung','Hợp đồng','IPC','Nguồn']){
+        const th=document.createElement('th');
+        th.textContent=title;th.style.padding='4px';header.append(th);
+      }
+      const thead=document.createElement('thead');thead.append(header);table.append(thead);
+      const tbody=document.createElement('tbody');
+      for(const [issue,positions,kind] of cases)for(const position of positions||[]){
+        const r=kind==='google'?payload.values[position-1]:source[position-1];
+        if(!r)continue;
+        const values=kind==='google'?
+          [issue,position,auditor.dateValue(r[0])||'—',r[3]||'—',r[2]||'—',r[4]||'—','Google · số hàng']:
+          [issue,position,r.date||'—',r.content||'—',r.contractNo||'—',r.ipc||'—','Cash Control · vị trí bản chiếu'];
+        const tr=document.createElement('tr');
+        for(const value of values){
+          const td=document.createElement('td');td.textContent=String(value);
+          td.style.cssText='padding:4px;border-top:1px solid #ddd;vertical-align:top';
+          tr.append(td);
+        }
+        tbody.append(tr);
+      }
+      table.append(tbody);
+      if(output){output.replaceChildren(table);genericPanel.hidden=tbody.childElementCount===0}
+    }
     // Show only exception metadata already held in memory; no extra reads,
     // downloads, Google writes or automated duplicate selections.
     let identityGroups=null;
