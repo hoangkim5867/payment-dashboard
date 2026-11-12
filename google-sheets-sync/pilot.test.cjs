@@ -1144,3 +1144,28 @@ test('manual-only: one visible Admin sync button, no auto sync toggle registrati
   assert.ok(!fn.includes('ccGoogleSyncOnCashCloudSaved('),
     'successful Cash Control saves must not schedule any Google sync');
 });
+
+test('shared planner is enforced during real DEMO pilot compare and re-run, using mocked Google TEST',async()=>{
+ const f=fixture({demo:true});
+ const first=await f.api.compare();
+ assert.equal(first.blocked.length,0);
+ assert.equal(first.changes.filter(x=>x.op==='new').length,2);
+ await f.api.commit();
+ assert.equal(f.state.rows.length,2);
+ const before=f.state.postCalls;
+ const again=await f.api.compare();
+ assert.equal(again.blocked.length,0);
+ assert.equal(again.changes.length,0);
+ assert.equal(f.state.postCalls,before);
+});
+test('DEMO pilot must fail closed when shared planner is unavailable',async()=>{
+ const f=fixture({demo:true});
+ f.context.window.CashSharedTestSyncPlanner=null;
+ const compared=await f.api.compare();
+ assert.ok(compared.blocked.some(x=>x.reason.includes('Thiếu bộ chống trùng TEST')));
+ assert.equal(compared.changes.filter(x=>x.op==='new').length,2);
+ assert.equal(f.nodes.ccGoogleSyncCommit.disabled,true);
+ assert.equal(f.state.postCalls,0);
+ await assert.rejects(f.api.commit(),/Chưa có bản so sánh sạch/);
+ assert.equal(f.state.postCalls,0);
+});
