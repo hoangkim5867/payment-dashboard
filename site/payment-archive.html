@@ -965,6 +965,12 @@
             const exactMonth=await getDocFromServer(doc(db,"paymentArchives","2026-10"));
             extraDiagnosis+=" GET tháng 2026-10: "+(exactMonth.exists()?"cho phép":"không có tài liệu")+".";
           }catch(e){extraDiagnosis+=" GET tháng 2026-10: "+String(e?.code||"unknown")+".";}
+          // Control GET on a separate approvedUser-only document.
+          // Diagnose whether denial is archive-specific or cross-collection.
+          try{
+            await getDocFromServer(doc(db,"appSettings","staffDirectory"));
+            extraDiagnosis+=" GET cấu hình: cho phép.";
+          }catch(e){extraDiagnosis+=" GET cấu hình: "+String(e?.code||"unknown")+".";}
         }
         const hints={
           "permission-denied":"Firebase từ chối quyền đọc. Không sửa Rules khi chưa xác minh.",
