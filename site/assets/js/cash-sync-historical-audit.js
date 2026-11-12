@@ -576,21 +576,32 @@
       append(source,key(date,values),{position,kind:classification.kind,
         description:norm(row.content),type:norm(row.type)});
     }
-    const supported=[],unresolved=[];
+    const supported=[],unresolved=[],numericOnly=[];
     for(const [k,items] of source){
       const candidates=history.get(k)||[];
       for(const item of items){
-        // Never treat matching date and amount alone as proof.
+        // Date + amount bucket only is a NON-IDENTITY clue. Reveal its Google
+        // row to help investigate translated/renamed descriptions, but never
+        // upgrade it to a verified counterpart or grant writing.
         const pairs=candidates.filter(h=>(item.description&&h.description===item.description)||
           (item.type&&h.type===item.type&&item.description&&h.description&&
            (h.description.includes(item.description)||item.description.includes(h.description))));
-        if(items.length===1&&candidates.length===1&&pairs.length===1)
+        if(items.length===1&&candidates.length===1&&pairs.length===1){
           supported.push({sourcePosition:item.position,googleRow:pairs[0].position,
             kind:item.kind});
-        else unresolved.push(item.position);
+        }else{
+          unresolved.push(item.position);
+          if(items.length===1&&candidates.length===1&&pairs.length===0)
+            numericOnly.push({sourcePosition:item.position,
+              googleRow:candidates[0].position,kind:item.kind,
+              googleContent:candidates[0].description,
+              sourceContent:item.description,
+              reason:'same-numbers-different-description'});
+        }
       }
     }
-    return Object.freeze({supported,unresolved,supportedCount:supported.length,
+    return Object.freeze({supported,unresolved,numericOnly,
+      supportedCount:supported.length,numericOnlyCount:numericOnly.length,
       candidateOnly:true,sourceComplete:false,canWrite:false});
   }
   // Shared reconciliation routing. This is a classification hint, never a
