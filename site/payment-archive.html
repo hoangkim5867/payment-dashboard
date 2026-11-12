@@ -37,7 +37,7 @@
   <script type="module">
     import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import {getFirestore,collection,query,orderBy,getDocs,getDoc,doc,setDoc,serverTimestamp} from "./assets/js/firestore-payment.mjs";
+    import {getFirestore,collection,query,orderBy,limit,getDocs,getDoc,getDocFromServer,doc,setDoc,serverTimestamp} from "./assets/js/firestore-payment.mjs";
 
     const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
     const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
@@ -919,7 +919,17 @@
         // Allow typing while loading; apply the query after all indexes arrive.
         companySearch.disabled=false;
         archiveLoadStep="paymentArchives";
-        const snapshot=await getDocs(query(collection(db,"paymentArchives"),orderBy("month","desc")));
+        const archiveQuery=query(collection(db,"paymentArchives"),orderBy("month","desc"));
+        let snapshot;
+        try{
+          snapshot=await getDocs(archiveQuery);
+        }catch(error){
+          if(error?.code!=="permission-denied")throw error;
+          // Recover stale Firebase identity once. No polling, writes or Rules changes.
+          await user.getIdToken(true);
+          if(authToken!==archiveAuthToken)return;
+          snapshot=await getDocs(archiveQuery);
+        }
         if(authToken!==archiveAuthToken)return;
         const archives=snapshot.docs.map(item=>({id:item.id,...item.data()}));
         renderArchives(archives,isAdmin);
@@ -931,13 +941,30 @@
         // Display only the phase and SDK error code, never credentials or user IDs.
         const errorCode=String(error?.code||"unknown").replace(/[^a-z0-9/_-]/gi,"").slice(0,70)||"unknown";
         const phase=archiveLoadStep==="authUsers"?"Xác minh tài khoản":"Đọc danh sách tháng";
+        let extraDiagnosis="";
+        if(errorCode==="permission-denied"&&archiveLoadStep==="paymentArchives"){
+          // Bounded, read-only diagnostics only after a failed archive query.
+          try{
+            const serverProfile=await getDocFromServer(doc(db,"authUsers",user.uid));
+            const p=serverProfile.data()||{};
+            const validRole=typeof p.role==="string"&&["admin","staff"].includes(p.role.toLowerCase());
+            const validFlags=(p.disabled===undefined||typeof p.disabled==="boolean")&&
+              (p.active===undefined||typeof p.active==="boolean");
+            const approved=validRole&&validFlags&&p.disabled!==true&&p.active!==false;
+            extraDiagnosis+=" Hồ sơ server: "+(approved?"hợp lệ":"không đạt điều kiện Rules")+".";
+          }catch(e){extraDiagnosis+=" Đọc hồ sơ server: "+String(e?.code||"unknown")+".";}
+          try{
+            await getDocs(query(collection(db,"paymentArchives"),limit(1)));
+            extraDiagnosis+=" Truy vấn 1 tháng: cho phép.";
+          }catch(e){extraDiagnosis+=" Truy vấn 1 tháng: "+String(e?.code||"unknown")+".";}
+        }
         const hints={
           "permission-denied":"Firebase từ chối quyền đọc. Không sửa Rules khi chưa xác minh.",
           "resource-exhausted":"Firebase có thể đã hết quota đọc. Không tự thử lại liên tục.",
           "unavailable":"Không kết nối được Firestore. Kiểm tra mạng rồi thử lại.",
           "unauthenticated":"Phiên Firebase không hợp lệ trên tên miền Preview này."
         };
-        showEmpty(t("cannotLoad"),phase+" · "+errorCode+". "+(hints[errorCode]||"Chưa xác định nguyên nhân; gửi dòng này để kiểm tra tiếp.")+
+        showEmpty(t("cannotLoad"),phase+" · "+errorCode+"."+extraDiagnosis+" "+(hints[errorCode]||"Chưa xác định nguyên nhân; gửi dòng này để kiểm tra tiếp.")+
           " Đăng nhập trên chính tên miền bản thử qua Trang chủ, rồi quay lại Kho.");
 
       }
