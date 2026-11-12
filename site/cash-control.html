@@ -5656,6 +5656,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
     const matched=project==='FOXCONN'?
       auditor.compareFoxconnCandidates(payload.values,source,{startMonth:'2026-10'}):
       auditor.compareLoadedCashControl(payload.values,project,source,{sourceComplete:false});
+    const syncPlan=auditor.buildReadOnlySyncPlan(project,matched,source);
     const m=project==='FOXCONN'?matched.candidates:matched.matched;
     const h=project==='FOXCONN'?matched.historyOnly:matched.historicalOnly;
     const s=project==='FOXCONN'?matched.sourceOnly:matched.cashOnly;
@@ -5813,7 +5814,11 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       ' · tổng lịch sử Google '+history.transactionRows+' giao dịch'+
       ' · phạm vi so khớp từ 10/2026: Google '+matched.historicalScope+
       ', Cash Control '+matched.sourceScope+' dòng'+
-      ' · ứng viên '+m+' · chỉ Google trong phạm vi '+h+
+      ' · ứng viên '+m+
+      ' · kế hoạch chung (CHỈ ĐỌC): '+syncPlan.newUnverifiedPositions.length+
+      ' khoản có thể mới, '+syncPlan.ambiguousPositions.length+
+      ' vị trí trùng, '+syncPlan.verifiedNewCount+' khoản đủ phép ghi'+
+      ' · chỉ Google trong phạm vi '+h+
       ' · chỉ Cash Control trong phạm vi '+s+
       ' · mơ hồ '+matched.ambiguous+
       ' · chưa đủ danh tính HĐ/IPC '+missingIdentity+
