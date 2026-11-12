@@ -1435,6 +1435,11 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <button class="btn" id="ccSyncProjectCompareGoogle" type="button">Đối chiếu Payment ↔ Google · chỉ đọc</button>
           <span id="ccSyncPaymentPreflightStatus" aria-live="polite" style="font-size:12px;color:#44546b">Chưa kiểm tra.</span>
         </div>
+        <div id="ccSyncFoxconnExceptionPanel" hidden style="margin:8px 0;padding:10px;border:1px solid #cad4e3;border-radius:8px">
+          <strong style="font-size:13px">FOXCONN · Các dòng cần rà soát (chỉ đọc)</strong>
+          <p style="font-size:12px;margin:5px 0">Vị trí trong bản chiếu Cash Control từ 10/2026, KHÔNG phải số hàng Google Sheets. Dòng trùng chữ ký ngày/số tiền không xác định là khoản mới.</p>
+          <div id="ccSyncFoxconnExceptionRows" style="max-height:240px;overflow:auto;font-size:12px"></div>
+        </div>
         <div id="ccSyncProjectCatalogEntries" style="max-height:420px;overflow:auto;display:grid;gap:7px"></div>
       </details>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
@@ -5530,6 +5535,11 @@ async function ccSyncCompareProjectGoogleReadOnly(){
   const button=$('ccSyncProjectCompareGoogle');
   const status=$('ccSyncPaymentPreflightStatus');
   const project=normProject($('ccSyncPaymentPreflightProject')?.value||'');
+  const exceptionPanel=$('ccSyncFoxconnExceptionPanel');
+  if(exceptionPanel){
+    exceptionPanel.hidden=true;
+    $('ccSyncFoxconnExceptionRows')?.replaceChildren();
+  }
   if(!button||!status||button.disabled)return;
   if(!currentAuthUser||!isCashControlOwner()){
     status.textContent='Chỉ Admin được kiểm tra.';return;
@@ -5656,6 +5666,41 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       sourceMissing>0||matched.ambiguous>0||
       matched.identityConflict>0||missingIdentity>0||unmatchedRows>0||
       dateRegressions>0||unparsedDates>0||!matched.sourceComplete;
+    // Show only exception metadata already held in memory; no extra reads,
+    // downloads, Google writes or automated duplicate selections.
+    if(project==='FOXCONN'&&exceptionPanel){
+      const output=$('ccSyncFoxconnExceptionRows');
+      const cases=[
+        ['Chỉ Cash Control (chữ ký chưa có ở Google)',matched.sourceOnlyPositions],
+        ['Cùng chữ ký, chưa xác định bản ghi',matched.ambiguousSourcePositions],
+        ['Xung đột HĐ/IPC',matched.identityConflictPositions],
+        ['Thiếu danh tính HĐ/IPC',matched.identityUnverifiedPositions]
+      ];
+      const table=document.createElement('table');
+      table.style.cssText='width:100%;border-collapse:collapse;text-align:left';
+      const thead=document.createElement('thead');
+      const tr=document.createElement('tr');
+      for(const label of ['Vấn đề','Vị trí','Ngày','Hợp đồng','IPC']){
+        const th=document.createElement('th');
+        th.textContent=label;th.style.padding='4px';tr.append(th);
+      }
+      thead.append(tr);table.append(thead);
+      const tbody=document.createElement('tbody');
+      for(const [issue,positions] of cases)for(const position of positions||[]){
+        const row=source[position-1];
+        if(!row)continue;
+        const line=document.createElement('tr');
+        for(const value of [issue,position,row.date||'—',row.contractNo||'—',row.ipc||'—']){
+          const td=document.createElement('td');
+          td.textContent=String(value);
+          td.style.cssText='padding:4px;border-top:1px solid #ddd;vertical-align:top';
+          line.append(td);
+        }
+        tbody.append(line);
+      }
+      table.append(tbody);
+      if(output){output.replaceChildren(table);exceptionPanel.hidden=tbody.childElementCount===0}
+    }
     status.textContent=(blocked?'CHƯA ĐỦ ĐIỀU KIỆN · ':'CHỈ ĐỌC · ')+project+
       ' · Payment '+rowsLoaded+' hồ sơ đã tải; đếm Firestore tên chuẩn '+rawCount+
       (countUnverified?' (chênh lệch, chưa xác nhận đủ nguồn)':' (số lượng bằng nhau, chưa xác nhận đủ nguồn)')+
