@@ -386,13 +386,13 @@
     const clean=v=>String(v??'').normalize('NFKC').trim().replace(/\s+/g,' ').toUpperCase();
     const signature=(company,contractNo,ipc)=>[clean(company),clean(contractNo),clean(ipc)];
     const hMap=new Map(),sMap=new Map();
-    const add=(m,k,id)=>m.set(k,[...(m.get(k)||[]),id]);
+    const add=(m,k,id,position)=>m.set(k,[...(m.get(k)||[]),{id,position}]);
     let historicalScope=0,sourceScope=0,invalidHistory=0,invalidSource=0,unmappedTax=0;
     // Historical workbooks may repeat section headings with different layouts.
     // Verify N is actually the tax column for EACH dated section. No header
     // means no reliable column mapping, not an assumed numeric candidate.
     let verifiedTaxColumn=false;
-    for(const row of historicalRows){
+    for(const [index,row] of historicalRows.entries()){
       if(!Array.isArray(row))continue;
       const d=dateValue(row[0]);
       if(!d){
@@ -409,9 +409,9 @@
       if(values.length!==8||values.some(v=>!Number.isFinite(v))){
         invalidHistory++;continue;
       }
-      add(hMap,key(d,values),signature(row[1],row[2],row[4]));
+      add(hMap,key(d,values),signature(row[1],row[2],row[4]),index+1);
     }
-    for(const row of sourceRows){
+    for(const [index,row] of sourceRows.entries()){
       const d=dateValue(row?.date);
       if(!d||d.slice(0,7)<startMonth)continue;
       sourceScope++;
@@ -426,22 +426,42 @@
       const fields=['income','subcontract','material','otherDirect','indirect','financial','otherPayable'];
       const values=[...fields.map(f=>amount(row[f],true)),amount(row.importTaxVat)];
       if(values.some(v=>!Number.isFinite(v))){invalidSource++;continue}
-      add(sMap,key(d,values),signature(row.company,row.contractNo,row.ipc));
+      add(sMap,key(d,values),signature(row.company,row.contractNo,row.ipc),index+1);
     }
     let candidates=0,historyOnly=0,sourceOnly=0,ambiguous=0;
     let identityConflict=0,identityUnverified=0,identityConsistent=0;
+    // Position-only diagnostics, never disclose amounts or infer which
+    // duplicate is new when identical date/category signatures repeat.
+    const sourceOnlyPositions=[],historyOnlyPositions=[];
+    const ambiguousSourcePositions=[],identityConflictPositions=[];
+    const identityUnverifiedPositions=[];
     for(const k of new Set([...hMap.keys(),...sMap.keys()])){
       const a=hMap.get(k)||[],b=sMap.get(k)||[];
       const matches=Math.min(a.length,b.length);
       candidates+=matches;
-      if(a.length>1||b.length>1)ambiguous+=matches;
+      if(a.length>1||b.length>1){
+        ambiguous+=matches;
+        for(const item of b)if(ambiguousSourcePositions.length<20)
+          ambiguousSourcePositions.push(item.position);
+      }
+      // Only label an exact source row as missing when the signature is
+      // entirely absent from Google; excess duplicates are unresolved.
+      if(a.length===0)for(const item of b)if(sourceOnlyPositions.length<20)
+        sourceOnlyPositions.push(item.position);
+      if(b.length===0)for(const item of a)if(historyOnlyPositions.length<20)
+        historyOnlyPositions.push(item.position);
       historyOnly+=Math.max(0,a.length-b.length);
       sourceOnly+=Math.max(0,b.length-a.length);
       if(a.length===1&&b.length===1){
-        const known=a[0].map((x,i)=>x&&b[0][i]?i:-1).filter(i=>i>=0);
-        if(known.some(i=>a[0][i]!==b[0][i]))identityConflict++;
-        else if(known.length===3)identityConsistent++;
-        else identityUnverified++;
+        const known=a[0].id.map((x,i)=>x&&b[0].id[i]?i:-1).filter(i=>i>=0);
+        if(known.some(i=>a[0].id[i]!==b[0].id[i])){
+          identityConflict++;
+          if(identityConflictPositions.length<20)identityConflictPositions.push(b[0].position);
+        }else if(known.length===3)identityConsistent++;
+        else{
+          identityUnverified++;
+          if(identityUnverifiedPositions.length<20)identityUnverifiedPositions.push(b[0].position);
+        }
       }
     }
     return Object.freeze({project:'FOXCONN',status:unmappedTax?
@@ -449,6 +469,10 @@
       candidates,historyOnly,sourceOnly,ambiguous,unmappedTax,
       identityConflict,identityUnverified,identityConsistent,
       invalidHistory,invalidSource,
+      // Cash positions refer to the read-only projected source array (1-based);
+      // Google positions are actual worksheet row numbers (1-based).
+      sourceOnlyPositions,historyOnlyPositions,ambiguousSourcePositions,
+      identityConflictPositions,identityUnverifiedPositions,
       sourceComplete:false,identityVerified:false,canWrite:false});
   }
   // Pure read-only release gate for real project Sheets. A consistent ledger
