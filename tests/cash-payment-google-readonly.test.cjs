@@ -561,3 +561,37 @@ test('FOXCONN bilingual personnel, tax and receipt candidates stay read-only',()
  assert.equal(wrong.semanticCandidateCount,4);
  assert.equal(wrong.numericOnlyCount,1);
 });
+
+test('generic project audit reports actual review positions without authorizing writes',()=>{
+ const h=(day,n,contract,ipc)=>['2026-10-'+day,'ACME',contract,'',ipc,'',n,0,0,0,0,0,0];
+ const s=(day,n,contract,ipc)=>({date:'2026-10-'+day,company:'ACME',
+  contractNo:contract,ipc,income:n,subcontract:0,material:0,otherDirect:0,
+  indirect:0,financial:0,otherPayable:0});
+ const history=[h('01',100,'C1','IPC1'),h('02',200,'C2','IPC1'),
+  h('03',300,'C3','IPC1'),h('03',300,'C3','IPC1'),h('04',400,'C4','IPC1')];
+ const source=[s('01',100,'DIFFERENT','IPC1'),s('03',300,'C3','IPC1'),
+  s('03',300,'C3','IPC1'),s('04',400,'C4',''),s('05',500,'C5','IPC1')];
+ const x=auditor.compareLoadedCashControl(history,'ELYSIAN',source,{sourceComplete:false});
+ assert.deepEqual(x.historyOnlyPositions,[2]);
+ assert.deepEqual(x.sourceOnlyPositions,[5]);
+ assert.deepEqual(x.ambiguousSourcePositions,[2,3]);
+ assert.deepEqual(x.identityConflictPositions,[1]);
+ assert.deepEqual(x.identityUnverifiedPositions,[4]);
+ assert.equal(x.ambiguous,2);
+ assert.equal(x.candidateOnly,true);
+ assert.equal(x.canWrite,false);
+ assert.equal(x.sourceComplete,false);
+});
+test('generic exception table reuses loaded Google and Cash Control arrays only',()=>{
+ const begin=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',begin);
+ const fn=code.slice(begin,end);
+ assert.match(code,/id="ccSyncGenericExceptionPanel" hidden/);
+ assert.match(code,/id="ccSyncGenericExceptionRows"/);
+ assert.match(fn,/project!=='FOXCONN'&&genericPanel/);
+ assert.match(fn,/matched\.sourceOnlyPositions/);
+ assert.match(fn,/matched\.historyOnlyPositions/);
+ assert.match(fn,/matched\.ambiguousSourcePositions/);
+ assert.match(fn,/payload\.values\[position-1\]:source\[position-1\]/);
+ assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
+});
