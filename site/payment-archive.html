@@ -942,6 +942,21 @@
         const errorCode=String(error?.code||"unknown").replace(/[^a-z0-9/_-]/gi,"").slice(0,70)||"unknown";
         const phase=archiveLoadStep==="authUsers"?"Xác minh tài khoản":"Đọc danh sách tháng";
         let extraDiagnosis="";
+        // No Firestore read: verify browser Auth identity and signed ID token agree.
+        // Surface only consistency and project metadata, never raw token or UID.
+        if(errorCode==="permission-denied"){
+          try{
+            const token=await user.getIdTokenResult();
+            const tokenUid=String(token.claims.user_id||token.claims.sub||"");
+            const tokenProject=String(token.claims.aud||"");
+            const tokenIssuer=String(token.claims.iss||"");
+            const uidMatches=tokenUid===user.uid;
+            const projectMatches=tokenProject===firebaseConfig.projectId &&
+              tokenIssuer==="https://securetoken.google.com/"+firebaseConfig.projectId;
+            extraDiagnosis+=" Auth SDK/token cùng UID: "+(uidMatches?"có":"KHÔNG")+
+              "; token đúng Firebase project: "+(projectMatches?"có":"KHÔNG")+".";
+          }catch(e){extraDiagnosis+=" Không xác minh được ID token ("+String(e?.code||"unknown")+").";}
+        }
         if(errorCode==="permission-denied"&&archiveLoadStep==="paymentArchives"){
           // Bounded, read-only diagnostics only after a failed archive query.
           try{
