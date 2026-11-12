@@ -110,3 +110,14 @@ test('Google compare blocks invalid historical layout, balances and unmatched pa
  assert.match(fn,/dòng Google không đối chiếu được/);
  assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
 });
+
+test('manual Google report blocks unmatched and unverified identity candidates',()=>{
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ const fn=code.slice(start,end);
+ assert.match(fn,/const unmatchedRows=Number\(h\|\|0\)\+Number\(s\|\|0\)/);
+ assert.match(fn,/const missingIdentity=Number\(matched\.identityUnverified\|\|0\)/);
+ assert.match(fn,/missingIdentity>0\|\|unmatchedRows>0/);
+ assert.match(fn,/chưa đủ danh tính HĐ\/IPC/);
+ assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
+});
