@@ -121,3 +121,16 @@ test('manual Google report blocks unmatched and unverified identity candidates',
  assert.match(fn,/chưa đủ danh tính HĐ\/IPC/);
  assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
 });
+
+test('FOXCONN readiness blocks its native unmatched fields, identity and tax errors',()=>{
+ const history={status:'internally-consistent',transactionRows:1,continuityErrors:0,
+   roundingDifferences:0,missingBalance:0,invalidMoney:0,nonMonotonicDates:0};
+ const comparison={sourceComplete:true,invalidHistory:0,invalidSource:0,
+   ambiguous:0,historyOnly:1,sourceOnly:1,identityConflict:1,
+   identityUnverified:1,unmappedTax:1};
+ const result=auditor.assessProjectSyncReadiness('FOXCONN',history,comparison);
+ assert.equal(result.status,'blocked');
+ assert.equal(result.canWrite,false);
+ for(const code of ['UNRESOLVED_MATCH','IDENTITY_CONFLICT','IDENTITY_UNVERIFIED','TAX_UNMAPPED'])
+   assert.ok(result.blockers.some(x=>x.code===code),code);
+});
