@@ -65,6 +65,7 @@ if(require.main===module){
    path.join(__dirname,'../tests/cash-shared-test-server-gates.test.cjs'),
    path.join(__dirname,'../tests/cash-shared-test-runner.test.cjs'),
    path.join(__dirname,'../tests/cash-shared-test-readiness.test.cjs'),
+   path.join(__dirname,'../tests/cash-shared-test-google-probe.test.cjs'),
    path.join(__dirname,'../google-sheets-sync/pilot.test.cjs')
  ],{stdio:'inherit',timeout:60000});
  const target=process.env.VERCEL_ENV==='production'?'production':'staging';
