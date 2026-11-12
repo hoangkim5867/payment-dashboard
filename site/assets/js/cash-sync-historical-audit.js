@@ -388,12 +388,23 @@
     const hMap=new Map(),sMap=new Map();
     const add=(m,k,id)=>m.set(k,[...(m.get(k)||[]),id]);
     let historicalScope=0,sourceScope=0,invalidHistory=0,invalidSource=0,unmappedTax=0;
+    // Historical workbooks may repeat section headings with different layouts.
+    // Verify N is actually the tax column for EACH dated section. No header
+    // means no reliable column mapping, not an assumed numeric candidate.
+    let verifiedTaxColumn=false;
     for(const row of historicalRows){
       if(!Array.isArray(row))continue;
       const d=dateValue(row[0]);
-      if(!d||d.slice(0,7)<startMonth)continue;
+      if(!d){
+        const header=foxconnHeader(row);
+        if(header)verifiedTaxColumn=!header.invalid&&header.taxIndex===13&&
+          (header.balanceIndex===null||header.balanceIndex===14);
+        continue;
+      }
+      if(d.slice(0,7)<startMonth)continue;
       historicalScope++;
-      // FOXCONN: G income, H:M 6 expenses, N tax; O is running balance.
+      if(!verifiedTaxColumn){invalidHistory++;continue}
+      // Header-verified FOXCONN: G income, H:M 6 expenses, N tax; O balance.
       const values=row.slice(6,14).map(v=>amount(v,true));
       if(values.length!==8||values.some(v=>!Number.isFinite(v))){
         invalidHistory++;continue;
