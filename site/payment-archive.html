@@ -37,7 +37,7 @@
   <script type="module">
     import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import {getFirestore,collection,query,orderBy,getDocs,getDoc,doc,setDoc,serverTimestamp} from "./assets/js/firestore-payment.mjs";
+    import {getFirestore,collection,query,orderBy,limit,getDocs,getDoc,getDocFromServer,doc,setDoc,serverTimestamp} from "./assets/js/firestore-payment.mjs";
 
     const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
     const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
@@ -111,13 +111,14 @@
       renderMonthOptions();
     };
     const renderArchives=(archives,isAdmin=false)=>{
+      const pendingSearch=companySearch.value;
       emptyState=null;
       archiveItems=[...archives];
       archivesByMonth=new Map(archives.map(item=>[String(item.month||""),item]));
       currentUserIsAdmin=isAdmin;
       renderMonthOptions();
       monthSelect.disabled=!archives.length;
-      companySearch.value="";
+      companySearch.value=pendingSearch;
       companySearch.disabled=!archives.length;
       archiveDownload.classList.remove("show");
       archiveDownload.removeAttribute("href");
@@ -125,6 +126,7 @@
       viewer.classList.remove("show");
       viewer.innerHTML="";
       if(!archives.length){showViewerMessageKey("noClosedMonths");}
+      else if(normalizeSearch(pendingSearch)) runCompanySearch();
     };
 
     const showViewerMessage=(message,{scroll=true}={})=>{
@@ -452,7 +454,7 @@
       }
     };
 
-    const renderGlobalCompanySearch=searchTerm=>{
+    const renderGlobalCompanySearch=(searchTerm,visibleCount=200)=>{
       archiveItems.forEach(enrichArchiveIndexFromSessionDetails);
       const matches=[];
       archiveItems.forEach(archive=>{
@@ -489,8 +491,9 @@
       const monthCount=new Set(matches.map(item=>item.month)).size;
       const totalPaid=matches.reduce((sum,item)=>sum+(Number(item.actualAmount)||0),0);
       currentGlobalSearchRows=[...matches];
-      const rows=matches.map(item=>`<tr><td class="center">${escapeHtml(moneyMonth(item.month))}</td><td>${escapeHtml(item.company)}</td><td>${escapeHtml(item.project)}</td><td>${escapeHtml(item.contractNo)}</td><td class="center">${escapeHtml(item.ipcNo)}</td><td class="right">${formatMoney(item.actualAmount)}</td><td class="center"><button type="button" class="search-open-month" data-search-month="${escapeHtml(item.month)}">${escapeHtml(t("openMonth"))}</button></td></tr>`).join("");
-      const adminSearchSummary=currentUserIsAdmin
+      const rows=matches.slice(0,visibleCount).map(item=>`<tr><td class="center">${escapeHtml(moneyMonth(item.month))}</td><td>${escapeHtml(item.company)}</td><td>${escapeHtml(item.project)}</td><td>${escapeHtml(item.contractNo)}</td><td class="center">${escapeHtml(item.ipcNo)}</td><td class="right">${formatMoney(item.actualAmount)}</td><td class="center"><button type="button" class="search-open-month" data-search-month="${escapeHtml(item.month)}">${escapeHtml(t("openMonth"))}</button></td></tr>`).join("");
+      const moreResults=matches.length>visibleCount ? `<div class="viewer-message" style="padding:10px 12px"><span>Đang hiển thị ${formatMoney(Math.min(visibleCount,matches.length))}/${formatMoney(matches.length)} kết quả. </span><button type="button" id="archiveSearchMore">Xem thêm kết quả</button></div>` : "";
+       const adminSearchSummary=currentUserIsAdmin
         ? `<span><b>${formatMoney(totalPaid)}</b>VND · ${escapeHtml(t("searchTotal"))}</span>`
         : "";
       const adminSearchExport=currentUserIsAdmin&&matches.length
@@ -498,7 +501,7 @@
         : "";
 
       viewer.classList.add("show");
-      viewer.innerHTML=`<div class="viewer-heading"><div><h2>${escapeHtml(t("searchResults"))}</h2></div><div style="display:flex;align-items:center;gap:7px">${adminSearchExport}<button class="viewer-close" type="button" id="closeArchiveViewer">${escapeHtml(t("close"))}</button></div></div>${indexWarning}<div class="viewer-summary"><span><b>${formatMoney(matches.length)}</b>${escapeHtml(t("searchResults"))}</span><span><b>${formatMoney(monthCount)}</b>${escapeHtml(t("monthColumn"))}</span>${adminSearchSummary}</div><div class="viewer-table-wrap"><table class="viewer-table global-search-table"><thead><tr><th>${escapeHtml(t("monthColumn"))}</th><th>${escapeHtml(t("company"))}</th><th>${escapeHtml(t("project"))}</th><th>${escapeHtml(t("contractNo"))}</th><th>IPC</th><th>${escapeHtml(t("actualAmount"))}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="center">${escapeHtml(t("noCompanyMatches"))}</td></tr>`}</tbody></table></div>`;
+      viewer.innerHTML=`<div class="viewer-heading"><div><h2>${escapeHtml(t("searchResults"))}</h2></div><div style="display:flex;align-items:center;gap:7px">${adminSearchExport}<button class="viewer-close" type="button" id="closeArchiveViewer">${escapeHtml(t("close"))}</button></div></div>${indexWarning}<div class="viewer-summary"><span><b>${formatMoney(matches.length)}</b>${escapeHtml(t("searchResults"))}</span><span><b>${formatMoney(monthCount)}</b>${escapeHtml(t("monthColumn"))}</span>${adminSearchSummary}</div><div class="viewer-table-wrap"><table class="viewer-table global-search-table"><thead><tr><th>${escapeHtml(t("monthColumn"))}</th><th>${escapeHtml(t("company"))}</th><th>${escapeHtml(t("project"))}</th><th>${escapeHtml(t("contractNo"))}</th><th>IPC</th><th>${escapeHtml(t("actualAmount"))}</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="7" class="center">${escapeHtml(t("noCompanyMatches"))}</td></tr>`}</tbody></table></div>${moreResults}`;
     };
 
     const exportGlobalSearchExcel=async()=>{
@@ -760,7 +763,17 @@
     });
     companySearch.addEventListener("input",handleCompanySearchInput);
     viewer.addEventListener("click",event=>{
-      const exportSearchButton=event.target.closest("#exportSearchResultsBtn");
+      const moreResultsButton=event.target.closest("#archiveSearchMore");
+       if(moreResultsButton){
+         event.preventDefault();
+         const searchTerm=normalizeSearch(companySearch.value);
+         if(viewerMode==="global-search"&&searchTerm){
+           const visible=viewer.querySelectorAll(".global-search-table tbody tr").length;
+           renderGlobalCompanySearch(searchTerm,visible+200);
+         }
+         return;
+       }
+       const exportSearchButton=event.target.closest("#exportSearchResultsBtn");
       if(exportSearchButton){
         event.preventDefault();
         exportGlobalSearchExcel();
@@ -889,6 +902,7 @@
         viewer.classList.remove("show");viewer.innerHTML="";
         showEmptyKey("loginRequired","loginRequiredDetail");return;
       }
+      let archiveLoadStep="authUsers";
       try{
         const profile=await getDoc(doc(db,"authUsers",user.uid));
         if(authToken!==archiveAuthToken)return;
@@ -902,14 +916,86 @@
           showEmptyKey("accessDenied","accessDeniedDetail");return;
         }
         const isAdmin=String(profile.data()?.role||"").trim().toLowerCase()==="admin";
-        const snapshot=await getDocs(query(collection(db,"paymentArchives"),orderBy("month","desc")));
+        // Allow typing while loading; apply the query after all indexes arrive.
+        companySearch.disabled=false;
+        archiveLoadStep="paymentArchives";
+        const archiveQuery=query(collection(db,"paymentArchives"),orderBy("month","desc"));
+        let snapshot;
+        try{
+          snapshot=await getDocs(archiveQuery);
+        }catch(error){
+          if(error?.code!=="permission-denied")throw error;
+          // Recover stale Firebase identity once. No polling, writes or Rules changes.
+          await user.getIdToken(true);
+          if(authToken!==archiveAuthToken)return;
+          snapshot=await getDocs(archiveQuery);
+        }
         if(authToken!==archiveAuthToken)return;
         const archives=snapshot.docs.map(item=>({id:item.id,...item.data()}));
         renderArchives(archives,isAdmin);
       }catch(error){
         if(authToken!==archiveAuthToken)return;
-        console.error("PAYMENT ARCHIVE LOAD ERROR:",error);
-        showEmptyKey("cannotLoad","cannotLoadDetail");
+        console.error("PAYMENT ARCHIVE LOAD ERROR:",archiveLoadStep,error);
+        companySearch.disabled=true;
+        monthSelect.disabled=true;
+        // Display only the phase and SDK error code, never credentials or user IDs.
+        const errorCode=String(error?.code||"unknown").replace(/[^a-z0-9/_-]/gi,"").slice(0,70)||"unknown";
+        const phase=archiveLoadStep==="authUsers"?"Xác minh tài khoản":"Đọc danh sách tháng";
+        let extraDiagnosis="";
+        // No Firestore read: verify browser Auth identity and signed ID token agree.
+        // Surface only consistency and project metadata, never raw token or UID.
+        if(errorCode==="permission-denied"){
+          try{
+            const token=await user.getIdTokenResult();
+            const tokenUid=String(token.claims.user_id||token.claims.sub||"");
+            const tokenProject=String(token.claims.aud||"");
+            const tokenIssuer=String(token.claims.iss||"");
+            const uidMatches=tokenUid===user.uid;
+            const projectMatches=tokenProject===firebaseConfig.projectId &&
+              tokenIssuer==="https://securetoken.google.com/"+firebaseConfig.projectId;
+            extraDiagnosis+=" Auth SDK/token cùng UID: "+(uidMatches?"có":"KHÔNG")+
+              "; token đúng Firebase project: "+(projectMatches?"có":"KHÔNG")+".";
+          }catch(e){extraDiagnosis+=" Không xác minh được ID token ("+String(e?.code||"unknown")+").";}
+        }
+        if(errorCode==="permission-denied"&&archiveLoadStep==="paymentArchives"){
+          // Bounded, read-only diagnostics only after a failed archive query.
+          try{
+            const serverProfile=await getDocFromServer(doc(db,"authUsers",user.uid));
+            const p=serverProfile.data()||{};
+            const validRole=typeof p.role==="string"&&["admin","staff"].includes(p.role.toLowerCase());
+            const validFlags=(p.disabled===undefined||typeof p.disabled==="boolean")&&
+              (p.active===undefined||typeof p.active==="boolean");
+            const approved=validRole&&validFlags&&p.disabled!==true&&p.active!==false;
+            const role=validRole?p.role.toLowerCase():"không hợp lệ";
+            const isOwner=user.uid==="HTx2QuATHxh8zgAawwreg88w65M2";
+            extraDiagnosis+=" Hồ sơ server: "+(approved?"hợp lệ":"không đạt điều kiện Rules")+"; vai trò "+role+"; đúng Admin chủ sở hữu: "+(isOwner?"có":"không")+"; email phiên này: "+String(user.email||"không có email").slice(0,150)+".";
+          }catch(e){extraDiagnosis+=" Đọc hồ sơ server: "+String(e?.code||"unknown")+".";}
+          try{
+            await getDocs(query(collection(db,"paymentArchives"),limit(1)));
+            extraDiagnosis+=" Truy vấn 1 tháng: cho phép.";
+          }catch(e){extraDiagnosis+=" Truy vấn 1 tháng: "+String(e?.code||"unknown")+".";}
+          // A direct GET is a distinct Rules operation from a collection LIST.
+          // Run only after failure, for one known historical month. No enumeration.
+          try{
+            const exactMonth=await getDocFromServer(doc(db,"paymentArchives","2026-10"));
+            extraDiagnosis+=" GET tháng 2026-10: "+(exactMonth.exists()?"cho phép":"không có tài liệu")+".";
+          }catch(e){extraDiagnosis+=" GET tháng 2026-10: "+String(e?.code||"unknown")+".";}
+          // Control GET on a separate approvedUser-only document.
+          // Diagnose whether denial is archive-specific or cross-collection.
+          try{
+            await getDocFromServer(doc(db,"appSettings","staffDirectory"));
+            extraDiagnosis+=" GET cấu hình: cho phép.";
+          }catch(e){extraDiagnosis+=" GET cấu hình: "+String(e?.code||"unknown")+".";}
+        }
+        const hints={
+          "permission-denied":"Firebase từ chối quyền đọc. Không sửa Rules khi chưa xác minh.",
+          "resource-exhausted":"Firebase có thể đã hết quota đọc. Không tự thử lại liên tục.",
+          "unavailable":"Không kết nối được Firestore. Kiểm tra mạng rồi thử lại.",
+          "unauthenticated":"Phiên Firebase không hợp lệ trên tên miền Preview này."
+        };
+        showEmpty(t("cannotLoad"),phase+" · "+errorCode+"."+extraDiagnosis+" "+(hints[errorCode]||"Chưa xác định nguyên nhân; gửi dòng này để kiểm tra tiếp.")+
+          " Đăng nhập trên chính tên miền bản thử qua Trang chủ, rồi quay lại Kho.");
+
       }
     });
   </script>

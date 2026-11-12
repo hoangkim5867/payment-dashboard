@@ -106,7 +106,11 @@ if(view){
    allButton.hidden=true;toolbar.append(allButton);
    allButton.addEventListener("click",openAllMonths);
   }
-  if(allButton)allButton.hidden=!(allowed()&&Number(window.__archivePaidIpcAllPreview?.()?.months||0)>0);
+  if(allButton){
+   const shouldHide=!(allowed()&&Number(window.__archivePaidIpcAllPreview?.()?.months||0)>0);
+   // Avoid redundant hidden-attribute mutations; Admin menu also observes the toolbar.
+   if(allButton.hidden!==shouldHide)allButton.hidden=shouldHide;
+  }
   if(!allowed())return;
   const heading=$(".viewer-heading",view),table=$(".viewer-table:not(.global-search-table)",view);
   if(!heading||!table||$(".archive-ipc-bulk-launch",heading))return;
