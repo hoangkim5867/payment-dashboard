@@ -1437,9 +1437,6 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <button class="btn" id="ccSyncPaymentPreflightCount" type="button">Đếm Payment 1 dự án (có Firestore reads)</button>
           <button class="btn" id="ccSyncPaymentPreflightLoad" type="button">Tải chi tiết Payment 1 dự án (chỉ đọc · có reads)</button>
           <span id="ccSyncPaymentPreflightStatus" aria-live="polite" style="font-size:12px;color:#44546b">Chưa kiểm tra.</span>
-          <button class="btn" id="ccSyncPaymentOfflineImport" type="button">Nhập Excel Payment để kiểm tra offline (0 reads)</button>
-          <input id="ccSyncPaymentOfflineFile" type="file" accept=".xlsx,.xls,.csv" hidden>
-          <span id="ccSyncPaymentOfflineStatus" aria-live="polite" style="font-size:12px;color:#44546b">Chưa nhập file. Chỉ đọc tại máy; không gửi dữ liệu.</span>
         </div>
         <div id="ccSyncProjectCatalogEntries" style="max-height:420px;overflow:auto;display:grid;gap:7px"></div>
       </details>
@@ -5496,59 +5493,6 @@ async function ccSyncLoadOneProjectReadOnly(){
       String(error?.message||'lỗi').slice(0,110)+'. Không tự đọc lại, 0 writes.';
   }finally{button.disabled=false}
 }
-// Offline Payment XLSX inspection: never uploads, writes, stores, or assumes
-// the export schema. Header discovery is diagnostic only, not a duplicate verdict.
-async function ccSyncInspectPaymentExportOffline(file){
-  const status=$('ccSyncPaymentOfflineStatus');
-  const selected=normProject($('ccSyncPaymentPreflightProject')?.value||'');
-  if(!status)return;
-  if(!currentAuthUser||!isCashControlOwner()){
-    status.textContent='Chỉ Admin được đọc file ở màn hình này.';return;
-  }
-  if(!file||file.size===0||file.size>8*1024*1024){
-    status.textContent='Chọn file Excel/CSV không rỗng, tối đa 8MB.';return;
-  }
-  if(!/\\.(xlsx|xls|csv)$/i.test(file.name)){
-    status.textContent='Chỉ hỗ trợ .xlsx, .xls hoặc .csv.';return;
-  }
-  status.textContent='Đang kiểm tra cấu trúc file tại trình duyệt, 0 Firebase/Google reads…';
-  try{
-    if(!window.XLSX||typeof window.XLSX.read!=='function')
-      throw Error('Thư viện đọc Excel chưa tải');
-    const bytes=await file.arrayBuffer();
-    const book=window.XLSX.read(bytes,{type:'array',cellDates:false,bookVBA:false,bookFiles:false});
-    if(!book.SheetNames?.length||book.SheetNames.length>25)throw Error('Số tab không hợp lệ');
-    const summaries=[];
-    for(const name of book.SheetNames){
-      const sheet=book.Sheets[name];
-      const range=window.XLSX.utils.decode_range(sheet['!ref']||'A1');
-      if(range.e.r-range.s.r+1>20000||range.e.c>120)throw Error('Tab vượt giới hạn 20.000 hàng / 121 cột');
-      const records=window.XLSX.utils.sheet_to_json(sheet,{header:1,raw:false,defval:'',blankrows:false});
-      if(!records.length)continue;
-      // Inspect header words only; never show or persist individual payments.
-      const header=records.slice(0,12).map((row,i)=>({
-        row:i+1,
-        cells:(Array.isArray(row)?row:[]).map(v=>String(v??'').trim())
-      }));
-      const tests=[
-        /dự án|项目|project/i,/hợp đồng|合同|contract/i,
-        /ipc/i,/số tiền|金额|amount/i,/ngày.*(thanh toán|chi)|付款日期|payment date/i
-      ];
-      const observed=tests.map(test=>header.some(item=>item.cells.some(s=>test.test(s))));
-      summaries.push({tab:name,rows:records.length,observed});
-    }
-    if(!summaries.length)throw Error('Không có bảng dữ liệu');
-    const labels=['dự án','hợp đồng','IPC','số tiền','ngày thanh toán'];
-    status.textContent='FILE PAYMENT OFFLINE · chọn '+selected+
-      ' · '+summaries.map(s=>s.tab+': '+s.rows+' hàng, nhãn nhận dạng ['+
-      labels.filter((_,i)=>s.observed[i]).join(', ')+']').join(' · ')+
-      '. Chưa xác nhận file chỉ có '+selected+
-      '; chưa đối chiếu giao dịch hoặc chứng nhận nguồn đầy đủ. 0 Firebase/Google reads, 0 writes, không lưu file.';
-  }catch(error){
-    status.textContent='Không đọc được bản xuất: '+String(error?.message||'lỗi').slice(0,110)+
-      '. Chưa đối chiếu, 0 writes.';
-  }
-}
 function ccSyncProjectCatalogRender(){
   const wrap=$('ccSyncProjectCatalogEntries');
   if(!wrap)return;
@@ -5960,13 +5904,6 @@ function ccSyncProjectCatalogInitialize(){
   $('ccSyncProjectBatchHistoricalAudit')?.addEventListener('click',ccSyncProjectBatchHistoricalAudit);
   $('ccSyncPaymentPreflightCount')?.addEventListener('click',ccSyncCountOneProject);
   $('ccSyncPaymentPreflightLoad')?.addEventListener('click',ccSyncLoadOneProjectReadOnly);
-  const offlineFile=$('ccSyncPaymentOfflineFile');
-  $('ccSyncPaymentOfflineImport')?.addEventListener('click',()=>offlineFile?.click());
-  offlineFile?.addEventListener('change',async()=>{
-    const file=offlineFile.files?.[0];
-    if(file)await ccSyncInspectPaymentExportOffline(file);
-    offlineFile.value='';
-  });
   $('ccSyncProjectCatalogExport')?.addEventListener('click',()=>{
     const payload={schema:'CASH_SYNC_PROJECT_LINK_DRAFT_V1',projects:ccSyncProjectLinkDraft,
       note:'Local draft only; does not authorize Google Sheets sync'};
