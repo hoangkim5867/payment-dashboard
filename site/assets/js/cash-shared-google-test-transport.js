@@ -10,7 +10,7 @@
   const HEADER=['sourceId','project','date','sourceType','company','contractNo',
     'ipc','income','subcontract','material','otherDirect','indirect',
     'financial','otherPayable','importTaxVat'];
-  const b64=v=>encodeURIComponent("'"+v.replace(/'/g,"''")+"'");
+  const range=(tab,cells)=>encodeURIComponent("'"+tab.replace(/'/g,"''")+"'!"+cells);
   const fail=(code)=>{throw Error(code)};
   const validate=(target)=>{
     if(!target||target.isTestCopy!==true||!/^[-A-Za-z0-9_]{20,}$/.test(target.spreadsheetId)||
@@ -25,9 +25,9 @@
   const serialize=row=>[row.sourceId,row.project,row.date,row.sourceType,
     row.company,row.contractNo,row.ipc,...row.amounts,
     ...Array(8-row.amounts.length).fill('')];
-  const deserialize=(row)=>{
+  const deserialize=(row,columns)=>{
     if(!Array.isArray(row)||row.length<14)fail('INVALID_GOOGLE_TEST_ROW');
-    const amounts=row.slice(7,15).map(x=>x===''||x===null||x===undefined?0:x);
+    const amounts=Array.from({length:columns},(_,i)=>row[7+i]??0);
     if(amounts.some(x=>typeof x!=='number'||!Number.isFinite(x)))
       fail('INVALID_GOOGLE_TEST_AMOUNT');
     const result={sourceId:String(row[0]??''),project:String(row[1]??''),
@@ -43,12 +43,13 @@
     for(let i=0;i<data.length;i++){hash^=data.charCodeAt(i);hash=Math.imul(hash,16777619)}
     return hash>>>0;
   };
-  function create({target,request,exclusiveLock,openingBalance,history}={}){
+  function create({target,request,exclusiveLock,openingBalance,history,amountColumns}={}){
     validate(target);
     if(typeof request!=='function'||!exclusiveLock||
       typeof exclusiveLock.assertHeld!=='function'||
       typeof openingBalance!=='number'||!Number.isFinite(openingBalance)||
-      !Array.isArray(history)||history.some(x=>!validRow(x)))
+      ![7,8].includes(amountColumns)||!Array.isArray(history)||
+      history.some(x=>!validRow(x)||x.amounts.length!==amountColumns))
       fail('TEST_TRANSPORT_NOT_CONFIGURED');
     const base='/v4/spreadsheets/'+encodeURIComponent(target.spreadsheetId);
     const endpoint=(path,method='GET',body)=>request(base+path,{method,body});
@@ -60,13 +61,13 @@
          !Array.isArray(meta.sheets))fail('TEST_FILE_IDENTITY_CHANGED');
       const tab=meta.sheets.find(s=>s.properties?.title===target.tab);
       if(!tab||tab.properties.hidden===true)fail('TEST_TAB_MISSING_OR_HIDDEN');
-      const raw=await endpoint('/values/'+b64(target.tab+'!A1:O20000')+
+      const raw=await endpoint('/values/'+range(target.tab,'A1:O20000')+
         '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER');
       const rows=raw?.values||[];
       if(!Array.isArray(rows)||!rows.length||rows.length>20000||
          JSON.stringify(rows[0])!==JSON.stringify(HEADER))
         fail('TEST_HEADER_OR_ROWS_INVALID');
-      const mirror=rows.slice(1).map(deserialize);
+      const mirror=rows.slice(1).map(row=>deserialize(row,amountColumns));
       if(mirror.some(r=>r.project!==target.project))fail('TEST_CROSS_PROJECT_ROW');
       const snapshot={spreadsheetId:target.spreadsheetId,tab:target.tab,
         project:target.project,openingBalance,history,mirror};
@@ -77,7 +78,8 @@
       if(_target.spreadsheetId!==target.spreadsheetId||_target.tab!==target.tab||
          _target.project!==target.project||!Number.isSafeInteger(expectedRevision)||
          !Array.isArray(entries)||!entries.length||entries.length>1000||
-         entries.some(x=>!validRow(x)||x.project!==target.project))
+         entries.some(x=>!validRow(x)||x.project!==target.project||
+           x.amounts.length!==amountColumns))
         fail('TEST_APPEND_INVALID');
       await exclusiveLock.assertHeld();
       const latest=await readSnapshot();
@@ -85,7 +87,7 @@
       const idSet=new Set(latest.mirror.map(r=>r.sourceId));
       if(entries.some(e=>idSet.has(e.sourceId)))fail('TEST_DUPLICATE_SOURCE_ID');
       await exclusiveLock.assertHeld();
-      const path='/values/'+b64(target.tab+'!A:O')+
+      const path='/values/'+range(target.tab,'A:O')+
         ':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS';
       return endpoint(path,'POST',{values:entries.map(serialize)});
     }
