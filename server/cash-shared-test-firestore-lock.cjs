@@ -7,7 +7,7 @@ const {randomUUID}=require('node:crypto');
 function block(message){throw Error(message)}
 function makeLock({project,uid,fetcher,token,collection='cashSyncTestLocks'}={}){
   if(!/^[a-z0-9][a-z0-9-]{3,80}$/.test(project||'')||
-     project==='cscecmep-payment'||
+     project==='cscecmep-payment'||!/staging/.test(project)||
      !/^[A-Za-z0-9_-]{4,128}$/.test(uid||'')||
      !/^[A-Za-z0-9._~-]{100,8192}$/.test(token||'')||
      typeof fetcher!=='function'||collection!=='cashSyncTestLocks')
