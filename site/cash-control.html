@@ -1430,6 +1430,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <div id="ccSyncPaymentPreflight" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0" hidden>
           <select id="ccSyncPaymentPreflightProject" aria-label="Dự án cần đếm Payment" style="min-width:180px;padding:7px;border:1px solid #cad4e3;border-radius:7px"></select>
           <button class="btn" id="ccSyncPaymentPreflightCount" type="button">Đếm Payment 1 dự án (có Firestore reads)</button>
+          <button class="btn" id="ccSyncPaymentPreflightLoad" type="button">Tải Payment 1 dự án · chỉ đọc</button>
           <span id="ccSyncPaymentPreflightStatus" aria-live="polite" style="font-size:12px;color:#44546b">Chưa kiểm tra.</span>
         </div>
         <div id="ccSyncProjectCatalogEntries" style="max-height:420px;overflow:auto;display:grid;gap:7px"></div>
@@ -5444,6 +5445,45 @@ async function ccSyncCountOneProject(){
       '. Không tự thử lại, không đồng bộ.';
   }finally{button.disabled=false}
 }
+// Admin-only manual source inspection. This is NOT a sync or a source
+// completeness guarantee; it never writes or scans all company projects.
+async function ccSyncLoadOneProjectReadOnly(){
+  const button=$('ccSyncPaymentPreflightLoad');
+  const status=$('ccSyncPaymentPreflightStatus');
+  const project=normProject($('ccSyncPaymentPreflightProject')?.value||'');
+  if(!button||!status||button.disabled)return;
+  if(!currentAuthUser||!isCashControlOwner()){
+    status.textContent='Chỉ Admin được đọc Payment.';return;
+  }
+  if(firebaseConfig.projectId!=='cscecmep-payment'){
+    status.textContent='Preview STAGING không được đọc Payment production.';return;
+  }
+  if(!project||!ccSyncProjectCatalogNames().includes(project)){
+    status.textContent='Chọn đúng 1 dự án trong danh mục.';return;
+  }
+  const cached=paymentMonths.has(project);
+  if(!cached&&!confirm('Chỉ đọc chứng từ Payment dự án '+project+
+    '. Firestore tính reads theo chứng từ. Không quét toàn công ty, '+
+    'không ghi Firebase/Google. Tiếp tục?'))return;
+  button.disabled=true;
+  status.textContent='Đang tải Payment '+project+' (chỉ đọc)…';
+  try{
+    const ok=cached||await loadProjectPayments(project,{quiet:true,refresh:false});
+    if(!ok||!paymentMonths.has(project))throw Error('Nguồn Payment chưa tải xong');
+    if(!currentAuthUser||!isCashControlOwner())
+      throw Error('Phiên Admin đã thay đổi');
+    const rows=paymentMonths.get(project);
+    const paid=rows.filter(x=>x.deleted!==true&&x.processPaymentDate).length;
+    status.textContent='Payment '+project+': '+rows.length.toLocaleString('vi-VN')+
+      ' chứng từ trong phiên'+(cached?' (cache, 0 reads mới)':' (đọc theo dự án)')+
+      ' · '+paid.toLocaleString('vi-VN')+' có ngày thanh toán. '+
+      'Chưa xác minh tên cũ, chuyển khoản nội bộ hoặc đầy đủ nguồn; '+
+      'CHƯA đối chiếu Google, KHÔNG cấp phép đồng bộ, 0 writes.';
+  }catch(error){
+    status.textContent='CHẶN '+project+': '+String(error?.code||error?.message||'lỗi').slice(0,95)+
+      '. Không tự thử lại, không ghi.';
+  }finally{button.disabled=false}
+}
 function ccSyncProjectCatalogRender(){
   const wrap=$('ccSyncProjectCatalogEntries');
   if(!wrap)return;
@@ -5515,6 +5555,7 @@ function ccSyncProjectCatalogInitialize(){
   search?.addEventListener('input',ccSyncProjectCatalogRender);
   $('ccSyncProjectCatalogRefresh')?.addEventListener('click',ccSyncProjectCatalogRender);
   $('ccSyncPaymentPreflightCount')?.addEventListener('click',ccSyncCountOneProject);
+  $('ccSyncPaymentPreflightLoad')?.addEventListener('click',ccSyncLoadOneProjectReadOnly);
   $('ccSyncProjectCatalogExport')?.addEventListener('click',()=>{
     const payload={schema:'CASH_SYNC_PROJECT_LINK_DRAFT_V1',projects:ccSyncProjectLinkDraft,
       note:'Local draft only; does not authorize Google Sheets sync'};
@@ -13260,6 +13301,9 @@ onAuthStateChanged(auth,async user=>{
         }
         document.body.classList.remove('auth-checking');
         $('cashLoginModal').classList.remove('show');
+        // Initial catalog render occurred before auth was known. Unhide the
+        // manual Admin preflight after successful login (no new reads).
+        ccSyncProjectCatalogRender();
         // Render once after auth is known; cloud snapshot will refresh again.
         requestAnimationFrame(()=>renderAll());
 
