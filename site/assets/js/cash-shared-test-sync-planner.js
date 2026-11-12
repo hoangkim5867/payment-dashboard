@@ -27,7 +27,7 @@
         (requiresId&&!String(row.sourceId||'').trim()))return null;
       return {key:fingerprint(row),ident:identity(row)};
     };
-    const srcSeen=new Set(),mirrorById=new Map(),historicByKey=new Map();
+    const srcSeen=new Set(),mirrorById=new Map(),historicByKey=new Map(),sourceByKey=new Map();
     for(const row of mirror){
       const id=String(row?.sourceId||'').trim();
       const sig=get(row,true);
@@ -52,6 +52,8 @@
         block('INVALID_OR_DUPLICATE_SOURCE',id);continue;
       }
       srcSeen.add(id);
+      if(!sourceByKey.has(sig.key))sourceByKey.set(sig.key,[]);
+      sourceByKey.get(sig.key).push({id,ident:sig.ident.join('|')});
       if(row.sourceType==='payment'&&(!sig.ident[1]||!sig.ident[2])){
         block('PAYMENT_IDENTITY_MISSING',id);continue;
       }
@@ -61,6 +63,10 @@
       if(row.sourceType!=='payment'&&row.sourceType!=='transfer'&&
          row.identityVerified!==true){
         block('NONPAYMENT_IDENTITY_UNVERIFIED',id);continue;
+      }
+      const sameSignature=sourceByKey.get(sig.key)||[];
+      if(sameSignature.some(entry=>entry.id!==id&&entry.ident===sig.ident.join('|'))){
+        block('DUPLICATE_SOURCE_SIGNATURE_AND_IDENTITY',id);continue;
       }
       const previous=mirrorById.get(id);
       if(previous){
@@ -88,6 +94,10 @@
       // This remains TEST staging only and cannot be fed into production writes.
       testAdds.push({sourceId:id,date:row.date,key:sig.key});
     }
+    for(const {row,sig} of mirrorById.values())
+      if((historicByKey.get(sig.key)||[]).length)
+        block('MIRROR_ALREADY_IN_HISTORY',row.sourceId);
+    if(blockers.length)testAdds.length=0;
     return Object.freeze({project:norm(project),month,unchanged,
       historicCandidates,testAdds,blockers,
       testEligible:blockers.length===0&&testAdds.length>0,
