@@ -501,6 +501,45 @@
       return outcome('payment','Dự án + HĐ + IPC + ngày + số tiền + ID Payment',true);
     return outcome('unverified','Loại nguồn chưa xác minh: đối chiếu thủ công, không suy đoán HĐ/IPC',false);
   }
+  // Payment-only HĐ/IPC issues are distinct from missing counterpart
+  // metadata on payroll, tax, receipts and transfers. Never approve writes.
+  function auditFoxconnIdentityGroups(matched,sourceRows,recordsById){
+    const groups={
+      paymentIdentityReview:[],
+      nonPaymentCounterpartReview:[],
+      unknownSourceReview:[],
+      ambiguousPayment:[],
+      ambiguousOther:[]
+    };
+    const collect=(positions,kind)=>{
+      for(const position of positions||[]){
+        const row=sourceRows?.[position-1];
+        if(!row)continue;
+        const category=classifyCashSource(row,recordsById).kind;
+        if(kind==='ambiguous'){
+          (category==='payment'?groups.ambiguousPayment:groups.ambiguousOther).push(position);
+        }else if(category==='payment'){
+          groups.paymentIdentityReview.push(position);
+        }else if(category==='unverified'){
+          groups.unknownSourceReview.push(position);
+        }else{
+          groups.nonPaymentCounterpartReview.push(position);
+        }
+      }
+    };
+    collect(matched?.identityConflictPositions,'identity');
+    collect(matched?.identityUnverifiedPositions,'identity');
+    collect(matched?.ambiguousSourcePositions,'ambiguous');
+    for(const group of Object.values(groups))group.sort((a,b)=>a-b);
+    return Object.freeze({
+      ...groups,
+      identityReviewCount:groups.paymentIdentityReview.length,
+      nonPaymentReviewCount:groups.nonPaymentCounterpartReview.length,
+      pending:groups.paymentIdentityReview.length+groups.nonPaymentCounterpartReview.length+
+        groups.unknownSourceReview.length+groups.ambiguousPayment.length+groups.ambiguousOther.length,
+      canWrite:false
+    });
+  }
   // Pure read-only release gate for real project Sheets. A consistent ledger
   // is not proof that payments are complete or that automatic writes are safe.
   // This function deliberately NEVER returns write authorization.
@@ -544,5 +583,5 @@
         'CHẶN ĐỒNG BỘ: '+blockers.map(x=>x.message).join(' '):
         'Đã qua điều kiện kiểm tra sơ bộ. Vẫn cần kiểm tra ID, nối số dư và xác nhận Admin; chưa được ghi.'});
   }
-  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,compareFoxconnCandidates,classifyCashSource,assessProjectSyncReadiness});
+  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,compareFoxconnCandidates,classifyCashSource,auditFoxconnIdentityGroups,assessProjectSyncReadiness});
 });
