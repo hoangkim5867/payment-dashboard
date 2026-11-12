@@ -93,5 +93,26 @@
     }
     return Object.freeze({readSnapshot,appendRows});
   }
-  return Object.freeze({HEADER,create});
+  function authenticatedRequest({accessToken,fetcher}={}){
+    if(typeof accessToken!=='string'||!/^[A-Za-z0-9._~-]{20,4096}$/.test(accessToken)||
+      typeof fetcher!=='function')fail('GOOGLE_TEST_AUTH_MISSING');
+    return async(path,{method='GET',body}={})=>{
+      if(typeof path!=='string'||
+         !/^\/v4\/spreadsheets\/[A-Za-z0-9_-]{20,}(?:\?|\/values\/)/.test(path)||
+         !['GET','POST'].includes(method)||
+         method==='POST'&&(!body||typeof body!=='object'))
+        fail('GOOGLE_TEST_REQUEST_DISALLOWED');
+      const response=await fetcher('https://sheets.googleapis.com'+path,{
+        method,headers:{Authorization:'Bearer '+accessToken,
+          ...(method==='POST'?{'Content-Type':'application/json'}:{})},
+        ...(method==='POST'?{body:JSON.stringify(body)}:{})
+      });
+      if(!response||typeof response.ok!=='boolean')fail('GOOGLE_TEST_HTTP_INVALID');
+      if(!response.ok)fail('GOOGLE_TEST_HTTP_'+response.status);
+      const json=await response.json();
+      if(!json||typeof json!=='object')fail('GOOGLE_TEST_RESPONSE_INVALID');
+      return json;
+    };
+  }
+  return Object.freeze({HEADER,create,authenticatedRequest});
 });
