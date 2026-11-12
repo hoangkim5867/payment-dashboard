@@ -457,3 +457,37 @@ test('Google numeric-only row is visibly labeled unverified and never writes',()
  assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
  assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
 });
+
+test('missing FOXCONN transfers show signed potential balance impact only',()=>{
+ const rows=[
+  {date:'2026-10-26',_syncIds:['transfer:repay1:out'],income:-300,
+   subcontract:0,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0,importTaxVat:0},
+  {date:'2026-11-09',_syncIds:['transfer:repay2:in'],income:500,
+   subcontract:0,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0,importTaxVat:0}
+ ];
+ const x=auditor.assessUnmatchedTransfers(rows,{sourceOnlyPositions:[1,2]});
+ assert.equal(x.entries.length,2);
+ assert.equal(x.net,200);
+ assert.deepEqual(x.errors,[]);
+ assert.equal(x.canWrite,false);
+ assert.equal(x.readyToWrite,false);
+ assert.equal(x.googleTransferVerified,false);
+ const duplicate=auditor.assessUnmatchedTransfers(rows,{sourceOnlyPositions:[1,1]});
+ assert.equal(duplicate.entries.length,1);
+ assert.equal(duplicate.errors.length,1);
+ const unsafe=auditor.assessUnmatchedTransfers(
+   [{...rows[0],income:300}],{sourceOnlyPositions:[1]});
+ assert.equal(unsafe.entries.length,0);
+ assert.equal(unsafe.canWrite,false);
+ assert.ok(unsafe.errors.includes('direction-mismatch:1'));
+});
+test('transfer impact is read-only and cannot authorize Google writes',()=>{
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ const fn=code.slice(start,end);
+ assert.match(fn,/auditor\.assessUnmatchedTransfers\(source,matched\)/);
+ assert.match(fn,/ảnh hưởng số dư giả định/);
+ assert.match(fn,/KHÔNG ghi; cần xác minh đối ứng và số dư/);
+ assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
+ assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
+});
