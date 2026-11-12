@@ -951,7 +951,9 @@
             const validFlags=(p.disabled===undefined||typeof p.disabled==="boolean")&&
               (p.active===undefined||typeof p.active==="boolean");
             const approved=validRole&&validFlags&&p.disabled!==true&&p.active!==false;
-            extraDiagnosis+=" Hồ sơ server: "+(approved?"hợp lệ":"không đạt điều kiện Rules")+".";
+            const role=validRole?p.role.toLowerCase():"không hợp lệ";
+            const isOwner=user.uid==="HTx2QuATHxh8zgAawwreg88w65M2";
+            extraDiagnosis+=" Hồ sơ server: "+(approved?"hợp lệ":"không đạt điều kiện Rules")+"; vai trò "+role+"; đúng Admin chủ sở hữu: "+(isOwner?"có":"không")+".";
           }catch(e){extraDiagnosis+=" Đọc hồ sơ server: "+String(e?.code||"unknown")+".";}
           try{
             await getDocs(query(collection(db,"paymentArchives"),limit(1)));
