@@ -5,6 +5,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="assets/js/cash-sync-historical-audit.js?v=review-readonly-20261112"></script>
+<script src="assets/js/cash-shared-test-sync-planner.js?v=staging-demo-20261112"></script>
 <link rel="stylesheet" href="assets/css/cash-control.css" data-stage1-extracted="primary">
 <style id="cc-no-double-sidebar-gap">
 /* Fix: sidebar already occupies a CSS-grid column; do not offset main twice. */
@@ -7417,6 +7418,33 @@ async function ccGoogleSyncComparePilot(internal=false){
     }
     if(r.hash===String(row[17]||'')){unchanged.push(r.id);continue}
     changes.push({...r,op:'update',sheetRow:oldRow.index});
+  }
+  // Isolated staging DEMO only: validate new rows against the pre-existing
+  // Google TEST mirror using the common cross-project planner. Its output is
+  // NOT a write authorization. Existing PHU HUNG pilot security checks remain.
+  if(CC_SYNC_DEMO_ALLOWED&&ccGoogleSyncDemoActive&&changes.some(r=>r.op==='new')){
+    const planner=window.CashSharedTestSyncPlanner;
+    if(!planner?.prepare){
+      blocked.push({id:'DEMO',reason:'Thiếu bộ chống trùng TEST; không ghi'}); 
+    }else{
+      const toModel=r=>({sourceId:String(r.id),project:'PHU HUNG',
+        date:ccGoogleSyncNormDate(r.values[0]),sourceType:'payment',
+        company:r.values[1],contractNo:r.values[2],ipc:r.values[4],
+        amounts:r.values.slice(6,13).map(Number)});
+      const mirror=remote.rows.map(row=>({sourceId:String(row[0]||''),
+        project:String(row[1]||''),date:ccGoogleSyncNormDate(row[3]),
+        sourceType:'payment',company:row[4],contractNo:row[5],ipc:row[7],
+        amounts:row.slice(9,16).map(Number)}));
+      // DEMO has no real historic payments; the source is the two/four
+      // isolated demo transactions and this Google TEST tab is its only target.
+      const fresh=changes.filter(r=>r.op==='new');
+      const review=planner.prepare({project:'PHU HUNG',month,
+        source:fresh.map(toModel),history:[],mirror,
+        evidence:{sourceComplete:true,historyComplete:true,baselineRevalidated:true}});
+      if(!review.testEligible||review.testAdds.length!==fresh.length)
+        blocked.push({id:'DEMO',reason:'Bộ chống trùng TEST chặn giao dịch mới: '+
+          review.blockers.map(x=>x.reason).join(', ')});
+    }
   }
   const sourceIds=new Set(source.map(r=>r.id));
   const orphan=remote.rows.filter(row=>String(row[2]||'')===month&&!sourceIds.has(String(row[0]||'')));
