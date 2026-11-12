@@ -235,7 +235,12 @@ test('FOXCONN explicit tax classification is isolated to read-only audit metadat
  assert.match(source,/const foxconnTaxReview=project==='FOXCONN'/);
  assert.match(source,/const foxconnImportTax=project==='FOXCONN'/);
  assert.match(source,/\.\.\.\(project==='FOXCONN'&&!foxconnTaxReview\?\{importTaxVat:foxconnImportTax\}:\{\}\)/);
- assert.match(source,/!foxconnImportTax\?amount:0/);
+ for(const category of ['subcontract','material','indirect','financial','otherPayable']){
+   const block=source.match(new RegExp(category+':x\\.direction===\\\'out\\\'[^\\n]*\\?amount:0,'));
+   assert.ok(block,category+' must be mapped');
+   assert.match(block[0],/!foxconnImportTax\\?amount:0/);
+ }
+
 });
 test('FOXCONN O-column probe computes expenses including N tax but never authorizes sync',()=>{
  const header=['日期','','','','','','收入','支出'];
