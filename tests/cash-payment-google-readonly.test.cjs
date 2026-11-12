@@ -94,3 +94,17 @@ test('candidate identity normalizes whitespace without inventing a transaction I
  assert.equal(result.identityConsistent,1);
  assert.equal(result.canWrite,false);
 });
+
+test('Google compare blocks invalid historical layout, balances and unmatched parsing',()=>{
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ const fn=code.slice(start,end);
+ assert.match(fn,/history\.status!=='internally-consistent'/);
+ assert.match(fn,/history\.layoutErrors/);
+ assert.match(fn,/history\.continuityErrors/);
+ assert.match(fn,/matched\.invalidHistory/);
+ assert.match(fn,/historyUnverified\|\|invalidMatchRows>0/);
+ assert.match(fn,/trạng thái sổ/);
+ assert.match(fn,/dòng Google không đối chiếu được/);
+ assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
+});
