@@ -315,7 +315,7 @@
     const historicIdentity=new Map(),sourceIdentity=new Map();
     const add=(map,id)=>map.set(id,(map.get(id)||0)+1);
     const token=(date,values)=>JSON.stringify([date,...values.map(x=>Math.round(x*1e6)/1e6)]);
-    const normalize=v=>String(v??'').normalize('NFKC').trim().replace(/\\s+/g,' ').toUpperCase();
+    const normalize=v=>String(v??'').normalize('NFKC').trim().replace(/\s+/g,' ').toUpperCase();
     // Metadata is diagnostic only. A shared date/amount is NOT proof of the
     // same company/contract/IPC. Missing fields must remain unverified.
     const identity=(company,contractNo,ipc)=>
