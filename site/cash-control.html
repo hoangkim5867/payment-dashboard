@@ -5667,7 +5667,12 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       ' · mơ hồ '+matched.ambiguous+
       ' · chưa đủ danh tính HĐ/IPC '+missingIdentity+
       ' · xung đột HĐ/IPC '+matched.identityConflict+
-      (project==='FOXCONN'?' · thuế chưa xác minh '+matched.unmappedTax:'')+
+      (project==='FOXCONN'?
+        ' · vị trí chỉ có Cash Control (bản chiếu): '+(matched.sourceOnlyPositions?.join(', ')||'không xác định, có thể trùng chữ ký')+
+        ' · vị trí mơ hồ (bản chiếu): '+(matched.ambiguousSourcePositions?.join(', ')||'0')+
+        ' · vị trí xung đột HĐ/IPC (bản chiếu): '+(matched.identityConflictPositions?.join(', ')||'0')+
+        ' · vị trí thiếu HĐ/IPC (bản chiếu): '+(matched.identityUnverifiedPositions?.join(', ')||'0')+
+        ' · thuế chưa xác minh '+matched.unmappedTax:'')+
       ' · ngày đảo thứ tự '+dateRegressions+
       ' · ngày chưa nhận dạng '+unparsedDates+
       ' · trạng thái sổ '+history.status+
