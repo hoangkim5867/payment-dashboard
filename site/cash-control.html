@@ -5693,11 +5693,13 @@ async function ccSyncCompareProjectGoogleReadOnly(){
         if(expense.source==='payroll'||expense.linkedModule==='payroll')return 'Lương / nhân sự';
         return 'Cash Control · '+String(expense.source||'ghi tay / lịch sử').slice(0,36);
       };
+      // Do not erase or reinterpret original numerical mismatch counts.
+      // Source-specific routing is a read-only hint, not an ID match.
       const table=document.createElement('table');
       table.style.cssText='width:100%;border-collapse:collapse;text-align:left';
       const thead=document.createElement('thead');
       const tr=document.createElement('tr');
-      for(const label of ['Vấn đề','Vị trí','Ngày','Nguồn','Loại','Nội dung','Hợp đồng','IPC']){
+      for(const label of ['Vấn đề','Vị trí','Ngày','Nguồn','Loại','Nội dung','Hợp đồng','IPC','Quy tắc đối chiếu']){
         const th=document.createElement('th');
         th.textContent=label;th.style.padding='4px';tr.append(th);
       }
@@ -5707,7 +5709,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
         const row=source[position-1];
         if(!row)continue;
         const line=document.createElement('tr');
-        for(const value of [issue,position,row.date||'—',sourceKind(row),row.type||'—',row.content||'—',row.contractNo||'—',row.ipc||'—']){
+        for(const value of [issue,position,row.date||'—',sourceKind(row),row.type||'—',row.content||'—',row.contractNo||'—',row.ipc||'—',auditor.classifyCashSource(row,cashExpenseById).rule]){
           const td=document.createElement('td');
           td.textContent=String(value);
           td.style.cssText='padding:4px;border-top:1px solid #ddd;vertical-align:top';
