@@ -417,3 +417,13 @@ test('non-Payment counterpart candidates never include transfers or Payment',()=
  assert.equal(pay.supportedCount,0);
  assert.equal(pay.canWrite,false);
 });
+
+test('known Payment origin wins over misleading payroll words in description',()=>{
+ const result=auditor.classifyCashSource({
+  _syncIds:['expense:p'],content:'Thanh toán hợp đồng lương vật tư',
+  type:'Chi phí nhân sự',income:0
+ },new Map([['p',{source:'payment',direction:'out'}]]));
+ assert.equal(result.kind,'payment');
+ assert.equal(result.needsContractIpc,true);
+ assert.equal(result.canWrite,false);
+});
