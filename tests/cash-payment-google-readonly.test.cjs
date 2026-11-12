@@ -83,3 +83,14 @@ test('count verification happens before Google reads and fails closed on mismatc
  assert.match(fn,/Even equal counts do NOT verify alias coverage/);
  assert.doesNotMatch(fn,/setDoc\(|addDoc\(|updateDoc\(|deleteDoc\(/);
 });
+
+test('candidate identity normalizes whitespace without inventing a transaction ID',()=>{
+ const history=[['2026-10-01','ACME  LTD','C1','','IPC1','',100,20,0,0,0,0,0,80]];
+ const source=[{date:'2026-10-01',company:'ACME LTD',contractNo:'C1',ipc:'IPC1',
+   income:100,subcontract:20,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0}];
+ const result=auditor.compareLoadedCashControl(history,'OTHER',source,{sourceComplete:true});
+ assert.equal(result.matched,1);
+ assert.equal(result.identityConflict,0);
+ assert.equal(result.identityConsistent,1);
+ assert.equal(result.canWrite,false);
+});
