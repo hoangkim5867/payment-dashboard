@@ -5676,11 +5676,23 @@ async function ccSyncCompareProjectGoogleReadOnly(){
         ['Xung đột HĐ/IPC',matched.identityConflictPositions],
         ['Thiếu danh tính HĐ/IPC',matched.identityUnverifiedPositions]
       ];
+      // Resolve only IDs already present in Cash Control RAM: no extra reads.
+      const cashExpenseById=new Map(allExpenses().filter(x=>x?.id).map(x=>[String(x.id),x]));
+      const sourceKind=row=>{
+        const ids=Array.isArray(row._syncIds)?row._syncIds:[];
+        if(ids.some(id=>String(id).startsWith('transfer:')))return 'Điều chuyển nội bộ';
+        if(ids.length!==1||!String(ids[0]).startsWith('expense:'))return 'Nguồn tổng hợp / chưa xác minh';
+        const expense=cashExpenseById.get(String(ids[0]).slice(8));
+        if(!expense)return 'Nguồn chưa xác minh';
+        if(expense.source==='payment')return 'Payment';
+        if(expense.source==='payroll'||expense.linkedModule==='payroll')return 'Lương / nhân sự';
+        return 'Cash Control · '+String(expense.source||'ghi tay / lịch sử').slice(0,36);
+      };
       const table=document.createElement('table');
       table.style.cssText='width:100%;border-collapse:collapse;text-align:left';
       const thead=document.createElement('thead');
       const tr=document.createElement('tr');
-      for(const label of ['Vấn đề','Vị trí','Ngày','Hợp đồng','IPC']){
+      for(const label of ['Vấn đề','Vị trí','Ngày','Nguồn','Loại','Nội dung','Hợp đồng','IPC']){
         const th=document.createElement('th');
         th.textContent=label;th.style.padding='4px';tr.append(th);
       }
@@ -5690,7 +5702,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
         const row=source[position-1];
         if(!row)continue;
         const line=document.createElement('tr');
-        for(const value of [issue,position,row.date||'—',row.contractNo||'—',row.ipc||'—']){
+        for(const value of [issue,position,row.date||'—',sourceKind(row),row.type||'—',row.content||'—',row.contractNo||'—',row.ipc||'—']){
           const td=document.createElement('td');
           td.textContent=String(value);
           td.style.cssText='padding:4px;border-top:1px solid #ddd;vertical-align:top';

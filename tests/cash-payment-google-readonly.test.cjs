@@ -226,10 +226,24 @@ test('FOXCONN exception table is an Admin-driven DOM-only diagnostic',()=>{
  const fn=code.slice(start,end);
  assert.match(code,/id="ccSyncFoxconnExceptionPanel" hidden/);
  assert.match(code,/id="ccSyncFoxconnExceptionRows"/);
- assert.match(fn,/\['Vấn đề','Vị trí','Ngày','Hợp đồng','IPC'\]/);
+ assert.match(fn,/\['Vấn đề','Vị trí','Ngày','Nguồn','Loại','Nội dung','Hợp đồng','IPC'\]/);
  assert.match(fn,/source\[position-1\]/);
  assert.match(fn,/row\.contractNo\|\|'—'/);
  assert.match(fn,/row\.ipc\|\|'—'/);
  assert.match(fn,/td\.textContent=String\(value\)/);
+ assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
+});
+
+test('FOXCONN exception table labels transfer, Payment and payroll source without writes',()=>{
+ const a=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const b=code.indexOf('function ccSyncProjectCatalogRender()',a);
+ const fn=code.slice(a,b);
+ assert.match(fn,/cashExpenseById=new Map\(allExpenses\(\)/);
+ assert.match(fn,/startsWith\('transfer:'\)/);
+ assert.match(fn,/expense\.source==='payment'/);
+ assert.match(fn,/expense\.source==='payroll'/);
+ assert.match(fn,/row\.type\|\|'—'/);
+ assert.match(fn,/row\.content\|\|'—'/);
+ assert.match(fn,/sourceKind\(row\)/);
  assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
 });
