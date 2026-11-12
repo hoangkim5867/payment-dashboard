@@ -25,6 +25,8 @@ jobs:
         run: python tests/verify_js_syntax.py
       - name: Current offline regression suite
         run: node --test tests/index-v1/*.test.cjs tests/secure/*.test.cjs tests/regression/*.test.cjs
+      - name: Read-only multi-project Cash Control reconciliation regression
+        run: node --test tests/cash-sync-link-draft.test.cjs tests/cash-sync-multiproject-preflight.test.cjs tests/cash-sync-multiproject-reconcile.test.cjs tests/cash-sync-multiproject-review.test.cjs tests/cash-sync-historical-audit.test.cjs
       - name: Check Excel import and duplicate semantics
         run: |
           node tests/verify_preflight.cjs

@@ -35,7 +35,7 @@ test('preflight UI is hidden for non-owner and never uses production from stagin
 
 test('cross-preview link recovery is local JSON only and never auto-fetches Google',()=>{
  const renderStart=html.indexOf('function ccSyncProjectCatalogRender(){');
- const renderEnd=html.indexOf('function ccSyncProjectCatalogInitialize(){',renderStart);
+ const renderEnd=html.indexOf('// Explicit Admin-only local inventory.',renderStart);
  const render=html.slice(renderStart,renderEnd);
  assert.match(render,/linkedCount===0/);
  assert.match(render,/Xuất danh sách \/ link \(JSON\)/);
@@ -46,7 +46,7 @@ test('cross-preview link recovery is local JSON only and never auto-fetches Goog
 
 test('catalog status distinguishes matched links from out-of-catalog drafts without dropping either',()=>{
  const begin=html.indexOf('function ccSyncProjectCatalogRender(){');
- const end=html.indexOf('function ccSyncProjectCatalogInitialize(){',begin);
+ const end=html.indexOf('// Explicit Admin-only local inventory.',begin);
  const render=html.slice(begin,end);
  assert.match(render,/linkedNames\.filter\(p=>!catalog\.includes\(p\)\)/);
  assert.match(render,/linkedCount-outsideCatalog\.length/);

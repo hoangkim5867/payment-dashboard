@@ -56,7 +56,14 @@ const server=http.createServer((req,res)=>{
    });
    const page=await ctx.newPage();
    page.on('pageerror',e=>errors.push(e.message));
-   page.on('dialog',d=>d.accept());
+   page.on('dialog',d=>{
+    void d.accept().catch(error=>{
+     // Playwright can destroy a page between dialog emission and accept during
+     // test-case teardown. This is not an application dialog failure.
+     if(!/Target page, context or browser has been closed/.test(String(error?.message||'')))
+      errors.push('Dialog accept: '+String(error?.message||error));
+    });
+   });
    await page.goto('http://127.0.0.1:4178/'+file+'?firestoreAudit=1',{waitUntil:'domcontentloaded',timeout:60000});
    await page.locator('#authUsernameInput').fill('pr11synthetic');
    await page.locator('#authPasswordInput').fill('SyntheticTestOnly123!');
