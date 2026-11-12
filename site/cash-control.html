@@ -5584,10 +5584,12 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       throw Error('Quyền Admin đã thay đổi; bỏ kết quả kiểm tra');
     if(!Number.isSafeInteger(rawCount)||rawCount<0)
       throw Error('Không xác minh được số chứng từ Payment');
-    if(rawCount!==rowsLoaded)
-      throw Error('Số chứng từ theo dự án không khớp: Firestore '+rawCount+
-        ', bộ nhớ '+rowsLoaded+'. Có thể có hồ sơ đã xóa hoặc dữ liệu thay đổi; '+
-        'dừng trước khi đọc Google, không tự tải lại');
+    // The server aggregate includes soft-deleted canonical documents, while
+    // the project loader excludes deleted rows and may include legacy aliases.
+    // These numbers are not equivalent. Report the discrepancy without claiming
+    // complete source coverage; continue the manual READ-ONLY comparison.
+    const countDifference=rawCount-rowsLoaded;
+    const countUnverified=countDifference!==0||cached;
     // Even equal counts do NOT verify alias coverage, transferred records or
     // stable data revisions. This remains a candidate-only read check.
     const endpoint='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(fileId);
@@ -5655,7 +5657,8 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       matched.identityConflict>0||missingIdentity>0||unmatchedRows>0||
       dateRegressions>0||unparsedDates>0||!matched.sourceComplete;
     status.textContent=(blocked?'CHƯA ĐỦ ĐIỀU KIỆN · ':'CHỈ ĐỌC · ')+project+
-      ' · Payment '+rowsLoaded+' hồ sơ (đếm khớp tên chuẩn)'+(cached?' (bộ nhớ, có thể cũ)':'')+
+      ' · Payment '+rowsLoaded+' hồ sơ đã tải; đếm Firestore tên chuẩn '+rawCount+
+      (countUnverified?' (chênh lệch/cached, chưa xác nhận đủ nguồn)':' (số lượng bằng nhau, chưa xác nhận đủ nguồn)')+
       ' · tổng lịch sử Google '+history.transactionRows+' giao dịch'+
       ' · phạm vi so khớp từ 10/2026: Google '+matched.historicalScope+
       ', Cash Control '+matched.sourceScope+' dòng'+
