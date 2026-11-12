@@ -196,6 +196,22 @@ test('FOXCONN O3 balance with invisible marks and VND unit is confirmed from tex
  assert.equal(result.closingBalance,1900);
  assert.equal(result.canWrite,false);
 });
+test('one-project live comparison is Admin gated, production only and never writes',()=>{
+ const fs=require('node:fs'),path=require('node:path');
+ const src=fs.readFileSync(path.join(__dirname,'../site/cash-control.html'),'utf8');
+ const start=src.indexOf('async function ccSyncCompareOneProjectReadOnly()');
+ const end=src.indexOf('function ccSyncProjectCatalogRender()',start);
+ assert.ok(start>0&&end>start);
+ const code=src.slice(start,end);
+ assert.match(code,/!currentAuthUser\|\|!isCashControlOwner\(\)/);
+ assert.match(code,/firebaseConfig\.projectId!=='cscecmep-payment'/);
+ assert.match(code,/loadProjectPayments\(project,\{quiet:true,refresh:false\}\)/);
+ assert.match(code,/ccGoogleSyncToken/);
+ assert.match(code,/compareFoxconnCandidates/);
+ assert.match(code,/compareLoadedCashControl/);
+ assert.doesNotMatch(code,/setDoc\(|addDoc\(|updateDoc\(|deleteDoc\(|batchUpdate\(|ccGoogleSyncOriginalRequest\(/);
+ assert.match(code,/KHÔNG cấp phép đồng bộ, 0 writes/);
+});
 test('FOXCONN source without dedicated import VAT is blocked, not treated as zero',()=>{
  const api=require('../site/assets/js/cash-sync-historical-audit.js');
  const history=[['2026-10-01','','','','','',1000,100,0,0,0,0,0,50,850]];
