@@ -5675,6 +5675,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
     // downloads, Google writes or automated duplicate selections.
     let identityGroups=null;
     let paymentCollisionResolution=null;
+    let nonPaymentResolution=null;
     if(project==='FOXCONN'&&exceptionPanel){
       const output=$('ccSyncFoxconnExceptionRows');
       const cases=[
@@ -5687,6 +5688,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       const cashExpenseById=new Map(allExpenses().filter(x=>x?.id).map(x=>[String(x.id),x]));
       identityGroups=auditor.auditFoxconnIdentityGroups(matched,source,cashExpenseById);
       paymentCollisionResolution=auditor.resolvePaymentCollisionCandidates(payload.values,source,matched,cashExpenseById);
+      nonPaymentResolution=auditor.resolveFoxconnNonPaymentCandidates(payload.values,source,matched,cashExpenseById);
       const sourceKind=row=>{
         const ids=Array.isArray(row._syncIds)?row._syncIds:[];
         if(ids.some(id=>String(id).startsWith('transfer:')))return 'Điều chuyển nội bộ';
@@ -5716,7 +5718,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
         // A unique contract/IPC candidate is still not a verified persistent ID.
         const linkedCandidate=paymentCollisionResolution.supported.find(
           item=>item.sourcePosition===position
-        );
+        )||nonPaymentResolution.supported.find(item=>item.sourcePosition===position);
         const googleCandidate=linkedCandidate?
           'Dòng '+linkedCandidate.googleRow+' (ứng viên, chưa xác minh ID)':'Chưa xác định';
         for(const value of [issue,position,row.date||'—',sourceKind(row),row.type||'—',row.content||'—',row.contractNo||'—',row.ipc||'—',googleCandidate,auditor.classifyCashSource(row,cashExpenseById).rule]){
@@ -5751,6 +5753,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
         ' · giao dịch không dùng HĐ/IPC cần xác minh đối ứng '+(identityGroups?.nonPaymentReviewCount??'?')+
         ' · nguồn chưa rõ '+(identityGroups?.unknownSourceReview.length??'?')+
         ' · trùng Payment '+(identityGroups?.ambiguousPayment.length??'?')+
+        ' · ứng viên phi Payment có đối ứng nội dung '+(nonPaymentResolution?.supportedCount??0)+
         ' · ứng viên Payment HĐ/IPC phân biệt được '+(paymentCollisionResolution?.supportedCount??0)+
         ' (chưa xác nhận ID duy nhất)':'')+
       ' · ngày đảo thứ tự '+dateRegressions+
