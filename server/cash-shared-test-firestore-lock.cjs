@@ -53,8 +53,16 @@ function makeLock({project,uid,fetcher,token,collection='cashSyncTestLocks'}={})
     return Object.freeze({
       async assertHeld(){
         if(released)block('TEST_LOCK_ALREADY_RELEASED');
-        // A separate writer could only replace this lock if it violated the
-        // create-only protocol; no stale lock takeover is offered here.
+        const response=await fetcher(
+          'https://firestore.googleapis.com/v1/'+name,{
+            method:'GET',headers:{Authorization:'Bearer '+token}
+          });
+        if(!response?.ok)block('TEST_LOCK_NOT_READABLE');
+        const record=await response.json();
+        if(record?.name!==name||record?.updateTime!==updateTime||
+           record?.fields?.owner?.stringValue!==owner||
+           record?.fields?.actor?.stringValue!==uid)
+          block('TEST_LOCK_LOST');
       },
       async release(){
         if(released)block('TEST_LOCK_ALREADY_RELEASED');
