@@ -162,3 +162,13 @@ test('Admin-only read comparison does not quietly reuse the Payment project cach
  assert.doesNotMatch(fn,/cached\|\|await loadProjectPayments/);
  assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
 });
+
+test('one-project reconciliation always fetches a new snapshot after Admin confirmation',()=>{
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ const fn=code.slice(start,end);
+ assert.match(fn,/const ok=await loadProjectPayments\(project,\{force:true,quiet:true,refresh:false\}\)/);
+ assert.doesNotMatch(fn,/cached\|\|await loadProjectPayments/);
+ assert.match(fn,/confirm\(/);
+ assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
+});
