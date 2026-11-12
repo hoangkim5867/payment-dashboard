@@ -5575,6 +5575,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
     'KHÔNG ghi hoặc cấp phép đồng bộ. Tiếp tục?'))return;
   button.disabled=true;
   status.textContent='Đang đối chiếu '+project+' (chỉ đọc)…';
+  let readStage='Tải Payment';
   try{
     // Explicit Admin confirmation authorizes exactly one fresh project query.
     // Never reconcile mutable payment documents using a potentially stale cache.
@@ -5588,6 +5589,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
     const authUid=currentAuthUser.uid;
     // Aggregate includes soft-deleted raw documents; loaded rows exclude them.
     // Equality is not a proof of stable identity or alias completeness.
+    readStage='Đếm chứng từ Firestore';
     const countSnap=await getCountFromServer(query(paymentsRef,where('project','==',project)));
     const rawCount=Number(countSnap.data()?.count);
     if(!currentAuthUser||currentAuthUser.uid!==authUid||!isCashControlOwner())
@@ -5604,6 +5606,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
     // stable data revisions. This remains a candidate-only read check.
     const endpoint='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(fileId);
     const headers={Authorization:'Bearer '+ccGoogleSyncToken};
+    readStage='Đọc danh mục tab Google Sheets';
     const metaRes=await fetch(endpoint+
       '?fields=spreadsheetId,sheets(properties(sheetId,title,hidden,gridProperties(rowCount)))',{
         method:'GET',headers,cache:'no-store'
@@ -5619,6 +5622,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
     if(!tab)throw Error('Link cần gid rõ ràng của tab lịch sử');
     if(tab.gridProperties?.rowCount>20000)throw Error('Sổ vượt 20.000 hàng');
     const range="'"+tab.title.replace(/'/g,"''")+"'!A1:AG20000";
+    readStage='Đọc giao dịch Google Sheets';
     const valuesRes=await fetch(endpoint+'/values/'+encodeURIComponent(range)+
       '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER',{
         method:'GET',headers,cache:'no-store'
@@ -5631,6 +5635,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       throw Error('Sổ Google không có dữ liệu hợp lệ');
     const auditor=window.CashSyncHistoricalAudit;
     if(!auditor?.audit)throw Error('Bộ kiểm tra sổ chưa tải');
+    readStage='Phân tích sổ và đối chiếu trong trình duyệt';
     const history=auditor.audit(payload.values,{project});
     const diagnostic=auditor.dateLayoutDiagnostic(payload.values);
     const from=monthIndex('2026-10'),through=monthIndex(CURRENT);
@@ -5739,8 +5744,17 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       '. Chưa chứng nhận toàn bộ tên dự án cũ, nguồn Payment hoặc danh tính trùng; '+
       'KHÔNG cấp phép đồng bộ, 0 writes.';
   }catch(error){
-    status.textContent='CHẶN '+project+': '+String(error?.message||'lỗi').slice(0,130)+
-      '. Không tự thử lại, 0 writes.';
+    const rawMessage=String(error?.message||'lỗi').slice(0,130);
+    const networkError=/Failed to fetch|NetworkError|Load failed/i.test(rawMessage);
+    const advice=networkError&&readStage.startsWith('Đọc')?
+      'Lỗi kết nối trình duyệt đến Google API; kiểm tra mạng, quyền trình duyệt và phiên Kết nối Google.':
+      networkError?'Lỗi mạng khi đọc nguồn; kiểm tra kết nối và Firestore.':
+      /^Google (?:metadata|lịch sử) HTTP 401\b/.test(rawMessage)?
+        'Phiên Google có thể hết hạn; bấm Kết nối Google lại trước khi đối chiếu.':
+      /^Google (?:metadata|lịch sử) HTTP 403\b/.test(rawMessage)?
+        'Google từ chối quyền đọc file/tab; kiểm tra tài khoản và quyền Google Sheets.':'';
+    status.textContent='CHẶN '+project+' · Bước: '+readStage+' · '+rawMessage+
+      (advice?' · '+advice:'')+' Không tự thử lại, 0 writes.';
   }finally{button.disabled=false}
 }
 function ccSyncProjectCatalogRender(){
