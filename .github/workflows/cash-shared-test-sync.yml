@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'site/assets/js/cash-shared-*.js'
+      - 'server/cash-shared-*.cjs'
       - 'site/cash-control.html'
       - 'tests/cash-shared-*.test.cjs'
       - 'deployment/build-site.cjs'
