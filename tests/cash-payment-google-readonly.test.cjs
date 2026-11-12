@@ -226,7 +226,7 @@ test('FOXCONN exception table is an Admin-driven DOM-only diagnostic',()=>{
  const fn=code.slice(start,end);
  assert.match(code,/id="ccSyncFoxconnExceptionPanel" hidden/);
  assert.match(code,/id="ccSyncFoxconnExceptionRows"/);
- assert.match(fn,/\['Vấn đề','Vị trí','Ngày','Nguồn','Loại','Nội dung','Hợp đồng','IPC','Quy tắc đối chiếu'\]/);
+ assert.match(fn,/\['Vấn đề','Vị trí','Ngày','Nguồn','Loại','Nội dung','Hợp đồng','IPC','Đối ứng Google \(ứng viên\)','Quy tắc đối chiếu'\]/);
  assert.match(fn,/source\[position-1\]/);
  assert.match(fn,/row\.contractNo\|\|'—'/);
  assert.match(fn,/row\.ipc\|\|'—'/);
@@ -325,4 +325,55 @@ test('identity conflicts on personnel and tax are not wrongly labeled Payment H�
  assert.equal(groups.identityReviewCount,1);
  assert.equal(groups.nonPaymentReviewCount,4);
  assert.equal(groups.canWrite,false);
+});
+
+test('FOXCONN collisions with distinct HĐ/IPC are one-to-one supported candidates, never writable',()=>{
+ const header=[...Array(13).fill(''),'进口税+增值税','余额'];
+ const h=(contract,ipc)=>['2026-10-01','ACME',contract,'',ipc,'',0,0,100,0,0,0,0,0,100];
+ const history=[header,h('SUPL-001','IPC005'),h('SUBP-020','IPC001'),h('SUBP-019','IPC001')];
+ const r=(contract,ipc,id)=>({date:'2026-10-01',company:'ACME',contractNo:contract,ipc,
+   _syncIds:['expense:'+id],income:0,subcontract:0,material:100,otherDirect:0,
+   indirect:0,financial:0,otherPayable:0,importTaxVat:0});
+ const source=[r('SUPL-001','IPC005','p1'),r('SUBP-020','IPC001','p2'),r('SUBP-019','IPC001','p3')];
+ const records=new Map([['p1',{source:'payment'}],['p2',{source:'payment'}],['p3',{source:'payment'}]]);
+ const collision={ambiguousSourcePositions:[1,2,3]};
+ const x=auditor.resolvePaymentCollisionCandidates(history,source,collision,records);
+ assert.equal(x.supportedCount,3);
+ assert.deepEqual(x.supported.map(v=>v.sourcePosition),[1,2,3]);
+ assert.deepEqual(x.supported.map(v=>v.googleRow),[2,3,4]);
+ assert.equal(x.canWrite,false);
+ assert.equal(x.candidateOnly,true);
+ const duplicatedHistory=[...history,h('SUPL-001','IPC005')];
+ const y=auditor.resolvePaymentCollisionCandidates(duplicatedHistory,source,collision,records);
+ assert.equal(y.supportedCount,2);
+ assert.deepEqual(y.unresolved,[1]);
+ const duplicateSource=[...source,r('SUBP-019','IPC001','p4')];
+ records.set('p4',{source:'payment'});
+ const z=auditor.resolvePaymentCollisionCandidates(history,duplicateSource,
+   {ambiguousSourcePositions:[1,2,3,4]},records);
+ assert.equal(z.supportedCount,2);
+ assert.deepEqual(z.unresolved,[3,4]);
+});
+test('non-Payment and missing-identity source cannot be resolved as a Payment candidate',()=>{
+ const header=[...Array(13).fill(''),'进口税+增值税','余额'];
+ const h=['2026-10-01','ACME','CONTRACT','','IPC1','',0,0,100,0,0,0,0,0,100];
+ const basic={date:'2026-10-01',company:'ACME',contractNo:'CONTRACT',ipc:'IPC1',
+   income:0,subcontract:0,material:100,otherDirect:0,indirect:0,financial:0,otherPayable:0,importTaxVat:0};
+ const result=auditor.resolvePaymentCollisionCandidates([header,h],
+   [{...basic,_syncIds:['transfer:1:out']},{...basic,ipc:'',_syncIds:['expense:p1']}],
+   {ambiguousSourcePositions:[1,2]},new Map([['p1',{source:'payment'}]]));
+ assert.equal(result.supportedCount,0);
+ assert.equal(result.canWrite,false);
+});
+
+test('read-only FOXCONN matched Google row remains candidate-only',()=>{
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ const fn=code.slice(start,end);
+ assert.match(fn,/paymentCollisionResolution\.supported\.find/);
+ assert.match(fn,/item\.sourcePosition===position/);
+ assert.match(fn,/linkedCandidate\.googleRow/);
+ assert.match(fn,/ứng viên, chưa xác minh ID/);
+ assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
+ assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
 });

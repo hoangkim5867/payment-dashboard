@@ -475,6 +475,64 @@
       identityConflictPositions,identityUnverifiedPositions,
       sourceComplete:false,identityVerified:false,canWrite:false});
   }
+  // Identify one-to-one Payment candidates within a collided numeric signature.
+  // Multiple historic rows or sources with the same HĐ/IPC remain unresolved.
+  // This is a read-only candidate result, never proof of record identity.
+  function resolvePaymentCollisionCandidates(historicalRows,sourceRows,matched,recordsById){
+    if(!Array.isArray(historicalRows)||!Array.isArray(sourceRows)||
+       historicalRows.length>20000||sourceRows.length>20000)
+      throw Error('Invalid candidate input');
+    const norm=v=>String(v??'').normalize('NFKC').trim().replace(/\s+/g,' ').toUpperCase();
+    const numerical=(date,values)=>JSON.stringify([date,...values.map(rounded)]);
+    const fields=['income','subcontract','material','otherDirect','indirect','financial','otherPayable','importTaxVat'];
+    const historyByKey=new Map(),sourceByKey=new Map();
+    const add=(map,k,row)=>map.set(k,[...(map.get(k)||[]),row]);
+    let taxHeaderValid=false;
+    for(const [index,row] of historicalRows.entries()){
+      if(!Array.isArray(row))continue;
+      const date=dateValue(row[0]);
+      if(!date){
+        const header=foxconnHeader(row);
+        if(header)taxHeaderValid=!header.invalid&&header.taxIndex===13&&
+          (header.balanceIndex===null||header.balanceIndex===14);
+        continue;
+      }
+      if(date<'2026-10-01'||!taxHeaderValid)continue;
+      const values=row.slice(6,14).map(v=>amount(v,true));
+      if(values.length!==8||values.some(v=>!Number.isFinite(v)))continue;
+      add(historyByKey,numerical(date,values),{
+        position:index+1,contract:norm(row[2]),ipc:norm(row[4])
+      });
+    }
+    const target=new Set(matched?.ambiguousSourcePositions||[]);
+    for(const [index,row] of sourceRows.entries()){
+      const position=index+1,date=dateValue(row?.date);
+      if(!date||date<'2026-10-01'||!target.has(position))continue;
+      if(classifyCashSource(row,recordsById).kind!=='payment')continue;
+      const values=fields.map(f=>amount(row?.[f],true));
+      if(!Object.hasOwn(row,'importTaxVat')||values.some(v=>!Number.isFinite(v)))continue;
+      add(sourceByKey,numerical(date,values),{
+        position,contract:norm(row.contractNo),ipc:norm(row.ipc)
+      });
+    }
+    const supported=[],unresolved=[];
+    for(const [key,items] of sourceByKey){
+      const historic=historyByKey.get(key)||[];
+      for(const item of items){
+        if(!item.contract||!item.ipc){unresolved.push(item.position);continue}
+        const sMatches=items.filter(x=>x.contract===item.contract&&x.ipc===item.ipc);
+        const hMatches=historic.filter(x=>x.contract===item.contract&&x.ipc===item.ipc);
+        if(sMatches.length===1&&hMatches.length===1)
+          supported.push({sourcePosition:item.position,googleRow:hMatches[0].position});
+        else unresolved.push(item.position);
+      }
+    }
+    return Object.freeze({
+      supported,unresolved,
+      supportedCount:supported.length,
+      candidateOnly:true,sourceComplete:false,canWrite:false
+    });
+  }
   // Shared reconciliation routing. This is a classification hint, never a
   // transaction identity or write eligibility. Source IDs are already loaded
   // into Cash Control RAM; no network calls or mutation are needed.
@@ -583,5 +641,5 @@
         'CHẶN ĐỒNG BỘ: '+blockers.map(x=>x.message).join(' '):
         'Đã qua điều kiện kiểm tra sơ bộ. Vẫn cần kiểm tra ID, nối số dư và xác nhận Admin; chưa được ghi.'});
   }
-  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,compareFoxconnCandidates,classifyCashSource,auditFoxconnIdentityGroups,assessProjectSyncReadiness});
+  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,compareFoxconnCandidates,resolvePaymentCollisionCandidates,classifyCashSource,auditFoxconnIdentityGroups,assessProjectSyncReadiness});
 });
