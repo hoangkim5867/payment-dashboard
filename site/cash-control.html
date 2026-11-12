@@ -5636,7 +5636,17 @@ async function ccSyncCompareProjectGoogleReadOnly(){
     const sourceMissing=project==='FOXCONN'?
       matched.unmappedTax+matched.invalidSource:
       matched.invalidSource;
-    const blocked=sourceMissing>0||matched.ambiguous>0||
+    // Historical layout and amount parsing are independent blockers:
+    // zero ambiguous candidate matches does not mean the ledger is safe.
+    const historyUnverified=history.status!=='internally-consistent'||
+      Number(history.layoutErrors||0)>0||
+      Number(history.missingBalance||0)>0||
+      Number(history.invalidMoney||0)>0||
+      Number(history.continuityErrors||0)>0||
+      Number(history.roundingDifferences||0)>0;
+    const invalidMatchRows=Number(matched.invalidHistory||0);
+    const blocked=historyUnverified||invalidMatchRows>0||
+      sourceMissing>0||matched.ambiguous>0||
       matched.identityConflict>0||dateRegressions>0||
       unparsedDates>0||!matched.sourceComplete;
     status.textContent=(blocked?'CHƯA ĐỦ ĐIỀU KIỆN · ':'CHỈ ĐỌC · ')+project+
@@ -5650,6 +5660,10 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       (project==='FOXCONN'?' · thuế chưa xác minh '+matched.unmappedTax:'')+
       ' · ngày đảo thứ tự '+dateRegressions+
       ' · ngày chưa nhận dạng '+unparsedDates+
+      ' · trạng thái sổ '+history.status+
+      ' · lỗi bố cục '+Number(history.layoutErrors||0)+
+      ' · sai số dư '+Number(history.continuityErrors||0)+
+      ' · dòng Google không đối chiếu được '+invalidMatchRows+
       '. Chưa chứng nhận toàn bộ tên dự án cũ, nguồn Payment hoặc danh tính trùng; '+
       'KHÔNG cấp phép đồng bộ, 0 writes.';
   }catch(error){
