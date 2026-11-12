@@ -372,6 +372,59 @@
       identityConsistent,invalidHistory,invalidSource,
       months:[...months].sort(),canWrite:false};
   }
+  // FOXCONN has a separate import-tax + VAT column N (index 13).
+  // Exact numerical matches are candidates, NEVER authorization or proof of identity.
+  // Do not assume that an ordinary Cash Control expense bucket is import tax.
+  function compareFoxconnCandidates(historicalRows,sourceRows,opts={}){
+    if(!Array.isArray(historicalRows)||!Array.isArray(sourceRows)||
+       historicalRows.length>20000||sourceRows.length>20000)
+      throw Error('Invalid FOXCONN snapshots');
+    const startMonth=String(opts.startMonth||'2026-10');
+    if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(startMonth))
+      throw Error('Invalid month');
+    const key=(date,amounts)=>JSON.stringify([date,...amounts.map(v=>Math.round(v*1e6)/1e6)]);
+    const counts=new Map(),sourceCounts=new Map();
+    let historicalScope=0,sourceScope=0,invalidHistory=0,invalidSource=0,unmappedTax=0;
+    for(const row of historicalRows){
+      if(!Array.isArray(row))continue;
+      const d=dateValue(row[0]);
+      if(!d||d.slice(0,7)<startMonth)continue;
+      historicalScope++;
+      // FOXCONN: G income, H:M 6 expenses, N tax.
+      const values=row.slice(6,14).map(v=>amount(v,true));
+      if(values.length!==8||values.some(v=>!Number.isFinite(v))){
+        invalidHistory++;continue;
+      }
+      const k=key(d,values);counts.set(k,(counts.get(k)||0)+1);
+    }
+    for(const row of sourceRows){
+      const d=dateValue(row?.date);
+      if(!d||d.slice(0,7)<startMonth)continue;
+      sourceScope++;
+      const fields=['income','subcontract','material','otherDirect','indirect','financial','otherPayable'];
+      // A missing dedicated tax field MUST NOT be interpreted as zero.
+      if(!Object.hasOwn(row,'importTaxVat')){
+        unmappedTax++;continue;
+      }
+      const values=[...fields.map(f=>amount(row[f],true)),amount(row.importTaxVat,true)];
+      if(values.some(v=>!Number.isFinite(v))){invalidSource++;continue}
+      const k=key(d,values);sourceCounts.set(k,(sourceCounts.get(k)||0)+1);
+    }
+    let candidates=0,historyOnly=0,sourceOnly=0,ambiguous=0;
+    for(const k of new Set([...counts.keys(),...sourceCounts.keys()])){
+      const a=counts.get(k)||0,b=sourceCounts.get(k)||0;
+      const matches=Math.min(a,b);
+      candidates+=matches;
+      if(a>1||b>1)ambiguous+=matches;
+      historyOnly+=Math.max(0,a-b);
+      sourceOnly+=Math.max(0,b-a);
+    }
+    return Object.freeze({project:'FOXCONN',status:unmappedTax?
+      'blocked-tax-mapping':'candidates-only',historicalScope,sourceScope,
+      candidates,historyOnly,sourceOnly,ambiguous,unmappedTax,
+      invalidHistory,invalidSource,
+      sourceComplete:false,identityVerified:false,canWrite:false});
+  }
   // Pure read-only release gate for real project Sheets. A consistent ledger
   // is not proof that payments are complete or that automatic writes are safe.
   // This function deliberately NEVER returns write authorization.
@@ -406,5 +459,5 @@
         'CHẶN ĐỒNG BỘ: '+blockers.map(x=>x.message).join(' '):
         'Đã qua điều kiện kiểm tra sơ bộ. Vẫn cần kiểm tra ID, nối số dư và xác nhận Admin; chưa được ghi.'});
   }
-  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,assessProjectSyncReadiness});
+  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,compareFoxconnCandidates,assessProjectSyncReadiness});
 });
