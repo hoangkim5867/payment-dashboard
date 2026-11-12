@@ -643,6 +643,36 @@
     return Object.freeze({entries,net,errors,readyToWrite:false,
       sourceComplete:false,googleTransferVerified:false,canWrite:false});
   }
+  // Confirm the two signed legs against existing in-memory Cash Control
+  // transfers; this does NOT verify a Google Sheets counterpart.
+  function verifyTransferSourceLegs(project,transferImpact,transfers){
+    const norm=v=>String(v??'').normalize('NFKC').trim().toUpperCase();
+    if(!Array.isArray(transfers)||transfers.length>20000)
+      throw Error('Invalid transfer source');
+    const target=norm(project);
+    const verified=[],unverified=[];
+    for(const item of transferImpact?.entries||[]){
+      const match=/^transfer:(.+):(in|out)$/.exec(item.sourceId);
+      const record=match&&transfers.filter(x=>String(x?.id??'')===match[1]);
+      const x=record?.length===1?record[0]:null;
+      const from=norm(x?.fromProject),to=norm(x?.toProject);
+      const value=amount(x?.actualAmount??x?.amount);
+      const direction=match?.[2];
+      const correctLeg=direction==='out'?from===target&&to!==target:
+        direction==='in'?to===target&&from!==target:false;
+      const safe=!!x&&correctLeg&&from!==to&&from&&to&&
+        x.status==='paid'&&dateValue(x.actualDate)===item.date&&
+        Number.isFinite(value)&&Math.abs(value)===Math.abs(item.signedAmount);
+      if(safe)verified.push(Object.freeze({position:item.position,
+        fromProject:from,toProject:to,counterparty:direction==='out'?to:from,
+        sourceId:item.sourceId,signedAmount:item.signedAmount,
+        sourceLegVerified:true,googleCounterpartVerified:false}));
+      else unverified.push(item.position);
+    }
+    return Object.freeze({verified,unverified,
+      sourceLegVerifiedCount:verified.length,canWrite:false,
+      googleCounterpartVerified:false,sourceComplete:false});
+  }
   // Shared reconciliation routing. This is a classification hint, never a
   // transaction identity or write eligibility. Source IDs are already loaded
   // into Cash Control RAM; no network calls or mutation are needed.
@@ -753,5 +783,5 @@
         'CHẶN ĐỒNG BỘ: '+blockers.map(x=>x.message).join(' '):
         'Đã qua điều kiện kiểm tra sơ bộ. Vẫn cần kiểm tra ID, nối số dư và xác nhận Admin; chưa được ghi.'});
   }
-  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,compareFoxconnCandidates,resolvePaymentCollisionCandidates,resolveFoxconnNonPaymentCandidates,assessUnmatchedTransfers,classifyCashSource,auditFoxconnIdentityGroups,assessProjectSyncReadiness});
+  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,compareFoxconnCandidates,resolvePaymentCollisionCandidates,resolveFoxconnNonPaymentCandidates,assessUnmatchedTransfers,verifyTransferSourceLegs,classifyCashSource,auditFoxconnIdentityGroups,assessProjectSyncReadiness});
 });
