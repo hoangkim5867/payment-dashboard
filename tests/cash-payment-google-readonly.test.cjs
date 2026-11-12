@@ -491,3 +491,33 @@ test('transfer impact is read-only and cannot authorize Google writes',()=>{
  assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
  assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
 });
+
+test('unmatched transfers confirm Cash Control two-sided source leg, not Google sync',()=>{
+ const rows=[{date:'2026-10-26',_syncIds:['transfer:abc:out'],income:-300,importTaxVat:0},
+   {date:'2026-11-09',_syncIds:['transfer:def:in'],income:500,importTaxVat:0}];
+ const impact=auditor.assessUnmatchedTransfers(rows,{sourceOnlyPositions:[1,2]});
+ const records=[
+   {id:'abc',status:'paid',actualDate:'2026-10-26',actualAmount:300,fromProject:'FOXCONN',toProject:'ELYSIAN'},
+   {id:'def',status:'paid',actualDate:'2026-11-09',actualAmount:500,fromProject:'SSIS',toProject:'FOXCONN'}];
+ const result=auditor.verifyTransferSourceLegs('FOXCONN',impact,records);
+ assert.equal(result.sourceLegVerifiedCount,2);
+ assert.deepEqual(result.verified.map(v=>v.counterparty),['ELYSIAN','SSIS']);
+ assert.equal(result.googleCounterpartVerified,false);
+ assert.equal(result.canWrite,false);
+ const bad=auditor.verifyTransferSourceLegs('FOXCONN',impact,
+   [...records,{...records[0]}]);
+ assert.equal(bad.sourceLegVerifiedCount,1);
+ assert.deepEqual(bad.unverified,[1]);
+ const swapped=auditor.verifyTransferSourceLegs('FOXCONN',impact,
+   [{...records[0],fromProject:'ELYSIAN',toProject:'FOXCONN'},records[1]]);
+ assert.deepEqual(swapped.unverified,[1]);
+});
+test('source transfer leg validation remains read only and never confirms Sheets',()=>{
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ const fn=code.slice(start,end);
+ assert.match(fn,/auditor\.verifyTransferSourceLegs\(project,unmatchedTransferImpact,allTransfers\(\)\)/);
+ assert.match(fn,/CHƯA xác minh Google đối ứng/);
+ assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
+ assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
+});
