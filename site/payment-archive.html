@@ -957,6 +957,12 @@
             await getDocs(query(collection(db,"paymentArchives"),limit(1)));
             extraDiagnosis+=" Truy vấn 1 tháng: cho phép.";
           }catch(e){extraDiagnosis+=" Truy vấn 1 tháng: "+String(e?.code||"unknown")+".";}
+          // A direct GET is a distinct Rules operation from a collection LIST.
+          // Run only after failure, for one known historical month. No enumeration.
+          try{
+            const exactMonth=await getDocFromServer(doc(db,"paymentArchives","2026-10"));
+            extraDiagnosis+=" GET tháng 2026-10: "+(exactMonth.exists()?"cho phép":"không có tài liệu")+".";
+          }catch(e){extraDiagnosis+=" GET tháng 2026-10: "+String(e?.code||"unknown")+".";}
         }
         const hints={
           "permission-denied":"Firebase từ chối quyền đọc. Không sửa Rules khi chưa xác minh.",
