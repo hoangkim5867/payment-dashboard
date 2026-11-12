@@ -5723,14 +5723,18 @@ async function ccSyncCompareProjectGoogleReadOnly(){
         const linkedCandidate=paymentCollisionResolution.supported.find(
           item=>item.sourcePosition===position
         )||nonPaymentResolution.supported.find(item=>item.sourcePosition===position);
+        const semanticCandidate=nonPaymentResolution.semanticCandidates.find(
+          item=>item.sourcePosition===position);
         const numericOnly=nonPaymentResolution.numericOnly.find(item=>item.sourcePosition===position);
         const googleCandidate=linkedCandidate?
           'Dòng '+linkedCandidate.googleRow+' (ứng viên, chưa xác minh ID)':
+          semanticCandidate?'Dòng '+semanticCandidate.googleRow+
+            ' (khớp loại và kỳ/IPC hai ngôn ngữ; CHƯA xác minh ID)':
           numericOnly?'Dòng '+numericOnly.googleRow+' (trùng số tiền, khác nội dung; CHƯA xác nhận)':
           'Chưa xác định';
         // Display both sides of a review candidate from the worksheet already
         // loaded in memory. Same date/amount is NOT an immutable ID match.
-        const candidateRow=linkedCandidate?.googleRow??numericOnly?.googleRow;
+        const candidateRow=linkedCandidate?.googleRow??semanticCandidate?.googleRow??numericOnly?.googleRow;
         const googleData=Number.isSafeInteger(candidateRow)&&candidateRow>0?
           payload.values[candidateRow-1]:null;
         const googleEvidence=Array.isArray(googleData)?
@@ -5779,6 +5783,8 @@ async function ccSyncCompareProjectGoogleReadOnly(){
         ' · trùng Payment '+(identityGroups?.ambiguousPayment.length??'?')+
         ' · ứng viên phi Payment có đối ứng nội dung '+(nonPaymentResolution?.supportedCount??0)+
         ' · phi Payment cùng số liệu nhưng khác nội dung '+(nonPaymentResolution?.numericOnlyCount??0)+
+        ' · ứng viên phi Payment khớp loại/kỳ hai ngôn ngữ '+(nonPaymentResolution?.semanticCandidateCount??0)+
+        ' (CHƯA xác minh ID)' +
         ' · ứng viên Payment HĐ/IPC phân biệt được '+(paymentCollisionResolution?.supportedCount??0)+
         ' (chưa xác nhận ID duy nhất)' +
         ' · hoàn vay chưa đối ứng '+(unmatchedTransferImpact?.entries.length??0)+
