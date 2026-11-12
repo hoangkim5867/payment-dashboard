@@ -226,7 +226,7 @@ test('FOXCONN exception table is an Admin-driven DOM-only diagnostic',()=>{
  const fn=code.slice(start,end);
  assert.match(code,/id="ccSyncFoxconnExceptionPanel" hidden/);
  assert.match(code,/id="ccSyncFoxconnExceptionRows"/);
- assert.match(fn,/\['Vấn đề','Vị trí','Ngày','Nguồn','Loại','Nội dung','Hợp đồng','IPC','Quy tắc đối chiếu'\]/);
+ assert.match(fn,/\['Vấn đề','Vị trí','Ngày','Nguồn','Loại','Nội dung','Hợp đồng','IPC','Đối ứng Google \(ứng viên\)','Quy tắc đối chiếu'\]/);
  assert.match(fn,/source\[position-1\]/);
  assert.match(fn,/row\.contractNo\|\|'—'/);
  assert.match(fn,/row\.ipc\|\|'—'/);
@@ -364,4 +364,16 @@ test('non-Payment and missing-identity source cannot be resolved as a Payment ca
    {ambiguousSourcePositions:[1,2]},new Map([['p1',{source:'payment'}]]));
  assert.equal(result.supportedCount,0);
  assert.equal(result.canWrite,false);
+});
+
+test('read-only FOXCONN matched Google row remains candidate-only',()=>{
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ const fn=code.slice(start,end);
+ assert.match(fn,/paymentCollisionResolution\.supported\.find/);
+ assert.match(fn,/item\.sourcePosition===position/);
+ assert.match(fn,/linkedCandidate\.googleRow/);
+ assert.match(fn,/ứng viên, chưa xác minh ID/);
+ assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
+ assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
 });
