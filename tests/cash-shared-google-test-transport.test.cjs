@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {create,HEADER}=require('../site/assets/js/cash-shared-google-test-transport.js');
+const {create,HEADER,authenticatedRequest}=require('../site/assets/js/cash-shared-google-test-transport.js');
 const {syncTest}=require('../site/assets/js/cash-shared-test-write-coordinator.js');
 const planner=require('../site/assets/js/cash-shared-test-sync-planner.js');
 const target={isTestCopy:true,spreadsheetId:'TEST_SPREADSHEET_1234567890123456789',
@@ -46,7 +46,7 @@ test('actual Google Sheets API path adapter: GET metadata + encoded TEST range +
  const f=fixture();const x=await f.sync();
  assert.equal(x.status,'TEST_VERIFIED');assert.equal(x.balance,950);
  assert.equal(f.state.postCalls,1);
- assert.ok(f.state.log.some(x=>x.path.includes('%27DATA_CASHCONTROL_TEST_ELYSIAN%27!A1%3AO20000')));
+ assert.ok(f.state.log.some(x=>x.path.includes("'DATA_CASHCONTROL_TEST_ELYSIAN'!A1%3AO20000")));
  assert.ok(f.state.log.some(x=>x.method==='POST'&&x.path.includes(':append?valueInputOption=RAW')));
 });
 test('Google Sheets TEST API adapter: second run has no network write',async()=>{
@@ -100,4 +100,27 @@ test('Google Sheets TEST API adapter cannot accept production-like target',()=>{
   assert.throws(()=>create({target:bad,request,exclusiveLock:lock,
    openingBalance:0,history:[],amountColumns:7}),/TEST_TARGET_ONLY/);
  }
+});
+
+test('real HTTP request wrapper uses in-memory OAuth and never echoes token',async()=>{
+ const calls=[];
+ const request=authenticatedRequest({accessToken:'token_abcdefghijklmnopqrstuvwxyz_123456',
+  fetcher:async(url,options)=>{
+   calls.push({url,options});
+   return {ok:true,json:async()=>({spreadsheetId:target.spreadsheetId})};
+  }});
+ const result=await request('/v4/spreadsheets/'+target.spreadsheetId+'?fields=spreadsheetId');
+ assert.equal(result.spreadsheetId,target.spreadsheetId);
+ assert.match(calls[0].url,/^https:\/\/sheets.googleapis.com\/v4\/spreadsheets\//);
+ assert.equal(calls[0].options.headers.Authorization,'Bearer token_abcdefghijklmnopqrstuvwxyz_123456');
+ assert.equal(calls[0].options.method,'GET');
+ await assert.rejects(request('https://evil.example.com',{}),/GOOGLE_TEST_REQUEST_DISALLOWED/);
+});
+test('real HTTP request wrapper blocks missing permissions and OAuth errors',async()=>{
+ const request=authenticatedRequest({accessToken:'token_abcdefghijklmnopqrstuvwxyz_123456',
+  fetcher:async()=>({ok:false,status:403,json:async()=>({error:'sensitive token'})})});
+ await assert.rejects(request('/v4/spreadsheets/'+target.spreadsheetId+'?fields=spreadsheetId'),
+  /GOOGLE_TEST_HTTP_403/);
+ assert.throws(()=>authenticatedRequest({accessToken:'',fetcher:async()=>({})}),
+  /GOOGLE_TEST_AUTH_MISSING/);
 });
