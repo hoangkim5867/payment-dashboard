@@ -297,3 +297,32 @@ test('transaction matching hints do not override coarse collision counts or writ
  assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
  assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
 });
+
+test('identity conflicts on personnel and tax are not wrongly labeled Payment HĐ/IPC errors',()=>{
+ const rows=[
+  {_syncIds:['expense:pay_a'],contractNo:'LAB-001',ipc:'IPC1'},
+  {_syncIds:['expense:salary_a'],content:'Lương tháng 9',type:'Chi phí nhân sự'},
+  {_syncIds:['expense:ins_a'],content:'Bảo hiểm',type:'Chi phí nhân sự'},
+  {_syncIds:['expense:tax_a','expense:tax_b'],_taxQuarter:'2026-Q3'},
+  {_syncIds:['expense:inflow_a'],income:100,ipc:'IPC06'},
+  {_syncIds:['transfer:foxconn:out'],type:'Hoàn vay'}
+ ];
+ const records=new Map([
+  ['pay_a',{source:'payment'}],
+  ['salary_a',{source:'payroll'}],
+  ['ins_a',{source:'payroll'}],
+  ['inflow_a',{linkedModule:'inflow',direction:'in'}]
+ ]);
+ const groups=auditor.auditFoxconnIdentityGroups({
+  identityConflictPositions:[1,2,3],
+  identityUnverifiedPositions:[4,5],
+  ambiguousSourcePositions:[1,6]
+ },rows,records);
+ assert.deepEqual(groups.paymentIdentityReview,[1]);
+ assert.deepEqual(groups.nonPaymentCounterpartReview,[2,3,4,5]);
+ assert.deepEqual(groups.ambiguousPayment,[1]);
+ assert.deepEqual(groups.ambiguousOther,[6]);
+ assert.equal(groups.identityReviewCount,1);
+ assert.equal(groups.nonPaymentReviewCount,4);
+ assert.equal(groups.canWrite,false);
+});
