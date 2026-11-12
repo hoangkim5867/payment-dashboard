@@ -72,15 +72,17 @@ test('read-only report distinguishes full history from matching window and check
  assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
 });
 
-test('count verification happens before Google reads and fails closed on mismatch',()=>{
+test('raw Firestore count is reported separately from filtered rows before Google reads',()=>{
  const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
  const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
  const fn=code.slice(start,end);
  const count=fn.indexOf('getCountFromServer(query(paymentsRef,where(\'project\',\'==\',project)))');
  const meta=fn.indexOf('const metaRes=await fetch(');
  assert.ok(count>0&&meta>count,'must count before any Google API fetch');
- assert.match(fn,/rawCount!==rowsLoaded/);
- assert.match(fn,/dừng trước khi đọc Google, không tự tải lại/);
+ assert.match(fn,/const countDifference=rawCount-rowsLoaded/);
+ assert.match(fn,/const countUnverified=countDifference!==0\|\|cached/);
+ assert.match(fn,/chưa xác nhận đủ nguồn/);
+ assert.doesNotMatch(fn,/if\(rawCount!==rowsLoaded\)\s*throw/);
  assert.match(fn,/cached\?' \(bộ nhớ, có thể cũ\)'/);
  assert.match(fn,/Even equal counts do NOT verify alias coverage/);
  assert.doesNotMatch(fn,/setDoc\(|addDoc\(|updateDoc\(|deleteDoc\(/);
