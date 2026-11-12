@@ -5573,6 +5573,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
     // Update calculated Cash Control expenses from already loaded Payment.
     rebuildPaymentsFromLoadedMonths();
     const rowsLoaded=paymentMonths.get(project).length;
+    const authUid=currentAuthUser.uid;
     const endpoint='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(fileId);
     const headers={Authorization:'Bearer '+ccGoogleSyncToken};
     const metaRes=await fetch(endpoint+
@@ -5596,11 +5597,14 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       });
     if(!valuesRes.ok)throw Error('Google lịch sử HTTP '+valuesRes.status);
     const payload=await valuesRes.json();
+    if(!currentAuthUser||currentAuthUser.uid!==authUid||!isCashControlOwner())
+      throw Error('Quyền Admin đã thay đổi; bỏ kết quả đối chiếu');
     if(!Array.isArray(payload.values)||payload.values.length>20000)
       throw Error('Sổ Google không có dữ liệu hợp lệ');
     const auditor=window.CashSyncHistoricalAudit;
     if(!auditor?.audit)throw Error('Bộ kiểm tra sổ chưa tải');
     const history=auditor.audit(payload.values,{project});
+    const diagnostic=auditor.dateLayoutDiagnostic(payload.values);
     const from=monthIndex('2026-10'),through=monthIndex(CURRENT);
     if(through<from||through-from>35)throw Error('Khoảng tháng chưa hỗ trợ');
     const months=Array.from({length:through-from+1},(_,i)=>monthFromIndex(from+i));
@@ -5612,14 +5616,27 @@ async function ccSyncCompareProjectGoogleReadOnly(){
     const m=project==='FOXCONN'?matched.candidates:matched.matched;
     const h=project==='FOXCONN'?matched.historyOnly:matched.historicalOnly;
     const s=project==='FOXCONN'?matched.sourceOnly:matched.cashOnly;
-    status.textContent='CHỈ ĐỌC '+project+' · Payment '+rowsLoaded+
-      ' hồ sơ'+(cached?' (cache)':'')+' · Google '+history.transactionRows+
-      ' dòng lịch sử · nguồn Cash Control từ 10/2026 '+matched.sourceScope+
-      ' dòng · ứng viên '+m+' · chỉ Google '+h+' · chỉ Cash Control '+s+
+    const dateRegressions=Number(history.nonMonotonicDates||0);
+    const unparsedDates=diagnostic.suspectCount||0;
+    const sourceMissing=project==='FOXCONN'?
+      matched.unmappedTax+matched.invalidSource:
+      matched.invalidSource;
+    const blocked=sourceMissing>0||matched.ambiguous>0||
+      matched.identityConflict>0||dateRegressions>0||
+      unparsedDates>0||!matched.sourceComplete;
+    status.textContent=(blocked?'CHƯA ĐỦ ĐIỀU KIỆN · ':'CHỈ ĐỌC · ')+project+
+      ' · Payment '+rowsLoaded+' hồ sơ'+(cached?' (bộ nhớ, có thể cũ)':'')+
+      ' · tổng lịch sử Google '+history.transactionRows+' giao dịch'+
+      ' · phạm vi so khớp từ 10/2026: Google '+matched.historicalScope+
+      ', Cash Control '+matched.sourceScope+' dòng'+
+      ' · ứng viên '+m+' · chỉ Google trong phạm vi '+h+
+      ' · chỉ Cash Control trong phạm vi '+s+
       ' · mơ hồ '+matched.ambiguous+' · xung đột HĐ/IPC '+matched.identityConflict+
-      (project==='FOXCONN'?' · chưa xác minh thuế '+matched.unmappedTax:'')+
-      '. Không xác nhận nguồn đủ hoặc danh tính trùng; '+
-      'KHÔNG cấp phép đồng bộ. 0 writes.';
+      (project==='FOXCONN'?' · thuế chưa xác minh '+matched.unmappedTax:'')+
+      ' · ngày đảo thứ tự '+dateRegressions+
+      ' · ngày chưa nhận dạng '+unparsedDates+
+      '. Chưa chứng nhận toàn bộ tên dự án cũ, nguồn Payment hoặc danh tính trùng; '+
+      'KHÔNG cấp phép đồng bộ, 0 writes.';
   }catch(error){
     status.textContent='CHẶN '+project+': '+String(error?.message||'lỗi').slice(0,130)+
       '. Không tự thử lại, 0 writes.';
