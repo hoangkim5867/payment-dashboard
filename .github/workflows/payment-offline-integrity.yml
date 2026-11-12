@@ -25,6 +25,8 @@ jobs:
         run: python tests/verify_js_syntax.py
       - name: Current offline regression suite
         run: node --test tests/index-v1/*.test.cjs tests/secure/*.test.cjs tests/regression/*.test.cjs
+      - name: Cash multi-project Google TEST safety and idempotency
+        run: node --test tests/cash-shared-*.test.cjs
       - name: Check Excel import and duplicate semantics
         run: |
           node tests/verify_preflight.cjs
