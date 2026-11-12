@@ -5675,6 +5675,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
     // downloads, Google writes or automated duplicate selections.
     let identityGroups=null;
     let paymentCollisionResolution=null;
+    let unmatchedTransferImpact=null;
     let nonPaymentResolution=null;
     if(project==='FOXCONN'&&exceptionPanel){
       const output=$('ccSyncFoxconnExceptionRows');
@@ -5689,6 +5690,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       identityGroups=auditor.auditFoxconnIdentityGroups(matched,source,cashExpenseById);
       paymentCollisionResolution=auditor.resolvePaymentCollisionCandidates(payload.values,source,matched,cashExpenseById);
       nonPaymentResolution=auditor.resolveFoxconnNonPaymentCandidates(payload.values,source,matched,cashExpenseById);
+      unmatchedTransferImpact=auditor.assessUnmatchedTransfers(source,matched);
       const sourceKind=row=>{
         const ids=Array.isArray(row._syncIds)?row._syncIds:[];
         if(ids.some(id=>String(id).startsWith('transfer:')))return 'Điều chuyển nội bộ';
@@ -5759,7 +5761,11 @@ async function ccSyncCompareProjectGoogleReadOnly(){
         ' · ứng viên phi Payment có đối ứng nội dung '+(nonPaymentResolution?.supportedCount??0)+
         ' · phi Payment cùng số liệu nhưng khác nội dung '+(nonPaymentResolution?.numericOnlyCount??0)+
         ' · ứng viên Payment HĐ/IPC phân biệt được '+(paymentCollisionResolution?.supportedCount??0)+
-        ' (chưa xác nhận ID duy nhất)':'')+
+        ' (chưa xác nhận ID duy nhất)' +
+        ' · hoàn vay chưa đối ứng '+(unmatchedTransferImpact?.entries.length??0)+
+        ' · ảnh hưởng số dư giả định '+(Number(unmatchedTransferImpact?.net||0)).toLocaleString('vi-VN')+' VND'+
+        ' (KHÔNG ghi; cần xác minh đối ứng và số dư)' +
+        (unmatchedTransferImpact?.errors.length?' · lỗi nhận dạng điều chuyển '+unmatchedTransferImpact.errors.length:''):'')+
       ' · ngày đảo thứ tự '+dateRegressions+
       ' · ngày chưa nhận dạng '+unparsedDates+
       ' · trạng thái sổ '+history.status+
