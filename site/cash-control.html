@@ -5507,7 +5507,8 @@ function ccSyncFoxconnAuditRows(month){
         unverified=true;break;
       }
       if(expense.direction!=='out'||!explicit)continue;
-      const amount=Math.abs(Number(expense.actualAmount||expense.amount||0));
+      // Zero actual payment is not a paid import tax: never fall back to planned amount.
+      const amount=Math.abs(Number(expense.actualAmount??expense.amount??0));
       const field=category==='subcontract'?'subcontract':
         category==='material'?'material':
         category==='indirect'?'indirect':
