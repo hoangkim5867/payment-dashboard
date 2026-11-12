@@ -191,3 +191,31 @@ test('one-project reconciliation always fetches a new snapshot after Admin confi
  assert.match(fn,/confirm\(/);
  assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
 });
+
+test('FOXCONN exception positions are diagnostics, never proof of a new payment',()=>{
+ const header=[...Array(13).fill(''),'进口税+增值税','余额'];
+ const row=(ipc,amount,date='2026-10-01')=>[date,'ACME','C1','',ipc,'',amount,20,0,0,0,0,0,10,amount-30];
+ const src=(ipc,amount,date='2026-10-01')=>({date,company:'ACME',contractNo:'C1',ipc,
+   income:amount,subcontract:20,material:0,otherDirect:0,indirect:0,
+   financial:0,otherPayable:0,importTaxVat:10});
+ const history=[header,row('IPC1',100),row('IPC2',200)];
+ const cash=[src('IPC1',100),src('IPC3',200),src('IPC4',300)];
+ const out=auditor.compareFoxconnCandidates(history,cash);
+ assert.equal(out.candidates,2);
+ assert.equal(out.sourceOnly,1);
+ assert.deepEqual(out.sourceOnlyPositions,[3]);
+ assert.deepEqual(out.identityConflictPositions,[2]);
+ assert.deepEqual(out.historyOnlyPositions,[]);
+ assert.equal(out.canWrite,false);
+ const duplicate=auditor.compareFoxconnCandidates([header,row('IPC1',100)],
+   [src('IPC1',100),src('IPC1',100)]);
+ assert.equal(duplicate.sourceOnly,1);
+ assert.deepEqual(duplicate.sourceOnlyPositions,[]);
+ assert.deepEqual(duplicate.ambiguousSourcePositions,[1,2]);
+ assert.equal(duplicate.canWrite,false);
+});
+test('manual FOXCONN report exposes only candidate row positions and no writes',()=>{
+ assert.match(code,/matched\.sourceOnlyPositions\?\.join/);
+ assert.match(code,/matched\.identityConflictPositions\?\.join/);
+ assert.match(code,/matched\.identityUnverifiedPositions\?\.join/);
+});
