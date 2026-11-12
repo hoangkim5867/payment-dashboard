@@ -17,7 +17,7 @@ test('Google comparison is a manual Admin-only, production-only, read-only actio
  assert.match(fn,/project==='PHU HUNG'/);
  assert.match(fn,/ccGoogleSyncToken/);
  assert.match(fn,/confirm\(/);
- assert.match(fn,/loadProjectPayments\(project,\{quiet:true,refresh:false\}\)/);
+ assert.match(fn,/loadProjectPayments\(project,\{force:true,quiet:true,refresh:false\}\)/);
  assert.match(fn,/compareFoxconnCandidates/);
  assert.match(fn,/compareLoadedCashControl/);
  assert.match(fn,/KHÔNG cấp phép đồng bộ/);
@@ -72,7 +72,7 @@ test('read-only report distinguishes full history from matching window and check
  assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
 });
 
-test('raw Firestore count is reported separately from filtered rows before Google reads',()=>{
+test('fresh one-project read and raw Firestore count reported before Google reads',()=>{
  const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
  const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
  const fn=code.slice(start,end);
@@ -80,10 +80,10 @@ test('raw Firestore count is reported separately from filtered rows before Googl
  const meta=fn.indexOf('const metaRes=await fetch(');
  assert.ok(count>0&&meta>count,'must count before any Google API fetch');
  assert.match(fn,/const countDifference=rawCount-rowsLoaded/);
- assert.match(fn,/const countUnverified=countDifference!==0\|\|cached/);
+ assert.match(fn,/const countUnverified=countDifference!==0;/);
  assert.match(fn,/chưa xác nhận đủ nguồn/);
  assert.doesNotMatch(fn,/if\(rawCount!==rowsLoaded\)\s*throw/);
- assert.match(fn,/countUnverified\?' \(chênh lệch\/cached, chưa xác nhận đủ nguồn\)'/);
+ assert.match(fn,/countUnverified\?' \(chênh lệch, chưa xác nhận đủ nguồn\)'/);
  assert.match(fn,/Even equal counts do NOT verify alias coverage/);
  assert.doesNotMatch(fn,/setDoc\(|addDoc\(|updateDoc\(|deleteDoc\(/);
 });
@@ -151,4 +151,14 @@ test('FOXCONN blank tax mapping is unknown, but verified numeric zero is valid',
  assert.equal(verified.unmappedTax,0);
  assert.equal(verified.candidates,1);
  assert.equal(verified.canWrite,false);
+});
+
+test('Admin-only read comparison does not quietly reuse the Payment project cache',()=>{
+ const a=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const b=code.indexOf('function ccSyncProjectCatalogRender()',a);
+ const fn=code.slice(a,b);
+ assert.match(fn,/confirm\(/);
+ assert.match(fn,/await loadProjectPayments\(project,\{force:true,quiet:true,refresh:false\}\)/);
+ assert.doesNotMatch(fn,/cached\|\|await loadProjectPayments/);
+ assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
 });
