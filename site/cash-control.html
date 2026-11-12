@@ -4,6 +4,7 @@
 <meta name="description" content="Quản lý dòng tiền, công nợ, hồ sơ IPC, đề nghị thanh toán, bảo lãnh và tín dụng cho dự án MEP.">
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="assets/js/cash-sync-historical-audit.js?v=review-readonly-20261112"></script>
 <link rel="stylesheet" href="assets/css/cash-control.css" data-stage1-extracted="primary">
 <style id="cc-no-double-sidebar-gap">
 /* Fix: sidebar already occupies a CSS-grid column; do not offset main twice. */
@@ -1431,6 +1432,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <select id="ccSyncPaymentPreflightProject" aria-label="Dự án cần đếm Payment" style="min-width:180px;padding:7px;border:1px solid #cad4e3;border-radius:7px"></select>
           <button class="btn" id="ccSyncPaymentPreflightCount" type="button">Đếm Payment 1 dự án (có Firestore reads)</button>
           <button class="btn" id="ccSyncPaymentPreflightLoad" type="button">Tải Payment 1 dự án · chỉ đọc</button>
+          <button class="btn" id="ccSyncProjectCompareGoogle" type="button">Đối chiếu Payment ↔ Google · chỉ đọc</button>
           <span id="ccSyncPaymentPreflightStatus" aria-live="polite" style="font-size:12px;color:#44546b">Chưa kiểm tra.</span>
         </div>
         <div id="ccSyncProjectCatalogEntries" style="max-height:420px;overflow:auto;display:grid;gap:7px"></div>
@@ -5484,6 +5486,201 @@ async function ccSyncLoadOneProjectReadOnly(){
       '. Không tự thử lại, không ghi.';
   }finally{button.disabled=false}
 }
+// Read-only FOXCONN 8-column projection. Never changes the established
+// Cash Control 7-category export. Unknown source identity/tax blocks matches.
+function ccSyncFoxconnAuditRows(month){
+  const records=new Map(allExpenses().filter(x=>x?.id).map(x=>[String(x.id),x]));
+  return legacyCashExportRows(month,'FOXCONN').map(row=>{
+    const result={...row};
+    let tax=0,unverified=false;
+    if(!Array.isArray(row._syncIds)||!row._syncIds.length)unverified=true;
+    for(const id of row._syncIds||[]){
+      if(id.startsWith('transfer:'))continue;
+      if(!id.startsWith('expense:')){unverified=true;break}
+      const expense=records.get(id.slice(8));
+      if(!expense){unverified=true;break}
+      const category=excelProjectCostBucket(expense);
+      const text=String(expense.category||'')+' '+String(expense.description||'')+
+        ' '+String(expense.contractType||'');
+      const explicit=/进口税|进口增值税|外省增值税|thuế nhập khẩu|thue nhap khau|import (?:tax|vat)/i.test(text);
+      if(expense.direction==='out'&&category==='taxDeposit'&&!explicit){
+        unverified=true;break;
+      }
+      if(expense.direction!=='out'||!explicit)continue;
+      // Zero actual payment is not a paid import tax: never fall back to planned amount.
+      const amount=Math.abs(Number(expense.actualAmount??expense.amount??0));
+      const field=category==='subcontract'?'subcontract':
+        category==='material'?'material':
+        category==='indirect'?'indirect':
+        category==='financial'?'financial':
+        category==='other'?'otherPayable':'otherDirect';
+      if(!Number.isFinite(amount)||amount<=0||Number(result[field]||0)<amount){
+        unverified=true;break;
+      }
+      result[field]=Number(result[field]||0)-amount;
+      tax+=amount;
+    }
+    if(!unverified)result.importTaxVat=tax;
+    return result;
+  });
+}
+// Manual Admin action: one production project Payment query + ONE linked
+// Google Sheets historical tab. It never writes or enables synchronization.
+async function ccSyncCompareProjectGoogleReadOnly(){
+  const button=$('ccSyncProjectCompareGoogle');
+  const status=$('ccSyncPaymentPreflightStatus');
+  const project=normProject($('ccSyncPaymentPreflightProject')?.value||'');
+  if(!button||!status||button.disabled)return;
+  if(!currentAuthUser||!isCashControlOwner()){
+    status.textContent='Chỉ Admin được kiểm tra.';return;
+  }
+  if(firebaseConfig.projectId!=='cscecmep-payment'){
+    status.textContent='Preview STAGING cách ly, không được đọc Payment production.';return;
+  }
+  if(!project||!ccSyncProjectCatalogNames().includes(project)){
+    status.textContent='Chọn một dự án hợp lệ.';return;
+  }
+  if(project==='PHU HUNG'){
+    status.textContent='PHU HUNG dùng luồng đối chiếu riêng đã có; không chạy quy trình nhiều dự án.';return;
+  }
+  if(!ccGoogleSyncToken){
+    status.textContent='Bấm Kết nối Google trước.';return;
+  }
+  const link=ccSyncProjectLinkDraft[project];
+  if(!link||!ccSyncProjectLinkValid(link)){
+    status.textContent='Chưa có link Google Sheets hợp lệ cho '+project+'.';return;
+  }
+  const url=new URL(link);
+  const fileId=/^\/spreadsheets\/d\/([A-Za-z0-9_-]{20,})(?:\/|$)/.exec(url.pathname)?.[1];
+  const queryGid=url.searchParams.get('gid');
+  const hashGid=/^#gid=(\d+)$/.exec(url.hash)?.[1]??null;
+  if(url.hostname!=='docs.google.com'||url.protocol!=='https:'||!fileId||
+     queryGid!==null&&!/^\d+$/.test(queryGid)||
+     queryGid!==null&&hashGid!==null&&queryGid!==hashGid){
+    status.textContent='Link Google không xác định được file/tab lịch sử.';return;
+  }
+  if(!confirm('ĐỐI CHIẾU CHỈ ĐỌC '+project+
+    ': tải MỚI Payment của 1 dự án (có Firestore reads), đếm chứng từ '+
+    'và đọc 1 tab Google. Có Firestore reads và Google API reads, '+
+    'KHÔNG ghi hoặc cấp phép đồng bộ. Tiếp tục?'))return;
+  button.disabled=true;
+  status.textContent='Đang đối chiếu '+project+' (chỉ đọc)…';
+  try{
+    // Explicit Admin confirmation authorizes exactly one fresh project query.
+    // Never reconcile mutable payment documents using a potentially stale cache.
+    const ok=await loadProjectPayments(project,{force:true,quiet:true,refresh:false});
+    if(!ok||!paymentMonths.has(project))throw Error('Payment dự án chưa được tải');
+    if(!currentAuthUser||!isCashControlOwner())
+      throw Error('Phiên Admin đã thay đổi');
+    // Update calculated Cash Control expenses from already loaded Payment.
+    rebuildPaymentsFromLoadedMonths();
+    const rowsLoaded=paymentMonths.get(project).length;
+    const authUid=currentAuthUser.uid;
+    // Aggregate includes soft-deleted raw documents; loaded rows exclude them.
+    // Equality is not a proof of stable identity or alias completeness.
+    const countSnap=await getCountFromServer(query(paymentsRef,where('project','==',project)));
+    const rawCount=Number(countSnap.data()?.count);
+    if(!currentAuthUser||currentAuthUser.uid!==authUid||!isCashControlOwner())
+      throw Error('Quyền Admin đã thay đổi; bỏ kết quả kiểm tra');
+    if(!Number.isSafeInteger(rawCount)||rawCount<0)
+      throw Error('Không xác minh được số chứng từ Payment');
+    // The server aggregate includes soft-deleted canonical documents, while
+    // the project loader excludes deleted rows and may include legacy aliases.
+    // These numbers are not equivalent. Report the discrepancy without claiming
+    // complete source coverage; continue the manual READ-ONLY comparison.
+    const countDifference=rawCount-rowsLoaded;
+    const countUnverified=countDifference!==0;
+    // Even equal counts do NOT verify alias coverage, transferred records or
+    // stable data revisions. This remains a candidate-only read check.
+    const endpoint='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(fileId);
+    const headers={Authorization:'Bearer '+ccGoogleSyncToken};
+    const metaRes=await fetch(endpoint+
+      '?fields=spreadsheetId,sheets(properties(sheetId,title,hidden,gridProperties(rowCount)))',{
+        method:'GET',headers,cache:'no-store'
+      });
+    if(!metaRes.ok)throw Error('Google metadata HTTP '+metaRes.status);
+    const meta=await metaRes.json();
+    if(meta.spreadsheetId!==fileId)throw Error('ID Google không khớp');
+    const tabs=(meta.sheets||[]).map(s=>s.properties)
+      .filter(p=>p&&p.hidden!==true);
+    const gid=queryGid??hashGid;
+    const tab=gid!==null?tabs.find(t=>String(t.sheetId)===gid):
+      tabs.length===1?tabs[0]:null;
+    if(!tab)throw Error('Link cần gid rõ ràng của tab lịch sử');
+    if(tab.gridProperties?.rowCount>20000)throw Error('Sổ vượt 20.000 hàng');
+    const range="'"+tab.title.replace(/'/g,"''")+"'!A1:AG20000";
+    const valuesRes=await fetch(endpoint+'/values/'+encodeURIComponent(range)+
+      '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER',{
+        method:'GET',headers,cache:'no-store'
+      });
+    if(!valuesRes.ok)throw Error('Google lịch sử HTTP '+valuesRes.status);
+    const payload=await valuesRes.json();
+    if(!currentAuthUser||currentAuthUser.uid!==authUid||!isCashControlOwner())
+      throw Error('Quyền Admin đã thay đổi; bỏ kết quả đối chiếu');
+    if(!Array.isArray(payload.values)||payload.values.length>20000)
+      throw Error('Sổ Google không có dữ liệu hợp lệ');
+    const auditor=window.CashSyncHistoricalAudit;
+    if(!auditor?.audit)throw Error('Bộ kiểm tra sổ chưa tải');
+    const history=auditor.audit(payload.values,{project});
+    const diagnostic=auditor.dateLayoutDiagnostic(payload.values);
+    const from=monthIndex('2026-10'),through=monthIndex(CURRENT);
+    if(through<from||through-from>35)throw Error('Khoảng tháng chưa hỗ trợ');
+    const months=Array.from({length:through-from+1},(_,i)=>monthFromIndex(from+i));
+    const source=months.flatMap(month=>project==='FOXCONN'?
+      ccSyncFoxconnAuditRows(month):legacyCashExportRows(month,project));
+    const matched=project==='FOXCONN'?
+      auditor.compareFoxconnCandidates(payload.values,source,{startMonth:'2026-10'}):
+      auditor.compareLoadedCashControl(payload.values,project,source,{sourceComplete:false});
+    const m=project==='FOXCONN'?matched.candidates:matched.matched;
+    const h=project==='FOXCONN'?matched.historyOnly:matched.historicalOnly;
+    const s=project==='FOXCONN'?matched.sourceOnly:matched.cashOnly;
+    const dateRegressions=Number(history.nonMonotonicDates||0);
+    const unparsedDates=diagnostic.suspectCount||0;
+    const sourceMissing=project==='FOXCONN'?
+      matched.unmappedTax+matched.invalidSource:
+      matched.invalidSource;
+    // Historical layout and amount parsing are independent blockers:
+    // zero ambiguous candidate matches does not mean the ledger is safe.
+    const historyUnverified=history.status!=='internally-consistent'||
+      Number(history.layoutErrors||0)>0||
+      Number(history.missingBalance||0)>0||
+      Number(history.invalidMoney||0)>0||
+      Number(history.continuityErrors||0)>0||
+      Number(history.roundingDifferences||0)>0;
+    const invalidMatchRows=Number(matched.invalidHistory||0);
+    // Date/amount candidates can still represent different payments.
+    // Differences, absent contract/IPC identity and one-sided rows block sync.
+    const unmatchedRows=Number(h||0)+Number(s||0);
+    const missingIdentity=Number(matched.identityUnverified||0);
+    const blocked=historyUnverified||invalidMatchRows>0||
+      sourceMissing>0||matched.ambiguous>0||
+      matched.identityConflict>0||missingIdentity>0||unmatchedRows>0||
+      dateRegressions>0||unparsedDates>0||!matched.sourceComplete;
+    status.textContent=(blocked?'CHƯA ĐỦ ĐIỀU KIỆN · ':'CHỈ ĐỌC · ')+project+
+      ' · Payment '+rowsLoaded+' hồ sơ đã tải; đếm Firestore tên chuẩn '+rawCount+
+      (countUnverified?' (chênh lệch, chưa xác nhận đủ nguồn)':' (số lượng bằng nhau, chưa xác nhận đủ nguồn)')+
+      ' · tổng lịch sử Google '+history.transactionRows+' giao dịch'+
+      ' · phạm vi so khớp từ 10/2026: Google '+matched.historicalScope+
+      ', Cash Control '+matched.sourceScope+' dòng'+
+      ' · ứng viên '+m+' · chỉ Google trong phạm vi '+h+
+      ' · chỉ Cash Control trong phạm vi '+s+
+      ' · mơ hồ '+matched.ambiguous+
+      ' · chưa đủ danh tính HĐ/IPC '+missingIdentity+
+      ' · xung đột HĐ/IPC '+matched.identityConflict+
+      (project==='FOXCONN'?' · thuế chưa xác minh '+matched.unmappedTax:'')+
+      ' · ngày đảo thứ tự '+dateRegressions+
+      ' · ngày chưa nhận dạng '+unparsedDates+
+      ' · trạng thái sổ '+history.status+
+      ' · lỗi bố cục '+Number(history.layoutErrors||0)+
+      ' · sai số dư '+Number(history.continuityErrors||0)+
+      ' · dòng Google không đối chiếu được '+invalidMatchRows+
+      '. Chưa chứng nhận toàn bộ tên dự án cũ, nguồn Payment hoặc danh tính trùng; '+
+      'KHÔNG cấp phép đồng bộ, 0 writes.';
+  }catch(error){
+    status.textContent='CHẶN '+project+': '+String(error?.message||'lỗi').slice(0,130)+
+      '. Không tự thử lại, 0 writes.';
+  }finally{button.disabled=false}
+}
 function ccSyncProjectCatalogRender(){
   const wrap=$('ccSyncProjectCatalogEntries');
   if(!wrap)return;
@@ -5556,6 +5753,7 @@ function ccSyncProjectCatalogInitialize(){
   $('ccSyncProjectCatalogRefresh')?.addEventListener('click',ccSyncProjectCatalogRender);
   $('ccSyncPaymentPreflightCount')?.addEventListener('click',ccSyncCountOneProject);
   $('ccSyncPaymentPreflightLoad')?.addEventListener('click',ccSyncLoadOneProjectReadOnly);
+  $('ccSyncProjectCompareGoogle')?.addEventListener('click',ccSyncCompareProjectGoogleReadOnly);
   $('ccSyncProjectCatalogExport')?.addEventListener('click',()=>{
     const payload={schema:'CASH_SYNC_PROJECT_LINK_DRAFT_V1',projects:ccSyncProjectLinkDraft,
       note:'Local draft only; does not authorize Google Sheets sync'};

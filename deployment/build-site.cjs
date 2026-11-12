@@ -54,6 +54,7 @@ if(require.main===module){
  require('node:child_process').execFileSync(process.execPath,[
    '--test',path.join(__dirname,'../tests/cash-sync-gate.test.cjs'),
    path.join(__dirname,'../tests/cash-payment-project-readonly.test.cjs'),
+   path.join(__dirname,'../tests/cash-payment-google-readonly.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-original-audit.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-live-core.test.cjs'),
    path.join(__dirname,'../google-sheets-sync/pilot.test.cjs')

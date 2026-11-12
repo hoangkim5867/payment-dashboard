@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path');
 const html=fs.readFileSync(path.join(__dirname,'../../site/cash-control.html'),'utf8');
 const begin=html.indexOf('async function ccSyncCountOneProject(){');
-const end=html.indexOf('function ccSyncProjectCatalogRender(){',begin);
+const end=html.indexOf('async function ccSyncLoadOneProjectReadOnly(){',begin);
 const fn=html.slice(begin,end);
 test('preflight is one-project-only, Admin-only, confirmed, and uses aggregate count',()=>{
  assert.ok(begin>0&&end>begin);
