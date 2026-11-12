@@ -56,3 +56,16 @@ test('FOXCONN different IPC is identity conflict, never sync approval',()=>{
  assert.equal(result.identityConflict,1);
  assert.equal(result.canWrite,false);
 });
+
+test('read-only report distinguishes full history from matching window and checks auth again',()=>{
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ const fn=code.slice(start,end);
+ assert.match(fn,/matched\.historicalScope/);
+ assert.match(fn,/tổng lịch sử Google/);
+ assert.match(fn,/phạm vi so khớp từ 10\/2026/);
+ assert.match(fn,/currentAuthUser\.uid!==authUid/);
+ assert.match(fn,/auditor\.dateLayoutDiagnostic/);
+ assert.match(fn,/!matched\.sourceComplete/);
+ assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
+});
