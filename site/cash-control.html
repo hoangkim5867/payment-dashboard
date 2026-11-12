@@ -5749,7 +5749,7 @@ async function ccSyncProjectBatchHistoricalAudit(){
                endIndex-startIndex>35)throw Error('Khoảng kỳ cần đối chiếu riêng');
             const months=Array.from({length:endIndex-startIndex+1},(_,i)=>
               monthFromIndex(startIndex+i));
-            const cachedRows=months.flatMap(month=>legacyCashExportRows(month,project));
+            const cachedRows=months.flatMap(month=>project==='FOXCONN'?foxconnAuditSourceRows(month):legacyCashExportRows(month,project));
             const comparison=project==='FOXCONN'?
               auditor.compareFoxconnCandidates(values.values,cachedRows,{startMonth:'2026-10'}):
               auditor.compareLoadedCashControl(values.values,project,cachedRows,
@@ -8162,16 +8162,6 @@ function legacyCashExportRows(month,project){
 
         const amount=Math.abs(Number(x.actualAmount||x.amount||0));
         const bucket=excelProjectCostBucket(x);
-        // FOXCONN uses a dedicated import tax + VAT column N in Google.
-        // Only explicit tax wording can be mapped. A tax/deposit bucket with
-        // unclear provenance must not be silently treated as ordinary expense.
-        const taxWords=String(x.category||'')+' '+String(x.description||'')+
-          ' '+String(x.contractType||'');
-        const explicitImportTax=/进口税|进口增值税|外省增值税|thuế nhập khẩu|thue nhap khau|import (?:tax|vat)/i.test(taxWords);
-        const foxconnTaxReview=project==='FOXCONN' && x.direction==='out' &&
-          bucket==='taxDeposit' && !explicitImportTax;
-        const foxconnImportTax=project==='FOXCONN' && x.direction==='out' &&
-          explicitImportTax ? amount : 0;
 
         rows.push({
             date:x.actualDate,
@@ -8181,15 +8171,12 @@ function legacyCashExportRows(month,project){
             ipc:excelCashIpc(x),
             type:excelCashType(x),
             income:x.direction==='in'?amount:0,
-            subcontract:x.direction==='out'&&bucket==='subcontract'&&!foxconnImportTax?amount:0,
-            material:x.direction==='out'&&bucket==='material'&&!foxconnImportTax?amount:0,
-            otherDirect:x.direction==='out'&&(bucket==='labor'||bucket==='otherDirect'||bucket==='taxDeposit') &&
-              !foxconnImportTax?amount:0,
-            // Snapshot-only audit metadata, not used by ordinary 7-column export.
-            ...(project==='FOXCONN'&&!foxconnTaxReview?{importTaxVat:foxconnImportTax}:{}),
-            indirect:x.direction==='out'&&bucket==='indirect'&&!foxconnImportTax?amount:0,
-            financial:x.direction==='out'&&bucket==='financial'&&!foxconnImportTax?amount:0,
-            otherPayable:x.direction==='out'&&bucket==='other'&&!foxconnImportTax?amount:0,
+            subcontract:x.direction==='out'&&bucket==='subcontract'?amount:0,
+            material:x.direction==='out'&&bucket==='material'?amount:0,
+            otherDirect:x.direction==='out'&&(bucket==='labor'||bucket==='otherDirect'||bucket==='taxDeposit')?amount:0,
+            indirect:x.direction==='out'&&bucket==='indirect'?amount:0,
+            financial:x.direction==='out'&&bucket==='financial'?amount:0,
+            otherPayable:x.direction==='out'&&bucket==='other'?amount:0,
             sortText:x.description||'',
             _taxQuarter:x.direction==='out'?excelTaxQuarterCode(x):'',
             _taxDirection:x.direction,
@@ -8215,7 +8202,6 @@ function legacyCashExportRows(month,project){
                 type:excelTransferTypeLabel(x,window.cashExportLang||cashLang,project),
                 income:-amount,
                 subcontract:0,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0,
-                ...(project==='FOXCONN'?{importTaxVat:0}:{}),
                 sortText:x.description||'',_syncIds:x.id?['transfer:'+String(x.id)+':out']:[]
             });
         }
@@ -8230,7 +8216,6 @@ function legacyCashExportRows(month,project){
                 type:excelTransferTypeLabel(x,window.cashExportLang||cashLang,project),
                 income:amount,
                 subcontract:0,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0,
-                ...(project==='FOXCONN'?{importTaxVat:0}:{}),
                 sortText:x.description||'',_syncIds:x.id?['transfer:'+String(x.id)+':in']:[]
             });
         }
@@ -8245,6 +8230,46 @@ function legacyCashExportRows(month,project){
         const bi=Number(b.income||0)!==0?0:1;
         if(ai!==bi)return ai-bi;
         return String(a.sortText).localeCompare(String(b.sortText));
+    });
+}
+
+// FOXCONN audit-only projection. Never changes the seven-column Cash Control
+// export or writes data. Unknown tax categorization blocks reconciliation.
+function foxconnAuditSourceRows(month){
+    const byId=new Map(allExpenses().filter(x=>x?.id).map(x=>[String(x.id),x]));
+    return legacyCashExportRows(month,'FOXCONN').map(row=>{
+        const result={...row};
+        const ids=Array.isArray(row._syncIds)?row._syncIds:[];
+        if(!ids.length)return result; // Missing identity: tax mapping unverified.
+        let importTaxVat=0,unknown=false;
+        for(const token of ids){
+            if(String(token).startsWith('transfer:'))continue;
+            if(!String(token).startsWith('expense:')){unknown=true;break}
+            const x=byId.get(String(token).slice(8));
+            if(!x){unknown=true;break}
+            const category=excelProjectCostBucket(x);
+            const words=String(x.category||'')+' '+String(x.description||'')+
+                ' '+String(x.contractType||'');
+            const explicit=/进口税|进口增值税|外省增值税|thuế nhập khẩu|thue nhap khau|import (?:tax|vat)/i.test(words);
+            if(x.direction==='out'&&category==='taxDeposit'&&!explicit){
+                unknown=true;break;
+            }
+            if(x.direction!=='out'||!explicit)continue;
+            const amount=Math.abs(Number(x.actualAmount||x.amount||0));
+            const field=category==='subcontract'?'subcontract':
+                category==='material'?'material':
+                category==='indirect'?'indirect':
+                category==='financial'?'financial':
+                category==='other'?'otherPayable':'otherDirect';
+            if(!Number.isFinite(amount)||amount<=0||
+                Number(result[field]||0)<amount){
+                unknown=true;break;
+            }
+            result[field]=Number(result[field]||0)-amount;
+            importTaxVat+=amount;
+        }
+        if(!unknown)result.importTaxVat=importTaxVat;
+        return result;
     });
 }
 
