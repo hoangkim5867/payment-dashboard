@@ -325,7 +325,7 @@
       bucket.get(key).push(value);
     };
     let historicalScope=0,invalidHistory=0,sourceScope=0,invalidSource=0;
-    for(const row of rows){
+    for(const [index,row] of rows.entries()){
       if(!Array.isArray(row))continue;
       const date=dateValue(row[0]);
       if(!date||date<'2026-10-01')continue;
@@ -334,9 +334,9 @@
       if(values.length!==7||values.some(x=>!Number.isFinite(x))){invalidHistory++;continue}
       const id=token(date,values);
       add(counts,id);
-      saveIdentity(historicIdentity,id,identity(row[1],row[2],row[4]));
+      saveIdentity(historicIdentity,id,{position:index+1,identity:identity(row[1],row[2],row[4])});
     }
-    for(const row of cashRows){
+    for(const [index,row] of cashRows.entries()){
       const date=dateValue(row?.date);
       if(!date||date<'2026-10-01')continue;
       sourceScope++;
@@ -345,32 +345,44 @@
       if(values.some(x=>!Number.isFinite(x))){invalidSource++;continue}
       const id=token(date,values);
       add(sourceCounts,id);
-      saveIdentity(sourceIdentity,id,identity(row.company,row.contractNo,row.ipc));
+      saveIdentity(sourceIdentity,id,{position:index+1,identity:identity(row.company,row.contractNo,row.ipc)});
     }
     let matched=0,historicalOnly=0,cashOnly=0,ambiguous=0;
     let identityConflict=0,identityUnverified=0,identityConsistent=0;
+    const sourceOnlyPositions=[],historyOnlyPositions=[],ambiguousSourcePositions=[];
+    const identityConflictPositions=[],identityUnverifiedPositions=[];
     for(const key of new Set([...counts.keys(),...sourceCounts.keys()])){
       const h=counts.get(key)||0,c=sourceCounts.get(key)||0;
       matched+=Math.min(h,c);
       historicalOnly+=Math.max(0,h-c);
       cashOnly+=Math.max(0,c-h);
-      if(h>1||c>1)ambiguous+=Math.min(h,c);
-      // Only one-to-one coarse candidates can safely be compared by metadata.
+      const historicalRows=historicIdentity.get(key)||[],sourceRows=sourceIdentity.get(key)||[];
+      // Positions are diagnostics, NOT approval to match a duplicate.
+      if(!h)for(const item of sourceRows)sourceOnlyPositions.push(item.position);
+      if(!c)for(const item of historicalRows)historyOnlyPositions.push(item.position);
+      if(h>1||c>1){
+        ambiguous+=Math.min(h,c);
+        for(const item of sourceRows)ambiguousSourcePositions.push(item.position);
+      }
       if(h===1&&c===1){
-        const historical=historicIdentity.get(key)?.[0]||[];
-        const source=sourceIdentity.get(key)?.[0]||[];
+        const historical=historicalRows[0].identity;
+        const source=sourceRows[0].identity;
         const known=historical.map((v,i)=>v&&source[i]?i:-1).filter(i=>i>=0);
-        if(!known.length)identityUnverified++;
-        else if(known.some(i=>historical[i]!==source[i]))identityConflict++;
-        else if(known.length===3)identityConsistent++;
-        else identityUnverified++;
+        if(!known.length){identityUnverified++;identityUnverifiedPositions.push(sourceRows[0].position)}
+        else if(known.some(i=>historical[i]!==source[i])){
+          identityConflict++;identityConflictPositions.push(sourceRows[0].position);
+        }else if(known.length===3)identityConsistent++;
+        else {identityUnverified++;identityUnverifiedPositions.push(sourceRows[0].position)}
       }
     }
     return {status:!complete?'incomplete-memory-source':'candidates-only',
       project,sourceComplete:complete,historicalScope,sourceScope,matched,
       historicalOnly,cashOnly,ambiguous,identityConflict,identityUnverified,
       identityConsistent,invalidHistory,invalidSource,
-      months:[...months].sort(),canWrite:false};
+      months:[...months].sort(),
+      sourceOnlyPositions,historyOnlyPositions,ambiguousSourcePositions,
+      identityConflictPositions,identityUnverifiedPositions,
+      candidateOnly:true,canWrite:false};
   }
   // FOXCONN has a separate import-tax + VAT column N (index 13).
   // Exact numerical matches are candidates, NEVER authorization or proof of identity.
