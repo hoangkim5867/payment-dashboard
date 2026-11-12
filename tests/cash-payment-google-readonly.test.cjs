@@ -134,3 +134,19 @@ test('FOXCONN readiness blocks its native unmatched fields, identity and tax err
  for(const code of ['UNRESOLVED_MATCH','IDENTITY_CONFLICT','IDENTITY_UNVERIFIED','TAX_UNMAPPED'])
    assert.ok(result.blockers.some(x=>x.code===code),code);
 });
+
+test('FOXCONN blank tax mapping is unknown, but verified numeric zero is valid',()=>{
+ const history=[['2026-10-01','ACME','C1','','IPC1','',100,20,0,0,0,0,0,0,80]];
+ const basic={date:'2026-10-01',company:'ACME',contractNo:'C1',ipc:'IPC1',
+   income:100,subcontract:20,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0};
+ for(const tax of [undefined,null,'']){
+   const result=auditor.compareFoxconnCandidates(history,[{...basic,importTaxVat:tax}]);
+   assert.equal(result.unmappedTax,1);
+   assert.equal(result.candidates,0);
+   assert.equal(result.canWrite,false);
+ }
+ const verified=auditor.compareFoxconnCandidates(history,[{...basic,importTaxVat:0}]);
+ assert.equal(verified.unmappedTax,0);
+ assert.equal(verified.candidates,1);
+ assert.equal(verified.canWrite,false);
+});
