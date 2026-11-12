@@ -8162,6 +8162,16 @@ function legacyCashExportRows(month,project){
 
         const amount=Math.abs(Number(x.actualAmount||x.amount||0));
         const bucket=excelProjectCostBucket(x);
+        // FOXCONN uses a dedicated import tax + VAT column N in Google.
+        // Only explicit tax wording can be mapped. A tax/deposit bucket with
+        // unclear provenance must not be silently treated as ordinary expense.
+        const taxWords=String(x.category||'')+' '+String(x.description||'')+
+          ' '+String(x.contractType||'');
+        const explicitImportTax=/进口税|进口增值税|外省增值税|thuế nhập khẩu|thue nhap khau|import (?:tax|vat)/i.test(taxWords);
+        const foxconnTaxReview=project==='FOXCONN' && x.direction==='out' &&
+          bucket==='taxDeposit' && !explicitImportTax;
+        const foxconnImportTax=project==='FOXCONN' && x.direction==='out' &&
+          explicitImportTax ? amount : 0;
 
         rows.push({
             date:x.actualDate,
@@ -8173,7 +8183,10 @@ function legacyCashExportRows(month,project){
             income:x.direction==='in'?amount:0,
             subcontract:x.direction==='out'&&bucket==='subcontract'?amount:0,
             material:x.direction==='out'&&bucket==='material'?amount:0,
-            otherDirect:x.direction==='out'&&(bucket==='labor'||bucket==='otherDirect'||bucket==='taxDeposit')?amount:0,
+            otherDirect:x.direction==='out'&&(bucket==='labor'||bucket==='otherDirect'||bucket==='taxDeposit') &&
+              !foxconnImportTax?amount:0,
+            // Snapshot-only audit metadata, not used by ordinary 7-column export.
+            ...(project==='FOXCONN'&&!foxconnTaxReview?{importTaxVat:foxconnImportTax}:{}),
             indirect:x.direction==='out'&&bucket==='indirect'?amount:0,
             financial:x.direction==='out'&&bucket==='financial'?amount:0,
             otherPayable:x.direction==='out'&&bucket==='other'?amount:0,
@@ -8202,6 +8215,7 @@ function legacyCashExportRows(month,project){
                 type:excelTransferTypeLabel(x,window.cashExportLang||cashLang,project),
                 income:-amount,
                 subcontract:0,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0,
+                ...(project==='FOXCONN'?{importTaxVat:0}:{}),
                 sortText:x.description||'',_syncIds:x.id?['transfer:'+String(x.id)+':out']:[]
             });
         }
@@ -8216,6 +8230,7 @@ function legacyCashExportRows(month,project){
                 type:excelTransferTypeLabel(x,window.cashExportLang||cashLang,project),
                 income:amount,
                 subcontract:0,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0,
+                ...(project==='FOXCONN'?{importTaxVat:0}:{}),
                 sortText:x.description||'',_syncIds:x.id?['transfer:'+String(x.id)+':in']:[]
             });
         }
