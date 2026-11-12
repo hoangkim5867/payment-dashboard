@@ -196,6 +196,27 @@ test('FOXCONN O3 balance with invisible marks and VND unit is confirmed from tex
  assert.equal(result.closingBalance,1900);
  assert.equal(result.canWrite,false);
 });
+test('FOXCONN source without dedicated import VAT is blocked, not treated as zero',()=>{
+ const api=require('../site/assets/js/cash-sync-historical-audit.js');
+ const history=[['2026-10-01','','','','','',1000,100,0,0,0,0,0,50,850]];
+ const source=[{date:'2026-10-01',income:1000,subcontract:100}];
+ const r=api.compareFoxconnCandidates(history,source);
+ assert.equal(r.status,'blocked-tax-mapping');
+ assert.equal(r.unmappedTax,1);
+ assert.equal(r.canWrite,false);
+});
+test('FOXCONN exact eight financial columns produce candidates only, never writes',()=>{
+ const api=require('../site/assets/js/cash-sync-historical-audit.js');
+ const history=[['2026-10-01','','','','','',1000,100,0,0,0,0,0,50,850]];
+ const source=[{date:'2026-10-01',income:1000,subcontract:100,
+   material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0,importTaxVat:50}];
+ const r=api.compareFoxconnCandidates(history,source);
+ assert.equal(r.status,'candidates-only');
+ assert.equal(r.candidates,1);
+ assert.equal(r.sourceComplete,false);
+ assert.equal(r.identityVerified,false);
+ assert.equal(r.canWrite,false);
+});
 test('FOXCONN O-column probe computes expenses including N tax but never authorizes sync',()=>{
  const header=['日期','','','','','','收入','支出'];
  const sub=Array(15).fill('');
