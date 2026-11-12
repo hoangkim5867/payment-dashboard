@@ -5709,7 +5709,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       table.style.cssText='width:100%;border-collapse:collapse;text-align:left';
       const thead=document.createElement('thead');
       const tr=document.createElement('tr');
-      for(const label of ['Vấn đề','Vị trí','Ngày','Nguồn','Loại','Nội dung','Hợp đồng','IPC','Đối ứng Google (ứng viên)','Quy tắc đối chiếu']){
+      for(const label of ['Vấn đề','Vị trí','Ngày','Nguồn','Loại','Nội dung','Hợp đồng','IPC','Đối ứng Google (ứng viên)','Chứng cứ Google','Hai đầu điều chuyển (nguồn)','Quy tắc đối chiếu']){
         const th=document.createElement('th');
         th.textContent=label;th.style.padding='4px';tr.append(th);
       }
@@ -5728,7 +5728,24 @@ async function ccSyncCompareProjectGoogleReadOnly(){
           'Dòng '+linkedCandidate.googleRow+' (ứng viên, chưa xác minh ID)':
           numericOnly?'Dòng '+numericOnly.googleRow+' (trùng số tiền, khác nội dung; CHƯA xác nhận)':
           'Chưa xác định';
-        for(const value of [issue,position,row.date||'—',sourceKind(row),row.type||'—',row.content||'—',row.contractNo||'—',row.ipc||'—',googleCandidate,auditor.classifyCashSource(row,cashExpenseById).rule]){
+        // Display both sides of a review candidate from the worksheet already
+        // loaded in memory. Same date/amount is NOT an immutable ID match.
+        const candidateRow=linkedCandidate?.googleRow??numericOnly?.googleRow;
+        const googleData=Number.isSafeInteger(candidateRow)&&candidateRow>0?
+          payload.values[candidateRow-1]:null;
+        const googleEvidence=Array.isArray(googleData)?
+          'Nội dung: '+String(googleData[3]??'—')+
+          ' | HĐ: '+String(googleData[2]??'—')+
+          ' | IPC: '+String(googleData[4]??'—')+
+          ' | Loại: '+String(googleData[5]??'—'):'Chưa xác định dòng Google';
+        const transferLeg=transferSourceLegs?.verified.find(x=>x.position===position);
+        const sourceEvidence=transferLeg?
+          transferLeg.fromProject+' → '+transferLeg.toProject+
+          ' | '+transferLeg.sourceId+
+          ' | CHƯA xác minh Google đối ứng':
+          (sourceKind(row)==='Điều chuyển nội bộ'?
+            'Nguồn điều chuyển chưa xác minh đủ':'Không phải điều chuyển');
+        for(const value of [issue,position,row.date||'—',sourceKind(row),row.type||'—',row.content||'—',row.contractNo||'—',row.ipc||'—',googleCandidate,googleEvidence,sourceEvidence,auditor.classifyCashSource(row,cashExpenseById).rule]){
           const td=document.createElement('td');
           td.textContent=String(value);
           td.style.cssText='padding:4px;border-top:1px solid #ddd;vertical-align:top';
