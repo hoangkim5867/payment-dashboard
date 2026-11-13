@@ -1008,15 +1008,19 @@
   // Historical matches, conflicts and source completeness remain independent.
   function buildIndependentProjectSyncPreview(project,comparison,sourceRows,historical){
     const plan=buildReadOnlySyncPlan(project,comparison,sourceRows);
-    const uniqueSourceIds=new Set(),duplicates=[];
+    const idCounts=new Map(),duplicates=[];
+    // Do not allow an ID already used by an existing/history-matched row
+    // to look unique merely because it appears once in the candidate list.
+    for(const row of sourceRows){
+      const ids=Array.isArray(row?._syncIds)?row._syncIds.map(String):[];
+      for(const id of ids)if(id.trim())
+        idCounts.set(id,(idCounts.get(id)||0)+1);
+    }
     const candidateRows=plan.newUnverifiedPositions.map(position=>{
       const row=sourceRows[position-1]||{};
       const ids=Array.isArray(row._syncIds)?row._syncIds.map(String):[];
-      const unique=ids.length===1&&ids[0].trim()!==''&&!uniqueSourceIds.has(ids[0]);
-      if(ids.length===1){
-        if(uniqueSourceIds.has(ids[0]))duplicates.push(position);
-        uniqueSourceIds.add(ids[0]);
-      }
+      const unique=ids.length===1&&ids[0].trim()!==''&&idCounts.get(ids[0])===1;
+      if(ids.length===1&&!unique)duplicates.push(position);
       return Object.freeze({position,date:String(row.date||''),
         sourceIds:Object.freeze(ids),
         review:unique?'CHECK_HISTORY_ID_AND_BALANCE':'SOURCE_ID_NOT_UNIQUE',
