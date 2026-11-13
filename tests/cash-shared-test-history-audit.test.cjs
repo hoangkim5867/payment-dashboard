@@ -30,7 +30,7 @@ function fixture({rows=[first,second],wrongTitle=false,wrongHeader=false}={}){
   };
   if(url.includes('DATA_CASHCONTROL_TEST_FOXCONN'))
    return {ok:true,json:async()=>({values:[wrongHeader?['wrong']:HEADER]})};
-  if(url.includes('%27FOXCONN%27'))return {
+  if(url.includes("'FOXCONN'"))return {
    ok:true,json:async()=>({values:[['Ngày','Company','Contract'],...rows]})
   };
   throw Error('Unexpected Google URL');
