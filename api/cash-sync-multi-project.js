@@ -117,6 +117,9 @@ module.exports=async function handler(req,res){
   if(!/^Bearer [A-Za-z0-9._~-]{20,4096}$/.test(authorization))
    die('Google OAuth token missing.',401);
   const input=validBody(typeof req.body==='string'?JSON.parse(req.body):req.body);
+  const writeConfigured=canWriteTarget(process.env,input.project,input.spreadsheetId,input.historySheetId);
+  if(input.action==='commit'&&!writeConfigured)
+   die('Dự án/file Google chưa được cho phép ghi trên máy chủ hoặc chưa bật phát hành.',503);
   const current=await prepare(authorization,input);
   if(current.blocked.length)
    return res.status(409).json({error:'Có khoản cần đối chiếu, không ghi.',
@@ -128,9 +131,7 @@ module.exports=async function handler(req,res){
    closingBalance:plan.closingBalance,originalUntouched:true};
   if(input.action==='preview')
    return res.status(200).json({mode:'preview',summary,signature:batch.fingerprint,
-    writeConfigured:canWriteTarget(process.env,input.project,input.spreadsheetId,input.historySheetId),writes:0});
-  if(!canWriteTarget(process.env,input.project,input.spreadsheetId,input.historySheetId))
-   die('Dự án/file Google chưa được cho phép ghi trên máy chủ hoặc chưa bật phát hành.',503);
+    writeConfigured,writes:0});
   if(input.signature!==batch.fingerprint)
    die('Google hoặc nguồn Cash Control đã thay đổi sau bước xem trước.');
   if(!plan.changes.length&&snapshot.hasTabs)
@@ -140,6 +141,8 @@ module.exports=async function handler(req,res){
    {requests:batch.requests,includeSpreadsheetInResponse:false});
   // Verify exact mirror data, spreadsheet formula layout and closing balance.
   const after=await state(authorization,input.spreadsheetId,input.historySheetId);
+  if(JSON.stringify(after.history)!==JSON.stringify(snapshot.history))
+   die('Google đã nhận lệnh nhưng tab lịch sử đã thay đổi; KHÔNG thử ghi lại.');
   const expected=adapter.normalizeMirror(plan);
   const afterMatrix=[adapter.MIRROR_HEADER,...after.mirror.map(r=>[
    r.id,r.project,String(r.values[0]).slice(0,7),...r.values,r.hash,r.status])];
