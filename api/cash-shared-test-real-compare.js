@@ -28,7 +28,10 @@ function validateSource({project,month,source}={}){
    const values=parseValues(r.values,{foxconn:true});
    if(!values[0].startsWith(month+'-')||sha(values)!==r.hash)
      stop('FOXCONN_TEST_SOURCE_HASH_OR_DATE_INVALID',409);
-   normalized.push({id,project:'FOXCONN',month,values,hash:r.hash});
+   const sourceClass=String(r.sourceClass||'UNKNOWN');
+   if(!['PAYMENT','CASH','PAYROLL','TRANSFER','MIXED','UNKNOWN'].includes(sourceClass))
+     stop('FOXCONN_TEST_SOURCE_KIND_INVALID',409);
+   normalized.push({id,project:'FOXCONN',month,values,hash:r.hash,sourceClass});
  }
  return normalized;
 }
@@ -44,7 +47,8 @@ function compareSourceToHistory(source,raw,month){
    index.get(sign).push(row.sheetRow);
  }
  const issues=[],entries=[];
- let historic=0,newAfter=0,ambiguous=0,olderMissing=0,identityMissing=0;
+ let historic=0,newAfter=0,ambiguous=0,olderMissing=0,
+   identityMissing=0,counterpartReview=0,sourceKindReview=0;
  for(let i=0;i<source.length;i++){
    const r=source[i],matching=index.get(idSignature(r.values))||[];
    let status;
@@ -55,9 +59,14 @@ function compareSourceToHistory(source,raw,month){
    }else{status='NEWER_THAN_HISTORY_CANDIDATE';newAfter++;}
    // The payment ID can be stable while contract/IPC remains insufficient.
    // Neither a matching date/amount nor a unique status is an approval.
-   const paymentId=/\bpayment[:+]/i.test(r.id)||/:PAYMENT:/i.test(r.id);
-   if(paymentId&&(!String(r.values[2]).trim()||!String(r.values[4]).trim())){
+   if(r.sourceClass==='PAYMENT'&&
+      (!String(r.values[2]).trim()||!String(r.values[4]).trim())){
      status='PAYMENT_CONTRACT_IPC_MISSING';identityMissing++;
+   }else if(r.sourceClass==='TRANSFER'){
+     // Both ledger sides have to be verified; same money/date is insufficient.
+     status='TRANSFER_COUNTERPART_UNVERIFIED';counterpartReview++;
+   }else if(r.sourceClass==='MIXED'||r.sourceClass==='UNKNOWN'){
+     status='SOURCE_KIND_UNVERIFIED';sourceKindReview++;
    }
    if(status!=='EXACT_HISTORY_MATCH')issues.push({
       sourcePosition:i+1,reason:status,
@@ -79,6 +88,8 @@ function compareSourceToHistory(source,raw,month){
   exactHistoryMatched:historic,newAfterHistoryCandidates:newAfter,
   olderUnmatched:olderMissing,ambiguousMatches:ambiguous,
   missingPaymentIdentity:identityMissing,
+  transferCounterpartsUnverified:counterpartReview,
+  sourceKindUnverified:sourceKindReview,
   coreStatus,coreChanges,issues:issues.slice(0,100),
   sourceAuthenticated:false,sourceComplete:false,
   canSync:false,canWrite:false,googleWrites:0,firestoreReads:0,
