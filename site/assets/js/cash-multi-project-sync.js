@@ -8,18 +8,38 @@
   if(typeof module==='object'&&module.exports)module.exports=api;
   if(root)root.CashMultiProjectSync=api;
 })(typeof window!=='undefined'?window:null,function(){
-  const money=v=>typeof v==='number'&&Number.isFinite(v)?v:null;
   const normalize=v=>String(v??'').normalize('NFKC').trim().replace(/\s+/g,' ').toUpperCase();
-  const columns=['date','company','contractNo','content','ipc','type','income',
-    'subcontract','material','otherDirect','indirect','financial','otherPayable'];
   const key=v=>JSON.stringify(v);
-  const strictDate=v=>typeof v==='string'&&/^20\d\d-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/.test(v)&&
-    !Number.isNaN(Date.parse(v+'T00:00:00Z'));
-  function valuesOf(row){
+  function date(v){
+    if(typeof v==='number'&&Number.isInteger(v)&&v>=20000&&v<=100000)
+      return new Date(Date.UTC(1899,11,30)+v*86400000).toISOString().slice(0,10);
+    if(typeof v!=='string')return '';
+    let y,m,d;
+    const t=v.trim();
+    let match=/^(20\d{2})-(\d{1,2})-(\d{1,2})$/.exec(t);
+    if(match){y=+match[1];m=+match[2];d=+match[3]}
+    else{
+      match=/^(\d{1,2})([-/.])(\d{1,2})\2(20\d{2})$/.exec(t);
+      if(!match)return '';
+      d=+match[1];m=+match[3];y=+match[4];
+    }
+    const ms=Date.UTC(y,m-1,d);
+    const dt=new Date(ms);
+    if(dt.getUTCFullYear()!==y||dt.getUTCMonth()!==m-1||dt.getUTCDate()!==d)
+      return '';
+    return [y,String(m).padStart(2,'0'),String(d).padStart(2,'0')].join('-');
+  }
+  function valuesOf(row,{history=false}={}){
     if(!Array.isArray(row)||row.length!==13)return null;
-    if(!strictDate(row[0]))return null;
-    if(row.slice(6).some(x=>money(x)===null))return null;
-    return [...row];
+    const day=date(row[0]);
+    if(!day)return null;
+    const amounts=row.slice(6).map(v=>{
+      if(history&&(v===null||v===undefined||v===''))return 0;
+      if(typeof v==='number'&&Number.isFinite(v))return v;
+      return NaN;
+    });
+    if(amounts.some(v=>!Number.isFinite(v)))return null;
+    return [day,...row.slice(1,6).map(v=>String(v??'')),...amounts];
   }
   function signature(values){
     return key([values[0],normalize(values[1]),normalize(values[2]),
@@ -27,8 +47,8 @@
       ...values.slice(6)]);
   }
   function parseHistoryRow(row){
-    if(!Array.isArray(row)||row.length<13||!strictDate(row[0]))return null;
-    return valuesOf(row.slice(0,13));
+    if(!Array.isArray(row)||row.length<13)return null;
+    return valuesOf(row.slice(0,13),{history:true});
   }
   function normalizeProject(project){
     const name=normalize(project);
