@@ -843,7 +843,8 @@
         }
       }
       return {status:positions.length===0?
-          (textCandidates.length?'amount-or-category-review':'missing'):
+          (textCandidates.some(x=>x.dateGapDays===0)?'amount-or-category-review':
+           textCandidates.length?'nearby-date-review':'missing'):
           positions.length===1?'candidate-only':'ambiguous',
         positions,textCandidates};
     };
@@ -864,10 +865,15 @@
           return text.includes(leg.fromProject.replace(/\s+/g,''))&&
             text.includes(leg.toProject.replace(/\s+/g,''));
         });
-        if(result.status==='amount-or-category-review'&&!result.textCandidates.length)
-          result.status='missing';
+        if(result.status==='amount-or-category-review'||
+           result.status==='nearby-date-review'){
+          result.status=result.textCandidates.some(x=>x.dateGapDays===0)?
+            'amount-or-category-review':
+            result.textCandidates.length?'nearby-date-review':'missing';
+        }
       }
-      const evidence=counterpart.textCandidates.length===1?
+      const evidence=counterpart.textCandidates.length===1&&
+        counterpart.textCandidates[0].dateGapDays===0?
         counterpart.textCandidates[0]:null;
       const variance=evidence&&Number.isFinite(evidence.signedFlow)?
         rounded(evidence.signedFlow-evidence.expectedSigned):null;
