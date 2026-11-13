@@ -72,3 +72,18 @@ test('35-project batch readiness button is primary, Admin-only, and read-only',(
  assert.doesNotMatch(body,/getDocs\(|getCountFromServer\(|onSnapshot\(|setDoc\(|addDoc\(|fetch\(|ccGoogleSyncOriginalRequest\(|:batchUpdate/);
  assert.match(page,/import \{buildBatchReadiness\} from "\.\/assets\/js\/cash-sync-batch-readiness\.mjs"/);
 });
+
+test('isolated Preview cannot show false zero-transaction conclusion',()=>{
+ const start=html.indexOf('function ccSyncBatchAnalyzeInMemory(){');
+ const end=html.indexOf('function ccSyncProjectCatalogRender(){',start);
+ const code=html.slice(start,end);
+ assert.match(code,/firebaseConfig\.projectId!=='cscecmep-payment'/);
+ assert.match(code,/KHÔNG kết luận 0 giao dịch/);
+ assert.match(code,/Không thể đếm phát sinh tháng/);
+ assert.match(code,/paymentMonths\.size/);
+ assert.match(code,/plan\.linkedProjects/);
+ assert.match(code,/plan\.unlinkedProjects/);
+ assert.match(html,/btn\.disabled=true;\s*btn\.textContent='Chưa có nguồn Payment thật trên TEST'/);
+ assert.ok(code.indexOf("firebaseConfig.projectId!=='cscecmep-payment'")<
+   code.indexOf('buildBatchReadiness('));
+});
