@@ -1430,11 +1430,19 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <input type="file" accept="application/json,.json" id="ccSyncProjectCatalogImportFile" hidden>
         </div>
         <p id="ccSyncProjectCatalogStatus" style="font-size:12px;color:#44546b"></p>
-        <div id="ccSyncFoxconnTestProbeArea" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0">
-          <button class="btn" id="ccSyncFoxconnTestProbe" type="button">Kiểm tra file FOXCONN TEST · chỉ đọc</button>
-          <button class="btn" id="ccSyncFoxconnTestPrepareTab" type="button" hidden>Chuẩn bị tab kỹ thuật FOXCONN TEST</button>
-          <span id="ccSyncFoxconnTestProbeStatus" role="status" style="font-size:12px;color:#44546b">Chưa kiểm tra Google TEST.</span>
-        </div>
+        <section id="ccSyncFoxconnTestProbeArea" style="display:none;margin:12px 0;padding:12px;border:1px solid #c7d9f3;border-radius:10px;background:#f6faff">
+          <div style="font-weight:700;margin-bottom:8px">FOXCONN TEST · Kiểm tra Google Sheets</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <label for="ccSyncTestProjectChoice" style="font-size:12px">Dự án đang kiểm tra</label>
+            <select id="ccSyncTestProjectChoice" aria-label="Dự án Google TEST" style="padding:7px;border:1px solid #cad4e3;border-radius:7px">
+              <option value="FOXCONN">FOXCONN TEST</option>
+            </select>
+            <button class="btn" id="ccSyncFoxconnTestProbe" type="button">Xác minh file và tab FOXCONN TEST · chỉ đọc</button>
+            <button class="btn" id="ccSyncFoxconnTestPrepareTab" type="button" hidden>Chuẩn bị tab kỹ thuật FOXCONN TEST</button>
+          </div>
+          <p id="ccSyncFoxconnTestProbeStatus" role="status" style="font-size:12px;color:#44546b;margin:8px 0 0">Chưa kiểm tra Google TEST.</p>
+          <p style="font-size:12px;color:#8a571d;margin:6px 0 0">Đây là kiểm tra file TEST, KHÔNG phải đối chiếu Payment ↔ Google. Bản Preview không được đọc Payment production, vì vậy chưa thể đối chiếu giao dịch tại đây. PHU HUNG ở mục phía dưới là luồng thử riêng, không liên quan FOXCONN.</p>
+        </section>
         <div id="ccSyncPaymentPreflight" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0" hidden>
           <select id="ccSyncPaymentPreflightProject" aria-label="Dự án cần đếm Payment" style="min-width:180px;padding:7px;border:1px solid #cad4e3;border-radius:7px"></select>
           <button class="btn" id="ccSyncPaymentPreflightCount" type="button">Đếm Payment 1 dự án (có Firestore reads)</button>
@@ -5906,6 +5914,10 @@ function ccSyncProjectCatalogRender(){
   const visible=catalog.filter(p=>p.toLocaleLowerCase('vi').includes(term));
   const preflight=$('ccSyncPaymentPreflight');
   const selector=$('ccSyncPaymentPreflightProject');
+  // The FOXCONN TEST selector is intentionally separate from the filter
+  // below. The latter searches local link drafts, not the sync project.
+  const stagingChoice=$('ccSyncTestProjectChoice');
+  if(stagingChoice&&stagingChoice.value!=='FOXCONN')stagingChoice.value='FOXCONN';
   if(preflight){
     const allowed=!!currentAuthUser&&isCashControlOwner()&&
       firebaseConfig.projectId==='cscecmep-payment';
@@ -5968,7 +5980,7 @@ function ccSyncProjectCatalogInitialize(){
   const foxconnProbeArea=$('ccSyncFoxconnTestProbeArea');
   if(foxconnProbeArea){
     const isolated=firebaseConfig.projectId==='cash-control-staging';
-    foxconnProbeArea.style.display=isolated?'flex':'none';
+    foxconnProbeArea.style.display=isolated?'block':'none';
   }
   $('ccSyncFoxconnTestProbe')?.addEventListener('click',ccSyncProbeFoxconnTestReadOnly);
   $('ccSyncFoxconnTestPrepareTab')?.addEventListener('click',ccSyncPrepareFoxconnTestTab);
