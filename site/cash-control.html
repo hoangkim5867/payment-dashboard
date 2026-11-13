@@ -5835,7 +5835,11 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       '): FOXCONN Google '+item.primary.status+
       (item.primary.positions.length?' [dòng '+item.primary.positions.join(', ')+']':'')+
       ', Google đối ứng '+item.counterpart.status+
-      (item.counterpart.positions.length?' [dòng '+item.counterpart.positions.join(', ')+']':'')
+      (item.counterpart.positions.length?' [dòng '+item.counterpart.positions.join(', ')+']':'')+
+      (item.primary.textCandidates?.length?' · FOXCONN dòng có nội dung hoàn vay: '+
+        item.primary.textCandidates.map(r=>r.googleRow+' (số ròng '+r.signedFlow+')').join(', '):'')+
+      (item.counterpart.textCandidates?.length?' · Google đối ứng dòng có nội dung hoàn vay: '+
+        item.counterpart.textCandidates.map(r=>r.googleRow+' (số ròng '+r.signedFlow+')').join(', '):'')
     ).join(' ; ')||'';
     const transferSummary=transferComparison?
       ' · đối ứng Google 2 phía (chỉ ứng viên): '+
