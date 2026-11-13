@@ -754,3 +754,30 @@ test('shared dry-run in manual Google compare makes no writes',()=>{
  assert.match(fn,/KHÔNG cấp phép đồng bộ, 0 writes/);
  assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
 });
+
+test('SSIS bonus text matches a review candidate despite different expense columns',()=>{
+ const history=[['2026-10-02','SSIS','','奖金 · 刘宇2023年兑现奖','','奖金',0,0,0,0,0,0,200]];
+ const source=[{date:'2026-10-02',content:'Thưởng · 刘宇2023年兑现奖',income:0,
+   subcontract:0,material:0,otherDirect:0,indirect:100,financial:0,otherPayable:0}];
+ const out=auditor.reviewGenericDescriptionCandidates(history,source,{
+   sourceOnlyPositions:[1],historyOnlyPositions:[1]});
+ assert.equal(out.count,1);
+ assert.equal(out.candidates[0].googleRow,1);
+ assert.equal(out.candidates[0].identicalAmounts,false);
+ assert.equal(out.canWrite,false);
+ assert.equal(out.approvedWrites,0);
+ const rejected=auditor.reviewGenericDescriptionCandidates(history,
+   [{...source[0],content:'Thưởng · unrelated'}],{
+     sourceOnlyPositions:[1],historyOnlyPositions:[1]});
+ assert.equal(rejected.count,0);
+});
+test('transfer direction displays SSIS to FOXCONN for inbound repayment',()=>{
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ const fn=code.slice(start,end);
+ assert.ok(fn.includes("item.sourceId.endsWith(':out')"));
+ assert.ok(fn.includes("item.counterpartProject+' → FOXCONN'"));
+ assert.ok(fn.includes('reviewGenericDescriptionCandidates'));
+ assert.ok(fn.includes('CHƯA xác minh ID'));
+ assert.ok(!fn.includes('setDoc(')&&!fn.includes('addDoc(')&&!fn.includes('writeBatch('));
+});

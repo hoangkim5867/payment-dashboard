@@ -5687,6 +5687,8 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       dateRegressions>0||unparsedDates>0||!matched.sourceComplete;
     // Reuse the SAME offline reconciliation for every normal-layout project.
     // No additional Firebase/Google read, no mutation or automatic pairing.
+    const genericDescriptionReview=project!=='FOXCONN'?
+      auditor.reviewGenericDescriptionCandidates(payload.values,source,matched):null;
     if(project!=='FOXCONN'&&genericPanel){
       const output=$('ccSyncGenericExceptionRows');
       const cases=[
@@ -5699,7 +5701,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       const table=document.createElement('table');
       table.style.cssText='width:100%;border-collapse:collapse;text-align:left';
       const header=document.createElement('tr');
-      for(const title of ['Vấn đề','Vị trí','Ngày','Nội dung','Hợp đồng','IPC','Nguồn']){
+      for(const title of ['Vấn đề','Vị trí','Ngày','Nội dung','Hợp đồng','IPC','Nguồn','Đối ứng nội dung (chỉ ứng viên)']){
         const th=document.createElement('th');
         th.textContent=title;th.style.padding='4px';header.append(th);
       }
@@ -5711,6 +5713,14 @@ async function ccSyncCompareProjectGoogleReadOnly(){
         const values=kind==='google'?
           [issue,position,auditor.dateValue(r[0])||'—',r[3]||'—',r[2]||'—',r[4]||'—','Google · số hàng']:
           [issue,position,r.date||'—',r.content||'—',r.contractNo||'—',r.ipc||'—','Cash Control · vị trí bản chiếu'];
+        const descriptionCandidate=kind==='cash'?
+          genericDescriptionReview?.candidates.find(x=>x.sourcePosition===position):
+          genericDescriptionReview?.candidates.find(x=>x.googleRow===position);
+        values.push(descriptionCandidate?
+          'Google dòng '+descriptionCandidate.googleRow+
+          ' ↔ Cash Control vị trí '+descriptionCandidate.sourcePosition+
+          ' · '+(descriptionCandidate.identicalAmounts?'cùng số liệu':'số liệu/cột khác')+
+          ' · CHƯA xác minh ID':'—');
         const tr=document.createElement('tr');
         for(const value of values){
           const td=document.createElement('td');td.textContent=String(value);
@@ -5831,7 +5841,12 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       auditor.reviewTransferGoogleCounterparts(
         ccTransferReviewSession.foxconnLegs,ccTransferReviewSession.google):null;
     const transferDetails=transferComparison?.reviews.map(item=>
-      'vị trí '+item.position+' ('+item.primaryProject+' → '+item.counterpartProject+
+      'vị trí '+item.position+' ('+
+        (item.primaryProject==='FOXCONN'&&item.primaryProject===item.counterpartProject?
+          item.primaryProject:item.primaryProject+' / '+item.counterpartProject)+
+        ' — chiều tiền theo Cash Control: '+
+        (item.sourceId.endsWith(':out')?'FOXCONN → '+item.counterpartProject:
+          item.counterpartProject+' → FOXCONN')+
       '): FOXCONN Google '+item.primary.status+
       (item.primary.positions.length?' [dòng '+item.primary.positions.join(', ')+']':'')+
       ', Google đối ứng '+item.counterpart.status+
@@ -5839,7 +5854,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       (item.primary.textCandidates?.length?' · FOXCONN dòng có nội dung hoàn vay: '+
         item.primary.textCandidates.map(r=>r.googleRow+' (số ròng '+r.signedFlow+')').join(', '):'')+
       (item.counterpart.textCandidates?.length?' · Google đối ứng dòng có nội dung hoàn vay: '+
-        item.counterpart.textCandidates.map(r=>r.googleRow+' (số ròng '+r.signedFlow+')').join(', '):'')
+        item.counterpart.textCandidates.map(r=>r.googleRow+' (Google '+r.signedFlow+'; Cash Control kỳ vọng '+r.expectedSigned+'; chênh '+(r.signedFlow===null?'chưa đọc được':r.signedFlow-r.expectedSigned)+')').join(', '):'')
     ).join(' ; ')||'';
     const transferSummary=transferComparison?
       ' · đối ứng Google 2 phía (chỉ ứng viên): '+
