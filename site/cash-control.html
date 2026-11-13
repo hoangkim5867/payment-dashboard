@@ -5539,7 +5539,7 @@ async function ccSyncCountOneProject(){
       ' · alias đã thấy '+evidence.aliasProjectsSeen+
       ' · '+reason+
       ' 1 lượt đếm Firestore; không đọc thêm chứng từ, 0 Google writes. '+
-      'CHƯA cấp phép đồng bộ.';
+      'CHƯA cấp phép đồng bộ; KHÔNG cho phép đồng bộ.';
   }catch(error){
     status.textContent='Lỗi đếm Payment: '+String(error?.code||'không xác định')+
       '. Không tự thử lại, không đồng bộ.';
