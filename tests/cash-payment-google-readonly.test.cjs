@@ -920,3 +920,26 @@ test('multi-project sync planner never interprets same-date contract collision a
  assert.equal(r.items[0].status,'REVIEW_POSSIBLE_HISTORY_COLLISION');
  assert.equal(r.canWrite,false);
 });
+
+test('shared project planner matches serial Google dates and blank expense columns safely',()=>{
+ const {planProject}=require('../site/assets/js/cash-multi-project-sync.js');
+ const day='2026-11-03';
+ const serial=Math.round((Date.parse(day+'T00:00:00Z')-Date.UTC(1899,11,30))/86400000);
+ const values=[day,'Vendor','SUBP-1','Invoice','IPC01','分包款',0,250,0,0,0,0,0];
+ const historical=[serial,'Vendor','SUBP-1','Invoice','IPC01','分包款','',250,'','','','',''];
+ const result=planProject({project:'ELYSIAN',month:'2026-11',
+   source:[{id:'expense:100',project:'ELYSIAN',month:'2026-11',values}],
+   history:[historical],mirror:[]});
+ assert.equal(result.totals.historyCandidates,1);
+ assert.equal(result.totals.newCandidates,0);
+ assert.equal(result.canWrite,false);
+});
+test('shared project planner is linked from Cash Control Admin-only manual comparison',()=>{
+ assert.match(code,/cash-multi-project-sync\\.js/);
+ assert.match(code,/CashMultiProjectSync/);
+ assert.match(code,/ccSyncIndependentProjectSummary/);
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ assert.match(code.slice(start,end),/generalPlanner\\.planProject/);
+ assert.doesNotMatch(code.slice(start,end),/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\\(/);
+});
