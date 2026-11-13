@@ -21,10 +21,10 @@ function history(){
   ...Array.from({length:271},(_,i)=>[...valueRow(i,
     i===0?'2026-11-10':'2026-11-01'),closing])];
 }
-function rec(i,vals){
+function rec(i,vals,sourceClass='CASH'){
  const values=parseValues(vals,{foxconn:true});
  return {id:'source:'+i,project:'FOXCONN',month:'2026-11',
-  values,hash:sha(values)};
+  values,hash:sha(values),sourceClass};
 }
 const sourceValid=(rows)=>validateSource({
  project:'FOXCONN',month:'2026-11',source:rows
@@ -101,4 +101,26 @@ test('server allows only Google GET for allowlisted TEST copy and staging Admin 
  const prior=calls.length;
  await assert.rejects(run({...runOpts,env:{...env,VERCEL_ENV:'production'}}),/ONLY_STAGING_TEST_PREVIEW/);
  assert.equal(calls.length,prior);
+});
+
+test('Payment without contract/IPC and interproject transfers never qualify as new automatic rows',()=>{
+ const raw=history();
+ const payment=valueRow(800,'2026-11-12');payment[2]='';payment[4]='';
+ const transfer=valueRow(801,'2026-11-12');
+ const a=sourceValid([rec(5,payment,'PAYMENT'),rec(6,transfer,'TRANSFER')]);
+ const out=compareSourceToHistory(a,raw,'2026-11');
+ assert.equal(out.missingPaymentIdentity,1);
+ assert.equal(out.transferCounterpartsUnverified,1);
+ assert.deepEqual(out.issues.map(x=>x.reason),
+  ['PAYMENT_CONTRACT_IPC_MISSING','TRANSFER_COUNTERPART_UNVERIFIED']);
+ assert.equal(out.canSync,false);assert.equal(out.canWrite,false);
+ assert.equal(out.googleWrites,0);
+});
+test('unclassified source is reported, never assumed a verified Payment',()=>{
+ const raw=history();
+ const row=rec(50,raw[2].slice(0,14),'UNKNOWN');
+ const out=compareSourceToHistory(sourceValid([row]),raw,'2026-11');
+ assert.equal(out.sourceKindUnverified,1);
+ assert.equal(out.issues[0].reason,'SOURCE_KIND_UNVERIFIED');
+ assert.equal(out.canWrite,false);
 });
