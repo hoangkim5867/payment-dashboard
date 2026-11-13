@@ -1429,6 +1429,18 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <input type="file" accept="application/json,.json" id="ccSyncProjectCatalogImportFile" hidden>
         </div>
         <p id="ccSyncProjectCatalogStatus" style="font-size:12px;color:#44546b"></p>
+        <section id="ccSyncFoxconnTestProbeArea" style="display:none;margin:12px 0;padding:12px;border:1px solid #c7d9f3;border-radius:10px;background:#f6faff">
+          <div style="font-weight:700;margin-bottom:8px">FOXCONN GOOGLE TEST · Kiểm tra riêng (chỉ đọc)</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <label for="ccSyncTestProjectChoice" style="font-size:12px">Dự án đang kiểm tra</label>
+            <select id="ccSyncTestProjectChoice" aria-label="Dự án Google TEST" style="padding:7px;border:1px solid #cad4e3;border-radius:7px">
+              <option value="FOXCONN">FOXCONN TEST</option>
+            </select>
+            <button class="btn" id="ccSyncFoxconnTestProbe" type="button">Xác minh file và tab FOXCONN TEST · chỉ đọc</button>
+          </div>
+          <p id="ccSyncFoxconnTestProbeStatus" role="status" style="font-size:12px;color:#44546b;margin:8px 0 0">Chưa kiểm tra Google TEST.</p>
+          <p style="font-size:12px;color:#8a571d;margin:6px 0 0">Chỉ xác minh file/tab FOXCONN TEST trên Firebase Staging. Không tải Payment thật, không ghi Google Sheets. Các nút PHU HUNG ở mục phía dưới là luồng độc lập, KHÔNG dùng cho FOXCONN.</p>
+        </section>
         <div id="ccSyncPaymentPreflight" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0" hidden>
           <select id="ccSyncPaymentPreflightProject" aria-label="Dự án cần đếm Payment" style="min-width:180px;padding:7px;border:1px solid #cad4e3;border-radius:7px"></select>
           <button class="btn" id="ccSyncPaymentPreflightCount" type="button">Đếm Payment 1 dự án (có Firestore reads)</button>
@@ -6161,6 +6173,10 @@ function ccSyncProjectCatalogInitialize(){
   if(!wrap||wrap.dataset.initialized==='yes')return;
   wrap.dataset.initialized='yes';
   ccSyncProjectCatalogLoadDraft();
+  const foxconnTestProbe=$('ccSyncFoxconnTestProbeArea');
+  if(foxconnTestProbe)foxconnTestProbe.style.display=
+    firebaseConfig.projectId==='cash-control-staging'?'block':'none';
+  $('ccSyncFoxconnTestProbe')?.addEventListener('click',ccSyncProbeFoxconnTestReadOnly);
   const search=$('ccSyncProjectCatalogSearch');
   search?.addEventListener('input',ccSyncProjectCatalogRender);
   $('ccSyncProjectCatalogRefresh')?.addEventListener('click',ccSyncProjectCatalogRender);
@@ -6197,6 +6213,45 @@ function ccSyncProjectCatalogInitialize(){
   wrap.addEventListener('toggle',()=>{if(wrap.open)ccSyncProjectCatalogRender()});
   ccSyncProjectCatalogRender();
 }
+async function ccSyncProbeFoxconnTestReadOnly(){
+  const button=$('ccSyncFoxconnTestProbe');
+  const status=$('ccSyncFoxconnTestProbeStatus');
+  if(!button||!status||button.disabled)return;
+  button.disabled=true;
+  try{
+    if(firebaseConfig.projectId!=='cash-control-staging')
+      throw Error('Chỉ dùng trên Firebase TEST; không kiểm tra bằng production.');
+    if(!currentAuthUser||typeof currentAuthUser.getIdToken!=='function')
+      throw Error('Đăng nhập Admin trên bản TEST trước.');
+    if(!isCashControlOwner())throw Error('Chỉ Admin chủ sở hữu được kiểm tra.');
+    if(!ccGoogleSyncToken)
+      throw Error('Bấm Kết nối Google trước (cùng bản Preview này).');
+    status.textContent='Đang xác minh file FOXCONN TEST · chỉ đọc…';
+    const token=await currentAuthUser.getIdToken();
+    const response=await fetch('/api/cash-shared-test-google-probe',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',
+        'X-Firebase-ID-Token':token,
+        'Authorization':'Bearer '+ccGoogleSyncToken},
+      body:JSON.stringify({project:'FOXCONN'})
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok){
+      const code=String(data.error||'Không xác minh được quyền hoặc cấu trúc file');
+      if(code==='TEST_TAB_NOT_READY')
+        throw Error('File FOXCONN TEST thiếu tab kỹ thuật, chưa được cấp phép đồng bộ. Không tự tạo hoặc sửa dữ liệu.');
+      throw Error('Google TEST '+response.status+': '+code);
+    }
+    if(data.fileVerified!==true||data.tabVerified!==true||
+       data.headerVerified!==true||data.canWrite!==false)
+      throw Error('Kết quả xác minh TEST chưa hợp lệ; không cấp phép ghi.');
+    status.textContent='FOXCONN TEST: đúng file, đúng tab và tiêu đề. 2 lượt đọc metadata Google; 0 Firebase reads, 0 ghi. Chưa cấp phép đồng bộ.';
+  }catch(err){
+    status.textContent='CHƯA XÁC MINH FOXCONN TEST: '+
+      String(err?.message||err).slice(0,260)+'. Không ghi dữ liệu.';
+  }finally{button.disabled=false;}
+}
+
 function ccGoogleSyncBuildSelector(){
   const container=$('ccGoogleSyncProjects');
   if(!container)return;
