@@ -616,6 +616,44 @@ test('read-only transfer variance is a separate blocker from missing Google coun
  assert.equal(result.canWrite,false);
  assert.equal(result.approvedWrites,0);
 });
+test('transfer Google read-only audit shows specific columns and near-date evidence without matching',()=>{
+ const legs={verified:[{position:20,sourceId:'transfer:test:in',date:'2026-11-09',
+   fromProject:'SSIS',toProject:'FOXCONN',signedAmount:3500000000}]};
+ const rows={
+   FOXCONN:{schemaVerified:true,taxColumnIndex:13,rows:[]},
+   SSIS:{schemaVerified:true,rows:[
+    ['2026-11-10','','','SSIS归还FOXCONN借款','','',0,0,0,0,3500000000,0,0]
+   ]}
+ };
+ const result=auditor.reviewTransferGoogleCounterparts(legs,rows);
+ const review=result.reviews[0];
+ assert.equal(review.counterpart.status,'nearby-date-review');
+ assert.equal(review.counterpart.textCandidates[0].googleDate,'2026-11-10');
+ assert.equal(review.counterpart.textCandidates[0].dateGapDays,1);
+ assert.deepEqual(review.counterpart.textCandidates[0].amountDetails,
+   [{column:'K',amount:3500000000}]);
+ assert.equal(review.variance,null);
+ assert.equal(review.amountMismatch,false);
+ assert.equal(result.twoSidedCandidateCount,0);
+ assert.equal(result.canWrite,false);
+ assert.equal(result.approvedWrites,0);
+});
+test('transfer amount evidence includes exact Google column and no nearby-date autofill',()=>{
+ const legs={verified:[{position:16,sourceId:'transfer:test:out',date:'2026-10-26',
+   fromProject:'FOXCONN',toProject:'ELYSIAN',signedAmount:-5700000000}]};
+ const rows={
+   FOXCONN:{schemaVerified:true,taxColumnIndex:13,rows:[]},
+   ELYSIAN:{schemaVerified:true,rows:[
+    ['2026-10-26','','','FOXCONN归还ELYSIAN借款','','',5362319402,0,0,0,0,0,0]
+   ]}
+ };
+ const result=auditor.reviewTransferGoogleCounterparts(legs,rows);
+ assert.equal(result.amountMismatchCount,1);
+ assert.deepEqual(result.reviews[0].counterpart.textCandidates[0].amountDetails,
+   [{column:'G',amount:5362319402}]);
+ assert.equal(result.reviews[0].variance,-337680598);
+ assert.equal(result.canWrite,false);
+});
 test('Google repayment description remains visible when legacy amount layout differs',()=>{
  const leg={verified:[{position:16,sourceId:'transfer:x:out',date:'2026-10-26',
    signedAmount:-300,fromProject:'FOXCONN',toProject:'ELYSIAN'}]};
