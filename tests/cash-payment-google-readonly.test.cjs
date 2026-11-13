@@ -840,3 +840,33 @@ test('transfer direction displays SSIS to FOXCONN for inbound repayment',()=>{
  assert.ok(fn.includes('CHƯA xác minh ID'));
  assert.ok(!fn.includes('setDoc(')&&!fn.includes('addDoc(')&&!fn.includes('writeBatch('));
 });
+
+test('project-local Cash Control sync plan never requires another workbook or permits writes',()=>{
+ const comparison={sourceScope:2,historicalScope:1,matched:1,
+   sourceOnlyPositions:[2],ambiguousSourcePositions:[],
+   identityConflictPositions:[],identityUnverifiedPositions:[],
+   sourceComplete:false};
+ const source=[{date:'2026-10-01',_syncIds:['expense:one']},
+   {date:'2026-11-01',_syncIds:['transfer:ssis-to-foxconn:in']}];
+ const audit={continuityErrors:0,invalidMoney:0,missingBalance:0};
+ const result=auditor.buildIndependentProjectSyncPreview('FOXCONN',comparison,source,audit);
+ assert.equal(result.project,'FOXCONN');
+ assert.equal(result.scope,'ONE_PROJECT_ONLY');
+ assert.equal(result.requiresOtherProjects,false);
+ assert.equal(result.candidateRows.length,1);
+ assert.equal(result.candidateRows[0].review,'CHECK_HISTORY_ID_AND_BALANCE');
+ assert.equal(result.canWrite,false);
+ assert.equal(result.approvedWrites,0);
+ assert.equal(result.needsHistoricalMatch,true);
+ assert.equal(result.needsBalanceContinuation,true);
+});
+test('project-local preview keeps uncertain transfer source IDs blocked',()=>{
+ const comparison={sourceScope:2,historicalScope:0,sourceOnlyPositions:[1,2],
+   sourceComplete:false};
+ const source=[{date:'2026-10-01',_syncIds:['transfer:repeat:in']},
+   {date:'2026-10-01',_syncIds:['transfer:repeat:in']}];
+ const result=auditor.buildIndependentProjectSyncPreview('SSIS',comparison,source,{});
+ assert.deepEqual(result.duplicates,[2]);
+ assert.equal(result.candidateRows[1].review,'SOURCE_ID_NOT_UNIQUE');
+ assert.equal(result.canWrite,false);
+});
