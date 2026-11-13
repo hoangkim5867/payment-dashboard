@@ -5833,6 +5833,8 @@ async function ccSyncCompareProjectGoogleReadOnly(){
     const transferSummary=transferComparison?
       ' · đối ứng Google 2 phía (chỉ ứng viên): '+
         transferComparison.twoSidedCandidateCount+'/'+transferComparison.reviewed+
+        ' · FOXCONN thiếu dòng nhưng dự án đối ứng có ứng viên: '+
+        transferComparison.counterpartOnlyCandidateCount+
         ' · các sổ đã đọc thủ công trong phiên: '+
         ['FOXCONN','ELYSIAN','SSIS'].filter(n=>ccTransferReviewSession.google[n]).join(', ')+
         ' · CHƯA xác minh ID/số dư, 0 writes':'';
