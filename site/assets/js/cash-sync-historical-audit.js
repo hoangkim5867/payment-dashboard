@@ -769,8 +769,32 @@
         const signedFlow=rounded(income-expenses.reduce((sum,value)=>sum+value,0));
         if(signedFlow===rounded(signed))positions.push(i+1);
       }
-      return {status:positions.length===0?'missing':
-        positions.length===1?'candidate-only':'ambiguous',positions};
+      // A ledger may record a loan repayment under a different accounting
+      // column or amount. Expose the textual evidence instead of claiming
+      // that its Google row is absent. Date, direction and project names are
+      // diagnostic clues only and cannot establish a transfer ID.
+      const textCandidates=[];
+      if(!positions.length){
+        for(let i=0;i<snapshot.rows.length;i++){
+          const row=snapshot.rows[i];
+          if(!Array.isArray(row)||dateValue(row[0])!==date)continue;
+          const description=String(row[3]??'').normalize('NFKC').toUpperCase()
+            .replace(/\s+/g,'');
+          if(!(/归还|还款|HOÀNTRẢ|TRẢNỢ|REPAY/.test(description)))continue;
+          const income=amount(row[6],true);
+          const expenses=row.slice(7,snapshot.taxColumnIndex===13?14:13)
+            .map(v=>amount(v,true));
+          const total=Number.isFinite(income)&&expenses.every(Number.isFinite)?
+            rounded(income-expenses.reduce((sum,v)=>sum+v,0)):null;
+          textCandidates.push({googleRow:i+1,description:String(row[3]??'').slice(0,150),
+            signedFlow:total,expectedSigned:rounded(signed),
+            sameAmount:total!==null&&total===rounded(signed)});
+        }
+      }
+      return {status:positions.length===0?
+          (textCandidates.length?'amount-or-category-review':'missing'):
+          positions.length===1?'candidate-only':'ambiguous',
+        positions,textCandidates};
     };
     const reviews=[];
     for(const leg of sourceLegs.verified){
@@ -780,6 +804,18 @@
       const other=leg.signedAmount<0?leg.toProject:leg.fromProject;
       const primary=readCandidates(target,leg.date,leg.signedAmount);
       const counterpart=readCandidates(other,leg.date,-leg.signedAmount);
+      // Refine textual evidence to the expected pair. Avoid interpreting
+      // unrelated repayments on the same date as this transfer.
+      for(const [result,project] of [[primary,target],[counterpart,other]]){
+        result.textCandidates=result.textCandidates.filter(item=>{
+          const text=String(item.description).normalize('NFKC').toUpperCase()
+            .replace(/\s+/g,'');
+          return text.includes(leg.fromProject.replace(/\s+/g,''))&&
+            text.includes(leg.toProject.replace(/\s+/g,''));
+        });
+        if(result.status==='amount-or-category-review'&&!result.textCandidates.length)
+          result.status='missing';
+      }
       reviews.push(Object.freeze({position:leg.position,sourceId:leg.sourceId,
         primaryProject:target,counterpartProject:other,
         primary,counterpart,

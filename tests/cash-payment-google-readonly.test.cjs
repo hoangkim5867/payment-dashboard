@@ -595,6 +595,25 @@ test('manual transfer report identifies each source position and Google candidat
  assert.match(fn,/CHƯA xác minh ID\/số dư, 0 writes/);
  assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
 });
+test('Google repayment description remains visible when legacy amount layout differs',()=>{
+ const leg={verified:[{position:16,sourceId:'transfer:x:out',date:'2026-10-26',
+   signedAmount:-300,fromProject:'FOXCONN',toProject:'ELYSIAN'}]};
+ const row=(date,description,amount)=>[date,'','',description,'','',amount,0,0,0,0,0,0];
+ const sheets={
+  FOXCONN:{schemaVerified:true,rows:[]},
+  ELYSIAN:{schemaVerified:true,rows:[
+   row('2026-10-26','FOXCONN归还ELYSIAN借款',200),
+   row('2026-10-26','SSIS归还ELYSIAN借款',100)]}
+ };
+ const result=auditor.reviewTransferGoogleCounterparts(leg,sheets);
+ assert.equal(result.reviews[0].counterpart.status,'amount-or-category-review');
+ assert.deepEqual(result.reviews[0].counterpart.textCandidates.map(x=>x.googleRow),[1]);
+ assert.equal(result.reviews[0].counterpart.textCandidates[0].signedFlow,200);
+ assert.equal(result.reviews[0].counterpart.textCandidates[0].expectedSigned,300);
+ assert.equal(result.twoSidedCandidateCount,0);
+ assert.equal(result.canWrite,false);
+ assert.equal(result.approvedWrites,0);
+});
 test('source transfer leg validation remains read only and never confirms Sheets',()=>{
  const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
  const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
