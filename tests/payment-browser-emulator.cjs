@@ -56,7 +56,12 @@ const server=http.createServer((req,res)=>{
    });
    const page=await ctx.newPage();
    page.on('pageerror',e=>errors.push(e.message));
-   page.on('dialog',d=>d.accept());
+   // A late confirmation can race with context teardown and reject after the
+   // page is already closed. Handle that rejected promise explicitly.
+   page.on('dialog',d=>{void d.accept().catch(error=>{
+     if(!/Target page.*closed|Target page.*browser has been closed|context.*closed/i.test(String(error?.message||error)))
+       errors.push('Dialog accept failed: '+String(error?.message||error));
+   });});
    await page.goto('http://127.0.0.1:4178/'+file+'?firestoreAudit=1',{waitUntil:'domcontentloaded',timeout:60000});
    await page.locator('#authUsernameInput').fill('pr11synthetic');
    await page.locator('#authPasswordInput').fill('SyntheticTestOnly123!');

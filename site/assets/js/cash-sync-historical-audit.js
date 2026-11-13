@@ -1002,6 +1002,47 @@
     });
     return report;
   }
+  // The future sync engine plans ONE project at a time. Inter-project
+  // transfers are ordinary project-local rows with stable source IDs; they
+  // never require the other project's Google workbook to be loaded first.
+  // Historical matches, conflicts and source completeness remain independent.
+  function buildIndependentProjectSyncPreview(project,comparison,sourceRows,historical){
+    const plan=buildReadOnlySyncPlan(project,comparison,sourceRows);
+    const idCounts=new Map(),duplicates=[];
+    // Do not allow an ID already used by an existing/history-matched row
+    // to look unique merely because it appears once in the candidate list.
+    for(const row of sourceRows){
+      const ids=Array.isArray(row?._syncIds)?row._syncIds.map(String):[];
+      for(const id of ids)if(id.trim())
+        idCounts.set(id,(idCounts.get(id)||0)+1);
+    }
+    const candidateRows=plan.newUnverifiedPositions.map(position=>{
+      const row=sourceRows[position-1]||{};
+      const ids=Array.isArray(row._syncIds)?row._syncIds.map(String):[];
+      const unique=ids.length===1&&ids[0].trim()!==''&&idCounts.get(ids[0])===1;
+      if(ids.length===1&&!unique)duplicates.push(position);
+      return Object.freeze({position,date:String(row.date||''),
+        sourceIds:Object.freeze(ids),
+        review:unique?'CHECK_HISTORY_ID_AND_BALANCE':'SOURCE_ID_NOT_UNIQUE',
+        canWrite:false});
+    });
+    const historyValid=!!historical&&historical.continuityErrors===0&&
+      historical.invalidMoney===0&&historical.missingBalance===0;
+    return Object.freeze({
+      project:plan.project,scope:'ONE_PROJECT_ONLY',
+      sourceRows:plan.sourceScope,googleRows:plan.historyScope,
+      historicalCandidates:plan.existingCandidates,
+      candidateRows:Object.freeze(candidateRows),
+      duplicates:Object.freeze(duplicates),
+      historicalBalanceChecked:historyValid,
+      requiresOtherProjects:false,
+      needsIndependentIdCheck:true,needsBalanceContinuation:true,
+      needsHistoricalMatch:true,
+      approvedWrites:0,canWrite:false,
+      status:'PROJECT_PLAN_READ_ONLY',
+      note:'Kế hoạch riêng từng dự án; chưa ghi Google hay khẳng định khoản nào thực sự mới.'
+    });
+  }
   // Pure read-only release gate for real project Sheets. A consistent ledger
   // is not proof that payments are complete or that automatic writes are safe.
   // This function deliberately NEVER returns write authorization.
@@ -1045,5 +1086,5 @@
         'CHẶN ĐỒNG BỘ: '+blockers.map(x=>x.message).join(' '):
         'Đã qua điều kiện kiểm tra sơ bộ. Vẫn cần kiểm tra ID, nối số dư và xác nhận Admin; chưa được ghi.'});
   }
-  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,reviewGenericDescriptionCandidates,compareFoxconnCandidates,resolvePaymentCollisionCandidates,resolveFoxconnNonPaymentCandidates,assessUnmatchedTransfers,verifyTransferSourceLegs,reviewTransferGoogleCounterparts,classifyCashSource,auditFoxconnIdentityGroups,buildReadOnlySyncPlan,assessProjectSyncReadiness});
+  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,reviewGenericDescriptionCandidates,compareFoxconnCandidates,resolvePaymentCollisionCandidates,resolveFoxconnNonPaymentCandidates,assessUnmatchedTransfers,verifyTransferSourceLegs,reviewTransferGoogleCounterparts,classifyCashSource,auditFoxconnIdentityGroups,buildReadOnlySyncPlan,buildIndependentProjectSyncPreview,assessProjectSyncReadiness});
 });

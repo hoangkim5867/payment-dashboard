@@ -5660,6 +5660,9 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       auditor.compareFoxconnCandidates(payload.values,source,{startMonth:'2026-10'}):
       auditor.compareLoadedCashControl(payload.values,project,source,{sourceComplete:false});
     const syncPlan=auditor.buildReadOnlySyncPlan(project,matched,source);
+    // Independent per-project preview; does not read other workbooks or write.
+    const localProjectPlan=auditor.buildIndependentProjectSyncPreview(
+      project,matched,source,history);
     const m=project==='FOXCONN'?matched.candidates:matched.matched;
     const h=project==='FOXCONN'?matched.historyOnly:matched.historicalOnly;
     const s=project==='FOXCONN'?matched.sourceOnly:matched.cashOnly;
@@ -5878,6 +5881,10 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       ' · phạm vi so khớp từ 10/2026: Google '+matched.historicalScope+
       ', Cash Control '+matched.sourceScope+' dòng'+
       ' · ứng viên '+m+
+      ' · kế hoạch đồng bộ ĐỘC LẬP '+project+' (0 writes): '+
+        localProjectPlan.candidateRows.length+' ứng viên cần kiểm tra ID/số dư'+
+        ' · không phụ thuộc Google dự án khác'+
+        ' · trùng ID nguồn trong ứng viên: '+localProjectPlan.duplicates.length+
       ' · kế hoạch chung (CHỈ ĐỌC): '+syncPlan.newUnverifiedPositions.length+
       ' khoản có thể mới, '+syncPlan.ambiguousPositions.length+
       ' vị trí trùng, '+syncPlan.verifiedNewCount+' khoản đủ phép ghi'+
