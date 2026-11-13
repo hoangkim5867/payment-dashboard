@@ -384,6 +384,47 @@
       identityConflictPositions,identityUnverifiedPositions,
       candidateOnly:true,canWrite:false};
   }
+  // Review-only recovery for Google and Cash Control rows whose numerical
+  // signatures differ, but whose date and description might describe the same
+  // transaction. Do NOT promote these to matched, unique IDs or writable rows.
+  function reviewGenericDescriptionCandidates(historyRows,sourceRows,comparison){
+    if(!Array.isArray(historyRows)||!Array.isArray(sourceRows)||
+       historyRows.length>20000||sourceRows.length>20000)
+      throw Error('Invalid description review input');
+    const normalize=v=>String(v??'').normalize('NFKC').toUpperCase()
+      .replace(/\\s+/g,'').replace(/[·•:：,，.。\\-]/g,'')
+      .replace(/^(?:THƯỞNG|奖金|BONUS)/,'');
+    const expenses=['income','subcontract','material','otherDirect','indirect','financial','otherPayable'];
+    const money=(row,kind)=>{
+      const values=kind==='history'?row.slice(6,13).map(v=>amount(v,true)):
+        expenses.map(key=>amount(row?.[key],true));
+      return values.length===7&&values.every(Number.isFinite)?values:null;
+    };
+    const googleOnly=new Set(comparison?.historyOnlyPositions||[]);
+    const result=[];
+    for(const position of comparison?.sourceOnlyPositions||[]){
+      if(!Number.isSafeInteger(position)||position<1||position>sourceRows.length)continue;
+      const row=sourceRows[position-1];
+      const date=dateValue(row?.date),description=normalize(row?.content);
+      if(!date||description.length<3)continue;
+      const srcMoney=money(row,'source');
+      for(const index of googleOnly){
+        const candidate=historyRows[index-1];
+        if(!Array.isArray(candidate)||dateValue(candidate[0])!==date)continue;
+        const desc=normalize(candidate[3]);
+        if(desc!==description)continue;
+        const googleMoney=money(candidate,'history');
+        result.push(Object.freeze({sourcePosition:position,googleRow:index,
+          sourceContent:String(row.content||'').slice(0,150),
+          googleContent:String(candidate[3]||'').slice(0,150),
+          sourceAmounts:srcMoney,googleAmounts:googleMoney,
+          identicalAmounts:!!srcMoney&&!!googleMoney&&srcMoney.every((v,i)=>rounded(v)===rounded(googleMoney[i])),
+          candidateOnly:true,canWrite:false}));
+      }
+    }
+    return Object.freeze({candidates:result,count:result.length,
+      candidateOnly:true,canWrite:false,approvedWrites:0});
+  }
   // FOXCONN has a separate import-tax + VAT column N (index 13).
   // Exact numerical matches are candidates, NEVER authorization or proof of identity.
   // Do not assume that an ordinary Cash Control expense bucket is import tax.
@@ -978,5 +1019,5 @@
         'CHẶN ĐỒNG BỘ: '+blockers.map(x=>x.message).join(' '):
         'Đã qua điều kiện kiểm tra sơ bộ. Vẫn cần kiểm tra ID, nối số dư và xác nhận Admin; chưa được ghi.'});
   }
-  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,compareFoxconnCandidates,resolvePaymentCollisionCandidates,resolveFoxconnNonPaymentCandidates,assessUnmatchedTransfers,verifyTransferSourceLegs,reviewTransferGoogleCounterparts,classifyCashSource,auditFoxconnIdentityGroups,buildReadOnlySyncPlan,assessProjectSyncReadiness});
+  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,reviewGenericDescriptionCandidates,compareFoxconnCandidates,resolvePaymentCollisionCandidates,resolveFoxconnNonPaymentCandidates,assessUnmatchedTransfers,verifyTransferSourceLegs,reviewTransferGoogleCounterparts,classifyCashSource,auditFoxconnIdentityGroups,buildReadOnlySyncPlan,assessProjectSyncReadiness});
 });
