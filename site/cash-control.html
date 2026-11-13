@@ -5754,8 +5754,11 @@ async function ccSyncCompareProjectGoogleReadOnly(){
     let nonPaymentResolution=null;
     if(project==='FOXCONN'&&exceptionPanel){
       const output=$('ccSyncFoxconnExceptionRows');
+      const excessGroups=matched.excessSignatureGroups||[];
+      const excessSourcePositions=[...new Set(excessGroups.flatMap(g=>g.sourcePositions||[]))];
       const cases=[
         ['Chỉ Cash Control (chữ ký chưa có ở Google)',matched.sourceOnlyPositions],
+        ['Chữ ký trùng có số lượng chênh (chưa biết dòng nào dư)',excessSourcePositions],
         ['Cùng chữ ký, chưa xác định bản ghi',matched.ambiguousSourcePositions],
         ['Xung đột HĐ/IPC',matched.identityConflictPositions],
         ['Thiếu danh tính HĐ/IPC',matched.identityUnverifiedPositions]
@@ -5851,6 +5854,8 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       ' · xung đột HĐ/IPC '+matched.identityConflict+
       (project==='FOXCONN'?
         ' · vị trí chỉ có Cash Control (bản chiếu): '+(matched.sourceOnlyPositions?.join(', ')||'không xác định, có thể trùng chữ ký')+
+        ' · nhóm chữ ký cùng tiền/ngày có số lượng chênh: '+(matched.excessSignatureGroups?.length||0)+
+        ' (không chỉ định dòng dư khi thiếu ID)' +
         ' · vị trí mơ hồ (bản chiếu): '+(matched.ambiguousSourcePositions?.join(', ')||'0')+
         ' · vị trí xung đột HĐ/IPC (bản chiếu): '+(matched.identityConflictPositions?.join(', ')||'0')+
         ' · vị trí thiếu HĐ/IPC (bản chiếu): '+(matched.identityUnverifiedPositions?.join(', ')||'0')+
