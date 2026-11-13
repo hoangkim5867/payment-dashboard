@@ -784,11 +784,14 @@
         primaryProject:target,counterpartProject:other,
         primary,counterpart,
         status:primary.status==='candidate-only'&&counterpart.status==='candidate-only'?
-          'two-sided-candidate-only':'unresolved',
+          'two-sided-candidate-only':
+          primary.status==='missing'&&counterpart.status==='candidate-only'?
+          'counterpart-only-candidate':'unresolved',
         idVerified:false,balancesVerified:false,canWrite:false}));
     }
     return Object.freeze({reviews,reviewed:reviews.length,
       twoSidedCandidateCount:reviews.filter(x=>x.status==='two-sided-candidate-only').length,
+      counterpartOnlyCandidateCount:reviews.filter(x=>x.status==='counterpart-only-candidate').length,
       sourceComplete:false,canWrite:false,approvedWrites:0});
   }
   // Shared reconciliation routing. This is a classification hint, never a
