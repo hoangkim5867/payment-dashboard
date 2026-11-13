@@ -532,7 +532,8 @@ test('unmatched transfers confirm Cash Control two-sided source leg, not Google 
 test('two-ledger transfer review is candidate-only even when both Google rows are unique',()=>{
  const verified={verified:[{position:16,sourceId:'transfer:abc:out',
    date:'2026-10-26',signedAmount:-300,fromProject:'FOXCONN',toProject:'ELYSIAN'}]};
- const row=(money)=>['2026-10-26','','','Hoàn vay','','',money,0,0,0,0,0,0,0];
+ const row=(money)=>['2026-10-26','','','Hoàn vay','','',
+   money>0?money:0,0,0,0,money<0?-money:0,0,0,0];
  const evidence={
    FOXCONN:{schemaVerified:true,taxColumnIndex:13,rows:[row(-300)]},
    ELYSIAN:{schemaVerified:true,rows:[row(300)]}
@@ -546,6 +547,12 @@ test('two-ledger transfer review is candidate-only even when both Google rows ar
  assert.equal(ok.reviews[0].balancesVerified,false);
  assert.equal(ok.canWrite,false);
  assert.equal(ok.approvedWrites,0);
+ const composite=auditor.reviewTransferGoogleCounterparts(verified,{
+   ...evidence,FOXCONN:{...evidence.FOXCONN,
+     rows:[['2026-10-26','','','','','',50,0,0,0,350,0,0,0]]}
+ });
+ assert.equal(composite.twoSidedCandidateCount,0);
+ assert.equal(composite.canWrite,false);
  const missing=auditor.reviewTransferGoogleCounterparts(verified,{FOXCONN:evidence.FOXCONN});
  assert.equal(missing.reviews[0].counterpart.status,'not-loaded');
  assert.equal(missing.twoSidedCandidateCount,0);
