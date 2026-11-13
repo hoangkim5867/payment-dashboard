@@ -584,6 +584,17 @@ test('two-sided Google review reuses manually loaded project worksheets without 
  assert.match(fn,/CHƯA xác minh ID\/số dư, 0 writes/);
  assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
 });
+test('manual transfer report identifies each source position and Google candidate row',()=>{
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ const fn=code.slice(start,end);
+ assert.match(fn,/transferComparison\?\.reviews\.map/);
+ assert.match(fn,/vị trí '\+item\.position/);
+ assert.match(fn,/item\.primary\.positions\.join/);
+ assert.match(fn,/item\.counterpart\.positions\.join/);
+ assert.match(fn,/CHƯA xác minh ID\/số dư, 0 writes/);
+ assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
+});
 test('source transfer leg validation remains read only and never confirms Sheets',()=>{
  const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
  const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
