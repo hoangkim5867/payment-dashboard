@@ -558,6 +558,18 @@ test('two-ledger transfer review is candidate-only even when both Google rows ar
  assert.equal(invalid.reviews[0].counterpart.status,'schema-unverified');
  assert.equal(invalid.twoSidedCandidateCount,0);
 });
+test('two-sided Google review reuses manually loaded project worksheets without network calls',()=>{
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ const fn=code.slice(start,end);
+ assert.match(code,/const ccTransferReviewSession=\{uid:null,google:Object\.create\(null\),foxconnLegs:null\}/);
+ assert.match(fn,/ccTransferReviewSession\.google\[project\]=\{/);
+ assert.match(fn,/ccTransferReviewSession\.foxconnLegs=transferSourceLegs/);
+ assert.match(fn,/auditor\.reviewTransferGoogleCounterparts\(/);
+ assert.match(fn,/twoSidedCandidateCount/);
+ assert.match(fn,/CHƯA xác minh ID\/số dư, 0 writes/);
+ assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
+});
 test('source transfer leg validation remains read only and never confirms Sheets',()=>{
  const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
  const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
