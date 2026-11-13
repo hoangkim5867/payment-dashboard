@@ -6410,15 +6410,27 @@ async function ccGoogleSyncAuth(){
   ccGoogleSyncPlan=null;
   $('ccGoogleSyncCommit').disabled=true;
   ccGoogleSyncStatus('Đang xin cấp quyền Google Sheets…');
+  // Preview deploy URLs change after each build. OAuth uses the exact
+  // browser origin, not the GitHub branch, so prefer this verified stable
+  // branch alias and never repeatedly request consent when not needed.
+  const stableOrigin='https://cscec-mep-payment-git-featur-0e1e73-hoangkim5867-2166s-projects.vercel.app';
+  if(firebaseConfig.projectId==='cash-control-staging'&&
+     window.location.origin!==stableOrigin)
+    throw Error('Google OAuth cần tên miền Preview cố định. Mở '+stableOrigin+
+      '/cash-control.html rồi Kết nối Google tại đó. Không dùng link triển khai thay đổi mỗi lần.');
   ccGoogleSyncToken=await new Promise((resolve,reject)=>{
     ccGoogleSyncTokenClient=google.accounts.oauth2.initTokenClient({
       client_id:clientId,
       scope:'https://www.googleapis.com/auth/spreadsheets',
       callback:response=>response?.access_token
-        ?resolve(response.access_token):reject(Error(response?.error||'Không được cấp quyền')),
-      error_callback:error=>reject(Error(error?.message||'Không thể đăng nhập Google'))
+        ?resolve(response.access_token):reject(Error('Google OAuth: '+String(response?.error||'access_denied')+
+          (response?.error_description?' · '+String(response.error_description).slice(0,240):''))),
+      error_callback:error=>reject(Error('Google OAuth: '+String(error?.type||error?.message||'popup_failed')+
+        '. Nếu Google hiện origin_mismatch, thêm '+stableOrigin+
+        ' vào Authorized JavaScript origins của đúng OAuth Client ID; nếu access_denied, kiểm tra Test users.'))
     });
-    ccGoogleSyncTokenClient.requestAccessToken({prompt:'consent'});
+    try{ccGoogleSyncTokenClient.requestAccessToken({prompt:''})}
+    catch(error){reject(error)}
   });
   ccGoogleSyncStatus('Google đã cấp quyền tạm thời. Chỉ có thể ghi vào Sheets mà tài khoản Google có quyền sửa.');
 }
