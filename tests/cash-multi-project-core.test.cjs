@@ -36,7 +36,7 @@ test('manual mirror cell changes and deleted source ID are blocked',()=>{
  assert.equal(first.changes[0].action,'append');
  assert.throws(()=>planMonth({project:'SSIS',month:'2026-11',
    source:[item],history,mirror:[{...first.mirrorNext[0],
-     values:v('2026-11-09',51)}],openingBalance:0}),/Mirror đã bị sửa tay/);
+     values:[...v('2026-11-09',51),0]}],openingBalance:0}),/Mirror đã bị sửa tay/);
  assert.throws(()=>planMonth({project:'SSIS',month:'2026-11',
    source:[],history,mirror:first.mirrorNext,openingBalance:0}),/không còn trong nguồn/);
 });
