@@ -39,7 +39,12 @@ function validateRequest(payload){
   return {action:'project_count',project:payload.project};
 }
 function firestoreArray(field){
-  const value=field?.arrayValue?.values;
+  // Firestore REST represents an empty arrayValue as {} (without values).
+  // That is a valid empty array, not a missing or broken source field.
+  if(!field||typeof field!=='object'||!field.arrayValue||
+     typeof field.arrayValue!=='object')return null;
+  const value=field.arrayValue.values;
+  if(value===undefined)return [];
   return Array.isArray(value)?value:null;
 }
 function fieldString(field){
@@ -69,7 +74,8 @@ function cashMetadata(record){
     manualRecords:manual?.length??null,salaryRecords:salary?.length??null,
     inflowRecords:inflow?.length??null,
     transferRecords:transfer?.length??null,
-    updatedAt:fieldString(fields.updatedAt),
+    updatedAt:typeof fields.updatedAt?.timestampValue==='string'?
+      fields.updatedAt.timestampValue:fieldString(fields.updatedAt),
     schemaVersion:fieldNumber(fields.schemaVersion),
     metadataPresent:hasCore,
     paymentSourceComplete:false,legacyHistoryComplete:false,
