@@ -581,7 +581,8 @@
     ]);
     for(const [i,row] of sourceRows.entries()){
       const position=i+1,date=dateValue(row?.date);
-      if(!flagged.has(position)||!date||date<'2026-10-01')continue;
+      // Count even unflagged source rows when determining a unique counterpart.
+      if(!date||date<'2026-10-01')continue;
       const classification=classifyCashSource(row,recordsById);
       if(!['personnel','tax-or-aggregate','receipt'].includes(classification.kind))continue;
       if(!Object.hasOwn(row,'importTaxVat')||
@@ -629,6 +630,7 @@
     for(const [k,items] of source){
       const candidates=history.get(k)||[];
       for(const item of items){
+        if(!flagged.has(item.position))continue;
         // Date + amount bucket only is a NON-IDENTITY clue. Reveal its Google
         // row to help investigate translated/renamed descriptions, but never
         // upgrade it to a verified counterpart or grant writing.
