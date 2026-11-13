@@ -84,7 +84,12 @@ function compareSourceToHistory(source,raw,month){
  return Object.freeze({
   project:'FOXCONN',month,sourceRows:source.length,
   historyTransactions:history.entries.length,
-  closingBalance:history.closingBalance,dateOrderNotChanged:true,
+  closingBalance:history.closingBalance,
+  currentHistoryFingerprint:history.fingerprint,
+  historyBalanceConsistent:true,
+  // Without an earlier trusted fingerprint, same count and closing balance
+  // do NOT prove that original history cells are unchanged.
+  historicalSnapshotUnchanged:null,
   exactHistoryMatched:historic,newAfterHistoryCandidates:newAfter,
   olderUnmatched:olderMissing,ambiguousMatches:ambiguous,
   missingPaymentIdentity:identityMissing,
