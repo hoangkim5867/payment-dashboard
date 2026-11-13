@@ -728,13 +728,71 @@
         Number.isFinite(value)&&Math.abs(value)===Math.abs(item.signedAmount);
       if(safe)verified.push(Object.freeze({position:item.position,
         fromProject:from,toProject:to,counterparty:direction==='out'?to:from,
-        sourceId:item.sourceId,signedAmount:item.signedAmount,
+        sourceId:item.sourceId,date:item.date,signedAmount:item.signedAmount,
         sourceLegVerified:true,googleCounterpartVerified:false}));
       else unverified.push(item.position);
     }
     return Object.freeze({verified,unverified,
       sourceLegVerifiedCount:verified.length,canWrite:false,
       googleCounterpartVerified:false,sourceComplete:false});
+  }
+  // Compare a verified transfer source leg with already supplied Google Sheet
+  // snapshots of BOTH projects. Do not fetch Sheets or claim immutable IDs.
+  // G is the signed flow column in the supported ledger layouts; the caller
+  // must independently verify the sheet schema, provenance and balances.
+  function reviewTransferGoogleCounterparts(sourceLegs,googleByProject){
+    if(!sourceLegs||!Array.isArray(sourceLegs.verified)||
+       !googleByProject||typeof googleByProject!=='object')
+      throw Error('Invalid transfer comparison input');
+    const readCandidates=(project,date,signed)=>{
+      const snapshot=googleByProject[project];
+      if(!snapshot||!Array.isArray(snapshot.rows)||snapshot.rows.length>20000)
+        return {status:'not-loaded',positions:[]};
+      if(snapshot.schemaVerified!==true)
+        return {status:'schema-unverified',positions:[]};
+      const positions=[];
+      for(let i=0;i<snapshot.rows.length;i++){
+        const row=snapshot.rows[i];
+        if(!Array.isArray(row)||dateValue(row[0])!==date)continue;
+        const income=amount(row[6],true);
+        // In Google ledgers G is receipts, H:M are non-negative outflows.
+        // FOXCONN additionally uses N for import tax/VAT. Never treat a
+        // negative G value as the only way to represent a transfer out.
+        const expenses=row.slice(7,snapshot.taxColumnIndex===13?14:13)
+          .map(value=>amount(value,true));
+        if(!Number.isFinite(income)||expenses.some(value=>!Number.isFinite(value))||
+           expenses.some(value=>value<0)||income<0)continue;
+        const nonzero=[income,...expenses].filter(value=>value!==0);
+        // Require one unambiguous monetary posting; composite rows cannot
+        // identify a single transfer and must stay unresolved.
+        if(nonzero.length!==1)continue;
+        const signedFlow=rounded(income-expenses.reduce((sum,value)=>sum+value,0));
+        if(signedFlow===rounded(signed))positions.push(i+1);
+      }
+      return {status:positions.length===0?'missing':
+        positions.length===1?'candidate-only':'ambiguous',positions};
+    };
+    const reviews=[];
+    for(const leg of sourceLegs.verified){
+      if(!leg?.date||!leg?.fromProject||!leg?.toProject||
+         !Number.isFinite(leg.signedAmount))continue;
+      const target=leg.signedAmount<0?leg.fromProject:leg.toProject;
+      const other=leg.signedAmount<0?leg.toProject:leg.fromProject;
+      const primary=readCandidates(target,leg.date,leg.signedAmount);
+      const counterpart=readCandidates(other,leg.date,-leg.signedAmount);
+      reviews.push(Object.freeze({position:leg.position,sourceId:leg.sourceId,
+        primaryProject:target,counterpartProject:other,
+        primary,counterpart,
+        status:primary.status==='candidate-only'&&counterpart.status==='candidate-only'?
+          'two-sided-candidate-only':
+          primary.status==='missing'&&counterpart.status==='candidate-only'?
+          'counterpart-only-candidate':'unresolved',
+        idVerified:false,balancesVerified:false,canWrite:false}));
+    }
+    return Object.freeze({reviews,reviewed:reviews.length,
+      twoSidedCandidateCount:reviews.filter(x=>x.status==='two-sided-candidate-only').length,
+      counterpartOnlyCandidateCount:reviews.filter(x=>x.status==='counterpart-only-candidate').length,
+      sourceComplete:false,canWrite:false,approvedWrites:0});
   }
   // Shared reconciliation routing. This is a classification hint, never a
   // transaction identity or write eligibility. Source IDs are already loaded
@@ -884,5 +942,5 @@
         'CHẶN ĐỒNG BỘ: '+blockers.map(x=>x.message).join(' '):
         'Đã qua điều kiện kiểm tra sơ bộ. Vẫn cần kiểm tra ID, nối số dư và xác nhận Admin; chưa được ghi.'});
   }
-  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,compareFoxconnCandidates,resolvePaymentCollisionCandidates,resolveFoxconnNonPaymentCandidates,assessUnmatchedTransfers,verifyTransferSourceLegs,classifyCashSource,auditFoxconnIdentityGroups,buildReadOnlySyncPlan,assessProjectSyncReadiness});
+  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,compareFoxconnCandidates,resolvePaymentCollisionCandidates,resolveFoxconnNonPaymentCandidates,assessUnmatchedTransfers,verifyTransferSourceLegs,reviewTransferGoogleCounterparts,classifyCashSource,auditFoxconnIdentityGroups,buildReadOnlySyncPlan,assessProjectSyncReadiness});
 });

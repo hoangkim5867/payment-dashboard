@@ -529,6 +529,72 @@ test('unmatched transfers confirm Cash Control two-sided source leg, not Google 
    [{...records[0],fromProject:'ELYSIAN',toProject:'FOXCONN'},records[1]]);
  assert.deepEqual(swapped.unverified,[1]);
 });
+test('two-ledger transfer review is candidate-only even when both Google rows are unique',()=>{
+ const verified={verified:[{position:16,sourceId:'transfer:abc:out',
+   date:'2026-10-26',signedAmount:-300,fromProject:'FOXCONN',toProject:'ELYSIAN'}]};
+ const row=(money)=>['2026-10-26','','','Hoàn vay','','',
+   money>0?money:0,0,0,0,money<0?-money:0,0,0,0];
+ const evidence={
+   FOXCONN:{schemaVerified:true,taxColumnIndex:13,rows:[row(-300)]},
+   ELYSIAN:{schemaVerified:true,rows:[row(300)]}
+ };
+ const ok=auditor.reviewTransferGoogleCounterparts(verified,evidence);
+ assert.equal(ok.twoSidedCandidateCount,1);
+ assert.equal(ok.reviews[0].status,'two-sided-candidate-only');
+ assert.deepEqual(ok.reviews[0].primary.positions,[1]);
+ assert.deepEqual(ok.reviews[0].counterpart.positions,[1]);
+ assert.equal(ok.reviews[0].idVerified,false);
+ assert.equal(ok.reviews[0].balancesVerified,false);
+ assert.equal(ok.canWrite,false);
+ assert.equal(ok.approvedWrites,0);
+ const composite=auditor.reviewTransferGoogleCounterparts(verified,{
+   ...evidence,FOXCONN:{...evidence.FOXCONN,
+     rows:[['2026-10-26','','','','','',50,0,0,0,350,0,0,0]]}
+ });
+ assert.equal(composite.twoSidedCandidateCount,0);
+ assert.equal(composite.canWrite,false);
+ const missing=auditor.reviewTransferGoogleCounterparts(verified,{FOXCONN:evidence.FOXCONN});
+ assert.equal(missing.reviews[0].counterpart.status,'not-loaded');
+ assert.equal(missing.twoSidedCandidateCount,0);
+ const noFoxconn=auditor.reviewTransferGoogleCounterparts(verified,{
+   ...evidence,FOXCONN:{...evidence.FOXCONN,rows:[]}
+ });
+ assert.equal(noFoxconn.twoSidedCandidateCount,0);
+ assert.equal(noFoxconn.counterpartOnlyCandidateCount,1);
+ assert.equal(noFoxconn.reviews[0].status,'counterpart-only-candidate');
+ assert.equal(noFoxconn.canWrite,false);
+ const duplicated=auditor.reviewTransferGoogleCounterparts(verified,
+   {...evidence,ELYSIAN:{...evidence.ELYSIAN,rows:[row(300),row(300)]}});
+ assert.equal(duplicated.reviews[0].counterpart.status,'ambiguous');
+ assert.equal(duplicated.canWrite,false);
+ const invalid=auditor.reviewTransferGoogleCounterparts(verified,
+   {...evidence,ELYSIAN:{...evidence.ELYSIAN,schemaVerified:false}});
+ assert.equal(invalid.reviews[0].counterpart.status,'schema-unverified');
+ assert.equal(invalid.twoSidedCandidateCount,0);
+});
+test('two-sided Google review reuses manually loaded project worksheets without network calls',()=>{
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ const fn=code.slice(start,end);
+ assert.match(code,/const ccTransferReviewSession=\{uid:null,google:Object\.create\(null\),foxconnLegs:null\}/);
+ assert.match(fn,/ccTransferReviewSession\.google\[project\]=\{/);
+ assert.match(fn,/ccTransferReviewSession\.foxconnLegs=transferSourceLegs/);
+ assert.match(fn,/auditor\.reviewTransferGoogleCounterparts\(/);
+ assert.match(fn,/twoSidedCandidateCount/);
+ assert.match(fn,/CHƯA xác minh ID\/số dư, 0 writes/);
+ assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
+});
+test('manual transfer report identifies each source position and Google candidate row',()=>{
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ const fn=code.slice(start,end);
+ assert.match(fn,/transferComparison\?\.reviews\.map/);
+ assert.match(fn,/vị trí '\+item\.position/);
+ assert.match(fn,/item\.primary\.positions\.join/);
+ assert.match(fn,/item\.counterpart\.positions\.join/);
+ assert.match(fn,/CHƯA xác minh ID\/số dư, 0 writes/);
+ assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
+});
 test('source transfer leg validation remains read only and never confirms Sheets',()=>{
  const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
  const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
