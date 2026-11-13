@@ -53,3 +53,22 @@ test('35-project mapping and JSON recovery remain usable with no duplicated IDs'
  const sectionOpen=count('<section\\b'),sectionClose=count('<\\/section>');
  assert.equal(sectionOpen,sectionClose);
 });
+
+test('35-project batch readiness button is primary, Admin-only, and read-only',()=>{
+ const page=html;
+ for(const id of ['ccSyncBatchAnalyze','ccSyncBatchMonth','ccSyncBatchStatus',
+   'ccSyncBatchResults'])assert.equal(count('id="'+id+'"'),1);
+ assert.ok(index('ccSyncBatchAnalyze')>index('ccGoogleSyncProjectLinkCatalog'));
+ assert.ok(index('ccSyncBatchAnalyze')<index('ccGoogleSyncLegacyPilot'));
+ const start=page.indexOf('function ccSyncBatchAnalyzeInMemory(){');
+ const end=page.indexOf('function ccSyncProjectCatalogRender(){',start);
+ assert.ok(start>0&&end>start);
+ const body=page.slice(start,end);
+ assert.match(body,/isCashControlOwner\(\)/);
+ assert.match(body,/ccSyncProjectCatalogNames\(\)/);
+ assert.match(body,/ccSyncFoxconnAuditRows\(month\)/);
+ assert.match(body,/legacyCashExportRows\(month,project\)/);
+ assert.match(body,/buildBatchReadiness\(/);
+ assert.doesNotMatch(body,/getDocs\(|getCountFromServer\(|onSnapshot\(|setDoc\(|addDoc\(|fetch\(|ccGoogleSyncOriginalRequest\(|:batchUpdate/);
+ assert.match(page,/import \{buildBatchReadiness\} from "\.\/assets\/js\/cash-sync-batch-readiness\.mjs"/);
+});
