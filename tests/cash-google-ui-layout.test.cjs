@@ -22,7 +22,7 @@ test('one primary Google connection and a 35-project catalog before legacy PHU H
  assert.ok(index('ccGoogleSyncProjectLinkCatalog')<index('ccGoogleSyncLegacyPilot'));
  assert.ok(index('ccGoogleSyncLegacyPilot')<index('ccGoogleSyncProjects'));
  assert.ok(index('ccGoogleSyncLegacyPilot')<index('ccGoogleSyncDirectSync'));
- assert.match(modal,/<details id="ccGoogleSyncProjectLinkCatalog" open hidden/);
+ assert.match(modal,/<details id="ccGoogleSyncProjectLinkCatalog" hidden open/);
  assert.match(modal,/<details id="ccGoogleSyncLegacyPilot"/);
  assert.match(modal,/Đồng bộ giao dịch Cash Control thật và nút chạy chung 35 dự án vẫn khóa/);
 });
