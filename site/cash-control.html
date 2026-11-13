@@ -5536,6 +5536,9 @@ function ccSyncFoxconnAuditRows(month){
 }
 // Manual Admin action: one production project Payment query + ONE linked
 // Google Sheets historical tab. It never writes or enables synchronization.
+// Ephemeral read-only snapshots from MANUAL Admin checks in this page session.
+// Never persist link, worksheet values or source IDs to browser storage.
+const ccTransferReviewSession={uid:null,google:Object.create(null),foxconnLegs:null};
 async function ccSyncCompareProjectGoogleReadOnly(){
   const button=$('ccSyncProjectCompareGoogle');
   const status=$('ccSyncPaymentPreflightStatus');
@@ -5808,6 +5811,31 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       table.append(tbody);
       if(output){output.replaceChildren(table);exceptionPanel.hidden=tbody.childElementCount===0}
     }
+    // Reuse ONLY worksheets explicitly loaded through this manual Admin action.
+    // A new Admin UID resets the in-memory cache. Session snapshots may be
+    // stale and are never proof of source ID, Google row ID, or balance.
+    if(ccTransferReviewSession.uid!==authUid){
+      ccTransferReviewSession.uid=authUid;
+      ccTransferReviewSession.google=Object.create(null);
+      ccTransferReviewSession.foxconnLegs=null;
+    }
+    ccTransferReviewSession.google[project]={
+      rows:payload.values,
+      schemaVerified:Number(history.layoutErrors||0)===0&&
+        Number(history.invalidMoney||0)===0&&
+        Number(history.missingBalance||0)===0,
+      taxColumnIndex:project==='FOXCONN'?13:null
+    };
+    if(project==='FOXCONN')ccTransferReviewSession.foxconnLegs=transferSourceLegs;
+    const transferComparison=ccTransferReviewSession.foxconnLegs?
+      auditor.reviewTransferGoogleCounterparts(
+        ccTransferReviewSession.foxconnLegs,ccTransferReviewSession.google):null;
+    const transferSummary=transferComparison?
+      ' · đối ứng Google 2 phía (chỉ ứng viên): '+
+        transferComparison.twoSidedCandidateCount+'/'+transferComparison.reviewed+
+        ' · các sổ đã đọc thủ công trong phiên: '+
+        ['FOXCONN','ELYSIAN','SSIS'].filter(n=>ccTransferReviewSession.google[n]).join(', ')+
+        ' · CHƯA xác minh ID/số dư, 0 writes':'';
     status.textContent=(blocked?'CHƯA ĐỦ ĐIỀU KIỆN · ':'CHỈ ĐỌC · ')+project+
       ' · Payment '+rowsLoaded+' hồ sơ đã tải; đếm Firestore tên chuẩn '+rawCount+
       (countUnverified?' (chênh lệch, chưa xác nhận đủ nguồn)':' (số lượng bằng nhau, chưa xác nhận đủ nguồn)')+
@@ -5845,6 +5873,7 @@ async function ccSyncCompareProjectGoogleReadOnly(){
         ' · ảnh hưởng số dư giả định '+(Number(unmatchedTransferImpact?.net||0)).toLocaleString('vi-VN')+' VND'+
         ' (KHÔNG ghi; cần xác minh đối ứng và số dư)' +
         (unmatchedTransferImpact?.errors.length?' · lỗi nhận dạng điều chuyển '+unmatchedTransferImpact.errors.length:''):'')+
+      transferSummary+
       ' · ngày đảo thứ tự '+dateRegressions+
       ' · ngày chưa nhận dạng '+unparsedDates+
       ' · trạng thái sổ '+history.status+
