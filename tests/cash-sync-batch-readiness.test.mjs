@@ -61,3 +61,17 @@ test('never infer a 0-transaction project is fully loaded or synced',()=>{
  assert.equal(r.rows[0].sourceComplete,false);
  assert.equal(r.rows[0].canWrite,false);
 });
+
+test('catalog-wide missing links are reported even when no transaction source is loaded',()=>{
+ const r=buildBatchReadiness({month:'2026-11',
+  projects:['A','B','C','D'],links:{A:true,C:true},rowsByProject:{}});
+ assert.equal(r.projects,4);
+ assert.equal(r.activeProjects,0);
+ assert.equal(r.linkedProjects,2);
+ assert.equal(r.unlinkedProjects,2);
+ assert.equal(r.missingLinkProjects,0);
+ assert.equal(r.absentRowsDoNotProveNoActivity,true);
+ assert.equal(r.canWrite,false);
+ assert.equal(r.firestoreReads,0);
+ assert.equal(r.googleWrites,0);
+});
