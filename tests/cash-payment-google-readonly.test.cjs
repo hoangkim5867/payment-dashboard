@@ -595,6 +595,27 @@ test('manual transfer report identifies each source position and Google candidat
  assert.match(fn,/CHƯA xác minh ID\/số dư, 0 writes/);
  assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
 });
+test('read-only transfer variance is a separate blocker from missing Google counterpart',()=>{
+ const legs={verified:[{position:16,sourceId:'transfer:loan:out',date:'2026-10-26',
+   fromProject:'FOXCONN',toProject:'ELYSIAN',signedAmount:-5700000000},
+   {position:20,sourceId:'transfer:loan2:in',date:'2026-11-09',
+   fromProject:'SSIS',toProject:'FOXCONN',signedAmount:3500000000}]};
+ const row=['2026-10-26','','','FOXCONN归还ELYSIAN借款','','',
+   5362319402,0,0,0,0,0,0];
+ const result=auditor.reviewTransferGoogleCounterparts(legs,{
+   FOXCONN:{schemaVerified:true,rows:[]},
+   ELYSIAN:{schemaVerified:true,rows:[row]},
+   SSIS:{schemaVerified:true,rows:[]}
+ });
+ assert.equal(result.amountMismatchCount,1);
+ assert.equal(result.reviews[0].variance,-337680598);
+ assert.equal(result.reviews[0].expectedSigned,5700000000);
+ assert.equal(result.reviews[0].amountMismatch,true);
+ assert.equal(result.reviews[1].amountMismatch,false);
+ assert.equal(result.unresolvedTransferCount,2);
+ assert.equal(result.canWrite,false);
+ assert.equal(result.approvedWrites,0);
+});
 test('Google repayment description remains visible when legacy amount layout differs',()=>{
  const leg={verified:[{position:16,sourceId:'transfer:x:out',date:'2026-10-26',
    signedAmount:-300,fromProject:'FOXCONN',toProject:'ELYSIAN'}]};
