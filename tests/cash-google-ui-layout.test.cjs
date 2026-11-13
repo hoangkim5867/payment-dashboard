@@ -60,7 +60,7 @@ test('35-project batch readiness button is primary, Admin-only, and read-only',(
    'ccSyncBatchResults'])assert.equal(count('id="'+id+'"'),1);
  assert.ok(index('ccSyncBatchAnalyze')>index('ccGoogleSyncProjectLinkCatalog'));
  assert.ok(index('ccSyncBatchAnalyze')<index('ccGoogleSyncLegacyPilot'));
- const start=page.indexOf('function ccSyncBatchAnalyzeInMemory(){');
+ const start=page.indexOf('async function ccSyncBatchAnalyzeInMemory(){');
  const end=page.indexOf('function ccSyncProjectCatalogRender(){',start);
  assert.ok(start>0&&end>start);
  const body=page.slice(start,end);
@@ -69,12 +69,16 @@ test('35-project batch readiness button is primary, Admin-only, and read-only',(
  assert.match(body,/ccSyncFoxconnAuditRows\(month\)/);
  assert.match(body,/legacyCashExportRows\(month,project\)/);
  assert.match(body,/buildBatchReadiness\(/);
- assert.doesNotMatch(body,/getDocs\(|getCountFromServer\(|onSnapshot\(|setDoc\(|addDoc\(|fetch\(|ccGoogleSyncOriginalRequest\(|:batchUpdate/);
+ assert.doesNotMatch(body,/getDocs\(|getCountFromServer\(|onSnapshot\(|setDoc\(|addDoc\(|ccGoogleSyncOriginalRequest\(|:batchUpdate/);
+ assert.equal((body.match(/fetch\(/g)||[]).length,1);
+ assert.match(body,/fetch\('\/api\/cash-sync-source-readonly'/);
+ assert.match(body,/body:JSON\.stringify\(\{action:'metadata'\}\)/);
+ assert.match(body,/evidence\.sourceComplete!==false/);
  assert.match(page,/import \{buildBatchReadiness\} from "\.\/assets\/js\/cash-sync-batch-readiness\.mjs"/);
 });
 
 test('isolated Preview cannot show false zero-transaction conclusion',()=>{
- const start=html.indexOf('function ccSyncBatchAnalyzeInMemory(){');
+ const start=html.indexOf('async function ccSyncBatchAnalyzeInMemory(){');
  const end=html.indexOf('function ccSyncProjectCatalogRender(){',start);
  const code=html.slice(start,end);
  assert.match(code,/firebaseConfig\.projectId!=='cscecmep-payment'/);
@@ -86,4 +90,18 @@ test('isolated Preview cannot show false zero-transaction conclusion',()=>{
  assert.match(html,/btn\.disabled=true;\s*btn\.textContent='Chưa có nguồn Payment thật trên TEST'/);
  assert.ok(code.indexOf("firebaseConfig.projectId!=='cscecmep-payment'")<
    code.indexOf('buildBatchReadiness('));
+});
+
+test('production source verification only compares metadata, not claims full Payment load',()=>{
+ const start=html.indexOf('async function ccSyncBatchAnalyzeInMemory(){');
+ const stop=html.indexOf('function ccSyncProjectCatalogRender(){',start);
+ const code=html.slice(start,stop);
+ assert.match(code,/await currentAuthUser\.getIdToken\(\)/);
+ assert.match(code,/evidence\.revision!==localRevision/);
+ assert.match(code,/evidence\.manualRecords!==/);
+ assert.match(code,/evidence\.salaryRecords!==/);
+ assert.match(code,/evidence\.projectMasters!==/);
+ assert.match(code,/firebaseConfig\.projectId!=='cscecmep-payment'/);
+ assert.match(code,/sourceMetadata/);
+ assert.doesNotMatch(code,/sourceComplete\s*:\s*true|canSync\s*:\s*true/);
 });
