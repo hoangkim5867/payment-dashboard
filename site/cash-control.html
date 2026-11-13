@@ -1437,8 +1437,10 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
               <option value="FOXCONN">FOXCONN TEST</option>
             </select>
             <button class="btn" id="ccSyncFoxconnTestProbe" type="button">Xác minh file và tab FOXCONN TEST · chỉ đọc</button>
+            <button class="btn" id="ccSyncFoxconnTestHistoryAudit" type="button">Đối chiếu 271 giao dịch lịch sử · chỉ đọc</button>
           </div>
           <p id="ccSyncFoxconnTestProbeStatus" role="status" style="font-size:12px;color:#44546b;margin:8px 0 0">Chưa kiểm tra Google TEST.</p>
+          <p id="ccSyncFoxconnTestHistoryStatus" role="status" style="font-size:12px;color:#44546b;margin:8px 0 0">Chưa đối chiếu 271 giao dịch lịch sử. Chỉ đọc Google TEST, không sử dụng Payment production.</p>
           <p style="font-size:12px;color:#8a571d;margin:6px 0 0">Chỉ xác minh file/tab FOXCONN TEST trên Firebase Staging. Không tải Payment thật, không ghi Google Sheets. Các nút PHU HUNG ở mục phía dưới là luồng độc lập, KHÔNG dùng cho FOXCONN.</p>
         </section>
         <div id="ccSyncPaymentPreflight" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0" hidden>
@@ -6177,6 +6179,7 @@ function ccSyncProjectCatalogInitialize(){
   if(foxconnTestProbe)foxconnTestProbe.style.display=
     firebaseConfig.projectId==='cash-control-staging'?'block':'none';
   $('ccSyncFoxconnTestProbe')?.addEventListener('click',ccSyncProbeFoxconnTestReadOnly);
+  $('ccSyncFoxconnTestHistoryAudit')?.addEventListener('click',ccSyncAuditFoxconnTestHistory);
   const search=$('ccSyncProjectCatalogSearch');
   search?.addEventListener('input',ccSyncProjectCatalogRender);
   $('ccSyncProjectCatalogRefresh')?.addEventListener('click',ccSyncProjectCatalogRender);
@@ -6249,6 +6252,52 @@ async function ccSyncProbeFoxconnTestReadOnly(){
   }catch(err){
     status.textContent='CHƯA XÁC MINH FOXCONN TEST: '+
       String(err?.message||err).slice(0,260)+'. Không ghi dữ liệu.';
+  }finally{button.disabled=false;}
+}
+
+async function ccSyncAuditFoxconnTestHistory(){
+  const button=$('ccSyncFoxconnTestHistoryAudit');
+  const status=$('ccSyncFoxconnTestHistoryStatus');
+  if(!button||!status||button.disabled)return;
+  if(firebaseConfig.projectId!=='cash-control-staging'||
+     !currentAuthUser||!isCashControlOwner()){
+    status.textContent='Chỉ Admin trên Firebase STAGING được kiểm tra.';return;
+  }
+  if(!ccGoogleSyncToken){
+    status.textContent='Kết nối Google trước khi đọc lịch sử TEST.';return;
+  }
+  button.disabled=true;
+  status.textContent='Đang đọc và đối chiếu lịch sử FOXCONN GOOGLE TEST, không ghi…';
+  try{
+    const userId=currentAuthUser.uid;
+    const r=await fetch('/api/cash-shared-test-history-audit',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',
+        'X-Firebase-ID-Token':await currentAuthUser.getIdToken(),
+        Authorization:'Bearer '+ccGoogleSyncToken},
+      body:JSON.stringify({project:'FOXCONN'})
+    });
+    const result=await r.json().catch(()=>({}));
+    if(!r.ok)throw Error(String(result.error||'Không đọc được lịch sử TEST'));
+    if(!currentAuthUser||currentAuthUser.uid!==userId||
+       !isCashControlOwner()||result.canWrite!==false||
+       result.originalUntouched!==true||result.writes!==0||
+       result.firestoreReads!==0||result.fileVerified!==true)
+      throw Error('Không xác minh được trạng thái chỉ đọc.');
+    const count=Number(result.historicalRows);
+    const balance=Number(result.closingBalance);
+    if(!Number.isSafeInteger(count)||!Number.isFinite(balance))
+      throw Error('Số liệu lịch sử TEST không hợp lệ.');
+    status.textContent=
+      (result.matchesPreviousBaseline?'ĐẠT ĐỐI CHIẾU MỐC CŨ':'CẦN RÀ SOÁT SỐ LIỆU SO VỚI MỐC CŨ')+
+      ' · FOXCONN TEST: '+count+' giao dịch lịch sử · số dư cuối '+
+      balance.toLocaleString('vi-VN')+' VND · ngày đảo thứ tự '+
+      Number(result.dateRegressions||0)+
+      ' · Google reads '+Number(result.googleReads||0)+
+      ' · Firebase reads 0 · 0 ghi. Chưa cấp phép đồng bộ.';
+  }catch(error){
+    status.textContent='DỪNG đối chiếu lịch sử FOXCONN TEST: '+
+      String(error?.message||error).slice(0,180)+'. 0 ghi.';
   }finally{button.disabled=false;}
 }
 
