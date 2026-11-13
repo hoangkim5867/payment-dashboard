@@ -1463,7 +1463,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         </details>
         <div id="ccSyncPaymentPreflight" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0" hidden>
           <select id="ccSyncPaymentPreflightProject" aria-label="Dự án cần đếm Payment" style="min-width:180px;padding:7px;border:1px solid #cad4e3;border-radius:7px"></select>
-          <button class="btn" id="ccSyncPaymentPreflightCount" type="button">Đếm Payment 1 dự án (có Firestore reads)</button>
+          <button class="btn" id="ccSyncPaymentPreflightCount" type="button">Kiểm tra số Payment một dự án · chỉ đọc</button>
           <button class="btn" id="ccSyncPaymentPreflightLoad" type="button">Tải Payment 1 dự án · chỉ đọc</button>
           <button class="btn" id="ccSyncProjectCompareGoogle" type="button">Đối chiếu Payment ↔ Google · chỉ đọc</button>
           <button class="btn primary" id="ccSyncMultiProjectManual" type="button">Đồng bộ dự án đang chọn · Admin</button>
@@ -2026,6 +2026,7 @@ import {
 } from "./assets/js/firestore-payment.mjs";
 import {bonusTaxQuarterFromPaymentDate,bonusTaxDueMonth,buildLinkedBonusTaxRecord,buildLinkedSalaryTaxRecord} from "./assets/js/payroll-bonus-tax.mjs";
 import {buildBatchReadiness} from "./assets/js/cash-sync-batch-readiness.mjs";
+import {assessProjectSourceCoverage} from "./assets/js/cash-sync-project-source-coverage.mjs";
 const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
 const app=initializeApp(firebaseConfig),db=getFirestore(app),auth=getAuth(app),paymentsRef=collection(db,"payments");
 const CASH_PRIVATE_DOC_ID="lehoangoanh";
@@ -5500,12 +5501,45 @@ async function ccSyncCountOneProject(){
   button.disabled=true;
   status.textContent='Đang đếm '+project+'…';
   try{
+    const adminUid=currentAuthUser.uid;
     const snap=await getCountFromServer(query(paymentsRef,where('project','==',project)));
     const count=Number(snap.data()?.count);
-    status.textContent=Number.isSafeInteger(count)&&count>=0
-      ?project+': '+count.toLocaleString('vi-VN')+
-         ' chứng từ theo tên chuẩn · 1 truy vấn đếm. Chưa tính tên cũ, chưa tải hồ sơ, KHÔNG cho phép đồng bộ.'
-      :'Không xác minh được số lượng; không đồng bộ.';
+    if(!currentAuthUser||currentAuthUser.uid!==adminUid||!isCashControlOwner()||
+       firebaseConfig.projectId!=='cscecmep-payment')
+      throw Error('Phiên Admin thay đổi hoặc đang dùng sai Firebase.');
+    const monthlyAliases=[...new Set([
+      ...paymentAutoPlanRowsByMonth.values(),
+      ...paymentAutoActualRowsByMonth.values()
+    ].flatMap(monthMap=>[...monthMap.values()])
+     .map(row=>String(row?.project||'').trim())
+     .filter(raw=>raw&&raw!==project&&
+       projectFromMisfiledContractCode(raw)===project))];
+    const evidence=assessProjectSourceCoverage({
+      project,serverCount:count,
+      rows:paymentMonths.get(project),
+      hasFullProjectCache:paymentMonths.has(project),
+      aliasProjects:monthlyAliases,
+      cashCloudReady,legacySeedReady
+    });
+    const reason=evidence.state==='NOT_LOADED'?
+      'Chưa tải hồ sơ đầy đủ dự án (cache tháng không đủ).':
+      evidence.state==='CANONICAL_COUNT_MATCH_ONLY'?
+        'Số đếm bằng cache theo tên chuẩn; vẫn CHƯA xác minh tên cũ, ngày trả hoặc các khoản điều chuyển.':
+      evidence.state==='PROJECT_COUNT_MISMATCH'?
+        'Số đếm KHÔNG khớp cache; có thể có khoản đã xóa, nguồn cũ hoặc dữ liệu thay đổi.':
+      evidence.state==='PROJECT_ALIAS_REVIEW'?
+        'Phát hiện tên dự án khác hoặc hồ sơ chéo; phải rà soát đối ứng.':
+      evidence.state==='SOURCE_ID_REVIEW'?
+        'Có ID thiếu/trùng hoặc hồ sơ đã xóa; không chứng nhận đủ nguồn.':
+        'Cash Control online hoặc lịch sử nền chưa sẵn sàng.';
+    status.textContent='Payment '+project+': Firestore đếm '+
+      count.toLocaleString('vi-VN')+' chứng từ · cache toàn dự án '+
+      (evidence.cachedCount===null?'CHƯA TẢI':
+        evidence.cachedCount.toLocaleString('vi-VN'))+
+      ' · alias đã thấy '+evidence.aliasProjectsSeen+
+      ' · '+reason+
+      ' 1 lượt đếm Firestore; không đọc thêm chứng từ, 0 Google writes. '+
+      'CHƯA cấp phép đồng bộ.';
   }catch(error){
     status.textContent='Lỗi đếm Payment: '+String(error?.code||'không xác định')+
       '. Không tự thử lại, không đồng bộ.';
