@@ -392,7 +392,7 @@
        historyRows.length>20000||sourceRows.length>20000)
       throw Error('Invalid description review input');
     const normalize=v=>String(v??'').normalize('NFKC').toUpperCase()
-      .replace(/\\s+/g,'').replace(/[·•:：,，.。\\-]/g,'')
+      .replace(/\s+/g,'').replace(/[·•:：,，.。\\-]/g,'')
       .replace(/^(?:THƯỞNG|奖金|BONUS)/,'');
     const expenses=['income','subcontract','material','otherDirect','indirect','financial','otherPayable'];
     const money=(row,kind)=>{
