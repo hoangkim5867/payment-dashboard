@@ -866,7 +866,8 @@ test('project-local preview keeps uncertain transfer source IDs blocked',()=>{
  const source=[{date:'2026-10-01',_syncIds:['transfer:repeat:in']},
    {date:'2026-10-01',_syncIds:['transfer:repeat:in']}];
  const result=auditor.buildIndependentProjectSyncPreview('SSIS',comparison,source,{});
- assert.deepEqual(result.duplicates,[2]);
+ assert.deepEqual(result.duplicates,[1,2]);
+ assert.equal(result.candidateRows[0].review,'SOURCE_ID_NOT_UNIQUE');
  assert.equal(result.candidateRows[1].review,'SOURCE_ID_NOT_UNIQUE');
  assert.equal(result.canWrite,false);
 });
