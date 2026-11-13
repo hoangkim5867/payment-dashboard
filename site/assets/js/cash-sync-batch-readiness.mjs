@@ -80,12 +80,15 @@ export function buildBatchReadiness({month,projects,links={},rowsByProject={}}={
     report.push(auditProject({project,rows,hasLink:links[project]===true}));
   }
   report.sort((a,b)=>a.project.localeCompare(b.project));
+  const linkedProjects=report.filter(row=>row.hasLink).length;
+  const unlinkedProjects=report.length-linkedProjects;
   const active=report.filter(row=>row.transactions>0);
   const review=active.filter(row=>row.needsReview>0);
   const missingLink=active.filter(row=>!row.hasLink);
   const eligibleForComparison=active.filter(row=>row.status==='GOOGLE_COMPARISON_CANDIDATE');
   return Object.freeze({
-    month,projects:report.length,activeProjects:active.length,
+    month,projects:report.length,linkedProjects,unlinkedProjects,
+    activeProjects:active.length,
     activeRows:active.reduce((sum,row)=>sum+row.transactions,0),
     candidateProjects:eligibleForComparison.length,
     missingLinkProjects:missingLink.length,
@@ -94,6 +97,7 @@ export function buildBatchReadiness({month,projects,links={},rowsByProject={}}={
     // No network, no database read/write, and no synchronization.
     firestoreReads:0,googleReads:0,googleWrites:0,canWrite:false,
     verification:'IN_MEMORY_ONLY',
+    absentRowsDoNotProveNoActivity:true,
     rows:Object.freeze(report)
   });
 }
