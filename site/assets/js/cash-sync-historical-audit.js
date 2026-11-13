@@ -857,7 +857,15 @@
         if(result.status==='amount-or-category-review'&&!result.textCandidates.length)
           result.status='missing';
       }
+      const evidence=counterpart.textCandidates.length===1?
+        counterpart.textCandidates[0]:null;
+      const variance=evidence&&Number.isFinite(evidence.signedFlow)?
+        rounded(evidence.signedFlow-evidence.expectedSigned):null;
+      // Text evidence is NOT transaction identity; a nonzero variance is a
+      // hard blocker to treating the counterpart as reconciled.
       reviews.push(Object.freeze({position:leg.position,sourceId:leg.sourceId,
+        expectedSigned:rounded(-leg.signedAmount),
+        variance,amountMismatch:variance!==null&&variance!==0,
         primaryProject:target,counterpartProject:other,
         primary,counterpart,
         status:primary.status==='candidate-only'&&counterpart.status==='candidate-only'?
@@ -869,6 +877,8 @@
     return Object.freeze({reviews,reviewed:reviews.length,
       twoSidedCandidateCount:reviews.filter(x=>x.status==='two-sided-candidate-only').length,
       counterpartOnlyCandidateCount:reviews.filter(x=>x.status==='counterpart-only-candidate').length,
+      amountMismatchCount:reviews.filter(x=>x.amountMismatch).length,
+      unresolvedTransferCount:reviews.filter(x=>x.status==='unresolved').length,
       sourceComplete:false,canWrite:false,approvedWrites:0});
   }
   // Shared reconciliation routing. This is a classification hint, never a

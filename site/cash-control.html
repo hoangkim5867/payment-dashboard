@@ -5861,6 +5861,8 @@ async function ccSyncCompareProjectGoogleReadOnly(){
         transferComparison.twoSidedCandidateCount+'/'+transferComparison.reviewed+
         ' · FOXCONN thiếu dòng nhưng dự án đối ứng có ứng viên: '+
         transferComparison.counterpartOnlyCandidateCount+
+        ' · hoàn vay có đối ứng sai số tiền: '+transferComparison.amountMismatchCount+
+        ' · hoàn vay chưa xác định đối ứng: '+transferComparison.unresolvedTransferCount+
         (transferDetails?' · chi tiết hoàn vay: '+transferDetails:'')+
         ' · các sổ đã đọc thủ công trong phiên: '+
         ['FOXCONN','ELYSIAN','SSIS'].filter(n=>ccTransferReviewSession.google[n]).join(', ')+
