@@ -183,3 +183,42 @@ test('fixed generated TEST view name is permitted but original PHU HUNG tab rema
   fail('POST',':batchUpdate',{requests:[{addSheet:{
     properties:{title:'PHU HUNG'}}}]});
 });
+
+
+const {parseAllowlist,isAllowlisted,canWriteTarget}=
+  require('../server/cash-sync-multi-targets.cjs');
+test('multi-project production writes fail closed without per-project server destination allowlist',()=>{
+ const file='A'.repeat(40);
+ const enabled={CASH_SYNC_MULTI_PRODUCTION_WRITES:'YES'};
+ assert.equal(canWriteTarget(enabled,'ELYSIAN',file,123),false);
+ const config={...enabled,CASH_SYNC_MULTI_ALLOWED_TARGETS:JSON.stringify({
+   ELYSIAN:{spreadsheetId:file,historySheetId:123},
+   SSIS:{spreadsheetId:'B'.repeat(40),historySheetId:456}
+ })};
+ assert.equal(canWriteTarget(config,'ELYSIAN',file,123),true);
+ assert.equal(canWriteTarget(config,'ELYSIAN',file,124),false);
+ assert.equal(canWriteTarget(config,'SSIS',file,123),false);
+ assert.equal(canWriteTarget(config,'PHU HUNG',file,123),false);
+ assert.equal(canWriteTarget({...config,CASH_SYNC_MULTI_PRODUCTION_WRITES:'NO'},
+   'ELYSIAN',file,123),false);
+ assert.equal(isAllowlisted(config,'elysian',file,123),true);
+});
+test('multi-project destination list rejects duplicate, malformed and unbounded projects',()=>{
+ const a='A'.repeat(40),b='B'.repeat(40);
+ assert.equal(parseAllowlist('').size,0);
+ assert.throws(()=>parseAllowlist('{broken'),/Invalid/);
+ assert.throws(()=>parseAllowlist(JSON.stringify({
+   ELYSIAN:{spreadsheetId:a,historySheetId:123},
+   elysian:{spreadsheetId:b,historySheetId:123}
+ })),/Invalid/);
+ assert.throws(()=>parseAllowlist(JSON.stringify({
+   ELYSIAN:{spreadsheetId:a,historySheetId:123},
+   SSIS:{spreadsheetId:a,historySheetId:456}
+ })),/Invalid/);
+ assert.throws(()=>parseAllowlist(JSON.stringify({
+   ELYSIAN:{spreadsheetId:a,historySheetId:'123'}
+ })),/Invalid/);
+ assert.throws(()=>parseAllowlist(JSON.stringify({
+   ELYSIAN:{spreadsheetId:a,historySheetId:123,overwriteHistory:true}
+ })),/Invalid/);
+});
