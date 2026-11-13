@@ -1432,6 +1432,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <p id="ccSyncProjectCatalogStatus" style="font-size:12px;color:#44546b"></p>
         <div id="ccSyncFoxconnTestProbeArea" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0">
           <button class="btn" id="ccSyncFoxconnTestProbe" type="button">Kiểm tra file FOXCONN TEST · chỉ đọc</button>
+          <button class="btn" id="ccSyncFoxconnTestPrepareTab" type="button" hidden>Chuẩn bị tab kỹ thuật FOXCONN TEST</button>
           <span id="ccSyncFoxconnTestProbeStatus" role="status" style="font-size:12px;color:#44546b">Chưa kiểm tra Google TEST.</span>
         </div>
         <div id="ccSyncPaymentPreflight" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0" hidden>
@@ -5965,6 +5966,7 @@ function ccSyncProjectCatalogInitialize(){
     foxconnProbeArea.style.display=isolated?'flex':'none';
   }
   $('ccSyncFoxconnTestProbe')?.addEventListener('click',ccSyncProbeFoxconnTestReadOnly);
+  $('ccSyncFoxconnTestPrepareTab')?.addEventListener('click',ccSyncPrepareFoxconnTestTab);
   const search=$('ccSyncProjectCatalogSearch');
   search?.addEventListener('input',ccSyncProjectCatalogRender);
   $('ccSyncProjectCatalogRefresh')?.addEventListener('click',ccSyncProjectCatalogRender);
@@ -6023,16 +6025,56 @@ async function ccSyncProbeFoxconnTestReadOnly(){
       body:JSON.stringify({project:'FOXCONN'})
     });
     const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw Error('Google TEST '+response.status+': '+
-      String(data.error||'Không xác minh được quyền hoặc cấu trúc file'));
+    if(!response.ok){
+      const code=String(data.error||'Không xác minh được quyền hoặc cấu trúc file');
+      const prepare=$('ccSyncFoxconnTestPrepareTab');
+      if(prepare)prepare.hidden=code!=='TEST_TAB_NOT_READY';
+      if(code==='TEST_TAB_NOT_READY')
+        throw Error('File FOXCONN TEST đã mở được nhưng thiếu tab kỹ thuật. Bấm Chuẩn bị tab kỹ thuật FOXCONN TEST bên cạnh; chỉ tạo tab mới, không sửa 271 dòng lịch sử.');
+      throw Error('Google TEST '+response.status+': '+code);
+    }
     if(data.fileVerified!==true||data.tabVerified!==true||
        data.headerVerified!==true||data.canWrite!==false)
       throw Error('Kết quả xác minh TEST chưa hợp lệ; không cấp phép ghi.');
+    const prepare=$('ccSyncFoxconnTestPrepareTab');
+    if(prepare)prepare.hidden=true;
     status.textContent='FOXCONN TEST: đúng file, đúng tab và tiêu đề. 2 lượt đọc metadata Google; 0 Firebase reads, 0 ghi. Chưa cấp phép đồng bộ.';
   }catch(err){
     status.textContent='CHƯA XÁC MINH FOXCONN TEST: '+
       String(err?.message||err).slice(0,260)+'. Không ghi dữ liệu.';
   }finally{button.disabled=false;}
+}
+async function ccSyncPrepareFoxconnTestTab(){
+  const button=$('ccSyncFoxconnTestPrepareTab');
+  const status=$('ccSyncFoxconnTestProbeStatus');
+  if(!button||!status||button.disabled)return;
+  if(!confirm('Chỉ tạo tab kỹ thuật DATA_CASHCONTROL_TEST_FOXCONN trong bản sao FOXCONN TEST, không thay đổi tab lịch sử. Đồng ý?'))return;
+  button.disabled=true;
+  try{
+    if(firebaseConfig.projectId!=='cash-control-staging'||
+       !currentAuthUser||!isCashControlOwner()||
+       !ccGoogleSyncToken)
+      throw Error('Cần Admin TEST và kết nối Google hợp lệ.');
+    status.textContent='Đang chuẩn bị tab kỹ thuật trong FOXCONN TEST…';
+    const token=await currentAuthUser.getIdToken();
+    const response=await fetch('/api/cash-shared-test-prepare-tab',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',
+        'X-Firebase-ID-Token':token,
+        Authorization:'Bearer '+ccGoogleSyncToken},
+      body:JSON.stringify({project:'FOXCONN',confirmed:true})
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw Error('FOXCONN TEST '+response.status+': '+
+      String(data.error||'Không chuẩn bị được tab'));
+    if(data.historyChanged!==false||data.canWrite!==false)
+      throw Error('Kết quả TEST không an toàn, đã chặn.');
+    status.textContent='Đã chuẩn bị tab FOXCONN TEST. Lịch sử gốc và bản sao không bị sửa. Bấm Kiểm tra file FOXCONN TEST để xác minh lại.';
+    button.hidden=true;
+  }catch(error){
+    status.textContent='CHƯA CHUẨN BỊ ĐƯỢC TAB TEST: '+
+      String(error?.message||error).slice(0,200)+'. Không bấm lại liên tục nếu Google báo lỗi 5xx.';
+  }finally{button.disabled=false}
 }
 function ccGoogleSyncBuildSelector(){
   const container=$('ccGoogleSyncProjects');
