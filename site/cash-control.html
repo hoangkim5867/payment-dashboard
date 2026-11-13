@@ -5,6 +5,7 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="assets/js/cash-sync-historical-audit.js?v=review-readonly-20261112"></script>
+<script src="assets/js/cash-multi-project-sync.js?v=project-isolated-20261113"></script>
 <link rel="stylesheet" href="assets/css/cash-control.css" data-stage1-extracted="primary">
 <style id="cc-no-double-sidebar-gap">
 /* Fix: sidebar already occupies a CSS-grid column; do not offset main twice. */
@@ -1435,6 +1436,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <button class="btn" id="ccSyncProjectCompareGoogle" type="button">Đối chiếu Payment ↔ Google · chỉ đọc</button>
           <span id="ccSyncPaymentPreflightStatus" aria-live="polite" style="font-size:12px;color:#44546b">Chưa kiểm tra.</span>
         </div>
+        <div id="ccSyncIndependentProjectSummary" hidden aria-live="polite" style="font-size:12px;color:#24354b;background:#f7f9fc;border:1px solid #dce4ec;border-radius:8px;padding:9px;margin:8px 0"></div>
         <div id="ccSyncGenericExceptionPanel" hidden style="margin:8px 0;padding:10px;border:1px solid #cad4e3;border-radius:8px">
           <strong style="font-size:13px">Dòng cần rà soát · đối chiếu chỉ đọc</strong>
           <p style="font-size:12px;margin:5px 0">Vị trí Cash Control là số thứ tự bản chiếu từ 10/2026, KHÔNG phải số hàng Google. Dòng cùng ngày và số tiền chỉ là ứng viên; không tự thêm, sửa hoặc cấp phép đồng bộ.</p>
@@ -5660,6 +5662,44 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       auditor.compareFoxconnCandidates(payload.values,source,{startMonth:'2026-10'}):
       auditor.compareLoadedCashControl(payload.values,project,source,{sourceComplete:false});
     const syncPlan=auditor.buildReadOnlySyncPlan(project,matched,source);
+    // Use the same one-project Cash Control and Google snapshot already
+    // fetched by this explicit Admin action; no additional network reads.
+    // This never requests or implies authorization to write Google Sheets.
+    const generalPlanner=window.CashMultiProjectSync;
+    const independentSummary=$('ccSyncIndependentProjectSummary');
+    if(independentSummary)independentSummary.hidden=true;
+    if(independentSummary&&generalPlanner?.planProject&&project!=='FOXCONN'){
+      const monthPlans=months.map(month=>{
+        const rows=source.filter(row=>String(row.date||'').startsWith(month+'-'));
+        const used=new Map();
+        const projected=rows.map(row=>{
+          const ids=Array.isArray(row._syncIds)?row._syncIds.map(String):[];
+          const id=row._taxQuarter?
+            'tax:'+project+':'+row.date+':'+row._taxQuarter+':'+(row._taxDirection||'out'):
+            ids.length?'project:'+project+':'+ids.slice().sort().join('+'):'';
+          used.set(id,(used.get(id)||0)+1);
+          return {id,project,month,values:ccGoogleSyncRowValues(row)};
+        });
+        // Each month is a project-local transaction scope, not a gate for
+        // another project or an instruction to create Google transactions.
+        return generalPlanner.planProject({
+          project,month,source:projected,history:payload.values,mirror:[]
+        });
+      });
+      const scope=monthPlans.reduce((a,p)=>({
+        newCandidates:a.newCandidates+p.totals.newCandidates,
+        historyCandidates:a.historyCandidates+p.totals.historyCandidates,
+        blocked:a.blocked+p.totals.blocked
+      }),{newCandidates:0,historyCandidates:0,blocked:0});
+      independentSummary.textContent=
+        'Đồng bộ riêng '+project+' · CHƯA GHI: '+
+        scope.newCandidates+' ứng viên chưa thấy trong lịch sử, '+
+        scope.historyCandidates+' ứng viên đã có ở Google, '+
+        scope.blocked+' mục cần rà soát · Chỉ đọc dữ liệu của dự án này; '+
+        'không cần Google của dự án khác. Trước khi ghi phải kiểm chứng ID và số dư, 0 writes.';
+      independentSummary.hidden=false;
+    }
+
     // Independent per-project preview; does not read other workbooks or write.
     const localProjectPlan=auditor.buildIndependentProjectSyncPreview(
       project,matched,source,history);
