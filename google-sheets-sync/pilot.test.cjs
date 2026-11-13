@@ -1144,3 +1144,4 @@ test('manual-only: one visible Admin sync button, no auto sync toggle registrati
   assert.ok(!fn.includes('ccGoogleSyncOnCashCloudSaved('),
     'successful Cash Control saves must not schedule any Google sync');
 });
+

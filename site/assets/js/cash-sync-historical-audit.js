@@ -447,6 +447,10 @@
     const sourceOnlyPositions=[],historyOnlyPositions=[];
     const ambiguousSourcePositions=[],identityConflictPositions=[];
     const identityUnverifiedPositions=[];
+    // A repeated numeric signature may contain more rows in one source.
+    // Report every member of that excess group for human review: the actual
+    // extra row is NOT identifiable without an immutable source ID.
+    const excessSignatureGroups=[];
     for(const k of new Set([...hMap.keys(),...sMap.keys()])){
       const a=hMap.get(k)||[],b=sMap.get(k)||[];
       const matches=Math.min(a.length,b.length);
@@ -464,6 +468,19 @@
         historyOnlyPositions.push(item.position);
       historyOnly+=Math.max(0,a.length-b.length);
       sourceOnly+=Math.max(0,b.length-a.length);
+      if(a.length!==b.length&&a.length+b.length>1){
+        excessSignatureGroups.push(Object.freeze({
+          direction:b.length>a.length?'CASH_MORE':'GOOGLE_MORE',
+          // Every position in this group is a candidate, never label an
+          // individual duplicate as a proven extra transaction.
+          sourcePositions:Object.freeze(b.map(x=>x.position).sort((x,y)=>x-y)),
+          googlePositions:Object.freeze(a.map(x=>x.position).sort((x,y)=>x-y)),
+          sourceCount:b.length,googleCount:a.length,
+          unmatchedCount:Math.abs(a.length-b.length),
+          ambiguous:a.length>1||b.length>1,
+          confirmedExtraPosition:null,canWrite:false
+        }));
+      }
       if(a.length===1&&b.length===1){
         const known=a[0].id.map((x,i)=>x&&b[0].id[i]?i:-1).filter(i=>i>=0);
         if(known.some(i=>a[0].id[i]!==b[0].id[i])){
@@ -485,6 +502,7 @@
       // Google positions are actual worksheet row numbers (1-based).
       sourceOnlyPositions,historyOnlyPositions,ambiguousSourcePositions,
       identityConflictPositions,identityUnverifiedPositions,
+      excessSignatureGroups:Object.freeze(excessSignatureGroups),
       sourceComplete:false,identityVerified:false,canWrite:false});
   }
   // Identify one-to-one Payment candidates within a collided numeric signature.

@@ -1,0 +1,25 @@
+// Copy this MATCH BLOCK into the Firestore Rules of the isolated
+// cash-control-staging project ONLY after staging Admin UID verification.
+// Never deploy the standalone fragment or apply it to production.
+// The server acquires create-only locks and releases by updateTime CAS.
+match /cashSyncTestLocks/{projectKey} {
+  function cashSyncTestOwner() {
+    return request.auth != null
+      && request.auth.uid == "HTx2QuATHxh8zgAawwreg88w65M2";
+  }
+  allow get: if cashSyncTestOwner()
+    && resource.data.get('actor', '') == request.auth.uid;
+  allow list, update: if false;
+  allow create: if cashSyncTestOwner()
+    && projectKey.matches('^[A-Z0-9_]{1,80}$')
+    && request.resource.data.keys().hasOnly(['owner', 'actor', 'project'])
+    && request.resource.data.keys().hasAll(['owner', 'actor', 'project'])
+    && request.resource.data.actor == request.auth.uid
+    && request.resource.data.owner is string
+    && request.resource.data.owner.matches('^[0-9a-f-]{36}$')
+    && request.resource.data.project is string
+    && request.resource.data.project.size() >= 1
+    && request.resource.data.project.size() <= 100;
+  allow delete: if cashSyncTestOwner()
+    && resource.data.get('actor', '') == request.auth.uid;
+}

@@ -5,6 +5,8 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="assets/js/cash-sync-historical-audit.js?v=review-readonly-20261112"></script>
+<script src="assets/js/cash-shared-test-sync-planner.js?v=offline-multiproject"></script>
+<script src="assets/js/cash-shared-source-adapter.js?v=offline-multiproject"></script>
 <link rel="stylesheet" href="assets/css/cash-control.css" data-stage1-extracted="primary">
 <style id="cc-no-double-sidebar-gap">
 /* Fix: sidebar already occupies a CSS-grid column; do not offset main twice. */
@@ -1428,12 +1430,26 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <input type="file" accept="application/json,.json" id="ccSyncProjectCatalogImportFile" hidden>
         </div>
         <p id="ccSyncProjectCatalogStatus" style="font-size:12px;color:#44546b"></p>
+        <section id="ccSyncFoxconnTestProbeArea" style="display:none;margin:12px 0;padding:12px;border:1px solid #c7d9f3;border-radius:10px;background:#f6faff">
+          <div style="font-weight:700;margin-bottom:8px">FOXCONN TEST · Kiểm tra Google Sheets</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <label for="ccSyncTestProjectChoice" style="font-size:12px">Dự án đang kiểm tra</label>
+            <select id="ccSyncTestProjectChoice" aria-label="Dự án Google TEST" style="padding:7px;border:1px solid #cad4e3;border-radius:7px">
+              <option value="FOXCONN">FOXCONN TEST</option>
+            </select>
+            <button class="btn" id="ccSyncFoxconnTestProbe" type="button">Xác minh file và tab FOXCONN TEST · chỉ đọc</button>
+            <button class="btn" id="ccSyncFoxconnTestPrepareTab" type="button" hidden>Chuẩn bị tab kỹ thuật FOXCONN TEST</button>
+          </div>
+          <p id="ccSyncFoxconnTestProbeStatus" role="status" style="font-size:12px;color:#44546b;margin:8px 0 0">Chưa kiểm tra Google TEST.</p>
+          <p style="font-size:12px;color:#8a571d;margin:6px 0 0">Đây là kiểm tra file TEST, KHÔNG phải đối chiếu Payment ↔ Google. Bản Preview không được đọc Payment production, vì vậy chưa thể đối chiếu giao dịch tại đây. PHU HUNG ở mục phía dưới là luồng thử riêng, không liên quan FOXCONN.</p>
+        </section>
         <div id="ccSyncPaymentPreflight" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0" hidden>
           <select id="ccSyncPaymentPreflightProject" aria-label="Dự án cần đếm Payment" style="min-width:180px;padding:7px;border:1px solid #cad4e3;border-radius:7px"></select>
           <button class="btn" id="ccSyncPaymentPreflightCount" type="button">Đếm Payment 1 dự án (có Firestore reads)</button>
           <button class="btn" id="ccSyncPaymentPreflightLoad" type="button">Tải Payment 1 dự án · chỉ đọc</button>
           <button class="btn" id="ccSyncProjectCompareGoogle" type="button">Đối chiếu Payment ↔ Google · chỉ đọc</button>
           <span id="ccSyncPaymentPreflightStatus" aria-live="polite" style="font-size:12px;color:#44546b">Chưa kiểm tra.</span>
+          <span id="ccSyncSharedAdapterStatus" aria-live="polite" style="font-size:12px;color:#704e10"></span>
         </div>
         <div id="ccSyncGenericExceptionPanel" hidden style="margin:8px 0;padding:10px;border:1px solid #cad4e3;border-radius:8px">
           <strong style="font-size:13px">Dòng cần rà soát · đối chiếu chỉ đọc</strong>
@@ -5657,6 +5673,24 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       auditor.compareFoxconnCandidates(payload.values,source,{startMonth:'2026-10'}):
       auditor.compareLoadedCashControl(payload.values,project,source,{sourceComplete:false});
     const syncPlan=auditor.buildReadOnlySyncPlan(project,matched,source);
+    // Additional OFFLINE adapter shared by every project. Uses the same
+    // authenticated in-memory Payment and Google rows; no extra requests.
+    const adapter=window.CashSharedSourceAdapter;
+    const planner=window.CashSharedTestSyncPlanner;
+    if(!adapter?.preview||!planner?.prepare)
+      throw Error('Bộ chống trùng chung chưa tải; không kiểm tra được');
+    const sourceExpenses=new Map(allExpenses().filter(x=>x?.id)
+      .map(x=>[String(x.id),x]));
+    const preview=adapter.preview({project,cashRows:source,
+      googleValues:payload.values,expensesById:sourceExpenses,
+      foxconn:project==='FOXCONN',month:CURRENT,planner,dateValue:auditor.dateValue});
+    const previewStatus=$('ccSyncSharedAdapterStatus');
+    if(previewStatus)previewStatus.textContent=
+      'Bộ chống trùng chung · '+project+': nguồn '+preview.sourceCount+
+      ', lịch sử trong phạm vi '+preview.historyCount+
+      ', chưa rõ danh tính '+preview.sourceBlockers.length+
+      ', xung đột lịch sử '+preview.plan.historicCandidates.length+
+      ' · đủ điều kiện ghi 0 (CHỈ ĐỌC, KHÔNG GHI).';
     const m=project==='FOXCONN'?matched.candidates:matched.matched;
     const h=project==='FOXCONN'?matched.historyOnly:matched.historicalOnly;
     const s=project==='FOXCONN'?matched.sourceOnly:matched.cashOnly;
@@ -5728,8 +5762,11 @@ async function ccSyncCompareProjectGoogleReadOnly(){
     let nonPaymentResolution=null;
     if(project==='FOXCONN'&&exceptionPanel){
       const output=$('ccSyncFoxconnExceptionRows');
+      const excessGroups=matched.excessSignatureGroups||[];
+      const excessSourcePositions=[...new Set(excessGroups.flatMap(g=>g.sourcePositions||[]))];
       const cases=[
         ['Chỉ Cash Control (chữ ký chưa có ở Google)',matched.sourceOnlyPositions],
+        ['Chữ ký trùng có số lượng chênh (chưa biết dòng nào dư)',excessSourcePositions],
         ['Cùng chữ ký, chưa xác định bản ghi',matched.ambiguousSourcePositions],
         ['Xung đột HĐ/IPC',matched.identityConflictPositions],
         ['Thiếu danh tính HĐ/IPC',matched.identityUnverifiedPositions]
@@ -5825,6 +5862,8 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       ' · xung đột HĐ/IPC '+matched.identityConflict+
       (project==='FOXCONN'?
         ' · vị trí chỉ có Cash Control (bản chiếu): '+(matched.sourceOnlyPositions?.join(', ')||'không xác định, có thể trùng chữ ký')+
+        ' · nhóm chữ ký cùng tiền/ngày có số lượng chênh: '+(matched.excessSignatureGroups?.length||0)+
+        ' (không chỉ định dòng dư khi thiếu ID)' +
         ' · vị trí mơ hồ (bản chiếu): '+(matched.ambiguousSourcePositions?.join(', ')||'0')+
         ' · vị trí xung đột HĐ/IPC (bản chiếu): '+(matched.identityConflictPositions?.join(', ')||'0')+
         ' · vị trí thiếu HĐ/IPC (bản chiếu): '+(matched.identityUnverifiedPositions?.join(', ')||'0')+
@@ -5875,6 +5914,10 @@ function ccSyncProjectCatalogRender(){
   const visible=catalog.filter(p=>p.toLocaleLowerCase('vi').includes(term));
   const preflight=$('ccSyncPaymentPreflight');
   const selector=$('ccSyncPaymentPreflightProject');
+  // The FOXCONN TEST selector is intentionally separate from the filter
+  // below. The latter searches local link drafts, not the sync project.
+  const stagingChoice=$('ccSyncTestProjectChoice');
+  if(stagingChoice&&stagingChoice.value!=='FOXCONN')stagingChoice.value='FOXCONN';
   if(preflight){
     const allowed=!!currentAuthUser&&isCashControlOwner()&&
       firebaseConfig.projectId==='cscecmep-payment';
@@ -5934,6 +5977,13 @@ function ccSyncProjectCatalogInitialize(){
   if(!wrap||wrap.dataset.initialized==='yes')return;
   wrap.dataset.initialized='yes';
   ccSyncProjectCatalogLoadDraft();
+  const foxconnProbeArea=$('ccSyncFoxconnTestProbeArea');
+  if(foxconnProbeArea){
+    const isolated=firebaseConfig.projectId==='cash-control-staging';
+    foxconnProbeArea.style.display=isolated?'block':'none';
+  }
+  $('ccSyncFoxconnTestProbe')?.addEventListener('click',ccSyncProbeFoxconnTestReadOnly);
+  $('ccSyncFoxconnTestPrepareTab')?.addEventListener('click',ccSyncPrepareFoxconnTestTab);
   const search=$('ccSyncProjectCatalogSearch');
   search?.addEventListener('input',ccSyncProjectCatalogRender);
   $('ccSyncProjectCatalogRefresh')?.addEventListener('click',ccSyncProjectCatalogRender);
@@ -5968,6 +6018,80 @@ function ccSyncProjectCatalogInitialize(){
   });
   wrap.addEventListener('toggle',()=>{if(wrap.open)ccSyncProjectCatalogRender()});
   ccSyncProjectCatalogRender();
+}
+async function ccSyncProbeFoxconnTestReadOnly(){
+  const button=$('ccSyncFoxconnTestProbe');
+  const status=$('ccSyncFoxconnTestProbeStatus');
+  if(!button||!status||button.disabled)return;
+  button.disabled=true;
+  try{
+    if(firebaseConfig.projectId!=='cash-control-staging')
+      throw Error('Chỉ dùng trên Firebase TEST; không kiểm tra bằng production.');
+    if(!currentAuthUser||typeof currentAuthUser.getIdToken!=='function')
+      throw Error('Đăng nhập Admin trên bản TEST trước.');
+    if(!isCashControlOwner())throw Error('Chỉ Admin chủ sở hữu được kiểm tra.');
+    if(!ccGoogleSyncToken)
+      throw Error('Bấm Kết nối Google trước (cùng bản Preview này).');
+    status.textContent='Đang xác minh file FOXCONN TEST · chỉ đọc…';
+    const token=await currentAuthUser.getIdToken();
+    const response=await fetch('/api/cash-shared-test-google-probe',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',
+        'X-Firebase-ID-Token':token,
+        'Authorization':'Bearer '+ccGoogleSyncToken},
+      body:JSON.stringify({project:'FOXCONN'})
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok){
+      const code=String(data.error||'Không xác minh được quyền hoặc cấu trúc file');
+      const prepare=$('ccSyncFoxconnTestPrepareTab');
+      if(prepare)prepare.hidden=code!=='TEST_TAB_NOT_READY';
+      if(code==='TEST_TAB_NOT_READY')
+        throw Error('File FOXCONN TEST đã mở được nhưng thiếu tab kỹ thuật. Bấm Chuẩn bị tab kỹ thuật FOXCONN TEST bên cạnh; chỉ tạo tab mới, không sửa 271 dòng lịch sử.');
+      throw Error('Google TEST '+response.status+': '+code);
+    }
+    if(data.fileVerified!==true||data.tabVerified!==true||
+       data.headerVerified!==true||data.canWrite!==false)
+      throw Error('Kết quả xác minh TEST chưa hợp lệ; không cấp phép ghi.');
+    const prepare=$('ccSyncFoxconnTestPrepareTab');
+    if(prepare)prepare.hidden=true;
+    status.textContent='FOXCONN TEST: đúng file, đúng tab và tiêu đề. 2 lượt đọc metadata Google; 0 Firebase reads, 0 ghi. Chưa cấp phép đồng bộ.';
+  }catch(err){
+    status.textContent='CHƯA XÁC MINH FOXCONN TEST: '+
+      String(err?.message||err).slice(0,260)+'. Không ghi dữ liệu.';
+  }finally{button.disabled=false;}
+}
+async function ccSyncPrepareFoxconnTestTab(){
+  const button=$('ccSyncFoxconnTestPrepareTab');
+  const status=$('ccSyncFoxconnTestProbeStatus');
+  if(!button||!status||button.disabled)return;
+  if(!confirm('Chỉ tạo tab kỹ thuật DATA_CASHCONTROL_TEST_FOXCONN trong bản sao FOXCONN TEST, không thay đổi tab lịch sử. Đồng ý?'))return;
+  button.disabled=true;
+  try{
+    if(firebaseConfig.projectId!=='cash-control-staging'||
+       !currentAuthUser||!isCashControlOwner()||
+       !ccGoogleSyncToken)
+      throw Error('Cần Admin TEST và kết nối Google hợp lệ.');
+    status.textContent='Đang chuẩn bị tab kỹ thuật trong FOXCONN TEST…';
+    const token=await currentAuthUser.getIdToken();
+    const response=await fetch('/api/cash-shared-test-prepare-tab',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',
+        'X-Firebase-ID-Token':token,
+        Authorization:'Bearer '+ccGoogleSyncToken},
+      body:JSON.stringify({project:'FOXCONN',confirmed:true})
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw Error('FOXCONN TEST '+response.status+': '+
+      String(data.error||'Không chuẩn bị được tab'));
+    if(data.historyChanged!==false||data.canWrite!==false)
+      throw Error('Kết quả TEST không an toàn, đã chặn.');
+    status.textContent='Đã chuẩn bị tab FOXCONN TEST. Lịch sử gốc và bản sao không bị sửa. Bấm Kiểm tra file FOXCONN TEST để xác minh lại.';
+    button.hidden=true;
+  }catch(error){
+    status.textContent='CHƯA CHUẨN BỊ ĐƯỢC TAB TEST: '+
+      String(error?.message||error).slice(0,200)+'. Không bấm lại liên tục nếu Google báo lỗi 5xx.';
+  }finally{button.disabled=false}
 }
 function ccGoogleSyncBuildSelector(){
   const container=$('ccGoogleSyncProjects');
@@ -6345,15 +6469,27 @@ async function ccGoogleSyncAuth(){
   ccGoogleSyncPlan=null;
   $('ccGoogleSyncCommit').disabled=true;
   ccGoogleSyncStatus('Đang xin cấp quyền Google Sheets…');
+  // Preview deploy URLs change after each build. OAuth uses the exact
+  // browser origin, not the GitHub branch, so prefer this verified stable
+  // branch alias and never repeatedly request consent when not needed.
+  const stableOrigin='https://cscec-mep-payment-git-featur-0e1e73-hoangkim5867-2166s-projects.vercel.app';
+  if(firebaseConfig.projectId==='cash-control-staging'&&
+     window.location.origin!==stableOrigin)
+    throw Error('Google OAuth cần tên miền Preview cố định. Mở '+stableOrigin+
+      '/cash-control.html rồi Kết nối Google tại đó. Không dùng link triển khai thay đổi mỗi lần.');
   ccGoogleSyncToken=await new Promise((resolve,reject)=>{
     ccGoogleSyncTokenClient=google.accounts.oauth2.initTokenClient({
       client_id:clientId,
       scope:'https://www.googleapis.com/auth/spreadsheets',
       callback:response=>response?.access_token
-        ?resolve(response.access_token):reject(Error(response?.error||'Không được cấp quyền')),
-      error_callback:error=>reject(Error(error?.message||'Không thể đăng nhập Google'))
+        ?resolve(response.access_token):reject(Error('Google OAuth: '+String(response?.error||'access_denied')+
+          (response?.error_description?' · '+String(response.error_description).slice(0,240):''))),
+      error_callback:error=>reject(Error('Google OAuth: '+String(error?.type||error?.message||'popup_failed')+
+        '. Nếu Google hiện origin_mismatch, thêm '+stableOrigin+
+        ' vào Authorized JavaScript origins của đúng OAuth Client ID; nếu access_denied, kiểm tra Test users.'))
     });
-    ccGoogleSyncTokenClient.requestAccessToken({prompt:'consent'});
+    try{ccGoogleSyncTokenClient.requestAccessToken({prompt:''})}
+    catch(error){reject(error)}
   });
   ccGoogleSyncStatus('Google đã cấp quyền tạm thời. Chỉ có thể ghi vào Sheets mà tài khoản Google có quyền sửa.');
 }

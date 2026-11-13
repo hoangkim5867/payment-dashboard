@@ -57,6 +57,17 @@ if(require.main===module){
    path.join(__dirname,'../tests/cash-payment-google-readonly.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-original-audit.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-live-core.test.cjs'),
+   path.join(__dirname,'../tests/cash-shared-test-sync-planner.test.cjs'),
+   path.join(__dirname,'../tests/cash-shared-test-sync-integration.test.cjs'),
+   path.join(__dirname,'../tests/cash-shared-source-adapter.test.cjs'),
+   path.join(__dirname,'../tests/cash-shared-test-write-coordinator.test.cjs'),
+   path.join(__dirname,'../tests/cash-shared-google-test-transport.test.cjs'),
+   path.join(__dirname,'../tests/cash-shared-test-server-gates.test.cjs'),
+   path.join(__dirname,'../tests/cash-shared-test-runner.test.cjs'),
+   path.join(__dirname,'../tests/cash-shared-test-readiness.test.cjs'),
+   path.join(__dirname,'../tests/cash-shared-test-google-probe.test.cjs'),
+   path.join(__dirname,'../tests/cash-shared-test-prepare-tab.test.cjs'),
+   path.join(__dirname,'../tests/cash-foxconn-excess-signature-groups.test.cjs'),
    path.join(__dirname,'../google-sheets-sync/pilot.test.cjs')
  ],{stdio:'inherit',timeout:60000});
  const target=process.env.VERCEL_ENV==='production'?'production':'staging';

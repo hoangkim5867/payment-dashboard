@@ -1,0 +1,31 @@
+name: Cash multi-project Google TEST safety
+on:
+  pull_request:
+    paths:
+      - 'site/assets/js/cash-shared-*.js'
+      - 'server/cash-shared-*.cjs'
+      - 'site/cash-control.html'
+      - 'tests/cash-shared-*.test.cjs'
+      - 'deployment/build-site.cjs'
+      - '.github/workflows/cash-shared-test-sync.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  shared-test-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Shared source and Google TEST writer regression
+        run: node --test tests/cash-shared-*.test.cjs
+      - name: Verify no production write endpoints in TEST modules
+        run: |
+          node --check site/assets/js/cash-shared-test-sync-planner.js
+          node --check site/assets/js/cash-shared-source-adapter.js
+          node --check site/assets/js/cash-shared-test-write-coordinator.js
+          node --check site/assets/js/cash-shared-google-test-transport.js
