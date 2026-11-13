@@ -1424,9 +1424,14 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0">
           <input id="ccSyncProjectCatalogSearch" type="search" placeholder="Tìm dự án…" style="flex:1;min-width:160px;padding:8px;border:1px solid #ccd6e4;border-radius:7px">
           <button class="btn" id="ccSyncProjectCatalogRefresh" type="button">Cập nhật danh sách</button>
-          <button class="btn" id="ccSyncProjectCatalogExport" type="button">Xuất danh sách / link (JSON)</button>
-          <button class="btn" id="ccSyncProjectCatalogImport" type="button">Nhập lại danh sách đã xuất</button>
-          <input type="file" accept="application/json,.json" id="ccSyncProjectCatalogImportFile" hidden>
+          <details style="border:1px solid #dbe4f0;border-radius:8px;padding:7px 10px;background:#fff">
+            <summary style="cursor:pointer;font-size:12px;font-weight:600;color:#43536b">Sao lưu / khôi phục danh sách link (JSON)</summary>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+              <button class="btn" id="ccSyncProjectCatalogExport" type="button">Xuất danh sách / link (JSON)</button>
+              <button class="btn" id="ccSyncProjectCatalogImport" type="button">Nhập lại danh sách đã xuất</button>
+              <input type="file" accept="application/json,.json" id="ccSyncProjectCatalogImportFile" hidden>
+            </div>
+          </details>
         </div>
         <p id="ccSyncProjectCatalogStatus" style="font-size:12px;color:#44546b"></p>
         <details id="ccSyncFoxconnTestProbeArea" style="display:none;margin:12px 0;padding:12px;border:1px solid #c7d9f3;border-radius:10px;background:#f6faff">
