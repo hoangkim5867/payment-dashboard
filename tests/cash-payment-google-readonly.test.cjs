@@ -878,7 +878,8 @@ test('multi-project sync planner derives independent project candidates and pres
  const a=v=>['2026-11-03','Vendor','SUBP-1','IPC','IPC001','分包款',0,v,0,0,0,0,0];
  const result=planProject({project:'ELYSIAN',month:'2026-11',
    source:[{id:'expense:1',project:'ELYSIAN',month:'2026-11',values:a(100)},
-           {id:'expense:2',project:'ELYSIAN',month:'2026-11',values:a(200)}],
+           {id:'expense:2',project:'ELYSIAN',month:'2026-11',
+            values:['2026-11-03','Vendor','SUBP-2','Separate invoice','IPC002','分包款',0,200,0,0,0,0,0]}],
    history:[a(100)],mirror:[]});
  assert.equal(result.requiresOtherProjects,false);
  assert.equal(result.totals.historyCandidates,1);
