@@ -53,11 +53,13 @@ function fixture(project='ELYSIAN',spreadsheetId=ID){
      }else throw Error('Attempted to overwrite historical Google tab');
     }
    }
+   if(state.afterWrite)state.afterWrite();
    return ok({replies:[]});
   }
+  state.reads=(state.reads||0)+1;
   if(url.includes('fields=spreadsheetId'))return ok(state.meta);
   const decoded=decodeURIComponent(url.slice(url.indexOf('/values/')+8,url.indexOf('?')));
-  if(decoded.includes("'SỔ GỐC'"))return ok({values:state.history});
+  if(decoded.includes("'SỔ GỐC'"))return ok({values:structuredClone(state.history)});
   if(decoded.includes("'DATA_CASHCONTROL'"))return ok({values:state.mirror||[]});
   if(decoded.includes("'CASHCONTROL_VIEW'")){
    return ok({values:url.includes('valueRenderOption=FORMULA')?
@@ -176,8 +178,20 @@ test('a different spreadsheet ID supplied by browser cannot override server proj
  assert.equal(p.status,200);
  assert.equal(p.writeConfigured,true);
  // A mismatched target fails closed even when the global release flag is on.
+ const readsBefore=f.state.reads;
  const wrong=await f.call('commit',{enabled:true,spreadsheetId:'B'.repeat(40),
    signature:p.signature,confirm:'SYNC_THIS_PROJECT'});
- assert.notEqual(wrong.status,200);
+ assert.equal(wrong.status,503);
+ assert.equal(f.state.reads,readsBefore);
  assert.equal(f.state.writes,0);
+});
+
+test('post-write verification detects changes to original history',async()=>{
+ const f=fixture();
+ const preview=await f.call('preview',{enabled:true});
+ f.state.afterWrite=()=>{f.state.history[0][3]='Concurrent edit';};
+ const result=await f.call('commit',{enabled:true,signature:preview.signature,confirm:'SYNC_THIS_PROJECT'});
+ assert.equal(result.status,409);
+ assert.match(result.error,/tab lịch sử đã thay đổi/);
+ assert.equal(f.state.writes,1);
 });
