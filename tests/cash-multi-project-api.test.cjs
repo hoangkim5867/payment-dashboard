@@ -68,7 +68,13 @@ function fixture(){
  async function call(action,extra={}){
   const prev=global.fetch;global.fetch=fakeFetch;
   const prevFlag=process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES;
-  if(extra.enabled)process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES='YES';
+  const prevTargets=process.env.CASH_SYNC_MULTI_ALLOWED_TARGETS;
+  if(extra.enabled){
+   process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES='YES';
+   process.env.CASH_SYNC_MULTI_ALLOWED_TARGETS=JSON.stringify({
+    ELYSIAN:{spreadsheetId:ID,historySheetId:42}
+   });
+  }
   else delete process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES;
   const body={action,project:'ELYSIAN',month:'2026-11',spreadsheetId:ID,
    historySheetId:42,source,openingBalance:null,...extra};
@@ -86,6 +92,8 @@ function fixture(){
    global.fetch=prev;
    if(prevFlag===undefined)delete process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES;
    else process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES=prevFlag;
+   if(prevTargets===undefined)delete process.env.CASH_SYNC_MULTI_ALLOWED_TARGETS;
+   else process.env.CASH_SYNC_MULTI_ALLOWED_TARGETS=prevTargets;
   }
  }
  return {state,call};
