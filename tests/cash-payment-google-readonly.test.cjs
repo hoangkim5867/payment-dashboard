@@ -357,6 +357,20 @@ test('FOXCONN collisions with distinct HĐ/IPC are one-to-one supported candidat
  assert.equal(z.supportedCount,2);
  assert.deepEqual(z.unresolved,[3,4]);
 });
+test('FOXCONN flagged Payment cannot appear unique when unflagged source has identical ID',()=>{
+ const header=[...Array(13).fill(''),'进口税+增值税','余额'];
+ const historic=[header,['2026-10-01','FOXCONN','SUPL-001','','IPC005','',0,0,100,0,0,0,0,0,100]];
+ const make=id=>({date:'2026-10-01',contractNo:'SUPL-001',ipc:'IPC005',
+   _syncIds:['expense:'+id],income:0,subcontract:0,material:100,otherDirect:0,
+   indirect:0,financial:0,otherPayable:0,importTaxVat:0});
+ const records=new Map([['one',{source:'payment'}],['two',{source:'payment'}]]);
+ const result=auditor.resolvePaymentCollisionCandidates(historic,
+   [make('one'),make('two')],{ambiguousSourcePositions:[1]},records);
+ assert.equal(result.supportedCount,0);
+ assert.deepEqual(result.unresolved,[1]);
+ assert.equal(result.canWrite,false);
+});
+
 test('non-Payment and missing-identity source cannot be resolved as a Payment candidate',()=>{
  const header=[...Array(13).fill(''),'进口税+增值税','余额'];
  const h=['2026-10-01','ACME','CONTRACT','','IPC1','',0,0,100,0,0,0,0,0,100];
@@ -515,6 +529,72 @@ test('unmatched transfers confirm Cash Control two-sided source leg, not Google 
    [{...records[0],fromProject:'ELYSIAN',toProject:'FOXCONN'},records[1]]);
  assert.deepEqual(swapped.unverified,[1]);
 });
+test('two-ledger transfer review is candidate-only even when both Google rows are unique',()=>{
+ const verified={verified:[{position:16,sourceId:'transfer:abc:out',
+   date:'2026-10-26',signedAmount:-300,fromProject:'FOXCONN',toProject:'ELYSIAN'}]};
+ const row=(money)=>['2026-10-26','','','Hoàn vay','','',
+   money>0?money:0,0,0,0,money<0?-money:0,0,0,0];
+ const evidence={
+   FOXCONN:{schemaVerified:true,taxColumnIndex:13,rows:[row(-300)]},
+   ELYSIAN:{schemaVerified:true,rows:[row(300)]}
+ };
+ const ok=auditor.reviewTransferGoogleCounterparts(verified,evidence);
+ assert.equal(ok.twoSidedCandidateCount,1);
+ assert.equal(ok.reviews[0].status,'two-sided-candidate-only');
+ assert.deepEqual(ok.reviews[0].primary.positions,[1]);
+ assert.deepEqual(ok.reviews[0].counterpart.positions,[1]);
+ assert.equal(ok.reviews[0].idVerified,false);
+ assert.equal(ok.reviews[0].balancesVerified,false);
+ assert.equal(ok.canWrite,false);
+ assert.equal(ok.approvedWrites,0);
+ const composite=auditor.reviewTransferGoogleCounterparts(verified,{
+   ...evidence,FOXCONN:{...evidence.FOXCONN,
+     rows:[['2026-10-26','','','','','',50,0,0,0,350,0,0,0]]}
+ });
+ assert.equal(composite.twoSidedCandidateCount,0);
+ assert.equal(composite.canWrite,false);
+ const missing=auditor.reviewTransferGoogleCounterparts(verified,{FOXCONN:evidence.FOXCONN});
+ assert.equal(missing.reviews[0].counterpart.status,'not-loaded');
+ assert.equal(missing.twoSidedCandidateCount,0);
+ const noFoxconn=auditor.reviewTransferGoogleCounterparts(verified,{
+   ...evidence,FOXCONN:{...evidence.FOXCONN,rows:[]}
+ });
+ assert.equal(noFoxconn.twoSidedCandidateCount,0);
+ assert.equal(noFoxconn.counterpartOnlyCandidateCount,1);
+ assert.equal(noFoxconn.reviews[0].status,'counterpart-only-candidate');
+ assert.equal(noFoxconn.canWrite,false);
+ const duplicated=auditor.reviewTransferGoogleCounterparts(verified,
+   {...evidence,ELYSIAN:{...evidence.ELYSIAN,rows:[row(300),row(300)]}});
+ assert.equal(duplicated.reviews[0].counterpart.status,'ambiguous');
+ assert.equal(duplicated.canWrite,false);
+ const invalid=auditor.reviewTransferGoogleCounterparts(verified,
+   {...evidence,ELYSIAN:{...evidence.ELYSIAN,schemaVerified:false}});
+ assert.equal(invalid.reviews[0].counterpart.status,'schema-unverified');
+ assert.equal(invalid.twoSidedCandidateCount,0);
+});
+test('two-sided Google review reuses manually loaded project worksheets without network calls',()=>{
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ const fn=code.slice(start,end);
+ assert.match(code,/const ccTransferReviewSession=\{uid:null,google:Object\.create\(null\),foxconnLegs:null\}/);
+ assert.match(fn,/ccTransferReviewSession\.google\[project\]=\{/);
+ assert.match(fn,/ccTransferReviewSession\.foxconnLegs=transferSourceLegs/);
+ assert.match(fn,/auditor\.reviewTransferGoogleCounterparts\(/);
+ assert.match(fn,/twoSidedCandidateCount/);
+ assert.match(fn,/CHƯA xác minh ID\/số dư, 0 writes/);
+ assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
+});
+test('manual transfer report identifies each source position and Google candidate row',()=>{
+ const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
+ const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
+ const fn=code.slice(start,end);
+ assert.match(fn,/transferComparison\?\.reviews\.map/);
+ assert.match(fn,/vị trí '\+item\.position/);
+ assert.match(fn,/item\.primary\.positions\.join/);
+ assert.match(fn,/item\.counterpart\.positions\.join/);
+ assert.match(fn,/CHƯA xác minh ID\/số dư, 0 writes/);
+ assert.doesNotMatch(fn,/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
+});
 test('source transfer leg validation remains read only and never confirms Sheets',()=>{
  const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
  const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
@@ -560,6 +640,21 @@ test('FOXCONN bilingual personnel, tax and receipt candidates stay read-only',()
   {identityConflictPositions:[1,2,3],identityUnverifiedPositions:[4,5]},records);
  assert.equal(wrong.semanticCandidateCount,4);
  assert.equal(wrong.numericOnlyCount,1);
+});
+
+test('FOXCONN non-Payment review ignores falsely unique flagged row when same source is unflagged',()=>{
+ const header=[...Array(13).fill(''),'进口税+增值税','余额'];
+ const history=[header,['2026-10-15','FOXCONN','','2026年09月越籍员工工资','','职工薪酬',0,0,0,0,100,0,0,0,100]];
+ const row=id=>({date:'2026-10-15',content:'Lương Việt Nam · Tháng 09/2026',
+   type:'Chi phí nhân sự',_syncIds:['expense:'+id],income:0,subcontract:0,
+   material:0,otherDirect:0,indirect:100,financial:0,otherPayable:0,importTaxVat:0});
+ const records=new Map([['p1',{source:'payroll'}],['p2',{source:'payroll'}]]);
+ const result=auditor.resolveFoxconnNonPaymentCandidates(history,
+   [row('p1'),row('p2')],{identityConflictPositions:[1]},records);
+ assert.equal(result.supportedCount,0);
+ assert.equal(result.semanticCandidateCount,0);
+ assert.deepEqual(result.unresolved,[1]);
+ assert.equal(result.canWrite,false);
 });
 
 test('generic project audit reports actual review positions without authorizing writes',()=>{
