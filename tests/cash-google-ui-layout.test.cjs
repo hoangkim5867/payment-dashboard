@@ -105,3 +105,28 @@ test('production source verification only compares metadata, not claims full Pay
  assert.match(code,/sourceMetadata/);
  assert.doesNotMatch(code,/sourceComplete\s*:\s*true|canSync\s*:\s*true/);
 });
+
+test('real-data TEST importer is Admin-only, read-only and keeps links and PHU HUNG controls',()=>{
+ for(const id of ['ccSyncFoxconnTestSourceFile','ccSyncFoxconnTestRealCompareStatus',
+ 'ccSyncExportSourceForTest'])assert.equal(count('id="'+id+'"'),1);
+ assert.ok(index('ccSyncFoxconnTestSourceFile')>index('ccSyncFoxconnTestProbeArea'));
+ assert.ok(index('ccSyncExportSourceForTest')>index('ccSyncPaymentPreflight'));
+ assert.ok(index('ccSyncExportSourceForTest')<index('ccGoogleSyncLegacyPilot'));
+ const a=html.indexOf('async function ccSyncExportSourceForTest(){');
+ const b=html.indexOf('async function ccSyncCompareImportedRealSource(){',a);
+ const c=html.indexOf('async function ccSyncMultiProjectManual(){',b);
+ assert.ok(a>0&&b>a&&c>b);
+ const exporter=html.slice(a,b),importer=html.slice(b,c);
+ assert.match(exporter,/firebaseConfig\.projectId!=='cscecmep-payment'/);
+ assert.match(exporter,/isCashControlOwner\(\)/);
+ assert.match(exporter,/loadProjectPayments\(project,\{force:true,quiet:true,refresh:false\}\)/);
+ assert.match(exporter,/ccSyncFoxconnAuditRows\(month\)/);
+ assert.match(exporter,/CASH_SYNC_REAL_SOURCE_REVIEW_V1/);
+ assert.match(exporter,/sourceAuthenticated:false,sourceComplete:false/);
+ assert.doesNotMatch(exporter,/setDoc\(|addDoc\(|writeBatch\(|updateDoc\(|fetch\(/);
+ assert.match(importer,/firebaseConfig\.projectId!=='cash-control-staging'/);
+ assert.match(importer,/api\/cash-shared-test-real-compare/);
+ assert.match(importer,/result\.canWrite!==false/);
+ assert.match(importer,/result\.googleWrites!==0/);
+ assert.doesNotMatch(importer,/setDoc\(|addDoc\(|writeBatch\(|updateDoc\(|ccGoogleSyncOriginalRequest\(/);
+});
