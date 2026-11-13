@@ -576,6 +576,21 @@ test('FOXCONN bilingual personnel, tax and receipt candidates stay read-only',()
  assert.equal(wrong.numericOnlyCount,1);
 });
 
+test('FOXCONN non-Payment review ignores falsely unique flagged row when same source is unflagged',()=>{
+ const header=[...Array(13).fill(''),'进口税+增值税','余额'];
+ const history=[header,['2026-10-15','FOXCONN','','2026年09月越籍员工工资','','职工薪酬',0,0,0,0,100,0,0,0,100]];
+ const row=id=>({date:'2026-10-15',content:'Lương Việt Nam · Tháng 09/2026',
+   type:'Chi phí nhân sự',_syncIds:['expense:'+id],income:0,subcontract:0,
+   material:0,otherDirect:0,indirect:100,financial:0,otherPayable:0,importTaxVat:0});
+ const records=new Map([['p1',{source:'payroll'}],['p2',{source:'payroll'}]]);
+ const result=auditor.resolveFoxconnNonPaymentCandidates(history,
+   [row('p1'),row('p2')],{identityConflictPositions:[1]},records);
+ assert.equal(result.supportedCount,0);
+ assert.equal(result.semanticCandidateCount,0);
+ assert.deepEqual(result.unresolved,[1]);
+ assert.equal(result.canWrite,false);
+});
+
 test('generic project audit reports actual review positions without authorizing writes',()=>{
  const h=(day,n,contract,ipc)=>['2026-10-'+day,'ACME',contract,'',ipc,'',n,0,0,0,0,0,0];
  const s=(day,n,contract,ipc)=>({date:'2026-10-'+day,company:'ACME',
