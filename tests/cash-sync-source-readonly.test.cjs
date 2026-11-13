@@ -93,3 +93,17 @@ test('source scope has no automatic company-wide scans or Firestore writes',()=>
  assert.match(code,/SINGLE_PROJECT_COUNT_ONLY/);
  assert.doesNotMatch(code,/sheets\.googleapis\.com|setDoc\(|writeBatch\(|addDoc\(|deleteDoc\(|bulkWriter|:commit|:batchWrite|onSnapshot\(/);
 });
+
+test('empty Firestore arrayValue counts as valid zero records and timestampValue preserved',async()=>{
+ const empty={fields:{revision:{integerValue:'0'},projectMasters:{arrayValue:{}},
+ manualRecords:{arrayValue:{}},salaryRecords:{arrayValue:{}},
+ updatedAt:{timestampValue:'2026-11-13T09:00:00Z'},schemaVersion:{integerValue:'3'}}};
+ const result=await inspect({env:prod,action:'metadata',firebaseJwt:token,
+  verifyAdmin:auth,fetcher:async()=>({ok:true,json:async()=>empty})});
+ assert.equal(result.metadataPresent,true);
+ assert.equal(result.projectMasters,0);
+ assert.equal(result.manualRecords,0);
+ assert.equal(result.salaryRecords,0);
+ assert.equal(result.updatedAt,'2026-11-13T09:00:00Z');
+ assert.equal(result.sourceComplete,false);
+});
