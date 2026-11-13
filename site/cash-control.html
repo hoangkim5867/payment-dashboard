@@ -1422,7 +1422,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <summary style="cursor:pointer;font-weight:700">Danh sách dự án và link Google Sheets (Admin)</summary>
         <div style="margin:11px 0;padding:11px;border:1px solid #cad8e7;border-radius:9px;background:#fff">
           <div style="font-weight:700;font-size:13px;margin-bottom:5px">Kiểm tra chung theo tháng · tất cả dự án</div>
-          <p style="font-size:12px;color:#5c6880;margin:0 0 10px">Tổng hợp từ giao dịch Cash Control đang có trên trang. Chỉ hiện dự án phát sinh trong tháng; 0 Firebase reads, 0 Google reads/writes. Chưa xác minh dữ liệu đầy đủ hoặc cho phép ghi.</p>
+          <p style="font-size:12px;color:#5c6880;margin:0 0 10px">Chỉ thống kê dữ liệu đã tải trong môi trường hiện tại. Firebase Staging không có Payment production; không dùng số 0 của TEST để kết luận tháng không phát sinh. Không đọc hoặc ghi Google Sheets.</p>
           <div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center">
             <label for="ccSyncBatchMonth" style="font-size:12px;font-weight:600">Tháng</label>
             <input id="ccSyncBatchMonth" type="month" style="border:1px solid #cad4e3;border-radius:7px;padding:7px" aria-label="Tháng kiểm tra chung">
@@ -6155,6 +6155,30 @@ function ccSyncBatchAnalyzeInMemory(){
     return;
   }
   const month=String($('ccSyncBatchMonth')?.value||'');
+  // The TEST Preview intentionally has NO production Payment source.
+  // A default project catalog is not evidence that any actuals were loaded.
+  if(firebaseConfig.projectId!=='cscecmep-payment'){
+    const projects=ccSyncProjectCatalogNames();
+    const linked=projects.filter(p=>ccSyncProjectLinkValid(ccSyncProjectLinkDraft[p]||'')).length;
+    status.textContent='CHƯA CÓ NGUỒN CASH CONTROL THẬT · Đây là Firebase STAGING. '+
+      projects.length+' dự án chỉ là DANH MỤC · '+linked+
+      ' dự án có link nháp, '+(projects.length-linked)+' dự án chưa có link. '+
+      'Không thể đếm phát sinh tháng '+month+' vì Preview không đọc Payment production. '+
+      'KHÔNG kết luận 0 giao dịch. 0 Firebase reads · 0 Google reads/writes.';
+    const notice=document.createElement('p');
+    notice.style.cssText='font-size:12px;color:#6b7280;margin:8px 0';
+    notice.textContent='Muốn đối chiếu số liệu thật phải chạy bước đọc nguồn đã xác thực trên môi trường chính. '+
+      'Bản TEST chỉ dùng để xác minh Google, không đụng dữ liệu production.';
+    output.replaceChildren(notice);
+    output.hidden=false;
+    return;
+  }
+  if(!cashCloudReady||!legacySeedReady){
+    status.textContent='CHƯA TẢI ĐỦ NGUỒN CASH CONTROL. Chưa thể đếm phát sinh hoặc báo 0 giao dịch. '+
+      'Chờ nguồn đã xác thực trên trang sẵn sàng; không đọc/ghi Google.';
+    output.hidden=true;
+    return;
+  }
   button.disabled=true;
   output.hidden=true;
   output.replaceChildren();
@@ -6172,17 +6196,21 @@ function ccSyncBatchAnalyzeInMemory(){
        plan.googleReads!==0||plan.googleWrites!==0){
       throw Error('Không xác minh được kế hoạch chỉ đọc.');
     }
-    status.textContent='Đã kiểm tra bộ nhớ Cash Control · '+plan.month+
-      ' · '+plan.projects+' dự án trong danh mục · '+plan.activeProjects+
-      ' dự án có giao dịch ('+plan.activeRows+' dòng) · '+
-      plan.candidateProjects+' có link và ID đủ để bắt đầu đối chiếu Google · '+
-      plan.missingLinkProjects+' thiếu link · '+plan.sourceReviewProjects+
-      ' cần rà soát nguồn · 0 Firebase reads · 0 Google reads/writes. CHƯA cấp phép ghi.';
+    status.textContent='ĐÃ RÀ SOÁT DỮ LIỆU ĐANG TẢI · '+plan.month+
+      ' · danh mục '+plan.projects+' dự án ('+plan.linkedProjects+
+      ' có link, '+plan.unlinkedProjects+' chưa có link) · '+
+      plan.activeProjects+' dự án có dòng trong bộ nhớ ('+plan.activeRows+' dòng) · '+
+      plan.candidateProjects+' có thể bắt đầu kiểm tra Google · '+
+      plan.missingLinkProjects+' dự án có dòng nhưng thiếu link · '+
+      plan.sourceReviewProjects+' dự án cần rà soát ID/số tiền. '+
+      'Payment đã tải toàn dự án: '+paymentMonths.size+'/'+plan.projects+
+      '. Chưa xác minh đủ nguồn; KHÔNG kết luận các dự án còn lại không phát sinh. '+
+      '0 Firebase reads · 0 Google reads/writes · CHƯA cấp phép ghi.';
     const active=plan.rows.filter(p=>p.transactions>0);
     if(!active.length){
       const empty=document.createElement('p');
       empty.style.cssText='font-size:12px;color:#6b7280';
-      empty.textContent='Chưa thấy giao dịch tháng này trong bộ nhớ đã tải. Đây không phải xác nhận tháng này không phát sinh. Không ghi.';
+      empty.textContent='KHÔNG CÓ GIAO DỊCH TRONG BỘ NHỚ ĐANG TẢI. Chưa có bằng chứng các dự án không phát sinh hoặc Payment đã tải đủ. KHÔNG ghi.';
       output.append(empty);
       output.hidden=false;return;
     }
@@ -6314,6 +6342,17 @@ function ccSyncProjectCatalogInitialize(){
     if(status)status.textContent='Đã đổi tháng. Bấm kiểm tra chung để cập nhật dữ liệu đang có.';
   });
   $('ccSyncBatchAnalyze')?.addEventListener('click',ccSyncBatchAnalyzeInMemory);
+  if(firebaseConfig.projectId!=='cscecmep-payment'){
+    const btn=$('ccSyncBatchAnalyze');
+    if(btn){
+      btn.disabled=true;
+      btn.textContent='Chưa có nguồn Payment thật trên TEST';
+      btn.title='Preview Firebase Staging không chứa Payment production và không thể xác nhận tháng không phát sinh';
+    }
+    const info=$('ccSyncBatchStatus');
+    if(info)info.textContent='NGUỒN CHƯA SẴN SÀNG: Preview dùng Firebase Staging, không có Payment production. '+
+      'Danh mục dự án và link Google vẫn sử dụng được; nút đếm giao dịch thật chỉ mở khi có nguồn chính đã xác thực.';
+  }
 
   const foxconnTestProbe=$('ccSyncFoxconnTestProbeArea');
   if(foxconnTestProbe)foxconnTestProbe.style.display=
