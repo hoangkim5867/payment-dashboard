@@ -5830,11 +5830,19 @@ async function ccSyncCompareProjectGoogleReadOnly(){
     const transferComparison=ccTransferReviewSession.foxconnLegs?
       auditor.reviewTransferGoogleCounterparts(
         ccTransferReviewSession.foxconnLegs,ccTransferReviewSession.google):null;
+    const transferDetails=transferComparison?.reviews.map(item=>
+      'vị trí '+item.position+' ('+item.primaryProject+' → '+item.counterpartProject+
+      '): FOXCONN Google '+item.primary.status+
+      (item.primary.positions.length?' [dòng '+item.primary.positions.join(', ')+']':'')+
+      ', Google đối ứng '+item.counterpart.status+
+      (item.counterpart.positions.length?' [dòng '+item.counterpart.positions.join(', ')+']':'')
+    ).join(' ; ')||'';
     const transferSummary=transferComparison?
       ' · đối ứng Google 2 phía (chỉ ứng viên): '+
         transferComparison.twoSidedCandidateCount+'/'+transferComparison.reviewed+
         ' · FOXCONN thiếu dòng nhưng dự án đối ứng có ứng viên: '+
         transferComparison.counterpartOnlyCandidateCount+
+        (transferDetails?' · chi tiết hoàn vay: '+transferDetails:'')+
         ' · các sổ đã đọc thủ công trong phiên: '+
         ['FOXCONN','ELYSIAN','SSIS'].filter(n=>ccTransferReviewSession.google[n]).join(', ')+
         ' · CHƯA xác minh ID/số dư, 0 writes':'';
