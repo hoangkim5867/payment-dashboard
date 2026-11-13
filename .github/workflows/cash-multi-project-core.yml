@@ -3,13 +3,17 @@ on:
   pull_request:
     paths:
       - 'server/cash-sync-multi-project-core.cjs'
+      - 'server/cash-sync-multi-project-adapter.cjs'
       - 'tests/cash-multi-project-core.test.cjs'
+      - 'tests/cash-multi-project-adapter.test.cjs'
       - '.github/workflows/cash-multi-project-core.yml'
   push:
     branches: [main]
     paths:
       - 'server/cash-sync-multi-project-core.cjs'
+      - 'server/cash-sync-multi-project-adapter.cjs'
       - 'tests/cash-multi-project-core.test.cjs'
+      - 'tests/cash-multi-project-adapter.test.cjs'
 permissions:
   contents: read
 jobs:
@@ -21,4 +25,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Verify no-write, idempotency and balance scenarios
-        run: node --test tests/cash-multi-project-core.test.cjs
+        run: node --test tests/cash-multi-project-core.test.cjs tests/cash-multi-project-adapter.test.cjs
