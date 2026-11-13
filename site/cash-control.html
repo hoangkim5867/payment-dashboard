@@ -6106,6 +6106,7 @@ async function ccSyncExportSourceForTest(){
       throw Error('Phiên Admin hoặc Firebase đã thay đổi.');
     rebuildPaymentsFromLoadedMonths();
     const rows=ccSyncFoxconnAuditRows(month),source=[],seen=new Set();
+    const expensesById=new Map(allExpenses().filter(x=>x?.id).map(x=>[String(x.id),x]));
     for(const row of rows){
       const ids=Array.isArray(row._syncIds)?row._syncIds.map(String):[];
       if(!ids.length)throw Error('Có dòng thiếu ID nguồn; không được bỏ qua.');
@@ -6116,8 +6117,19 @@ async function ccSyncExportSourceForTest(){
       seen.add(id);
       if(!Number.isFinite(row.importTaxVat))
         throw Error('FOXCONN còn khoản chưa xác minh thuế nhập khẩu/VAT.');
+      const kinds=ids.map(sourceId=>{
+        if(sourceId.startsWith('transfer:'))return 'TRANSFER';
+        if(!sourceId.startsWith('expense:'))return 'UNKNOWN';
+        const expense=expensesById.get(sourceId.slice(8));
+        if(!expense)return 'UNKNOWN';
+        if(expense.source==='payment')return 'PAYMENT';
+        if(expense.source==='payroll'||expense.linkedModule==='payroll')return 'PAYROLL';
+        return 'CASH';
+      });
+      const sourceClass=new Set(kinds).size===1?kinds[0]:'MIXED';
       const values=ccGoogleSyncPayloadCells([...ccGoogleSyncRowValues(row),row.importTaxVat]);
-      source.push({id,project,month,values,hash:await ccGoogleSyncSha(values)});
+      source.push({id,project,month,values,sourceClass,
+        hash:await ccGoogleSyncSha(values)});
     }
     if(!source.length)throw Error('Không có dòng nguồn trong tháng đã chọn; không tạo file rỗng.');
     if(source.length>3000)throw Error('Quá 3.000 dòng trong kỳ; không tự chia dữ liệu.');
@@ -6190,6 +6202,8 @@ async function ccSyncCompareImportedRealSource(){
       ' · chưa khớp ở ngày cũ '+result.olderUnmatched+
       ' · mơ hồ '+result.ambiguousMatches+
       ' · thiếu HĐ/IPC '+result.missingPaymentIdentity+
+      ' · điều chuyển chưa đối ứng '+result.transferCounterpartsUnverified+
+      ' · nguồn chưa xác định '+result.sourceKindUnverified+
       ' · Google reads '+result.googleReads+' · 0 ghi. '+
       'Nguồn chưa được máy chủ xác thực đầy đủ. '+
       (reviews?'Các vị trí cần xem: '+reviews+'. ':'')+
