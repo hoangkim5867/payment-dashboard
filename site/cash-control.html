@@ -5954,40 +5954,6 @@ function ccSyncProjectCatalogRender(){
       'Không cần nhập từng link, chưa đọc hoặc ghi Firebase/Google Sheets.':
       'Link lưu riêng trong trình duyệt ở tên miền này. Nên Xuất JSON để sao lưu trước khi đổi Preview.'));
 }
-async function ccSyncProbeFoxconnTestReadOnly(){
-  const button=$('ccSyncFoxconnTestProbe');
-  const status=$('ccSyncFoxconnTestProbeStatus');
-  if(!button||!status||button.disabled)return;
-  button.disabled=true;
-  try{
-    if(firebaseConfig.projectId!=='cash-control-staging')
-      throw Error('Chỉ dùng trên Firebase TEST; không kiểm tra bằng production.');
-    if(!currentAuthUser||typeof currentAuthUser.getIdToken!=='function')
-      throw Error('Đăng nhập Admin trên bản TEST trước.');
-    if(!isCashControlOwner())throw Error('Chỉ Admin chủ sở hữu được kiểm tra.');
-    if(!ccGoogleSyncToken)
-      throw Error('Bấm Kết nối Google trước (cùng bản Preview này).');
-    status.textContent='Đang xác minh file FOXCONN TEST · chỉ đọc…';
-    const token=await currentAuthUser.getIdToken();
-    const response=await fetch('/api/cash-shared-test-google-probe',{
-      method:'POST',
-      headers:{'Content-Type':'application/json',
-        'X-Firebase-ID-Token':token,
-        'Authorization':'Bearer '+ccGoogleSyncToken},
-      body:JSON.stringify({project:'FOXCONN'})
-    });
-    const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw Error('Google TEST '+response.status+': '+
-      String(data.error||'Không xác minh được quyền hoặc cấu trúc file'));
-    if(data.fileVerified!==true||data.tabVerified!==true||
-       data.headerVerified!==true||data.canWrite!==false)
-      throw Error('Kết quả xác minh TEST chưa hợp lệ; không cấp phép ghi.');
-    status.textContent='FOXCONN TEST: đúng file, đúng tab và tiêu đề. 2 lượt đọc metadata Google; 0 Firebase reads, 0 ghi. Chưa cấp phép đồng bộ.';
-  }catch(err){
-    status.textContent='CHƯA XÁC MINH FOXCONN TEST: '+
-      String(err?.message||err).slice(0,260)+'. Không ghi dữ liệu.';
-  }finally{button.disabled=false;}
-}
 function ccSyncProjectCatalogInitialize(){
   const wrap=$('ccGoogleSyncProjectLinkCatalog');
   if(!wrap||wrap.dataset.initialized==='yes')return;
@@ -6033,6 +5999,40 @@ function ccSyncProjectCatalogInitialize(){
   });
   wrap.addEventListener('toggle',()=>{if(wrap.open)ccSyncProjectCatalogRender()});
   ccSyncProjectCatalogRender();
+}
+async function ccSyncProbeFoxconnTestReadOnly(){
+  const button=$('ccSyncFoxconnTestProbe');
+  const status=$('ccSyncFoxconnTestProbeStatus');
+  if(!button||!status||button.disabled)return;
+  button.disabled=true;
+  try{
+    if(firebaseConfig.projectId!=='cash-control-staging')
+      throw Error('Chỉ dùng trên Firebase TEST; không kiểm tra bằng production.');
+    if(!currentAuthUser||typeof currentAuthUser.getIdToken!=='function')
+      throw Error('Đăng nhập Admin trên bản TEST trước.');
+    if(!isCashControlOwner())throw Error('Chỉ Admin chủ sở hữu được kiểm tra.');
+    if(!ccGoogleSyncToken)
+      throw Error('Bấm Kết nối Google trước (cùng bản Preview này).');
+    status.textContent='Đang xác minh file FOXCONN TEST · chỉ đọc…';
+    const token=await currentAuthUser.getIdToken();
+    const response=await fetch('/api/cash-shared-test-google-probe',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',
+        'X-Firebase-ID-Token':token,
+        'Authorization':'Bearer '+ccGoogleSyncToken},
+      body:JSON.stringify({project:'FOXCONN'})
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw Error('Google TEST '+response.status+': '+
+      String(data.error||'Không xác minh được quyền hoặc cấu trúc file'));
+    if(data.fileVerified!==true||data.tabVerified!==true||
+       data.headerVerified!==true||data.canWrite!==false)
+      throw Error('Kết quả xác minh TEST chưa hợp lệ; không cấp phép ghi.');
+    status.textContent='FOXCONN TEST: đúng file, đúng tab và tiêu đề. 2 lượt đọc metadata Google; 0 Firebase reads, 0 ghi. Chưa cấp phép đồng bộ.';
+  }catch(err){
+    status.textContent='CHƯA XÁC MINH FOXCONN TEST: '+
+      String(err?.message||err).slice(0,260)+'. Không ghi dữ liệu.';
+  }finally{button.disabled=false;}
 }
 function ccGoogleSyncBuildSelector(){
   const container=$('ccGoogleSyncProjects');
