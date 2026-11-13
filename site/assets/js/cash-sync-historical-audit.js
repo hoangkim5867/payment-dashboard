@@ -747,9 +747,9 @@
     const readCandidates=(project,date,signed)=>{
       const snapshot=googleByProject[project];
       if(!snapshot||!Array.isArray(snapshot.rows)||snapshot.rows.length>20000)
-        return {status:'not-loaded',positions:[]};
+        return {status:'not-loaded',positions:[],textCandidates:[]};
       if(snapshot.schemaVerified!==true)
-        return {status:'schema-unverified',positions:[]};
+        return {status:'schema-unverified',positions:[],textCandidates:[]};
       const positions=[];
       for(let i=0;i<snapshot.rows.length;i++){
         const row=snapshot.rows[i];
