@@ -754,14 +754,20 @@
       for(let i=0;i<snapshot.rows.length;i++){
         const row=snapshot.rows[i];
         if(!Array.isArray(row)||dateValue(row[0])!==date)continue;
-        const flow=amount(row[6],true);
-        // G:M are flow and expense categories, N may be an import tax column
-        // only when separately certified by the calling worksheet adapter.
-        const extra=row.slice(7,snapshot.taxColumnIndex===13?14:13)
+        const income=amount(row[6],true);
+        // In Google ledgers G is receipts, H:M are non-negative outflows.
+        // FOXCONN additionally uses N for import tax/VAT. Never treat a
+        // negative G value as the only way to represent a transfer out.
+        const expenses=row.slice(7,snapshot.taxColumnIndex===13?14:13)
           .map(value=>amount(value,true));
-        if(!Number.isFinite(flow)||!extra.every(value=>Number.isFinite(value)&&value===0))
-          continue;
-        if(rounded(flow)===rounded(signed))positions.push(i+1);
+        if(!Number.isFinite(income)||expenses.some(value=>!Number.isFinite(value))||
+           expenses.some(value=>value<0)||income<0)continue;
+        const nonzero=[income,...expenses].filter(value=>value!==0);
+        // Require one unambiguous monetary posting; composite rows cannot
+        // identify a single transfer and must stay unresolved.
+        if(nonzero.length!==1)continue;
+        const signedFlow=rounded(income-expenses.reduce((sum,value)=>sum+value,0));
+        if(signedFlow===rounded(signed))positions.push(i+1);
       }
       return {status:positions.length===0?'missing':
         positions.length===1?'candidate-only':'ambiguous',positions};
