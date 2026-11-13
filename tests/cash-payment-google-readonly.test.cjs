@@ -556,6 +556,13 @@ test('two-ledger transfer review is candidate-only even when both Google rows ar
  const missing=auditor.reviewTransferGoogleCounterparts(verified,{FOXCONN:evidence.FOXCONN});
  assert.equal(missing.reviews[0].counterpart.status,'not-loaded');
  assert.equal(missing.twoSidedCandidateCount,0);
+ const noFoxconn=auditor.reviewTransferGoogleCounterparts(verified,{
+   ...evidence,FOXCONN:{...evidence.FOXCONN,rows:[]}
+ });
+ assert.equal(noFoxconn.twoSidedCandidateCount,0);
+ assert.equal(noFoxconn.counterpartOnlyCandidateCount,1);
+ assert.equal(noFoxconn.reviews[0].status,'counterpart-only-candidate');
+ assert.equal(noFoxconn.canWrite,false);
  const duplicated=auditor.reviewTransferGoogleCounterparts(verified,
    {...evidence,ELYSIAN:{...evidence.ELYSIAN,rows:[row(300),row(300)]}});
  assert.equal(duplicated.reviews[0].counterpart.status,'ambiguous');
