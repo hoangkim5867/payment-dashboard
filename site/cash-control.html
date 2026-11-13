@@ -1422,7 +1422,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
         <summary style="cursor:pointer;font-weight:700">Danh sách dự án và link Google Sheets (Admin)</summary>
         <div style="margin:11px 0;padding:11px;border:1px solid #cad8e7;border-radius:9px;background:#fff">
           <div style="font-weight:700;font-size:13px;margin-bottom:5px">Kiểm tra chung theo tháng · tất cả dự án</div>
-          <p style="font-size:12px;color:#5c6880;margin:0 0 10px">Chỉ thống kê dữ liệu đã tải trong môi trường hiện tại. Firebase Staging không có Payment production; không dùng số 0 của TEST để kết luận tháng không phát sinh. Không đọc hoặc ghi Google Sheets.</p>
+          <p style="font-size:12px;color:#5c6880;margin:0 0 10px">Kiểm tra dữ liệu đã tải và xác minh phiên bản Cash Control online bằng một lượt đọc metadata trên production. TEST không đọc Payment thật; không xem số 0 là tháng không phát sinh. Không ghi Firebase hoặc Google Sheets.</p>
           <div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center">
             <label for="ccSyncBatchMonth" style="font-size:12px;font-weight:600">Tháng</label>
             <input id="ccSyncBatchMonth" type="month" style="border:1px solid #cad4e3;border-radius:7px;padding:7px" aria-label="Tháng kiểm tra chung">
@@ -6145,7 +6145,7 @@ async function ccSyncMultiProjectManual(){
   }finally{button.disabled=false}
 }
 
-function ccSyncBatchAnalyzeInMemory(){
+async function ccSyncBatchAnalyzeInMemory(){
   const button=$('ccSyncBatchAnalyze');
   const status=$('ccSyncBatchStatus');
   const output=$('ccSyncBatchResults');
@@ -6196,6 +6196,40 @@ function ccSyncBatchAnalyzeInMemory(){
        plan.googleReads!==0||plan.googleWrites!==0){
       throw Error('Không xác minh được kế hoạch chỉ đọc.');
     }
+    // One production-only, Admin-authenticated metadata read per deliberate
+    // click. Staging exits earlier; this never fetches Payment documents.
+    const userId=currentAuthUser.uid;
+    const evidenceResponse=await fetch('/api/cash-sync-source-readonly',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',
+        'X-Firebase-ID-Token':await currentAuthUser.getIdToken()},
+      body:JSON.stringify({action:'metadata'})
+    });
+    const evidence=await evidenceResponse.json().catch(()=>({}));
+    if(!evidenceResponse.ok)throw Error(
+      'Nguồn Cash Control chưa xác minh được ('+
+      String(evidence.error||evidenceResponse.status).slice(0,72)+')');
+    if(!currentAuthUser||currentAuthUser.uid!==userId||
+       !isCashControlOwner()||firebaseConfig.projectId!=='cscecmep-payment')
+      throw Error('Phiên Admin đã thay đổi sau khi kiểm tra nguồn');
+    if(evidence.kind!=='CASH_CONTROL_PRIVATE_METADATA_ONLY'||
+       evidence.firebaseProject!=='cscecmep-payment'||
+       evidence.firestoreRequests!==1||
+       evidence.paymentDocumentReads!==0||
+       evidence.googleReads!==0||evidence.googleWrites!==0||
+       evidence.canSync!==false||evidence.sourceComplete!==false||
+       evidence.metadataPresent!==true)
+      throw Error('Metadata nguồn Cash Control không đầy đủ hoặc sai phạm vi');
+    const localRevision=Number(cashCloudState.revision||0);
+    if(evidence.revision!==localRevision||
+       evidence.manualRecords!==(cashCloudState.manualRecords||[]).length||
+       evidence.projectMasters!==(cashCloudState.projectMasters||[]).length||
+       evidence.salaryRecords!==(cashCloudState.salaryRecords||[]).length)
+      throw Error('Dữ liệu Cash Control online mới hơn bộ nhớ trên trang; cần đọc lại nguồn');
+    // The revision and counts prove only local-vs-server metadata agreement.
+    // They DO NOT prove that the Payment source is complete or authorize writes.
+    const sourceMetadata='Metadata Cash Control khớp phiên '+evidence.revision+
+      ' (1 yêu cầu đọc tài liệu riêng; không tải hồ sơ Payment)';
     status.textContent='ĐÃ RÀ SOÁT DỮ LIỆU ĐANG TẢI · '+plan.month+
       ' · danh mục '+plan.projects+' dự án ('+plan.linkedProjects+
       ' có link, '+plan.unlinkedProjects+' chưa có link) · '+
@@ -6205,7 +6239,7 @@ function ccSyncBatchAnalyzeInMemory(){
       plan.sourceReviewProjects+' dự án cần rà soát ID/số tiền. '+
       'Payment đã tải toàn dự án: '+paymentMonths.size+'/'+plan.projects+
       '. Chưa xác minh đủ nguồn; KHÔNG kết luận các dự án còn lại không phát sinh. '+
-      '0 Firebase reads · 0 Google reads/writes · CHƯA cấp phép ghi.';
+      sourceMetadata+' · 0 Google reads/writes · CHƯA cấp phép ghi.';
     const active=plan.rows.filter(p=>p.transactions>0);
     if(!active.length){
       const empty=document.createElement('p');
@@ -6254,7 +6288,8 @@ function ccSyncBatchAnalyzeInMemory(){
     output.append(note);
     output.hidden=false;
   }catch(err){
-    status.textContent='CHẶN kiểm tra chung: '+String(err?.message||err).slice(0,140)+'. Không đọc/ghi Firebase hoặc Google.';
+    status.textContent='CHẶN kiểm tra chung: '+String(err?.message||err).slice(0,140)+
+      '. Có thể đã đọc metadata Cash Control (tối đa 1 yêu cầu); không ghi Firebase hoặc Google.';
   }finally{button.disabled=false}
 }
 
