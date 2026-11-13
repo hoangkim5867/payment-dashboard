@@ -67,7 +67,7 @@ test('invalid source IDs, hashes, months and mutated history block before writes
  assert.throws(()=>sourceValid([good,good]),/FOXCONN_TEST_SOURCE_ID_OR_MONTH_INVALID/);
  assert.throws(()=>validateSource({project:'FOXCONN',month:'2026-10',source:[good]}),/FOXCONN_TEST_SOURCE_ID_OR_MONTH_INVALID/);
  raw[271][14]=closing-1;
- assert.throws(()=>compareSourceToHistory(sourceValid([good]),raw,'2026-11'),/FOXCONN_TEST_HISTORY_BASELINE_CHANGED|Sổ Google/);
+ assert.throws(()=>compareSourceToHistory(sourceValid([good]),raw,'2026-11'),/FOXCONN_TEST_HISTORY_BASELINE_CHANGED|Sổ Google|Lịch sử Google lệch số dư/);
 });
 test('server allows only Google GET for allowlisted TEST copy and staging Admin JWT',async()=>{
  const raw=history(),source=sourceValid([rec(1,raw[2].slice(0,14))]);
