@@ -871,3 +871,52 @@ test('project-local preview keeps uncertain transfer source IDs blocked',()=>{
  assert.equal(result.candidateRows[1].review,'SOURCE_ID_NOT_UNIQUE');
  assert.equal(result.canWrite,false);
 });
+
+
+test('multi-project sync planner derives independent project candidates and preserves existing Google rows',()=>{
+ const {planProject}=require('../site/assets/js/cash-multi-project-sync.js');
+ const a=v=>['2026-11-03','Vendor','SUBP-1','IPC','IPC001','分包款',0,v,0,0,0,0,0];
+ const result=planProject({project:'ELYSIAN',month:'2026-11',
+   source:[{id:'expense:1',project:'ELYSIAN',month:'2026-11',values:a(100)},
+           {id:'expense:2',project:'ELYSIAN',month:'2026-11',values:a(200)}],
+   history:[a(100)],mirror:[]});
+ assert.equal(result.requiresOtherProjects,false);
+ assert.equal(result.totals.historyCandidates,1);
+ assert.equal(result.totals.newCandidates,1);
+ assert.equal(result.totals.blocked,0);
+ assert.equal(result.canWrite,false);
+ assert.equal(result.approvedWrites,0);
+ const retry=planProject({project:'SSIS',month:'2026-11',
+   source:[{id:'transfer:1:out',project:'SSIS',month:'2026-11',values:a(300)}],
+   history:[],mirror:[]});
+ assert.equal(retry.project,'SSIS');
+ assert.equal(retry.totals.newCandidates,1);
+ assert.equal(retry.requiresOtherProjects,false);
+ assert.equal(retry.canWrite,false);
+});
+test('multi-project sync planner blocks duplicate IDs, ambiguous history and manual edits',()=>{
+ const {planProject}=require('../site/assets/js/cash-multi-project-sync.js');
+ const a=v=>['2026-11-03','Vendor','SUBP-1','IPC','IPC001','分包款',0,v,0,0,0,0,0];
+ const repeated=planProject({project:'SSIS',month:'2026-11',
+   source:[{id:'same',project:'SSIS',month:'2026-11',values:a(100)},
+           {id:'same',project:'SSIS',month:'2026-11',values:a(100)}],history:[],mirror:[]});
+ assert.equal(repeated.totals.blocked,2);
+ const duplicates=planProject({project:'SSIS',month:'2026-11',
+   source:[{id:'one',project:'SSIS',month:'2026-11',values:a(100)}],
+   history:[a(100),a(100)],mirror:[]});
+ assert.equal(duplicates.items[0].status,'REVIEW_DUPLICATE_HISTORY');
+ const edited=planProject({project:'SSIS',month:'2026-11',
+   source:[{id:'one',project:'SSIS',month:'2026-11',values:a(101)}],
+   history:[],mirror:[{id:'one',project:'SSIS',values:a(100)}]});
+ assert.equal(edited.items[0].status,'REVIEW_MIRROR_EDIT');
+ assert.equal(edited.canWrite,false);
+});
+test('multi-project sync planner never interprets same-date contract collision as new',()=>{
+ const {planProject}=require('../site/assets/js/cash-multi-project-sync.js');
+ const a=v=>['2026-11-09','Vendor','SUPL-1','Parts','IPC003','材料款',0,0,v,0,0,0,0];
+ const r=planProject({project:'FOXCONN',month:'2026-11',
+   source:[{id:'one',project:'FOXCONN',month:'2026-11',values:a(500)}],
+   history:[a(499)],mirror:[]});
+ assert.equal(r.items[0].status,'REVIEW_POSSIBLE_HISTORY_COLLISION');
+ assert.equal(r.canWrite,false);
+});
