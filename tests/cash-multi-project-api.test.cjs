@@ -71,6 +71,12 @@ function fixture(project='ELYSIAN',spreadsheetId=ID){
   const prev=global.fetch;global.fetch=fakeFetch;
   const prevFlag=process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES;
   const prevTargets=process.env.CASH_SYNC_MULTI_ALLOWED_TARGETS;
+  const prevEnv=process.env.VERCEL_ENV;
+  const prevProject=process.env.CASH_SYNC_FIREBASE_PROJECT_ID;
+  // This is a local mock: no Vercel or real Google request occurs.
+  process.env.VERCEL_ENV=extra.simulatePreview?'preview':'production';
+  process.env.CASH_SYNC_FIREBASE_PROJECT_ID=
+    extra.simulateStaging?'cash-control-staging':'cscecmep-payment';
   if(extra.enabled){
    process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES='YES';
    process.env.CASH_SYNC_MULTI_ALLOWED_TARGETS=JSON.stringify({
@@ -97,6 +103,10 @@ function fixture(project='ELYSIAN',spreadsheetId=ID){
    else process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES=prevFlag;
    if(prevTargets===undefined)delete process.env.CASH_SYNC_MULTI_ALLOWED_TARGETS;
    else process.env.CASH_SYNC_MULTI_ALLOWED_TARGETS=prevTargets;
+   if(prevEnv===undefined)delete process.env.VERCEL_ENV;
+   else process.env.VERCEL_ENV=prevEnv;
+   if(prevProject===undefined)delete process.env.CASH_SYNC_FIREBASE_PROJECT_ID;
+   else process.env.CASH_SYNC_FIREBASE_PROJECT_ID=prevProject;
   }
  }
  return {state,call};
@@ -194,4 +204,22 @@ test('post-write verification detects changes to original history',async()=>{
  assert.equal(result.status,409);
  assert.match(result.error,/tab lịch sử đã thay đổi/);
  assert.equal(f.state.writes,1);
+});
+
+test('Preview with mistakenly enabled production flag rejects Google commit before reading',async()=>{
+ const f=fixture();
+ const denied=await f.call('commit',{enabled:true,simulatePreview:true,
+   signature:'a'.repeat(64),confirm:'SYNC_THIS_PROJECT'});
+ assert.equal(denied.status,503);
+ assert.equal(f.state.reads||0,0);
+ assert.equal(f.state.writes,0);
+});
+
+test('Staging Firebase credentials cannot authorize production commit',async()=>{
+ const f=fixture();
+ const denied=await f.call('commit',{enabled:true,simulateStaging:true,
+   signature:'a'.repeat(64),confirm:'SYNC_THIS_PROJECT'});
+ assert.equal(denied.status,503);
+ assert.equal(f.state.reads||0,0);
+ assert.equal(f.state.writes,0);
 });
