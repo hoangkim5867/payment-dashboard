@@ -357,6 +357,20 @@ test('FOXCONN collisions with distinct HĐ/IPC are one-to-one supported candidat
  assert.equal(z.supportedCount,2);
  assert.deepEqual(z.unresolved,[3,4]);
 });
+test('FOXCONN flagged Payment cannot appear unique when unflagged source has identical ID',()=>{
+ const header=[...Array(13).fill(''),'进口税+增值税','余额'];
+ const historic=[header,['2026-10-01','FOXCONN','SUPL-001','','IPC005','',0,0,100,0,0,0,0,0,100]];
+ const make=id=>({date:'2026-10-01',contractNo:'SUPL-001',ipc:'IPC005',
+   _syncIds:['expense:'+id],income:0,subcontract:0,material:100,otherDirect:0,
+   indirect:0,financial:0,otherPayable:0,importTaxVat:0});
+ const records=new Map([['one',{source:'payment'}],['two',{source:'payment'}]]);
+ const result=auditor.resolvePaymentCollisionCandidates(historic,
+   [make('one'),make('two')],{ambiguousSourcePositions:[1]},records);
+ assert.equal(result.supportedCount,0);
+ assert.deepEqual(result.unresolved,[1]);
+ assert.equal(result.canWrite,false);
+});
+
 test('non-Payment and missing-identity source cannot be resolved as a Payment candidate',()=>{
  const header=[...Array(13).fill(''),'进口税+增值税','余额'];
  const h=['2026-10-01','ACME','CONTRACT','','IPC1','',0,0,100,0,0,0,0,0,100];
@@ -560,6 +574,21 @@ test('FOXCONN bilingual personnel, tax and receipt candidates stay read-only',()
   {identityConflictPositions:[1,2,3],identityUnverifiedPositions:[4,5]},records);
  assert.equal(wrong.semanticCandidateCount,4);
  assert.equal(wrong.numericOnlyCount,1);
+});
+
+test('FOXCONN non-Payment review ignores falsely unique flagged row when same source is unflagged',()=>{
+ const header=[...Array(13).fill(''),'进口税+增值税','余额'];
+ const history=[header,['2026-10-15','FOXCONN','','2026年09月越籍员工工资','','职工薪酬',0,0,0,0,100,0,0,0,100]];
+ const row=id=>({date:'2026-10-15',content:'Lương Việt Nam · Tháng 09/2026',
+   type:'Chi phí nhân sự',_syncIds:['expense:'+id],income:0,subcontract:0,
+   material:0,otherDirect:0,indirect:100,financial:0,otherPayable:0,importTaxVat:0});
+ const records=new Map([['p1',{source:'payroll'}],['p2',{source:'payroll'}]]);
+ const result=auditor.resolveFoxconnNonPaymentCandidates(history,
+   [row('p1'),row('p2')],{identityConflictPositions:[1]},records);
+ assert.equal(result.supportedCount,0);
+ assert.equal(result.semanticCandidateCount,0);
+ assert.deepEqual(result.unresolved,[1]);
+ assert.equal(result.canWrite,false);
 });
 
 test('generic project audit reports actual review positions without authorizing writes',()=>{

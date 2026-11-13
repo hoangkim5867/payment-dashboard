@@ -519,7 +519,9 @@
     const target=new Set(matched?.ambiguousSourcePositions||[]);
     for(const [index,row] of sourceRows.entries()){
       const position=index+1,date=dateValue(row?.date);
-      if(!date||date<'2026-10-01'||!target.has(position))continue;
+      // Include every loaded Payment row in uniqueness checks, not only flagged rows.
+      // A non-flagged duplicate must prevent a false one-to-one candidate.
+      if(!date||date<'2026-10-01')continue;
       if(classifyCashSource(row,recordsById).kind!=='payment')continue;
       const values=fields.map(f=>amount(row?.[f],true));
       if(!Object.hasOwn(row,'importTaxVat')||values.some(v=>!Number.isFinite(v)))continue;
@@ -531,6 +533,7 @@
     for(const [key,items] of sourceByKey){
       const historic=historyByKey.get(key)||[];
       for(const item of items){
+        if(!target.has(item.position))continue;
         if(!item.contract||!item.ipc){unresolved.push(item.position);continue}
         const sMatches=items.filter(x=>x.contract===item.contract&&x.ipc===item.ipc);
         const hMatches=historic.filter(x=>x.contract===item.contract&&x.ipc===item.ipc);
@@ -578,7 +581,8 @@
     ]);
     for(const [i,row] of sourceRows.entries()){
       const position=i+1,date=dateValue(row?.date);
-      if(!flagged.has(position)||!date||date<'2026-10-01')continue;
+      // Count even unflagged source rows when determining a unique counterpart.
+      if(!date||date<'2026-10-01')continue;
       const classification=classifyCashSource(row,recordsById);
       if(!['personnel','tax-or-aggregate','receipt'].includes(classification.kind))continue;
       if(!Object.hasOwn(row,'importTaxVat')||
@@ -626,6 +630,7 @@
     for(const [k,items] of source){
       const candidates=history.get(k)||[];
       for(const item of items){
+        if(!flagged.has(item.position))continue;
         // Date + amount bucket only is a NON-IDENTITY clue. Reveal its Google
         // row to help investigate translated/renamed descriptions, but never
         // upgrade it to a verified counterpart or grant writing.
