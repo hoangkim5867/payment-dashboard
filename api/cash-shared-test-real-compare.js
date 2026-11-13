@@ -120,8 +120,12 @@ async function run({env,project,month,source,firebaseJwt,googleToken,
     meta?.properties?.title!==target.title||!Array.isArray(meta.sheets))
     stop('TEST_GOOGLE_FILE_CHANGED');
  const tabs=meta.sheets.map(x=>x.properties).filter(x=>x&&x.hidden!==true);
- const old=tabs.find(t=>String(t.title).trim().toUpperCase()==='FOXCONN');
  const technical=meta.sheets.find(x=>x.properties?.title===target.tab)?.properties;
+ const candidateTabs=tabs.filter(t=>t.title!==target.tab&&
+    !['DATA_CASHCONTROL','CASHCONTROL_VIEW','DATA_CASHCONTROL_DEMO','PHU_HUNG_VIEW_TEST'].includes(t.title));
+ const exact=candidateTabs.filter(t=>String(t.title).trim().toUpperCase()==='FOXCONN');
+ const old=exact.length===1?exact[0]:
+   candidateTabs.length===1?candidateTabs[0]:null;
  if(!old||!technical||old.sheetId===technical.sheetId)
    stop('TEST_HISTORY_SHEET_NOT_UNIQUE');
  const range=encodeURIComponent("'"+old.title.replace(/'/g,"''")+"'!A1:O20000");
