@@ -5854,7 +5854,11 @@ async function ccSyncCompareProjectGoogleReadOnly(){
       (item.primary.textCandidates?.length?' · FOXCONN dòng có nội dung hoàn vay: '+
         item.primary.textCandidates.map(r=>r.googleRow+' (số ròng '+r.signedFlow+')').join(', '):'')+
       (item.counterpart.textCandidates?.length?' · Google đối ứng dòng có nội dung hoàn vay: '+
-        item.counterpart.textCandidates.map(r=>r.googleRow+' (Google '+r.signedFlow+'; Cash Control kỳ vọng '+r.expectedSigned+'; chênh '+(r.signedFlow===null?'chưa đọc được':r.signedFlow-r.expectedSigned)+')').join(', '):'')
+        item.counterpart.textCandidates.map(r=>r.googleRow+' (ngày '+r.googleDate+
+          (r.dateGapDays?' · lệch ngày '+r.dateGapDays:'')+
+          '; cột '+r.amountDetails.map(x=>x.column+': '+x.amount).join(', ')+
+          '; Google ròng '+r.signedFlow+'; Cash Control kỳ vọng '+r.expectedSigned+
+          (r.dateGapDays?'; CHỈ rà soát ngày':' ; chênh '+(r.signedFlow===null?'chưa đọc được':r.signedFlow-r.expectedSigned))+')').join(', '):'')
     ).join(' ; ')||'';
     const transferSummary=transferComparison?
       ' · đối ứng Google 2 phía (chỉ ứng viên): '+

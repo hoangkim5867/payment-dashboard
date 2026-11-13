@@ -816,9 +816,15 @@
       // diagnostic clues only and cannot establish a transfer ID.
       const textCandidates=[];
       if(!positions.length){
+        const expectedDay=Date.parse(date+'T00:00:00Z');
         for(let i=0;i<snapshot.rows.length;i++){
           const row=snapshot.rows[i];
-          if(!Array.isArray(row)||dateValue(row[0])!==date)continue;
+          if(!Array.isArray(row))continue;
+          const foundDate=dateValue(row[0]);
+          if(!foundDate)continue;
+          const gapDays=Math.round((Date.parse(foundDate+'T00:00:00Z')-expectedDay)/86400000);
+          // Nearby-date evidence is only for inspection: never match across dates.
+          if(!Number.isInteger(gapDays)||Math.abs(gapDays)>3)continue;
           const description=String(row[3]??'').normalize('NFKC').toUpperCase()
             .replace(/\s+/g,'');
           if(!(/归还|还款|HOÀNTRẢ|TRẢNỢ|REPAY/.test(description)))continue;
@@ -827,13 +833,18 @@
             .map(v=>amount(v,true));
           const total=Number.isFinite(income)&&expenses.every(Number.isFinite)?
             rounded(income-expenses.reduce((sum,v)=>sum+v,0)):null;
-          textCandidates.push({googleRow:i+1,description:String(row[3]??'').slice(0,150),
+          const columns=['G','H','I','J','K','L','M',...(snapshot.taxColumnIndex===13?['N']:[])];
+          const amountDetails=[income,...expenses].map((v,k)=>({column:columns[k],
+            amount:v})).filter(x=>Number.isFinite(x.amount)&&x.amount!==0);
+          textCandidates.push({googleRow:i+1,googleDate:foundDate,dateGapDays:gapDays,
+            description:String(row[3]??'').slice(0,150),
             signedFlow:total,expectedSigned:rounded(signed),
-            sameAmount:total!==null&&total===rounded(signed)});
+            amountDetails, sameAmount:total!==null&&total===rounded(signed)});
         }
       }
       return {status:positions.length===0?
-          (textCandidates.length?'amount-or-category-review':'missing'):
+          (textCandidates.some(x=>x.dateGapDays===0)?'amount-or-category-review':
+           textCandidates.length?'nearby-date-review':'missing'):
           positions.length===1?'candidate-only':'ambiguous',
         positions,textCandidates};
     };
@@ -854,10 +865,15 @@
           return text.includes(leg.fromProject.replace(/\s+/g,''))&&
             text.includes(leg.toProject.replace(/\s+/g,''));
         });
-        if(result.status==='amount-or-category-review'&&!result.textCandidates.length)
-          result.status='missing';
+        if(result.status==='amount-or-category-review'||
+           result.status==='nearby-date-review'){
+          result.status=result.textCandidates.some(x=>x.dateGapDays===0)?
+            'amount-or-category-review':
+            result.textCandidates.length?'nearby-date-review':'missing';
+        }
       }
-      const evidence=counterpart.textCandidates.length===1?
+      const evidence=counterpart.textCandidates.length===1&&
+        counterpart.textCandidates[0].dateGapDays===0?
         counterpart.textCandidates[0]:null;
       const variance=evidence&&Number.isFinite(evidence.signedFlow)?
         rounded(evidence.signedFlow-evidence.expectedSigned):null;
