@@ -18,8 +18,8 @@ const newValues=['2026-11-03','Vendor','SUBP-2','Another invoice','IPC02','分�
   0,200,0,0,0,0,0,0];
 const source=[{id:'ELYSIAN:expense:new',project:'ELYSIAN',month:'2026-11',
  values:newValues,hash:sha(newValues)}];
-function fixture(){
- const state={meta:{spreadsheetId:ID,sheets:[
+function fixture(project='ELYSIAN',spreadsheetId=ID){
+ const state={meta:{spreadsheetId,sheets:[
   {properties:{sheetId:42,title:'SỔ GỐC',gridProperties:{rowCount:1000,columnCount:15}}}
  ]},history:structuredClone(orig),mirror:null,view:null,formulas:null,writes:0};
  const ok=data=>({ok:true,status:200,json:async()=>data});
@@ -72,12 +72,13 @@ function fixture(){
   if(extra.enabled){
    process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES='YES';
    process.env.CASH_SYNC_MULTI_ALLOWED_TARGETS=JSON.stringify({
-    ELYSIAN:{spreadsheetId:ID,historySheetId:42}
+    [project]:{spreadsheetId,historySheetId:42}
    });
   }
   else delete process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES;
-  const body={action,project:'ELYSIAN',month:'2026-11',spreadsheetId:ID,
-   historySheetId:42,source,openingBalance:null,...extra};
+  const body={action,project,month:'2026-11',spreadsheetId,
+   historySheetId:42,source:source.map(record=>({...record,
+    id:record.id.replace(/^ELYSIAN:/,project+':'),project})),openingBalance:null,...extra};
   const response={statusCode:200,headers:{},
    setHeader(k,v){this.headers[k]=v;return this},
    status(n){this.statusCode=n;return this},
@@ -141,4 +142,42 @@ test('external modification of generated VIEW blocks second commit',async()=>{
  const denied=await f.call('preview',{enabled:true});
  assert.equal(denied.status,409);
  assert.equal(f.state.writes,1);
+});
+
+test('two independent projects write only their respective machine tabs and repeat idempotently',async()=>{
+ const e=fixture('ELYSIAN',ID);
+ const p1=await e.call('preview',{enabled:true});
+ assert.equal(p1.status,200);
+ assert.equal(p1.writeConfigured,true);
+ const saved1=await e.call('commit',{enabled:true,signature:p1.signature,confirm:'SYNC_THIS_PROJECT'});
+ assert.equal(saved1.mode,'verified');
+ const eRetry=await e.call('preview',{enabled:true});
+ assert.equal(eRetry.summary.changes,0);
+ assert.equal(e.state.writes,1);
+
+ const s=fixture('SSIS','B'.repeat(40));
+ const p2=await s.call('preview',{enabled:true});
+ assert.equal(p2.status,200);
+ assert.equal(p2.summary.project,'SSIS');
+ const saved2=await s.call('commit',{enabled:true,signature:p2.signature,confirm:'SYNC_THIS_PROJECT'});
+ assert.equal(saved2.mode,'verified');
+ assert.equal(s.state.writes,1);
+ assert.equal(s.state.mirror[1][1],'SSIS');
+ assert.equal(e.state.mirror[1][1],'ELYSIAN');
+ assert.deepEqual(e.state.history,orig);
+ assert.deepEqual(s.state.history,orig);
+ const secondRetry=await s.call('preview',{enabled:true});
+ assert.equal(secondRetry.summary.changes,0);
+ assert.equal(s.state.writes,1);
+});
+test('a different spreadsheet ID supplied by browser cannot override server project allowlist',async()=>{
+ const f=fixture();
+ const p=await f.call('preview',{enabled:true});
+ assert.equal(p.status,200);
+ assert.equal(p.writeConfigured,true);
+ // A mismatched target fails closed even when the global release flag is on.
+ const wrong=await f.call('commit',{enabled:true,spreadsheetId:'B'.repeat(40),
+   signature:p.signature,confirm:'SYNC_THIS_PROJECT'});
+ assert.notEqual(wrong.status,200);
+ assert.equal(f.state.writes,0);
 });
