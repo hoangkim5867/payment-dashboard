@@ -935,11 +935,11 @@ test('shared project planner matches serial Google dates and blank expense colum
  assert.equal(result.canWrite,false);
 });
 test('shared project planner is linked from Cash Control Admin-only manual comparison',()=>{
- assert.match(code,/cash-multi-project-sync\\.js/);
+ assert.match(code,/cash-multi-project-sync\.js/);
  assert.match(code,/CashMultiProjectSync/);
  assert.match(code,/ccSyncIndependentProjectSummary/);
  const start=code.indexOf('async function ccSyncCompareProjectGoogleReadOnly(){');
  const end=code.indexOf('function ccSyncProjectCatalogRender()',start);
- assert.match(code.slice(start,end),/generalPlanner\\.planProject/);
- assert.doesNotMatch(code.slice(start,end),/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\\(/);
+ assert.match(code.slice(start,end),/generalPlanner\.planProject/);
+ assert.doesNotMatch(code.slice(start,end),/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
 });
