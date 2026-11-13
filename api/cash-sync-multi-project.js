@@ -7,6 +7,7 @@
 const {readConfig,verifyFirebaseAdminToken}=require('../server/cash-sync-guard.cjs');
 const core=require('../server/cash-sync-multi-project-core.cjs');
 const adapter=require('../server/cash-sync-multi-project-adapter.cjs');
+const {canWriteTarget}=require('../server/cash-sync-multi-targets.cjs');
 const {planMonth,parseValues,sha}=core;
 const {MIRROR,VIEW,parseStoredMirror,verifyExistingView,compileBatch}=adapter;
 const prefix='https://sheets.googleapis.com/v4/spreadsheets/';
@@ -127,9 +128,9 @@ module.exports=async function handler(req,res){
    closingBalance:plan.closingBalance,originalUntouched:true};
   if(input.action==='preview')
    return res.status(200).json({mode:'preview',summary,signature:batch.fingerprint,
-    writeConfigured:process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES==='YES',writes:0});
-  if(process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES!=='YES')
-   die('Đồng bộ chung production chưa được kích hoạt sau kiểm thử TEST.',503);
+    writeConfigured:canWriteTarget(process.env,input.project,input.spreadsheetId,input.historySheetId),writes:0});
+  if(!canWriteTarget(process.env,input.project,input.spreadsheetId,input.historySheetId))
+   die('Dự án/file Google chưa được cho phép ghi trên máy chủ hoặc chưa bật phát hành.',503);
   if(input.signature!==batch.fingerprint)
    die('Google hoặc nguồn Cash Control đã thay đổi sau bước xem trước.');
   if(!plan.changes.length&&snapshot.hasTabs)
