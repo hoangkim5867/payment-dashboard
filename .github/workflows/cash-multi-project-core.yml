@@ -6,6 +6,8 @@ on:
       - 'server/cash-sync-multi-project-adapter.cjs'
       - 'api/cash-sync-multi-project.js'
       - 'api/cash-shared-test-history-audit.js'
+      - 'api/cash-shared-test-idempotency.js'
+      - 'tests/cash-shared-test-idempotency.test.cjs'
       - 'tests/cash-shared-test-history-audit.test.cjs'
       - 'tests/cash-multi-project-core.test.cjs'
       - 'tests/cash-multi-project-adapter.test.cjs'
@@ -18,6 +20,8 @@ on:
       - 'server/cash-sync-multi-project-adapter.cjs'
       - 'api/cash-sync-multi-project.js'
       - 'api/cash-shared-test-history-audit.js'
+      - 'api/cash-shared-test-idempotency.js'
+      - 'tests/cash-shared-test-idempotency.test.cjs'
       - 'tests/cash-shared-test-history-audit.test.cjs'
       - 'tests/cash-multi-project-core.test.cjs'
       - 'tests/cash-multi-project-adapter.test.cjs'
@@ -33,4 +37,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Verify no-write, idempotency and balance scenarios
-        run: node --test tests/cash-multi-project-core.test.cjs tests/cash-multi-project-adapter.test.cjs tests/cash-multi-project-api.test.cjs tests/cash-shared-test-history-audit.test.cjs
+        run: node --test tests/cash-multi-project-core.test.cjs tests/cash-multi-project-adapter.test.cjs tests/cash-multi-project-api.test.cjs tests/cash-shared-test-history-audit.test.cjs tests/cash-shared-test-idempotency.test.cjs
