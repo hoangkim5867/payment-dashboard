@@ -78,3 +78,26 @@ test('catalog-wide missing links are reported even when no transaction source is
  assert.equal(r.firestoreReads,0);
  assert.equal(r.googleWrites,0);
 });
+
+test('rejects out-of-month rows and impossible dates without reporting them eligible',()=>{
+ const plan=buildBatchReadiness({month:'2026-11',projects:['FOXCONN','ELYSIAN'],
+  links:{FOXCONN:true,ELYSIAN:true},
+  rowsByProject:{
+    FOXCONN:[row('f:oct',{date:'2026-10-26',importTaxVat:0})],
+    ELYSIAN:[row('e:invalid',{date:'2026-11-31'})]}});
+ assert.equal(plan.activeProjects,2);
+ assert.equal(plan.candidateProjects,0);
+ assert.equal(plan.sourceReviewProjects,2);
+ assert.equal(plan.rows.find(x=>x.project==='FOXCONN').wrongMonthRows,1);
+ assert.equal(plan.rows.find(x=>x.project==='ELYSIAN').invalidDates,1);
+ assert.equal(plan.canWrite,false);
+ assert.equal(plan.firestoreReads,0);
+ assert.equal(plan.googleWrites,0);
+});
+test('accepts leap-day only in the selected leap-year month',()=>{
+ const r=buildBatchReadiness({month:'2028-02',projects:['A'],
+   links:{A:true},rowsByProject:{A:[row('leap',{date:'2028-02-29'})]}});
+ assert.equal(r.candidateProjects,1);
+ assert.equal(r.rows[0].wrongMonthRows,0);
+ assert.equal(r.rows[0].invalidDates,0);
+});
