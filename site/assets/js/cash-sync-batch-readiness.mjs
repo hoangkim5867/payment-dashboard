@@ -15,7 +15,7 @@ function auditProject({project,rows,hasLink}){
     project,transactions:rows.length,hasLink:Boolean(hasLink),sourceIds:0,
     missingSourceIds:0,duplicateSourceIds:0,invalidAmounts:0,
     invalidDates:0,unknownImportTax:0,transferRows:0,
-    income:0,expenses:0
+    transferCounterpartsUnverified:0,income:0,expenses:0
   };
   for(const row of rows){
     if(!row||typeof row!=='object'||Array.isArray(row))
@@ -35,8 +35,11 @@ function auditProject({project,rows,hasLink}){
         idsForRow.add(value);seen.add(value);
       }
       details.sourceIds+=ids.length;
-      if(ids.some(id=>String(id).startsWith('transfer:')))
+      if(ids.some(id=>String(id).startsWith('transfer:'))){
         details.transferRows++;
+        // A source ID is not proof that BOTH sides of a transfer agree.
+        details.transferCounterpartsUnverified++;
+      }
     }
     for(const key of VALUE_FIELDS){
       const amount=row[key];
@@ -53,7 +56,8 @@ function auditProject({project,rows,hasLink}){
   }
   details.net=details.income-details.expenses;
   details.needsReview=details.missingSourceIds+details.duplicateSourceIds+
-    details.invalidAmounts+details.invalidDates+details.unknownImportTax;
+    details.invalidAmounts+details.invalidDates+details.unknownImportTax+
+    details.transferCounterpartsUnverified;
   details.status=rows.length===0?'NO_ACTIVITY_IN_MEMORY':
     !hasLink?'MISSING_GOOGLE_LINK':
     details.needsReview?'SOURCE_REVIEW_REQUIRED':'GOOGLE_COMPARISON_CANDIDATE';
