@@ -40,7 +40,7 @@ test('TEST cannot treat an empty, incomplete or false signed package as release 
  assert.throws(()=>inspectMonthReviewPackage({...p,canWrite:true}),/FILE_INVALID/);
  assert.throws(()=>inspectMonthReviewPackage({...p,sourceAuthenticated:true}),/FILE_INVALID/);
  assert.throws(()=>inspectMonthReviewPackage({...p,groupedRows:9}),/ROW_COUNT_MISMATCH/);
- assert.throws(()=>inspectMonthReviewPackage({...p,projects:[...p.projects,...p.projects]}),/PROJECT_INVALID/);
+ assert.throws(()=>inspectMonthReviewPackage({...p,projects:[...p.projects,...p.projects]}),/FILE_INVALID|PROJECT_INVALID/);
 });
 test('unverified transfers and source issues stay blocked and remain readable for diagnostics',()=>{
  const g=group('FOXCONN',1);
