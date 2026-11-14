@@ -144,3 +144,37 @@ test('one-click Google audit only uses readonly OAuth and never writes or loads 
  assert.match(code,/googleByProject/);
  assert.doesNotMatch(code,/setDoc\(|addDoc\(|writeBatch\(|updateDoc\(|:batchUpdate|:append/);
 });
+
+test('the complete in-page module parses as modern JavaScript after bridge installation',()=>{
+ const {spawnSync}=require('node:child_process');
+ const begin=html.indexOf('<script type="module">');
+ const end=html.indexOf('</script>',begin);
+ assert.ok(begin>=0&&end>begin);
+ const script=html.slice(begin+'<script type="module">'.length,end);
+ const check=spawnSync(process.execPath,['--input-type=module','--check'],{
+   input:script,encoding:'utf8',maxBuffer:3*1024*1024
+ });
+ assert.equal(check.status,0,check.stderr||check.stdout);
+});
+test('source bridge requires explicit Admin and one scoped actual month query, not 35 Payment project scans',()=>{
+ const a=html.indexOf('async function ccSyncExportMonthSourceReview(){');
+ const b=html.indexOf('async function ccSyncImportMonthSourceReview(){',a);
+ const c=html.indexOf('async function ccSyncBatchAnalyzeInMemory(){',b);
+ assert.ok(a>0&&b>a&&c>b);
+ const exporter=html.slice(a,b), importer=html.slice(b,c);
+ assert.match(exporter,/firebaseConfig\.projectId!=='cscecmep-payment'/);
+ assert.match(exporter,/isCashControlOwner\(\)/);
+ assert.match(exporter,/autoLoadPaymentActualMonth\(month,\{force:true\}\)/);
+ assert.match(exporter,/buildMonthlyExportManifest\(/);
+ assert.match(exporter,/buildMonthReviewPackage\(/);
+ assert.doesNotMatch(exporter,/loadProjectPayments\(|setDoc\(|addDoc\(|writeBatch\(|updateDoc\(/);
+ assert.match(importer,/inspectMonthReviewPackage\(/);
+ assert.match(importer,/scanMonthlyGoogleReadOnly\(/);
+ assert.match(importer,/spreadsheets\.readonly/);
+ assert.match(importer,/isCashControlOwner\(\)/);
+ assert.doesNotMatch(importer,/setDoc\(|addDoc\(|writeBatch\(|updateDoc\(/);
+ for(const id of ['ccSyncMonthSourceBridge','ccSyncMonthSourceExport',
+   'ccSyncMonthSourceImport','ccSyncMonthSourceFile','ccSyncMonthSourceStatus']){
+   assert.equal(count('id="'+id+'"'),1,'missing or duplicated '+id);
+ }
+});
