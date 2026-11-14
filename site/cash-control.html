@@ -6341,6 +6341,186 @@ async function ccSyncMultiProjectManual(){
   }finally{button.disabled=false}
 }
 
+// One local, ephemeral snapshot; never stored in localStorage or Firestore.
+// A TEST browser cannot inherit the authenticated production browser's data.
+let ccSyncImportedMonthReview=null;
+
+async function ccSyncExportMonthSourceReview(){
+  const button=$('ccSyncMonthSourceExport');
+  const status=$('ccSyncMonthSourceStatus');
+  const month=String($('ccSyncBatchMonth')?.value||'');
+  if(!button||!status||button.disabled)return;
+  if(!currentAuthUser||!isCashControlOwner()||
+     firebaseConfig.projectId!=='cscecmep-payment'){
+    status.textContent='Chỉ Admin Cash Control chính được xuất nguồn tháng.';return;
+  }
+  if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)||month<'2026-10'||
+     !cashCloudReady||!legacySeedReady){
+    status.textContent='Chọn tháng hợp lệ và tải Cash Control trước khi xuất.';return;
+  }
+  button.disabled=true;
+  const uid=currentAuthUser.uid;
+  status.textContent='Đọc Payment đã thực trả theo chỉ mục tháng '+month+
+    ' (1 truy vấn tháng, không quét 35 dự án)…';
+  // All changes below remain temporary in RAM, restored even on failure.
+  let before=null;
+  try{
+    const ok=await autoLoadPaymentActualMonth(month,{force:true});
+    if(!ok||!paymentAutoActualMonthsLoaded.has(month)||
+      !currentAuthUser||currentAuthUser.uid!==uid||!isCashControlOwner()||
+      firebaseConfig.projectId!=='cscecmep-payment')
+      throw Error('Không tải được đúng nguồn Payment đã thực trả trong tháng.');
+    const indexed=paymentAutoActualRowsByMonth.get(month);
+    if(!(indexed instanceof Map))throw Error('Thiếu kết quả truy vấn Payment theo tháng.');
+    // A cached full-project read may have an older copy of a paid row.
+    // Prioritize this freshly indexed month, without modifying Firebase.
+    before=payments;
+    const combined=new Map(payments.map(p=>[String(p.id),p]));
+    for(const [id,row] of combined)
+      if(String(row?.processPaymentDate||'').slice(0,7)===month)
+        combined.delete(id);
+    indexed.forEach((row,id)=>combined.set(String(id),row));
+    payments=[...combined.values()];
+    invalidateCashCalculations();
+    const projects=ccSyncProjectCatalogNames();
+    const rowsByProject=Object.create(null),links=Object.create(null);
+    for(const project of projects){
+      rowsByProject[project]=project==='FOXCONN'?
+        ccSyncFoxconnAuditRows(month):legacyCashExportRows(month,project);
+      links[project]=ccSyncProjectLinkValid(ccSyncProjectLinkDraft[project]||'');
+    }
+    const expenseIds=new Map(allExpenses().filter(x=>x?.id)
+      .map(x=>[String(x.id),x]));
+    const resolveKind=id=>{
+      if(!id.startsWith('expense:'))return 'UNKNOWN';
+      const expense=expenseIds.get(id.slice(8));
+      if(!expense)return 'UNKNOWN';
+      if(expense.source==='payment')return 'PAYMENT';
+      if(expense.source==='payroll'||expense.linkedModule==='payroll')return 'PAYROLL';
+      return 'CASH';
+    };
+    const manifest=buildMonthlyExportManifest({
+      month,projects,rowsByProject,links,
+      // Used solely to calculate READ-ONLY history candidates.
+      // Indexed month coverage is NOT full-project source certification.
+      paymentCacheProjects:projects,resolveKind,
+      expectedCounts:month==='2026-10'?{FOXCONN:19}:{}
+    });
+    const packageData=buildMonthReviewPackage({
+      month,manifest,actualMonthLoaded:true,
+      monthQueryCount:indexed.size,
+      revision:Number(cashCloudState.revision||0)
+    });
+    const json=JSON.stringify(packageData);
+    if(json.length>5000000)throw Error('Gói nguồn vượt 5MB, không tự chia giao dịch.');
+    if(!currentAuthUser||currentAuthUser.uid!==uid||!isCashControlOwner())
+      throw Error('Phiên Admin thay đổi; hủy xuất nguồn.');
+    const url=URL.createObjectURL(new Blob([json],{type:'application/json'}));
+    try{
+      const a=document.createElement('a');
+      a.href=url;a.download='CASH_CONTROL_'+month+'_35_PROJECTS_REVIEW.json';
+      document.body.append(a);a.click();a.remove();
+    }finally{setTimeout(()=>URL.revokeObjectURL(url),2000)}
+    status.textContent='ĐÃ XUẤT 1 GÓI '+month+' · '+manifest.activeProjects+
+      ' dự án có dòng / '+manifest.groupedRows+
+      ' dòng sau gộp · Payment chỉ đọc theo tháng '+indexed.size+
+      ' hồ sơ · '+manifest.needsSourceReview+
+      ' dự án cần rà soát. Mang file sang TEST để đọc Google, chưa cấp phép ghi.';
+  }catch(error){
+    status.textContent='DỪNG xuất nguồn: '+String(error?.message||error).slice(0,160)+
+      '. 0 ghi Firebase/Google.';
+  }finally{
+    if(before!==null){payments=before;invalidateCashCalculations();}
+    button.disabled=false;
+  }
+}
+async function ccSyncScanImportedMonthReview(){
+  const output=$('ccSyncBatchResults'),status=$('ccSyncBatchStatus');
+  const pkg=ccSyncImportedMonthReview;
+  if(!output||!status||!pkg)return;
+  if(!currentAuthUser||!isCashControlOwner()||
+     firebaseConfig.projectId!=='cash-control-staging')
+    throw Error('Chỉ Admin Firebase TEST được kiểm tra gói nguồn.');
+  const uid=currentAuthUser.uid;
+  const month=pkg.month;
+  status.textContent='Đang kiểm tra Google chỉ đọc · '+pkg.activeProjects+
+    ' dự án có phát sinh / '+pkg.groupedRows+' dòng theo gói nguồn…';
+  const token=await ccGoogleSheetsAccessToken(
+    'https://www.googleapis.com/auth/spreadsheets.readonly',
+    {includeGrantedScopes:false,prompt:''});
+  const report=await scanMonthlyGoogleReadOnly({
+    month,groups:pkg.groups,links:ccSyncProjectLinkDraft,
+    accessToken:token,fetcher:fetch,
+    audit:(rows,options)=>window.CashSyncHistoricalAudit.audit(rows,options),
+    expectedOwner:()=>Boolean(currentAuthUser&&currentAuthUser.uid===uid&&
+      isCashControlOwner()&&firebaseConfig.projectId==='cash-control-staging'),
+    onProgress:(done,total)=>{status.textContent=
+      'TEST đọc Google · '+done+'/'+total+' dự án có nguồn · 0 ghi';}
+  });
+  const table=document.createElement('table');
+  table.style.cssText='width:100%;border-collapse:collapse;font-size:12px';
+  const th=document.createElement('tr');
+  for(const header of ['Dự án','Xuất Excel','Google','Kết quả']){
+    const cell=document.createElement('th');
+    cell.textContent=header;cell.style.cssText='text-align:left;padding:7px;border-bottom:1px solid #cdd8e6';
+    th.append(cell);
+  }
+  table.append(th);
+  const map=new Map(pkg.groups.map(g=>[g.project,g]));
+  for(const item of report.results){
+    const tr=document.createElement('tr');
+    let result=item.result;
+    if(result==='EXACT_HISTORY_ONLY')result='Đã có '+item.exactMatches+' dòng; KHÔNG ghi';
+    else if(result==='NEWER_THAN_HISTORY_CANDIDATE')
+      result=item.exactMatches+' dòng cũ / '+item.newerCandidates+' ứng viên mới; CHƯA ghi';
+    else result='CẦN XEM: '+String(item.reason||item.result);
+    for(const val of [item.project,map.get(item.project)?.groupedExcelRows||0,
+      item.googleReads||0,result]){
+      const cell=document.createElement('td');
+      cell.textContent=String(val);
+      cell.style.cssText='padding:7px;border-bottom:1px solid #ebeff5;vertical-align:top';
+      tr.append(cell);
+    }
+    table.append(tr);
+  }
+  output.replaceChildren(table);output.hidden=false;
+  status.textContent='TEST nguồn gói '+month+' · '+pkg.activeProjects+
+    ' dự án có phát sinh / '+pkg.groupedRows+
+    ' dòng · đã đọc Google '+report.checkedGoogleProjects+
+    ' dự án · '+report.blockedProjects+' dự án cần rà soát/chưa đủ nguồn · '+
+    report.googleReads+' Google reads · 0 Firebase reads · 0 Google writes. '+
+    'Nguồn gói chưa xác thực đầy đủ, chưa được phép đồng bộ.';
+}
+async function ccSyncImportMonthSourceReview(){
+  const input=$('ccSyncMonthSourceFile'),status=$('ccSyncMonthSourceStatus');
+  const file=input?.files?.[0];
+  if(!input||!status||!file)return;
+  if(!currentAuthUser||!isCashControlOwner()||
+     firebaseConfig.projectId!=='cash-control-staging'){
+    status.textContent='Chỉ Admin Firebase TEST được nhập gói nguồn.';return;
+  }
+  const uid=currentAuthUser.uid;
+  input.disabled=true;
+  try{
+    if(file.size<30||file.size>5000000||!file.name.toLowerCase().endsWith('.json'))
+      throw Error('Chỉ nhận một file JSON nguồn tối đa 5MB.');
+    const source=inspectMonthReviewPackage(JSON.parse(await file.text()));
+    if(!currentAuthUser||currentAuthUser.uid!==uid||!isCashControlOwner())
+      throw Error('Phiên Admin thay đổi.');
+    ccSyncImportedMonthReview=source;
+    if($('ccSyncBatchMonth'))$('ccSyncBatchMonth').value=source.month;
+    status.textContent='ĐÃ NẠP BỘ NHỚ 1 GÓI '+source.month+' · '+
+      source.activeProjects+' dự án / '+source.groupedRows+
+      ' dòng Xuất Excel · không lưu Firebase. Đang đối chiếu Google…';
+    await ccSyncScanImportedMonthReview();
+    status.textContent='ĐÃ NẠP GÓI NGUỒN CHỈ ĐỌC '+source.month+
+      ' · '+source.activeProjects+' dự án có dòng. Không cần tải 35 lần.';
+  }catch(e){
+    status.textContent='DỪNG nhập/đọc Google: '+String(e?.message||e).slice(0,180)+
+      ' · không ghi Google/Firebase.';
+  }finally{input.value='';input.disabled=false;}
+}
+
 async function ccSyncBatchAnalyzeInMemory(){
   const button=$('ccSyncBatchAnalyze');
   const status=$('ccSyncBatchStatus');
