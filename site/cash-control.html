@@ -6412,6 +6412,7 @@ async function ccSyncBatchAnalyzeInMemory(){
   
     }
     status.textContent=(isTestPreview?'TEST · RÀ SOÁT BỘ NHỚ · ':'ĐÃ RÀ SOÁT DỮ LIỆU ĐANG TẢI · ')+plan.month+
+      ' · điều chuyển có đủ hai đầu trong dữ liệu đang tải: '+plan.verifiedTransferPairs+' cặp'+
       ' · danh mục '+plan.projects+' dự án ('+plan.linkedProjects+
       ' có link, '+plan.unlinkedProjects+' chưa có link) · '+
       plan.activeProjects+' dự án có dòng trong bộ nhớ ('+plan.activeRows+' dòng) · '+
@@ -6448,10 +6449,12 @@ async function ccSyncBatchAnalyzeInMemory(){
       if(p.invalidAmounts)problems.push(p.invalidAmounts+' số tiền cần xem');
       if(p.invalidDates)problems.push(p.invalidDates+' ngày không hợp lệ');
       if(p.wrongMonthRows)problems.push(p.wrongMonthRows+' dòng khác tháng');
+      if(p.verifiedTransferRows)problems.push(p.verifiedTransferRows+' đầu điều chuyển đã khớp trong bộ nhớ');
       if(p.transferCounterpartsUnverified)problems.push(p.transferCounterpartsUnverified+' điều chuyển chưa đối ứng');
       if(p.unknownImportTax)problems.push(p.unknownImportTax+' thuế FOXCONN chưa rõ');
       const statusText=p.needsReview?problems.join(' · '):
-        'ID và số tiền hợp lệ trong bộ nhớ (chưa xác nhận đủ nguồn)';
+        p.verifiedTransferRows?'Đủ 2 đầu điều chuyển trong bộ nhớ; chưa đối chiếu Google':
+          'ID và số tiền hợp lệ trong bộ nhớ (chưa xác nhận đủ nguồn)';
       const next=p.status==='MISSING_GOOGLE_LINK'?'Nhập link trước khi đối chiếu':
         p.status==='SOURCE_REVIEW_REQUIRED'?'Rà soát trường nguồn':
         'Ứng viên đối chiếu Google · chưa ghi';
