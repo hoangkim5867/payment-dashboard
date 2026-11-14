@@ -87,7 +87,7 @@ test('isolated Preview cannot show false zero-transaction conclusion',()=>{
  assert.match(code,/paymentMonths\.size/);
  assert.match(code,/plan\.linkedProjects/);
  assert.match(code,/plan\.unlinkedProjects/);
- assert.match(html,/btn\.disabled=false;\s*btn\.textContent='Kiểm tra dữ liệu TEST đang tải · chỉ đọc'/);
+ assert.match(html,/btn\.disabled=false;\s*btn\.textContent='Đối chiếu Google · chỉ đọc'/);
  assert.ok(code.indexOf("firebaseConfig.projectId!=='cscecmep-payment'")<
    code.indexOf('buildBatchReadiness('));
 });
@@ -173,7 +173,9 @@ test('source bridge requires explicit Admin and one scoped actual month query, n
  assert.doesNotMatch(exporter,/loadProjectPayments\(|setDoc\(|addDoc\(|writeBatch\(|updateDoc\(/);
  assert.match(importer,/inspectMonthReviewPackage\(/);
  assert.match(scanner,/scanMonthlyGoogleReadOnly\(/);
- assert.match(importer,/ccSyncScanImportedMonthReview\(/);
+ assert.doesNotMatch(importer,/ccSyncScanImportedMonthReview\(/);
+ assert.match(html.slice(c),/await ccSyncScanImportedMonthReview\(/);
+ assert.match(importer,/buildLegacyExcelReviewPackage\(/);
  assert.match(scanner,/spreadsheets\.readonly/);
  assert.match(importer,/isCashControlOwner\(\)/);
  assert.doesNotMatch(importer,/setDoc\(|addDoc\(|writeBatch\(|updateDoc\(/);

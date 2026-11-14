@@ -1428,8 +1428,8 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           </div>
           <div id="ccSyncMonthSourceBridge" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:9px 0 4px">
             <button id="ccSyncMonthSourceExport" class="btn" type="button" hidden>Xuất 1 gói nguồn tháng từ Cash Control chính</button>
-            <button id="ccSyncMonthSourceImport" class="btn" type="button" hidden>Nhập 1 gói nguồn tháng để kiểm tra Google TEST</button>
-            <input id="ccSyncMonthSourceFile" type="file" accept=".json,application/json" hidden>
+            <button id="ccSyncMonthSourceImport" class="btn" type="button" hidden>Nạp Excel hoặc JSON tháng</button>
+            <input id="ccSyncMonthSourceFile" type="file" accept=".json,.xlsx,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
             <span id="ccSyncMonthSourceStatus" role="status" style="font-size:12px;color:#4d6076">TEST không tự có dữ liệu production; không được xem 0 dòng là không phát sinh.</span>
           </div>
           <p id="ccSyncBatchStatus" role="status" style="margin:9px 0 0;font-size:12px;color:#44546b">Chưa rà soát dữ liệu đang có trên trang.</p>
@@ -2043,7 +2043,7 @@ import {bonusTaxQuarterFromPaymentDate,bonusTaxDueMonth,buildLinkedBonusTaxRecor
 import {buildBatchReadiness} from "./assets/js/cash-sync-batch-readiness.mjs";
 import {buildMonthlyExportManifest} from "./assets/js/cash-sync-monthly-export-manifest.mjs";
 import {scanMonthlyGoogleReadOnly} from "./assets/js/cash-sync-monthly-google-readonly.mjs";
-import {buildMonthReviewPackage,inspectMonthReviewPackage} from "./assets/js/cash-sync-month-review-package.mjs";
+import {buildLegacyExcelReviewPackage,buildMonthReviewPackage,inspectMonthReviewPackage} from "./assets/js/cash-sync-month-review-package.mjs";
 import {assessProjectSourceCoverage} from "./assets/js/cash-sync-project-source-coverage.mjs";
 const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
 const app=initializeApp(firebaseConfig),db=getFirestore(app),auth=getAuth(app),paymentsRef=collection(db,"payments");
@@ -6460,7 +6460,7 @@ async function ccSyncScanImportedMonthReview(){
   const table=document.createElement('table');
   table.style.cssText='width:100%;border-collapse:collapse;font-size:12px';
   const th=document.createElement('tr');
-  for(const header of ['Dự án','Xuất Excel','Google','Kết quả']){
+  for(const header of ['Dự án','Dòng Excel','Đã có','Mới dự kiến','Cũ chưa khớp','Trùng','Chỉ Google','Điều chuyển thiếu đối ứng','Kết quả']){
     const cell=document.createElement('th');
     cell.textContent=header;cell.style.cssText='text-align:left;padding:7px;border-bottom:1px solid #cdd8e6';
     th.append(cell);
@@ -6469,13 +6469,16 @@ async function ccSyncScanImportedMonthReview(){
   const map=new Map(pkg.groups.map(g=>[g.project,g]));
   for(const item of report.results){
     const tr=document.createElement('tr');
-    let result=item.result;
-    if(result==='EXACT_HISTORY_ONLY')result='Đã có '+item.exactMatches+' dòng; KHÔNG ghi';
-    else if(result==='NEWER_THAN_HISTORY_CANDIDATE')
-      result=item.exactMatches+' dòng cũ / '+item.newerCandidates+' ứng viên mới; CHƯA ghi';
-    else result='CẦN XEM: '+String(item.reason||item.result);
-    for(const val of [item.project,map.get(item.project)?.groupedExcelRows||0,
-      item.googleReads||0,result]){
+    const group=map.get(item.project);
+    const labels={EXACT_HISTORY_ONLY:'Khớp lịch sử',
+      NEWER_THAN_HISTORY_CANDIDATE:'Có ứng viên mới',
+      REVIEW_REQUIRED:'Cần kiểm tra lịch sử',
+      GOOGLE_LINK_MISSING:'Thiếu link Google',SOURCE_NOT_READY:'Thiếu bằng chứng nguồn'};
+    const result=labels[item.reason]||labels[item.result]||item.reason||item.result;
+    for(const val of [item.project,group?.groupedExcelRows||0,
+      item.exactMatches??'—',item.newerCandidates??'—',
+      item.unmatchedBeforeHistoryEnd??'—',item.duplicateHistory??'—',
+      item.historyUnmatched??'—',group?.unresolvedTransferLegs??'—',result]){
       const cell=document.createElement('td');
       cell.textContent=String(val);
       cell.style.cssText='padding:7px;border-bottom:1px solid #ebeff5;vertical-align:top';
@@ -6489,7 +6492,7 @@ async function ccSyncScanImportedMonthReview(){
     ' dòng · đã đọc Google '+report.checkedGoogleProjects+
     ' dự án · '+report.blockedProjects+' dự án cần rà soát/chưa đủ nguồn · '+
     report.googleReads+' Google reads · 0 Firebase reads · 0 Google writes. '+
-    'Nguồn gói chưa xác thực đầy đủ, chưa được phép đồng bộ.';
+    'Nguồn chỉ dùng để đối chiếu lịch sử. Chưa được phép ghi.';
 }
 async function ccSyncImportMonthSourceReview(){
   const input=$('ccSyncMonthSourceFile'),status=$('ccSyncMonthSourceStatus');
@@ -6502,19 +6505,27 @@ async function ccSyncImportMonthSourceReview(){
   const uid=currentAuthUser.uid;
   input.disabled=true;
   try{
-    if(file.size<30||file.size>5000000||!file.name.toLowerCase().endsWith('.json'))
-      throw Error('Chỉ nhận một file JSON nguồn tối đa 5MB.');
-    const source=inspectMonthReviewPackage(JSON.parse(await file.text()));
+    const name=file.name.toLowerCase();
+    if(file.size<30||file.size>5000000||!/\.(json|xlsx)$/.test(name))
+      throw Error('Chọn một file Excel hoặc JSON nguồn tối đa 5 MB.');
+    let packageData;
+    if(name.endsWith('.xlsx')){
+      if(!window.XLSX)throw Error('Không tải được bộ đọc Excel.');
+      const book=XLSX.read(await file.arrayBuffer(),{type:'array',sheetRows:10006});
+      const sheets=book.SheetNames.map(name=>XLSX.utils.sheet_to_json(
+        book.Sheets[name],{header:1,defval:null,raw:true,blankrows:true}));
+      packageData=buildLegacyExcelReviewPackage(sheets,$('ccSyncBatchMonth')?.value,
+        ccSyncProjectCatalogNames());
+    }else packageData=JSON.parse(await file.text());
+    const source=inspectMonthReviewPackage(packageData);
     if(!currentAuthUser||currentAuthUser.uid!==uid||!isCashControlOwner())
       throw Error('Phiên Admin thay đổi.');
     ccSyncImportedMonthReview=source;
     if($('ccSyncBatchMonth'))$('ccSyncBatchMonth').value=source.month;
-    status.textContent='ĐÃ NẠP BỘ NHỚ 1 GÓI '+source.month+' · '+
-      source.activeProjects+' dự án / '+source.groupedRows+
-      ' dòng Xuất Excel · không lưu Firebase. Đang đối chiếu Google…';
-    await ccSyncScanImportedMonthReview();
-    status.textContent='ĐÃ NẠP GÓI NGUỒN CHỈ ĐỌC '+source.month+
-      ' · '+source.activeProjects+' dự án có dòng. Không cần tải 35 lần.';
+    $('ccSyncBatchResults').hidden=true;
+    $('ccSyncBatchAnalyze').textContent='Đối chiếu Google · chỉ đọc';
+    status.textContent='Đã nạp '+source.month+' · '+source.activeProjects+' dự án / '+
+      source.groupedRows+' dòng sau gộp. Bấm Đối chiếu Google để cấp quyền chỉ đọc.';
   }catch(e){
     status.textContent='DỪNG nhập/đọc Google: '+String(e?.message||e).slice(0,180)+
       ' · không ghi Google/Firebase.';
@@ -6534,6 +6545,12 @@ async function ccSyncBatchAnalyzeInMemory(){
   // TEST is isolated from production. Inspect only currently loaded
   // Cash Control export-equivalent rows: no Firestore/Google network calls.
   const isTestPreview=firebaseConfig.projectId==='cash-control-staging';
+  if(isTestPreview&&ccSyncImportedMonthReview&&ccSyncImportedMonthReview.month!==month){
+    output.hidden=true;
+    status.textContent='File đã nạp thuộc tháng '+ccSyncImportedMonthReview.month+
+      '. Chọn lại tháng đó hoặc nạp file cho tháng đang chọn.';
+    return;
+  }
   if(isTestPreview&&ccSyncImportedMonthReview&&
      ccSyncImportedMonthReview.month===month){
     button.disabled=true;
@@ -6874,12 +6891,11 @@ function ccSyncProjectCatalogInitialize(){
     const btn=$('ccSyncBatchAnalyze');
     if(btn){
       btn.disabled=false;
-      btn.textContent='Kiểm tra dữ liệu TEST đang tải · chỉ đọc';
-      btn.title='Chỉ dữ liệu đã có trong bộ nhớ Firebase Staging; không đọc Payment production, không kết luận dự án chưa phát sinh';
+      btn.textContent='Đối chiếu Google · chỉ đọc';
+      btn.title='Đối chiếu lịch sử Google với file đã nạp cho tháng đang chọn';
     }
     const info=$('ccSyncBatchStatus');
-    if(info)info.textContent='TEST CHỈ ĐỌC: Nút kiểm tra tháng chỉ đối chiếu giao dịch có trong bộ nhớ Staging. '+
-      'Dự án chưa có Payment thật không được kết luận là không phát sinh. Không ghi Google.';
+    if(info)info.textContent='Chọn tháng, nạp Excel dòng tiền cũ (中文, một tháng, mỗi tháng một sheet) hoặc JSON nguồn, rồi bấm đối chiếu Google.';
   }
 
   const foxconnTestProbe=$('ccSyncFoxconnTestProbeArea');

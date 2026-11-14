@@ -46,7 +46,7 @@ export function parseLedgerLink(link){
  if(!Number.isSafeInteger(number)||number<0)throw Error('GOOGLE_GID_INVALID');
  return Object.freeze({spreadsheetId:id,gid:number});
 }
-export function compareHistoryToExport({project,month,records,history,audit}){
+export function compareHistoryToExport({project,month,records,history,audit,excelOnly=false}){
  if(!validMonth(month)||!project||!Array.isArray(records)||
    records.length>10000||!Array.isArray(history)||history.length>20000||
    typeof audit!=='function')throw Error('INVALID_READONLY_COMPARISON');
@@ -66,6 +66,8 @@ export function compareHistoryToExport({project,month,records,history,audit}){
    if(values.slice(6).some(x=>!Number.isFinite(x))){
      invalidHistoryRows++;continue;
    }
+   // The original Excel places FOXCONN import tax inside other direct costs.
+   if(excelOnly&&project==='FOXCONN'){values[9]+=values[13];values[13]=0;}
    const sig=signature(values);
    signatures.set(sig,(signatures.get(sig)||0)+1);
  }
@@ -135,6 +137,11 @@ export async function scanMonthlyGoogleReadOnly({
        reason:group.state,googleReads:0,googleWrites:0,canWrite:false});
      onProgress?.(results.length,active.length,results.at(-1));continue;
    }
+   if(!links[group.project]){
+     results.push({project:group.project,result:'GOOGLE_REVIEW_REQUIRED',
+       reason:'GOOGLE_LINK_MISSING',googleReads:0,googleWrites:0,canWrite:false});
+     onProgress?.(results.length,active.length,results.at(-1));continue;
+   }
    let reads=0;
    try{
      const {spreadsheetId,gid}=parseLedgerLink(links[group.project]);
@@ -162,7 +169,7 @@ export async function scanMonthlyGoogleReadOnly({
      const raw=await get('/values/'+encodeURIComponent(quoted+'!A1:O20000')+
        '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER');
      const compared=compareHistoryToExport({
-       project:group.project,month,records:group.records,history:raw.values||[],audit
+       project:group.project,month,records:group.records,history:raw.values||[],audit,excelOnly:group.excelOnly===true
      });
      results.push({...compared,googleReads:reads});
    }catch(err){

@@ -64,3 +64,26 @@ test('missing source IDs or changed month are stopped before any Google access',
    manifest:manifest([g2]),actualMonthLoaded:true,monthQueryCount:1,revision:1}),
    /INVALID_SOURCE_ROW_OR_ID/);
 });
+
+test('legacy Excel preserves grouped values, verifies balances, and cannot authorize writes',async()=>{
+ const {buildLegacyExcelReviewPackage}=await import('../site/assets/js/cash-sync-month-review-package.mjs');
+ const headers=['日期','公司名称','合同编号','合同内容','IPC','类型','收入','分包款','材料款','其他直接费用','间接费','财务费用','其他应付款','余额'];
+ const sheet=(project,type,amount)=>[
+   [project+'项目现金流'],['数据期间：2026-10'],[],headers,
+   [null,'期初余额',...Array(11).fill(null),1000],
+   ['2026-10-26','内部调剂','','A归还B借款','',type,amount,0,0,0,0,0,0,1000+amount]
+ ];
+ const sheets=[sheet('A','还款',-100),sheet('B','收回借款',100)];
+ const pack=buildLegacyExcelReviewPackage(sheets,'2026-10',['A','B']);
+ const parsed=inspectMonthReviewPackage(pack);
+ assert.equal(parsed.groupedRows,2);
+ assert.equal(parsed.groups[0].pairedTransferLegs,1);
+ assert.equal(parsed.groups[0].unresolvedTransferLegs,0);
+ assert.equal(parsed.groups[0].state,'HISTORY_COMPARISON_CANDIDATE');
+ assert.equal(parsed.canWrite,false);
+ assert.equal(inspectMonthReviewPackage({...pack,projects:pack.projects.slice(0,1)})
+   .groups[0].unresolvedTransferLegs,1);
+ assert.throws(()=>inspectMonthReviewPackage({...pack,canWrite:true}),/REVIEW_INVALID/);
+ sheets[0][5][13]++;
+ assert.throws(()=>buildLegacyExcelReviewPackage(sheets,'2026-10',['A','B']),/BALANCE_MISMATCH/);
+});

@@ -106,3 +106,13 @@ test('historic audit requiring inspection cannot be promoted to ready',()=>{
  assert.equal(x.result,'REVIEW_REQUIRED');
  assert.equal(x.canWrite,false);
 });
+
+test('FOXCONN Excel comparison folds import VAT into other direct only for workbook evidence',()=>{
+ const values=[date,'Vendor','','Invoice','','Tax',0,0,0,125,0,0,0,0];
+ const google=[date,'Vendor','','Invoice','','Tax',0,0,0,25,0,0,0,100,875];
+ const args={project:'FOXCONN',month:'2026-10',
+   records:[{id:'excel-row:6',project:'FOXCONN',month:'2026-10',values}],
+   history:[google],audit};
+ assert.equal(compareHistoryToExport(args).exactMatches,0);
+ assert.equal(compareHistoryToExport({...args,excelOnly:true}).exactMatches,1);
+});

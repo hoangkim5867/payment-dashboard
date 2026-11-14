@@ -64,6 +64,7 @@ export function buildMonthReviewPackage({month,manifest,actualMonthLoaded,
  };
 }
 export function inspectMonthReviewPackage(data){
+ if(data?.schema===EXCEL_SCHEMA)return inspectLegacyExcelReviewPackage(data);
  if(!data||typeof data!=='object'||Array.isArray(data)||
    data.schema!==SCHEMA||!monthValid(data.month)||
    data.sourceAuthenticated!==false||data.sourceComplete!==false||
@@ -121,4 +122,98 @@ export function inspectMonthReviewPackage(data){
    sourceAuthenticated:false,sourceComplete:false,canWrite:false,
    groups:Object.freeze(groups)
  });
+}
+
+const EXCEL_SCHEMA='CASH_SYNC_LEGACY_EXCEL_REVIEW_V1';
+const EXCEL_TYPES=new Map([
+ ['借出','loan'],['借入','loan'],['还款','repayment'],['收回借款','repayment'],
+ ['内部转出','transfer'],['内部转入','transfer']
+]);
+
+// The original Chinese monthly ledger preserves grouped rows and balances.
+export function buildLegacyExcelReviewPackage(sheets,month,projects){
+ if(!monthValid(month)||!Array.isArray(sheets)||!sheets.length||sheets.length>35||
+    !Array.isArray(projects))throw Error('LEGACY_EXCEL_MONTH_INVALID');
+ const expectedHeaders=['日期','公司名称','合同编号','合同内容','IPC','类型',
+   '收入','分包款','材料款','其他直接费用','间接费','财务费用','其他应付款','余额'];
+ const names=new Set();
+ const groups=sheets.map(grid=>{
+   const title=String(grid[0]?.[0]??'');
+   const project=title.endsWith('项目现金流')?title.slice(0,-'项目现金流'.length):'';
+   if(!projects.includes(project)||names.has(project)||
+      grid[1]?.[0]!=='数据期间：'+month||
+      expectedHeaders.some((header,i)=>grid[3]?.[i]!==header)||
+      grid[4]?.[1]!=='期初余额'||!Number.isFinite(grid[4]?.[13])||
+      grid.length<6||grid.length>10005)throw Error('LEGACY_EXCEL_LAYOUT_INVALID');
+   names.add(project);
+   let balance=grid[4][13];
+   const records=grid.slice(5).map((row,i)=>{
+     const day=row[0];
+     const stamp=new Date(day+'T00:00:00Z');
+     const amounts=Array.from({length:7},(_,j)=>row[j+6]===''||row[j+6]===null||
+       row[j+6]===undefined?0:row[j+6]);
+     if(typeof day!=='string'||!day.startsWith(month+'-')||
+        !Number.isFinite(stamp.valueOf())||stamp.toISOString().slice(0,10)!==day||
+        row.slice(14).some(x=>x!=null&&x!=='')||
+        amounts.some((x,j)=>!Number.isFinite(x)||(j>0&&x<0)))
+       throw Error('LEGACY_EXCEL_ROW_INVALID');
+     balance+=amounts[0]-amounts.slice(1).reduce((a,b)=>a+b,0);
+     if(!Number.isFinite(row[13])||Math.abs(row[13]-balance)>0.001)
+       throw Error('LEGACY_EXCEL_BALANCE_MISMATCH');
+     const values=[day,...Array.from({length:5},(_,j)=>String(row[j+1]??'')),...amounts];
+     const sourceClass=values[1]==='内部调剂'&&EXCEL_TYPES.has(values[5])?'TRANSFER':'UNKNOWN';
+     if(project==='FOXCONN')values.push(0);
+     return {id:'excel-row:'+(i+6),project,month,sourceClass,values};
+   });
+   if(project==='FOXCONN'&&month==='2026-10'&&records.length!==19)
+     throw Error('FOXCONN_EXCEL_ROW_COUNT_MISMATCH');
+   return {project,groupedExcelRows:records.length,records};
+ });
+ return {schema:EXCEL_SCHEMA,month,projects:groups,
+   sourceAuthenticated:false,sourceComplete:false,canWrite:false};
+}
+
+function inspectLegacyExcelReviewPackage(data){
+ if(!monthValid(data.month)||data.sourceAuthenticated!==false||
+    data.sourceComplete!==false||data.canWrite!==false||
+    !Array.isArray(data.projects)||!data.projects.length||data.projects.length>35)
+   throw Error('LEGACY_EXCEL_REVIEW_INVALID');
+ const projects=new Set(), transfers=new Map();
+ const groups=data.projects.map(g=>{
+   if(typeof g?.project!=='string'||!text(g.project)||g.project.length>180||
+      projects.has(g.project)||!Array.isArray(g.records)||
+      g.groupedExcelRows!==g.records.length||!g.records.length||g.records.length>10000)
+     throw Error('LEGACY_EXCEL_REVIEW_PROJECT_INVALID');
+   projects.add(g.project);
+   const records=g.records.map((row,i)=>{
+     if(!validRecord(row,g.project,data.month)||row.id!=='excel-row:'+(i+6)||
+        !['TRANSFER','UNKNOWN'].includes(row.sourceClass))
+       throw Error('LEGACY_EXCEL_REVIEW_ROW_INVALID');
+     if(row.sourceClass==='TRANSFER'){
+       const [day,company,,description,,type,income,...costs]=row.values;
+       const kind=EXCEL_TYPES.get(type);
+       if(company!=='内部调剂'||!kind||!description||!income||
+          costs.some(x=>x!==0))throw Error('LEGACY_EXCEL_TRANSFER_INVALID');
+       const key=JSON.stringify([day,description,kind,Math.abs(income)]);
+       const legs=transfers.get(key)||[];
+       legs.push({project:g.project,income});
+       transfers.set(key,legs);
+     }
+     return Object.freeze({...row,values:Object.freeze(row.values.slice())});
+   });
+   return {project:g.project,month:data.month,groupedExcelRows:records.length,
+     records:Object.freeze(records),state:'HISTORY_COMPARISON_CANDIDATE',
+     excelOnly:true,pairedTransferLegs:0,unresolvedTransferLegs:0,canWrite:false};
+ });
+ const byProject=new Map(groups.map(g=>[g.project,g]));
+ for(const legs of transfers.values()){
+   const paired=legs.length===2&&legs[0].project!==legs[1].project&&
+     legs[0].income===-legs[1].income;
+   for(const leg of legs)byProject.get(leg.project)[paired?'pairedTransferLegs':'unresolvedTransferLegs']++;
+ }
+ const groupedRows=groups.reduce((sum,g)=>sum+g.groupedExcelRows,0);
+ if(groupedRows>20000)throw Error('LEGACY_EXCEL_REVIEW_LIMIT');
+ return Object.freeze({month:data.month,activeProjects:groups.length,groupedRows,
+   sourceAuthenticated:false,sourceComplete:false,canWrite:false,
+   groups:Object.freeze(groups.map(Object.freeze))});
 }
