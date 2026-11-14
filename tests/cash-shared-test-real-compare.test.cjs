@@ -147,3 +147,24 @@ test('unverified transfer, unknown type and incomplete Payment do not inflate ca
  assert.equal(out.googleWrites,0);
  assert.equal(out.canWrite,false);
 });
+
+test('Excel personnel rollup and Payment identity match across display languages',()=>{
+ const raw=history();
+ const personnel=['2026-11-01','','','历史工资','','职工薪酬',0,0,0,0,71,0,0,0];
+ for(let i=1;i<3;i++)raw[i][14]=closing+71;
+ raw[3]=[...personnel,closing];
+ const pay=[...raw[2].slice(0,14)];
+ pay[3]='Nội dung Excel';
+ pay[5]='Chi phí vật tư';
+ const tax=[...personnel];
+ tax[3]='Thuế TNCN · Quý 3/2026';
+ tax[5]='Chi phí nhân sự';
+ const payment=rec(91,pay,'PAYMENT');
+ const payroll=rec(92,tax,'PAYROLL');
+ const report=compareSourceToHistory(sourceValid([payment,payroll]),raw,'2026-11');
+ assert.equal(report.exactHistoryMatched,2);
+ assert.equal(report.canWrite,false);
+ const duplicate=compareSourceToHistory(sourceValid([payment,payroll,rec(93,tax,'PAYROLL')]),raw,'2026-11');
+ assert.equal(duplicate.exactHistoryMatched,1);
+ assert.equal(duplicate.ambiguousMatches,2);
+});

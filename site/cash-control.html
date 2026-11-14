@@ -6127,7 +6127,10 @@ async function ccSyncExportSourceForTest(){
         if(expense.source==='payroll'||expense.linkedModule==='payroll')return 'PAYROLL';
         return 'CASH';
       });
-      const sourceClass=new Set(kinds).size===1?kinds[0]:'MIXED';
+      const groupedPayrollTax=row._taxQuarter&&
+        kinds.every(kind=>kind==='CASH'||kind==='PAYROLL');
+      const sourceClass=groupedPayrollTax?'PAYROLL':
+        new Set(kinds).size===1?kinds[0]:'MIXED';
       const values=ccGoogleSyncPayloadCells([...ccGoogleSyncRowValues(row),row.importTaxVat]);
       source.push({id,project,month,values,sourceClass,
         hash:await ccGoogleSyncSha(values)});

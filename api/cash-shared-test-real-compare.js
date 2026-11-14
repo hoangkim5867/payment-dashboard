@@ -35,22 +35,45 @@ function validateSource({project,month,source}={}){
  }
  return normalized;
 }
+const normalizedText=value=>String(value??'').normalize('NFKC').trim().replace(/\s+/g,' ').toUpperCase();
+const payrollCostLabel=value=>/^(?:职工薪酬|職工薪酬|CHI PHÍ NHÂN SỰ|PERSONNEL COSTS?)$/.test(normalizedText(value));
+function paymentKey(v){
+ const contract=normalizedText(v[2]),ipc=normalizedText(v[4]).replace(/^IPC\s+(?=IPC)/,'');
+ return contract&&ipc?JSON.stringify([v[0],contract,ipc,...v.slice(6)]):null;
+}
+function personnelKey(v){
+ return payrollCostLabel(v[5])&&!v[2].trim()&&!v[4].trim()&&
+   v[10]>0&&v.slice(6).every((amount,i)=>i===4||amount===0)
+   ?JSON.stringify([v[0],v[10]]):null;
+}
 function compareSourceToHistory(source,raw,month){
  const history=auditHistory(raw,{foxconn:true});
  if(history.entries.length!==HISTORY_COUNT||
     Math.abs(history.closingBalance-HISTORY_BALANCE)>0.000001)
    stop('FOXCONN_TEST_HISTORY_BASELINE_CHANGED');
- const index=new Map();
+ const exact=new Map(),payments=new Map(),personnel=new Map();
+ const add=(index,key,row)=>{
+   if(key!==null)index.set(key,[...(index.get(key)||[]),row]);
+ };
  for(const row of history.entries){
-   const sign=idSignature(row.values);
-   if(!index.has(sign))index.set(sign,[]);
-   index.get(sign).push(row.sheetRow);
+   add(exact,idSignature(row.values),row.sheetRow);
+   add(payments,paymentKey(row.values),row.sheetRow);
+   add(personnel,personnelKey(row.values),row.sheetRow);
  }
+ const candidates=source.map(r=>{
+   if(r.sourceClass==='PAYMENT')return payments.get(paymentKey(r.values))||[];
+   const strict=exact.get(idSignature(r.values))||[];
+   if(strict.length||!['CASH','PAYROLL'].includes(r.sourceClass))return strict;
+   return personnel.get(personnelKey(r.values))||[];
+ });
+ const claims=new Map();
+ for(const matches of candidates)
+   for(const sheetRow of matches)claims.set(sheetRow,(claims.get(sheetRow)||0)+1);
  const issues=[],entries=[];
  let historic=0,newAfter=0,ambiguous=0,olderMissing=0,
    identityMissing=0,counterpartReview=0,sourceKindReview=0;
  for(let i=0;i<source.length;i++){
-   const r=source[i],matching=index.get(idSignature(r.values))||[];
+   const r=source[i],matching=candidates[i];
    // Classify source semantics BEFORE counting eligible historical matches
    // or newer candidates. A transfer, unclear kind or Payment lacking HĐ/IPC
    // must never inflate "new" or "matched" figures just because date/amount fits.
@@ -63,7 +86,7 @@ function compareSourceToHistory(source,raw,month){
      status='TRANSFER_COUNTERPART_UNVERIFIED';counterpartReview++;
    }else if(r.sourceClass==='MIXED'||r.sourceClass==='UNKNOWN'){
      status='SOURCE_KIND_UNVERIFIED';sourceKindReview++;
-   }else if(matching.length>1){status='AMBIGUOUS_HISTORY';ambiguous++;}
+   }else if(matching.length>1||(matching.length===1&&claims.get(matching[0])>1)){status='AMBIGUOUS_HISTORY';ambiguous++;}
    else if(matching.length===1){status='EXACT_HISTORY_MATCH';historic++;}
    else if(r.values[0]<=history.maxDate){
      status='UNMATCHED_BEFORE_LAST_HISTORY_DATE';olderMissing++;
