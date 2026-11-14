@@ -43,7 +43,10 @@ test('signed cash transfer stays a valid signed receipt, not a missing ID',()=>{
   rowsByProject:{A:[row('transfer:one:out',{income:-100,material:0})]}});
  assert.equal(r.rows[0].transferRows,1);
  assert.equal(r.rows[0].income,-100);
- assert.equal(r.rows[0].status,'GOOGLE_COMPARISON_CANDIDATE');
+ assert.equal(r.rows[0].transferCounterpartsUnverified,1);
+ assert.equal(r.rows[0].status,'SOURCE_REVIEW_REQUIRED');
+ assert.equal(r.candidateProjects,0);
+ assert.equal(r.canWrite,false);
 });
 test('invalid or duplicated projects and dates fail safe',()=>{
  assert.throws(()=>buildBatchReadiness({month:'2026-09',projects:['A']}),/INVALID_SYNC_MONTH/);
