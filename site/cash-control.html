@@ -2036,6 +2036,7 @@ import {
 import {bonusTaxQuarterFromPaymentDate,bonusTaxDueMonth,buildLinkedBonusTaxRecord,buildLinkedSalaryTaxRecord} from "./assets/js/payroll-bonus-tax.mjs";
 import {buildBatchReadiness} from "./assets/js/cash-sync-batch-readiness.mjs";
 import {buildMonthlyExportManifest} from "./assets/js/cash-sync-monthly-export-manifest.mjs";
+import {scanMonthlyGoogleReadOnly} from "./assets/js/cash-sync-monthly-google-readonly.mjs";
 import {assessProjectSourceCoverage} from "./assets/js/cash-sync-project-source-coverage.mjs";
 const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
 const app=initializeApp(firebaseConfig),db=getFirestore(app),auth=getAuth(app),paymentsRef=collection(db,"payments");
@@ -6438,6 +6439,45 @@ async function ccSyncBatchAnalyzeInMemory(){
         ' (1 yêu cầu đọc tài liệu riêng; không tải hồ sơ Payment)';
   
     }
+    // Only active, complete-in-current-memory candidates are offered to
+    // Google; source issues and unpaired transfers are excluded individually.
+    // This is a read-only Google Sheets audit, NOT an authorization to sync.
+    let googleScan=null,googleMessage='Chưa cần đọc Google';
+    const sourceState=new Map(plan.rows.map(row=>[row.project,row]));
+    const inspectGroups=manifest.groups.map(group=>{
+      const ready=sourceState.get(group.project);
+      return ready?.needsReview?{...group,state:'SOURCE_REVIEW_REQUIRED'}:group;
+    });
+    const eligibleCount=inspectGroups.filter(group=>
+      group.groupedExcelRows>0&&group.state==='HISTORY_COMPARISON_CANDIDATE').length;
+    if(eligibleCount){
+      status.textContent='Đang đọc lịch sử Google · '+eligibleCount+
+        ' dự án có dữ liệu đủ điều kiện kiểm tra · chỉ đọc, 0 ghi…';
+      try{
+        // Request only readonly OAuth scope, even if a broader Google token
+        // was previously connected for the separate PHU HUNG pilot.
+        const token=await ccGoogleSheetsAccessToken(
+          'https://www.googleapis.com/auth/spreadsheets.readonly',
+          {includeGrantedScopes:false,prompt:''});
+        const adminUid=currentAuthUser.uid;
+        googleScan=await scanMonthlyGoogleReadOnly({
+          month,groups:inspectGroups,links:ccSyncProjectLinkDraft,
+          accessToken:token,fetcher:fetch,
+          audit:(rows,options)=>CashSyncHistoricalAudit.audit(rows,options),
+          expectedOwner:()=>Boolean(currentAuthUser&&currentAuthUser.uid===adminUid&&
+            isCashControlOwner()&&
+            firebaseConfig.projectId===(isTestPreview?'cash-control-staging':'cscecmep-payment')),
+          onProgress:(done,total)=>{status.textContent=
+            'Đọc Google chỉ-đọc: '+done+'/'+total+' dự án có phát sinh · 0 ghi';}
+        });
+        googleMessage='Đã đọc Google '+googleScan.checkedGoogleProjects+'/'+
+          googleScan.activeProjects+' dự án có dòng · '+googleScan.googleReads+
+          ' Google reads · 0 Google writes';
+      }catch(error){
+        googleMessage='Chưa đọc được Google: '+String(error?.message||error).slice(0,100)+
+          ' · Không ghi; dữ liệu Cash Control vẫn được giữ nguyên';
+      }
+    }
     status.textContent=(isTestPreview?'TEST · RÀ SOÁT BỘ NHỚ · ':'ĐÃ RÀ SOÁT DỮ LIỆU ĐANG TẢI · ')+plan.month+
       ' · điều chuyển có đủ hai đầu trong dữ liệu đang tải: '+plan.verifiedTransferPairs+' cặp'+
       ' · Xuất Excel đang tải '+manifest.groupedRows+' dòng / '+
@@ -6451,7 +6491,7 @@ async function ccSyncBatchAnalyzeInMemory(){
       plan.sourceReviewProjects+' dự án cần rà soát ID/số tiền. '+
       (isTestPreview?'Payment TEST có trong bộ nhớ: ':'Payment đã tải toàn dự án: ')+paymentMonths.size+'/'+plan.projects+
       '. Chưa xác minh đủ nguồn; KHÔNG kết luận các dự án còn lại không phát sinh. '+
-      sourceMetadata+' · 0 Google reads/writes · CHƯA cấp phép ghi.';
+      sourceMetadata+' · '+googleMessage+' · CHƯA cấp phép ghi.';
     const active=plan.rows.filter(p=>p.transactions>0);
     if(!active.length){
       const empty=document.createElement('p');
@@ -6463,7 +6503,7 @@ async function ccSyncBatchAnalyzeInMemory(){
     const table=document.createElement('table');
     table.style.cssText='width:100%;border-collapse:collapse;font-size:12px';
     const head=document.createElement('thead'),trh=document.createElement('tr');
-    for(const label of ['Dự án','Dòng','Link Google','Nguồn Xuất Excel','Dữ liệu nguồn','Bước tiếp theo']){
+    for(const label of ['Dự án','Dòng','Link Google','Nguồn Xuất Excel','Dữ liệu nguồn','Đối chiếu Google','Bước tiếp theo']){
       const th=document.createElement('th');
       th.textContent=label;
       th.style.cssText='border-bottom:1px solid #dbe4ef;text-align:left;padding:7px 6px';
@@ -6472,6 +6512,7 @@ async function ccSyncBatchAnalyzeInMemory(){
     head.append(trh);table.append(head);
     const tbody=document.createElement('tbody');
     const sourceByProject=new Map(manifest.groups.map(g=>[g.project,g]));
+    const googleByProject=new Map((googleScan?.results||[]).map(g=>[g.project,g]));
     for(const p of active){
       const tr=document.createElement('tr');
       const source=sourceByProject.get(p.project);
@@ -6497,8 +6538,20 @@ async function ccSyncBatchAnalyzeInMemory(){
         'Chưa có cache Payment đầy đủ trong phiên':
         source?.state==='MISSING_GOOGLE_LINK'?'Chưa có link Google':
         'Có dòng cần rà soát · KHÔNG ghi';
+      const verifiedGoogle=googleByProject.get(p.project);
+      const googleStatus=!verifiedGoogle?
+        (source?.state==='HISTORY_COMPARISON_CANDIDATE'?
+          'Chưa đọc được Google · chỉ đọc':'Chặn do nguồn chưa đủ'):
+        verifiedGoogle.googleCompared?
+          (verifiedGoogle.result==='EXACT_HISTORY_ONLY'?'Khớp lịch sử '+
+            verifiedGoogle.exactMatches+' dòng · không ghi':
+           verifiedGoogle.result==='NEWER_THAN_HISTORY_CANDIDATE'?
+            verifiedGoogle.exactMatches+' đã có / '+verifiedGoogle.newerCandidates+
+            ' ứng viên mới · chưa ghi':
+            'Cần rà soát lịch sử · '+verifiedGoogle.result):
+          'Bị chặn: '+String(verifiedGoogle.reason||verifiedGoogle.result);
       for(const textValue of [p.project,String(p.transactions),
-        p.hasLink?'Đã lưu nháp':'Chưa có',sourceStatus,statusText,next]){
+        p.hasLink?'Đã lưu nháp':'Chưa có',sourceStatus,statusText,googleStatus,next]){
         const td=document.createElement('td');
         td.textContent=textValue;
         td.style.cssText='padding:7px 6px;border-bottom:1px solid #ebeff5;vertical-align:top';
@@ -6514,8 +6567,8 @@ async function ccSyncBatchAnalyzeInMemory(){
     output.hidden=false;
   }catch(err){
     status.textContent='CHẶN kiểm tra chung: '+String(err?.message||err).slice(0,140)+
-      (isTestPreview?'. TEST 0 Firebase/Google reads/writes.':
-        '. Có thể đã đọc metadata Cash Control (tối đa 1 yêu cầu); không ghi Firebase hoặc Google.');
+      (isTestPreview?'. TEST không ghi Firebase hoặc Google.':
+        '. Có thể đã đọc metadata Cash Control; không ghi Firebase hoặc Google.');
   }finally{button.disabled=false}
 }
 
@@ -6607,13 +6660,13 @@ function ccSyncProjectCatalogInitialize(){
   if(firebaseConfig.projectId!=='cscecmep-payment'){
     const btn=$('ccSyncBatchAnalyze');
     if(btn){
-      btn.disabled=true;
-      btn.textContent='Chưa có nguồn Payment thật trên TEST';
-      btn.title='Preview Firebase Staging không chứa Payment production và không thể xác nhận tháng không phát sinh';
+      btn.disabled=false;
+      btn.textContent='Kiểm tra dữ liệu TEST đang tải · chỉ đọc';
+      btn.title='Chỉ dữ liệu đã có trong bộ nhớ Firebase Staging; không đọc Payment production, không kết luận dự án chưa phát sinh';
     }
     const info=$('ccSyncBatchStatus');
-    if(info)info.textContent='NGUỒN CHƯA SẴN SÀNG: Preview dùng Firebase Staging, không có Payment production. '+
-      'Danh mục dự án và link Google vẫn sử dụng được; nút đếm giao dịch thật chỉ mở khi có nguồn chính đã xác thực.';
+    if(info)info.textContent='TEST CHỈ ĐỌC: Nút kiểm tra tháng chỉ đối chiếu giao dịch có trong bộ nhớ Staging. '+
+      'Dự án chưa có Payment thật không được kết luận là không phát sinh. Không ghi Google.';
   }
 
   const foxconnTestProbe=$('ccSyncFoxconnTestProbeArea');
