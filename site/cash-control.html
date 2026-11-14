@@ -6342,29 +6342,17 @@ async function ccSyncBatchAnalyzeInMemory(){
     return;
   }
   const month=String($('ccSyncBatchMonth')?.value||'');
-  // The TEST Preview intentionally has NO production Payment source.
-  // A default project catalog is not evidence that any actuals were loaded.
-  if(firebaseConfig.projectId!=='cscecmep-payment'){
-    const projects=ccSyncProjectCatalogNames();
-    const linked=projects.filter(p=>ccSyncProjectLinkValid(ccSyncProjectLinkDraft[p]||'')).length;
-    status.textContent='CHƯA CÓ NGUỒN CASH CONTROL THẬT · Đây là Firebase STAGING. '+
-      projects.length+' dự án chỉ là DANH MỤC · '+linked+
-      ' dự án có link nháp, '+(projects.length-linked)+' dự án chưa có link. '+
-      'Không thể đếm phát sinh tháng '+month+' vì Preview không đọc Payment production. '+
-      'KHÔNG kết luận 0 giao dịch. 0 Firebase reads · 0 Google reads/writes.';
-    const notice=document.createElement('p');
-    notice.style.cssText='font-size:12px;color:#6b7280;margin:8px 0';
-    notice.textContent='Muốn đối chiếu số liệu thật phải chạy bước đọc nguồn đã xác thực trên môi trường chính. '+
-      'Bản TEST chỉ dùng để xác minh Google, không đụng dữ liệu production.';
-    output.replaceChildren(notice);
-    output.hidden=false;
-    return;
+  // TEST is isolated from production. Inspect only currently loaded
+  // Cash Control export-equivalent rows: no Firestore/Google network calls.
+  const isTestPreview=firebaseConfig.projectId==='cash-control-staging';
+  if(!isTestPreview&&firebaseConfig.projectId!=='cscecmep-payment'){
+    status.textContent='Không hỗ trợ môi trường Firebase này. Không đọc hoặc ghi.';
+    output.hidden=true;return;
   }
-  if(!cashCloudReady||!legacySeedReady){
+  if(!isTestPreview&&(!cashCloudReady||!legacySeedReady)){
     status.textContent='CHƯA TẢI ĐỦ NGUỒN CASH CONTROL. Chưa thể đếm phát sinh hoặc báo 0 giao dịch. '+
-      'Chờ nguồn đã xác thực trên trang sẵn sàng; không đọc/ghi Google.';
-    output.hidden=true;
-    return;
+      'Cần nguồn đã xác thực trên trang sẵn sàng; không đọc/ghi Google.';
+    output.hidden=true;return;
   }
   button.disabled=true;
   output.hidden=true;
@@ -6383,48 +6371,53 @@ async function ccSyncBatchAnalyzeInMemory(){
        plan.googleReads!==0||plan.googleWrites!==0){
       throw Error('Không xác minh được kế hoạch chỉ đọc.');
     }
-    // One production-only, Admin-authenticated metadata read per deliberate
-    // click. Staging exits earlier; this never fetches Payment documents.
-    const userId=currentAuthUser.uid;
-    const evidenceResponse=await fetch('/api/cash-sync-source-readonly',{
-      method:'POST',
-      headers:{'Content-Type':'application/json',
-        'X-Firebase-ID-Token':await currentAuthUser.getIdToken()},
-      body:JSON.stringify({action:'metadata'})
-    });
-    const evidence=await evidenceResponse.json().catch(()=>({}));
-    if(!evidenceResponse.ok)throw Error(
-      'Nguồn Cash Control chưa xác minh được ('+
-      String(evidence.error||evidenceResponse.status).slice(0,72)+')');
-    if(!currentAuthUser||currentAuthUser.uid!==userId||
-       !isCashControlOwner()||firebaseConfig.projectId!=='cscecmep-payment')
-      throw Error('Phiên Admin đã thay đổi sau khi kiểm tra nguồn');
-    if(evidence.kind!=='CASH_CONTROL_PRIVATE_METADATA_ONLY'||
-       evidence.firebaseProject!=='cscecmep-payment'||
-       evidence.firestoreRequests!==1||
-       evidence.paymentDocumentReads!==0||
-       evidence.googleReads!==0||evidence.googleWrites!==0||
-       evidence.canSync!==false||evidence.sourceComplete!==false||
-       evidence.metadataPresent!==true)
-      throw Error('Metadata nguồn Cash Control không đầy đủ hoặc sai phạm vi');
-    const localRevision=Number(cashCloudState.revision||0);
-    if(evidence.revision!==localRevision||
-       evidence.manualRecords!==(cashCloudState.manualRecords||[]).length||
-       evidence.projectMasters!==(cashCloudState.projectMasters||[]).length||
-       evidence.salaryRecords!==(cashCloudState.salaryRecords||[]).length)
-      throw Error('Dữ liệu Cash Control online mới hơn bộ nhớ trên trang; cần đọc lại nguồn');
-    // The revision and counts prove only local-vs-server metadata agreement.
-    // They DO NOT prove that the Payment source is complete or authorize writes.
-    const sourceMetadata='Metadata Cash Control khớp phiên '+evidence.revision+
-      ' (1 yêu cầu đọc tài liệu riêng; không tải hồ sơ Payment)';
-    status.textContent='ĐÃ RÀ SOÁT DỮ LIỆU ĐANG TẢI · '+plan.month+
+    let sourceMetadata='CHƯA CÓ NGUỒN CASH CONTROL THẬT · Firebase STAGING, '+
+      'chỉ dữ liệu TEST đang nằm trong bộ nhớ; 0 Firebase reads';
+    if(!isTestPreview){
+      // One production-only, Admin-authenticated metadata read per deliberate
+      // click. Staging exits earlier; this never fetches Payment documents.
+      const userId=currentAuthUser.uid;
+      const evidenceResponse=await fetch('/api/cash-sync-source-readonly',{
+        method:'POST',
+        headers:{'Content-Type':'application/json',
+          'X-Firebase-ID-Token':await currentAuthUser.getIdToken()},
+        body:JSON.stringify({action:'metadata'})
+      });
+      const evidence=await evidenceResponse.json().catch(()=>({}));
+      if(!evidenceResponse.ok)throw Error(
+        'Nguồn Cash Control chưa xác minh được ('+
+        String(evidence.error||evidenceResponse.status).slice(0,72)+')');
+      if(!currentAuthUser||currentAuthUser.uid!==userId||
+         !isCashControlOwner()||firebaseConfig.projectId!=='cscecmep-payment')
+        throw Error('Phiên Admin đã thay đổi sau khi kiểm tra nguồn');
+      if(evidence.kind!=='CASH_CONTROL_PRIVATE_METADATA_ONLY'||
+         evidence.firebaseProject!=='cscecmep-payment'||
+         evidence.firestoreRequests!==1||
+         evidence.paymentDocumentReads!==0||
+         evidence.googleReads!==0||evidence.googleWrites!==0||
+         evidence.canSync!==false||evidence.sourceComplete!==false||
+         evidence.metadataPresent!==true)
+        throw Error('Metadata nguồn Cash Control không đầy đủ hoặc sai phạm vi');
+      const localRevision=Number(cashCloudState.revision||0);
+      if(evidence.revision!==localRevision||
+         evidence.manualRecords!==(cashCloudState.manualRecords||[]).length||
+         evidence.projectMasters!==(cashCloudState.projectMasters||[]).length||
+         evidence.salaryRecords!==(cashCloudState.salaryRecords||[]).length)
+        throw Error('Dữ liệu Cash Control online mới hơn bộ nhớ trên trang; cần đọc lại nguồn');
+      // The revision and counts prove only local-vs-server metadata agreement.
+      // They DO NOT prove that the Payment source is complete or authorize writes.
+      sourceMetadata='Metadata Cash Control khớp phiên '+evidence.revision+
+        ' (1 yêu cầu đọc tài liệu riêng; không tải hồ sơ Payment)';
+  
+    }
+    status.textContent=(isTestPreview?'TEST · RÀ SOÁT BỘ NHỚ · ':'ĐÃ RÀ SOÁT DỮ LIỆU ĐANG TẢI · ')+plan.month+
       ' · danh mục '+plan.projects+' dự án ('+plan.linkedProjects+
       ' có link, '+plan.unlinkedProjects+' chưa có link) · '+
       plan.activeProjects+' dự án có dòng trong bộ nhớ ('+plan.activeRows+' dòng) · '+
       plan.candidateProjects+' có thể bắt đầu kiểm tra Google · '+
       plan.missingLinkProjects+' dự án có dòng nhưng thiếu link · '+
       plan.sourceReviewProjects+' dự án cần rà soát ID/số tiền. '+
-      'Payment đã tải toàn dự án: '+paymentMonths.size+'/'+plan.projects+
+      (isTestPreview?'Payment TEST có trong bộ nhớ: ':'Payment đã tải toàn dự án: ')+paymentMonths.size+'/'+plan.projects+
       '. Chưa xác minh đủ nguồn; KHÔNG kết luận các dự án còn lại không phát sinh. '+
       sourceMetadata+' · 0 Google reads/writes · CHƯA cấp phép ghi.';
     const active=plan.rows.filter(p=>p.transactions>0);
@@ -6452,7 +6445,9 @@ async function ccSyncBatchAnalyzeInMemory(){
       if(p.missingSourceIds)problems.push(p.missingSourceIds+' thiếu ID');
       if(p.duplicateSourceIds)problems.push(p.duplicateSourceIds+' ID lặp');
       if(p.invalidAmounts)problems.push(p.invalidAmounts+' số tiền cần xem');
-      if(p.invalidDates)problems.push(p.invalidDates+' ngày cần xem');
+      if(p.invalidDates)problems.push(p.invalidDates+' ngày không hợp lệ');
+      if(p.wrongMonthRows)problems.push(p.wrongMonthRows+' dòng khác tháng');
+      if(p.transferCounterpartsUnverified)problems.push(p.transferCounterpartsUnverified+' điều chuyển chưa đối ứng');
       if(p.unknownImportTax)problems.push(p.unknownImportTax+' thuế FOXCONN chưa rõ');
       const statusText=p.needsReview?problems.join(' · '):
         'ID và số tiền hợp lệ trong bộ nhớ (chưa xác nhận đủ nguồn)';
@@ -6476,7 +6471,8 @@ async function ccSyncBatchAnalyzeInMemory(){
     output.hidden=false;
   }catch(err){
     status.textContent='CHẶN kiểm tra chung: '+String(err?.message||err).slice(0,140)+
-      '. Có thể đã đọc metadata Cash Control (tối đa 1 yêu cầu); không ghi Firebase hoặc Google.';
+      (isTestPreview?'. TEST 0 Firebase/Google reads/writes.':
+        '. Có thể đã đọc metadata Cash Control (tối đa 1 yêu cầu); không ghi Firebase hoặc Google.');
   }finally{button.disabled=false}
 }
 
