@@ -6715,9 +6715,12 @@ async function ccSyncReplayFoxconnRepayment(){
   }
   const user=currentAuthUser;
   button.disabled=true;
+  status.textContent='Đang kiểm tra 2 lượt Google FOXCONN TEST · chỉ đọc, không ghi…';
   try{
     const scope='https://www.googleapis.com/auth/spreadsheets.readonly';
     const token=await ccGoogleSheetsAccessToken(scope,{includeGrantedScopes:false,prompt:''});
+    let verifiedSourceId=null;
+    let normalized=[];
     for(let pass=1;pass<=2;pass++){
       if(currentAuthUser!==user||!isCashControlOwner())throw Error('Phiên Admin đã thay đổi.');
       const res=await fetch('/api/cash-shared-test-idempotency',{
@@ -6726,17 +6729,34 @@ async function ccSyncReplayFoxconnRepayment(){
         body:JSON.stringify({project:'FOXCONN',action:'preview',sourceId:null})
       });
       const result=await res.json();
-      if(!res.ok||result.kind!=='VERIFIED_FOXCONN_REPAYMENT_TEST'||result.sampleRows!==1||
-         result.needsTestWrite!==false||result.googleWrites!==0||result.historyTransactions!==271||
-         result.projectedBalance!==29546364496)
-        throw Error(result.error||'Dòng hoàn vay TEST chưa được xác minh.');
+      if(!res.ok){
+        // Show only coordinate/type: never expose Google cell contents or OAuth tokens.
+        const d=result?.diagnostic;
+        const cell=d&&/^[A-O](?:[1-9]\\d{0,4})$/.test(String(d.cell||''))?d.cell:'';
+        const detail=cell?' · ô '+cell+' · Google '+String(d.actualType||'unknown')+
+          ' / chuẩn '+String(d.expectedType||'unknown')+' · '+String(d.reason||'mismatch'):'';
+        throw Error(String(result.error||'Dòng hoàn vay TEST chưa được xác minh.')+detail);
+      }
+      if(result.kind!=='VERIFIED_FOXCONN_REPAYMENT_TEST'||result.sampleRows!==1||
+         result.needsTestWrite!==false||result.googleWrites!==0||result.firestoreReads!==0||
+         result.sourceIsCashControl!==true||result.historyUntouched!==true||
+         result.canWriteProduction!==false||result.historyTransactions!==271||
+         result.projectedBalance!==29546364496||
+         typeof result.sampleId!=='string')
+        throw Error('Dòng hoàn vay TEST chưa được xác minh.');
+      if(verifiedSourceId!==null&&result.sampleId!==verifiedSourceId)
+        throw Error('ID nguồn đã thay đổi giữa hai lượt đọc; không xác nhận.');
+      verifiedSourceId=result.sampleId;
+      if(pass===1&&Array.isArray(result.googleRepresentations))
+        normalized=result.googleRepresentations.filter(x=>x&&/^[A-O][1-3]$/.test(x.cell)).slice(0,15);
     }
-    status.textContent='FOXCONN TEST · 2 lượt đọc đều thấy 1 dòng hoàn vay · 0 ghi · số dư 29.546.364.496 đ.';
+    const summary=normalized.length?' · Google chuẩn hóa ô: '+
+      normalized.map(x=>x.cell+' ('+x.googleType+'→'+x.canonicalType+')').join(', '):'';
+    status.textContent='FOXCONN TEST · 2 lượt đọc cùng 1 ID nguồn · 1 dòng hoàn vay · 0 ghi · số dư 29.546.364.496 đ'+summary+'.';
   }catch(e){
-    status.textContent='DỪNG kiểm tra FOXCONN TEST: '+String(e?.message||e).slice(0,160)+'.';
+    status.textContent='DỪNG kiểm tra FOXCONN TEST: '+String(e?.message||e).slice(0,480)+'.';
   }finally{button.disabled=false;}
 }
-
 async function ccSyncTestIdempotency(){
   const button=$('ccSyncFoxconnTestIdempotency');
   const status=$('ccSyncFoxconnTestIdempotencyStatus');
