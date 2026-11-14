@@ -6732,7 +6732,7 @@ async function ccSyncReplayFoxconnRepayment(){
       if(!res.ok){
         // Show only coordinate/type: never expose Google cell contents or OAuth tokens.
         const d=result?.diagnostic;
-        const cell=d&&/^[A-O](?:[1-9]\\d{0,4})$/.test(String(d.cell||''))?d.cell:'';
+        const cell=d&&/^[A-O](?:[1-9]\d{0,4})$/.test(String(d.cell||''))?d.cell:'';
         const detail=cell?' · ô '+cell+' · Google '+String(d.actualType||'unknown')+
           ' / chuẩn '+String(d.expectedType||'unknown')+' · '+String(d.reason||'mismatch'):'';
         throw Error(String(result.error||'Dòng hoàn vay TEST chưa được xác minh.')+detail);
