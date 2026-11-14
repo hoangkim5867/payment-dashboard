@@ -45,7 +45,7 @@ function sourceKind(row,resolveKind){
 }
 function buildProject({project,month,rows,hasGoogleLink,paymentCacheLoaded,
   resolveKind,expectedRowCount}){
- const issues=[],records=[],seen=new Set();
+ const issues=[],records=[],seen=new Set(),seenSignatures=new Set();
  if(!Array.isArray(rows)||rows.length>10000)throw Error('UNBOUNDED_PROJECT_ROWS');
  for(const [index,row] of rows.entries()){
    const location=index+1;
@@ -73,6 +73,16 @@ function buildProject({project,month,rows,hasGoogleLink,paymentCacheLoaded,
    const values=[row.date,...['company','contractNo','content','ipc','type']
      .map(k=>String(row[k]??'')),...money];
    if(project==='FOXCONN')values.push(row.importTaxVat);
+   // Unique source IDs alone are not sufficient to prevent duplicate money
+   // movements. Reject equivalent Export Excel rows with different IDs;
+   // a human must decide whether two identical actual payments are legitimate.
+   const signature=JSON.stringify([...values.slice(0,6).map(v=>
+     String(v).normalize('NFKC').trim().replace(/\s+/g,' ').toUpperCase()),
+     ...values.slice(6)]);
+   if(seenSignatures.has(signature)){
+     issues.push({row:location,code:'DUPLICATE_EXCEL_TRANSACTION'});continue;
+   }
+   seenSignatures.add(signature);
    records.push(Object.freeze({id,project,month,sourceClass:kind,
      // No hash until an authenticated, fresh source snapshot is certified.
      values:Object.freeze(values)}));
