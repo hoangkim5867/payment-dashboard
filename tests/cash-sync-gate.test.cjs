@@ -189,13 +189,16 @@ const {parseAllowlist,isAllowlisted,canWriteTarget}=
   require('../server/cash-sync-multi-targets.cjs');
 test('multi-project production writes fail closed without per-project server destination allowlist',()=>{
  const file='A'.repeat(40);
- const enabled={CASH_SYNC_MULTI_PRODUCTION_WRITES:'YES'};
+ const enabled={VERCEL_ENV:'production',CASH_SYNC_FIREBASE_PROJECT_ID:'cscecmep-payment',
+   CASH_SYNC_MULTI_PRODUCTION_WRITES:'YES'};
  assert.equal(canWriteTarget(enabled,'ELYSIAN',file,123),false);
  const config={...enabled,CASH_SYNC_MULTI_ALLOWED_TARGETS:JSON.stringify({
    ELYSIAN:{spreadsheetId:file,historySheetId:123},
    SSIS:{spreadsheetId:'B'.repeat(40),historySheetId:456}
  })};
  assert.equal(canWriteTarget(config,'ELYSIAN',file,123),true);
+ assert.equal(canWriteTarget({...config,VERCEL_ENV:'preview'},'ELYSIAN',file,123),false);
+ assert.equal(canWriteTarget({...config,CASH_SYNC_FIREBASE_PROJECT_ID:'cash-control-staging'},'ELYSIAN',file,123),false);
  assert.equal(canWriteTarget(config,'ELYSIAN',file,124),false);
  assert.equal(canWriteTarget(config,'SSIS',file,123),false);
  assert.equal(canWriteTarget(config,'PHU HUNG',file,123),false);

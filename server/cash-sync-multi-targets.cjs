@@ -32,7 +32,13 @@ function isAllowlisted(env,project,spreadsheetId,historySheetId){
     target.historySheetId===historySheetId;
 }
 function canWriteTarget(env,project,spreadsheetId,historySheetId){
-  return env.CASH_SYNC_MULTI_PRODUCTION_WRITES==='YES'&&
+  // This endpoint's write flag is production-only. A Preview deployment
+  // cannot inherit authorization from a branch env, even if someone sets
+  // the flag and a matching allowlist by mistake. TEST writes must use a
+  // separate server-side test-only route with a trusted staging source.
+  return env.VERCEL_ENV==='production'&&
+    env.CASH_SYNC_FIREBASE_PROJECT_ID==='cscecmep-payment'&&
+    env.CASH_SYNC_MULTI_PRODUCTION_WRITES==='YES'&&
     isAllowlisted(env,project,spreadsheetId,historySheetId);
 }
 module.exports={parseAllowlist,isAllowlisted,canWriteTarget};

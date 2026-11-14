@@ -27,3 +27,19 @@ test('read-only handler wired once; no changes to existing project loader',()=>{
   assert.match(html,/ccSyncPaymentPreflightLoad'\)\?\.addEventListener\('click',ccSyncLoadOneProjectReadOnly\)/);
   assert.match(html,/where\('project','==',project\)/);
 });
+
+test('manual one-project COUNT reconciles existing cache, aliases and server count without fetching Payment documents',()=>{
+ const st=html.indexOf('async function ccSyncCountOneProject(){');
+ const end=html.indexOf('async function ccSyncLoadOneProjectReadOnly(){',st);
+ const code=html.slice(st,end);
+ assert.ok(st>0&&end>st);
+ assert.match(code,/getCountFromServer\(query\(paymentsRef,where\('project','==',project\)\)\)/);
+ assert.match(code,/assessProjectSourceCoverage\(/);
+ assert.match(code,/paymentMonths\.has\(project\)/);
+ assert.match(code,/paymentMonths\.get\(project\)/);
+ assert.match(code,/projectFromMisfiledContractCode\(raw\)===project/);
+ assert.match(code,/evidence\.state==='CANONICAL_COUNT_MATCH_ONLY'/);
+ assert.match(code,/CHƯA cấp phép đồng bộ/);
+ assert.doesNotMatch(code,/getDocs\(|onSnapshot\(|setDoc\(|writeBatch\(|fetch\(|localStorage\.|sessionStorage\./);
+ assert.match(html,/import \{assessProjectSourceCoverage\} from "\.\/assets\/js\/cash-sync-project-source-coverage\.mjs"/);
+});
