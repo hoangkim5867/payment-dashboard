@@ -124,3 +124,26 @@ test('unclassified source is reported, never assumed a verified Payment',()=>{
  assert.equal(out.issues[0].reason,'SOURCE_KIND_UNVERIFIED');
  assert.equal(out.canWrite,false);
 });
+
+test('unverified transfer, unknown type and incomplete Payment do not inflate candidate or matched counts',()=>{
+ const raw=history();
+ const missing=valueRow(810,'2026-11-12');missing[2]='';missing[4]='';
+ const rows=sourceValid([
+  rec(1,missing,'PAYMENT'),
+  rec(2,valueRow(811,'2026-11-12'),'TRANSFER'),
+  rec(3,valueRow(812,'2026-11-12'),'UNKNOWN'),
+  rec(4,raw[2].slice(0,14),'TRANSFER'),
+  rec(5,raw[3].slice(0,14),'MIXED'),
+  rec(6,raw[4].slice(0,14),'PAYROLL')
+ ]);
+ const out=compareSourceToHistory(rows,raw,'2026-11');
+ assert.equal(out.newAfterHistoryCandidates,0);
+ assert.equal(out.exactHistoryMatched,1); // payroll is not an incomplete Payment
+ assert.equal(out.missingPaymentIdentity,1);
+ assert.equal(out.transferCounterpartsUnverified,2);
+ assert.equal(out.sourceKindUnverified,2);
+ assert.equal(out.coreChanges,0);
+ assert.equal(out.coreStatus,'REVIEW_REQUIRED');
+ assert.equal(out.googleWrites,0);
+ assert.equal(out.canWrite,false);
+});
