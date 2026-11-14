@@ -87,7 +87,7 @@ test('isolated Preview cannot show false zero-transaction conclusion',()=>{
  assert.match(code,/paymentMonths\.size/);
  assert.match(code,/plan\.linkedProjects/);
  assert.match(code,/plan\.unlinkedProjects/);
- assert.match(html,/btn\.disabled=true;\s*btn\.textContent='Chưa có nguồn Payment thật trên TEST'/);
+ assert.match(html,/btn\.disabled=false;\s*btn\.textContent='Kiểm tra dữ liệu TEST đang tải · chỉ đọc'/);
  assert.ok(code.indexOf("firebaseConfig.projectId!=='cscecmep-payment'")<
    code.indexOf('buildBatchReadiness('));
 });
@@ -129,4 +129,18 @@ test('real-data TEST importer is Admin-only, read-only and keeps links and PHU H
  assert.match(importer,/result\.canWrite!==false/);
  assert.match(importer,/result\.googleWrites!==0/);
  assert.doesNotMatch(importer,/setDoc\(|addDoc\(|writeBatch\(|updateDoc\(|ccGoogleSyncOriginalRequest\(/);
+});
+
+test('one-click Google audit only uses readonly OAuth and never writes or loads Payment globally',()=>{
+ const start=html.indexOf('async function ccSyncBatchAnalyzeInMemory(){');
+ const stop=html.indexOf('function ccSyncProjectCatalogRender(){',start);
+ const code=html.slice(start,stop);
+ assert.match(html,/import \{scanMonthlyGoogleReadOnly\} from "\.\/assets\/js\/cash-sync-monthly-google-readonly\.mjs"/);
+ assert.match(code,/scanMonthlyGoogleReadOnly\(/);
+ assert.match(code,/https:\/\/www\.googleapis\.com\/auth\/spreadsheets\.readonly/);
+ assert.match(code,/includeGrantedScopes:false/);
+ assert.match(code,/manifest\.groups\.map\(/);
+ assert.match(code,/ready\?\.needsReview/);
+ assert.match(code,/googleByProject/);
+ assert.doesNotMatch(code,/setDoc\(|addDoc\(|writeBatch\(|updateDoc\(|:batchUpdate|:append/);
 });
