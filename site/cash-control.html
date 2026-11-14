@@ -2035,6 +2035,7 @@ import {
 } from "./assets/js/firestore-payment.mjs";
 import {bonusTaxQuarterFromPaymentDate,bonusTaxDueMonth,buildLinkedBonusTaxRecord,buildLinkedSalaryTaxRecord} from "./assets/js/payroll-bonus-tax.mjs";
 import {buildBatchReadiness} from "./assets/js/cash-sync-batch-readiness.mjs";
+import {buildMonthlyExportManifest} from "./assets/js/cash-sync-monthly-export-manifest.mjs";
 import {assessProjectSourceCoverage} from "./assets/js/cash-sync-project-source-coverage.mjs";
 const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
 const app=initializeApp(firebaseConfig),db=getFirestore(app),auth=getAuth(app),paymentsRef=collection(db,"payments");
@@ -6367,6 +6368,32 @@ async function ccSyncBatchAnalyzeInMemory(){
       rowsByProject[project]=rows;
     }
     const plan=buildBatchReadiness({month,projects,links,rowsByProject});
+    // Convert the ALREADY grouped legacyCashExportRows output into one
+    // selected-month manifest. This is the same Xuất Excel data shape:
+    // no second grouping of quarterly PIT, no Payment query, no Google call.
+    const expensesById=new Map(allExpenses().filter(x=>x?.id)
+      .map(x=>[String(x.id),x]));
+    const sourceKindForId=id=>{
+      if(!id.startsWith('expense:'))return 'UNKNOWN';
+      const expense=expensesById.get(id.slice(8));
+      if(!expense)return 'UNKNOWN';
+      if(expense.source==='payment')return 'PAYMENT';
+      if(expense.source==='payroll'||expense.linkedModule==='payroll')
+        return 'PAYROLL';
+      return 'CASH';
+    };
+    const manifest=buildMonthlyExportManifest({month,projects,links,rowsByProject,
+      paymentCacheProjects:[...paymentMonths.keys()],
+      resolveKind:sourceKindForId,
+      // Admin-confirmed FOXCONN Oct 2026 grouped Excel baseline.
+      // A later source change must be reviewed, not silently reclassified.
+      expectedCounts:month==='2026-10'?{FOXCONN:19}:{}});
+    if(manifest.catalogProjects!==plan.projects||
+       manifest.activeProjects!==plan.activeProjects||
+       manifest.groupedRows!==plan.activeRows||
+       manifest.canWrite!==false||manifest.googleWrites!==0||
+       manifest.googleReads!==0||manifest.firestoreReads!==0)
+      throw Error('Nguồn Xuất Excel và bảng rà soát tháng không khớp.');
     if(plan.canWrite!==false||plan.firestoreReads!==0||
        plan.googleReads!==0||plan.googleWrites!==0){
       throw Error('Không xác minh được kế hoạch chỉ đọc.');
@@ -6413,6 +6440,9 @@ async function ccSyncBatchAnalyzeInMemory(){
     }
     status.textContent=(isTestPreview?'TEST · RÀ SOÁT BỘ NHỚ · ':'ĐÃ RÀ SOÁT DỮ LIỆU ĐANG TẢI · ')+plan.month+
       ' · điều chuyển có đủ hai đầu trong dữ liệu đang tải: '+plan.verifiedTransferPairs+' cặp'+
+      ' · Xuất Excel đang tải '+manifest.groupedRows+' dòng / '+
+      manifest.activeProjects+' dự án · '+manifest.needsSourceReview+
+      ' dự án cần rà soát nguồn · '+
       ' · danh mục '+plan.projects+' dự án ('+plan.linkedProjects+
       ' có link, '+plan.unlinkedProjects+' chưa có link) · '+
       plan.activeProjects+' dự án có dòng trong bộ nhớ ('+plan.activeRows+' dòng) · '+
@@ -6433,7 +6463,7 @@ async function ccSyncBatchAnalyzeInMemory(){
     const table=document.createElement('table');
     table.style.cssText='width:100%;border-collapse:collapse;font-size:12px';
     const head=document.createElement('thead'),trh=document.createElement('tr');
-    for(const label of ['Dự án','Dòng','Link Google','Dữ liệu nguồn','Bước tiếp theo']){
+    for(const label of ['Dự án','Dòng','Link Google','Nguồn Xuất Excel','Dữ liệu nguồn','Bước tiếp theo']){
       const th=document.createElement('th');
       th.textContent=label;
       th.style.cssText='border-bottom:1px solid #dbe4ef;text-align:left;padding:7px 6px';
@@ -6441,8 +6471,10 @@ async function ccSyncBatchAnalyzeInMemory(){
     }
     head.append(trh);table.append(head);
     const tbody=document.createElement('tbody');
+    const sourceByProject=new Map(manifest.groups.map(g=>[g.project,g]));
     for(const p of active){
       const tr=document.createElement('tr');
+      const source=sourceByProject.get(p.project);
       const problems=[];
       if(p.missingSourceIds)problems.push(p.missingSourceIds+' thiếu ID');
       if(p.duplicateSourceIds)problems.push(p.duplicateSourceIds+' ID lặp');
@@ -6452,14 +6484,21 @@ async function ccSyncBatchAnalyzeInMemory(){
       if(p.verifiedTransferRows)problems.push(p.verifiedTransferRows+' đầu điều chuyển đã khớp trong bộ nhớ');
       if(p.transferCounterpartsUnverified)problems.push(p.transferCounterpartsUnverified+' điều chuyển chưa đối ứng');
       if(p.unknownImportTax)problems.push(p.unknownImportTax+' thuế FOXCONN chưa rõ');
+      if(source?.issues.length)problems.push(source.issues.length+' lỗi nguồn Xuất Excel');
       const statusText=p.needsReview?problems.join(' · '):
         p.verifiedTransferRows?'Đủ 2 đầu điều chuyển trong bộ nhớ; chưa đối chiếu Google':
           'ID và số tiền hợp lệ trong bộ nhớ (chưa xác nhận đủ nguồn)';
       const next=p.status==='MISSING_GOOGLE_LINK'?'Nhập link trước khi đối chiếu':
         p.status==='SOURCE_REVIEW_REQUIRED'?'Rà soát trường nguồn':
         'Ứng viên đối chiếu Google · chưa ghi';
+      const sourceStatus=source?.state==='HISTORY_COMPARISON_CANDIDATE'?
+        'Có dữ liệu đang tải · chờ đối chiếu Google':
+        source?.state==='PAYMENT_COVERAGE_UNKNOWN'?
+        'Chưa có cache Payment đầy đủ trong phiên':
+        source?.state==='MISSING_GOOGLE_LINK'?'Chưa có link Google':
+        'Có dòng cần rà soát · KHÔNG ghi';
       for(const textValue of [p.project,String(p.transactions),
-        p.hasLink?'Đã lưu nháp':'Chưa có',statusText,next]){
+        p.hasLink?'Đã lưu nháp':'Chưa có',sourceStatus,statusText,next]){
         const td=document.createElement('td');
         td.textContent=textValue;
         td.style.cssText='padding:7px 6px;border-bottom:1px solid #ebeff5;vertical-align:top';
