@@ -101,3 +101,49 @@ test('accepts leap-day only in the selected leap-year month',()=>{
  assert.equal(r.rows[0].wrongMonthRows,0);
  assert.equal(r.rows[0].invalidDates,0);
 });
+
+test('matching FOXCONN to ELYSIAN signed export legs clear counterpart REVIEW but never enable writing',()=>{
+ const amount=5700000000;
+ const plan=buildBatchReadiness({
+  month:'2026-10',projects:['FOXCONN','ELYSIAN','SSIS'],
+  links:{FOXCONN:true,ELYSIAN:true},
+  rowsByProject:{
+   FOXCONN:[row('transfer:repayment:out',{date:'2026-10-26',income:-amount,
+     material:0,importTaxVat:0})],
+   ELYSIAN:[row('transfer:repayment:in',{date:'2026-10-26',income:amount,
+     material:0})]
+  }});
+ assert.equal(plan.verifiedTransferPairs,1);
+ assert.equal(plan.activeProjects,2);
+ assert.equal(plan.candidateProjects,2);
+ assert.equal(plan.inactiveProjects,1);
+ assert.deepEqual(plan.rows.filter(x=>x.transactions).map(x=>x.project),['ELYSIAN','FOXCONN']);
+ assert.ok(plan.rows.filter(x=>x.transactions).every(x=>
+  x.verifiedTransferRows===1&&x.transferCounterpartsUnverified===0&&
+  x.canWrite===false&&x.googleCompared===false));
+ assert.equal(plan.rows.find(x=>x.project==='FOXCONN').income,-amount);
+ assert.equal(plan.rows.find(x=>x.project==='ELYSIAN').income,amount);
+ assert.equal(plan.googleReads,0);
+ assert.equal(plan.googleWrites,0);
+});
+test('missing, mismatched, duplicate, other-month and altered transfer legs remain review-only',()=>{
+ const out=row('transfer:pair:out',{date:'2026-10-26',income:-100,material:0,importTaxVat:0});
+ const incoming=row('transfer:pair:in',{date:'2026-10-26',income:100,material:0});
+ const cases=[
+  {rowsByProject:{FOXCONN:[out]},why:'missing'},
+  {rowsByProject:{FOXCONN:[out],ELYSIAN:[{...incoming,income:99}]},why:'amount'},
+  {rowsByProject:{FOXCONN:[out],ELYSIAN:[{...incoming,date:'2026-10-27'}]},why:'date'},
+  {rowsByProject:{FOXCONN:[out],ELYSIAN:[incoming,incoming]},why:'duplicate'},
+  {rowsByProject:{FOXCONN:[out,incoming]},why:'same project'},
+  {rowsByProject:{FOXCONN:[{...out,material:1}],ELYSIAN:[incoming]},why:'expense'},
+  {rowsByProject:{FOXCONN:[out],ELYSIAN:[{...incoming,date:'2026-11-26'}]},why:'month'}
+ ];
+ for(const {rowsByProject,why} of cases){
+   const plan=buildBatchReadiness({month:'2026-10',projects:['FOXCONN','ELYSIAN'],
+     links:{FOXCONN:true,ELYSIAN:true},rowsByProject});
+   assert.equal(plan.verifiedTransferPairs,0,why);
+   assert.equal(plan.candidateProjects,0,why);
+   assert.ok(plan.rows.filter(x=>x.transactions).every(x=>
+     x.status==='SOURCE_REVIEW_REQUIRED'&&x.canWrite===false),why);
+ }
+});
