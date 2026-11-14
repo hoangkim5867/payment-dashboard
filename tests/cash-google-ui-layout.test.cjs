@@ -162,6 +162,9 @@ test('source bridge requires explicit Admin and one scoped actual month query, n
  const c=html.indexOf('async function ccSyncBatchAnalyzeInMemory(){',b);
  assert.ok(a>0&&b>a&&c>b);
  const exporter=html.slice(a,b), importer=html.slice(b,c);
+ const scanStart=html.indexOf('async function ccSyncScanImportedMonthReview(){',a);
+ assert.ok(scanStart>a&&scanStart<b);
+ const scanner=html.slice(scanStart,b);
  assert.match(exporter,/firebaseConfig\.projectId!=='cscecmep-payment'/);
  assert.match(exporter,/isCashControlOwner\(\)/);
  assert.match(exporter,/autoLoadPaymentActualMonth\(month,\{force:true\}\)/);
@@ -169,8 +172,9 @@ test('source bridge requires explicit Admin and one scoped actual month query, n
  assert.match(exporter,/buildMonthReviewPackage\(/);
  assert.doesNotMatch(exporter,/loadProjectPayments\(|setDoc\(|addDoc\(|writeBatch\(|updateDoc\(/);
  assert.match(importer,/inspectMonthReviewPackage\(/);
- assert.match(importer,/scanMonthlyGoogleReadOnly\(/);
- assert.match(importer,/spreadsheets\.readonly/);
+ assert.match(scanner,/scanMonthlyGoogleReadOnly\(/);
+ assert.match(importer,/ccSyncScanImportedMonthReview\(/);
+ assert.match(scanner,/spreadsheets\.readonly/);
  assert.match(importer,/isCashControlOwner\(\)/);
  assert.doesNotMatch(importer,/setDoc\(|addDoc\(|writeBatch\(|updateDoc\(/);
  for(const id of ['ccSyncMonthSourceBridge','ccSyncMonthSourceExport',
