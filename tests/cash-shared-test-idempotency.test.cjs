@@ -105,3 +105,20 @@ test('history changed after Google write reports uncertain and requires manual r
  await assert.rejects(call(f,'commit'),/TEST_WRITE_UNCERTAIN_DO_NOT_RETRY/);
  assert.equal(f.stats.writes,1);
 });
+
+test('one-click pilot replay reads the verified repayment twice with no writes',async()=>{
+ const f=fixture();
+ await call(f,'commit');
+ const sourceId='FOXCONN:transfer:cash-transaction-id:out';
+ f.machine().push([sourceId,'FOXCONN','2026-10-26','TRANSFER','Điều chuyển nội bộ',
+  '','',-5700000000,0,0,0,0,0,0,0]);
+ for(let i=0;i<2;i++){
+  const p=await call(f,'preview',{sourceId:null});
+  assert.equal(p.kind,'VERIFIED_FOXCONN_REPAYMENT_TEST');
+  assert.equal(p.projectedBalance,29546364496);
+  assert.equal(p.sampleRows,1);
+  assert.equal(p.needsTestWrite,false);
+  assert.equal(p.googleWrites,0);
+ }
+ assert.equal(f.stats.writes,1);
+});

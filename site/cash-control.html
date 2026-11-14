@@ -1456,6 +1456,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
             </select>
             <button class="btn" id="ccSyncFoxconnTestProbe" type="button">Xác minh file và tab FOXCONN TEST · chỉ đọc</button>
             <button class="btn" id="ccSyncFoxconnTestHistoryAudit" type="button">Đối chiếu 271 giao dịch lịch sử · chỉ đọc</button>
+            <button class="btn" id="ccSyncFoxconnReplayRepayment" type="button">Kiểm tra lại khoản hoàn vay FOXCONN TEST</button>
             <button class="btn" id="ccSyncFoxconnTestIdempotency" type="button">Thử ghi 1 khoản GIẢ FOXCONN TEST · kiểm tra chống trùng</button>
           </div>
           <p id="ccSyncFoxconnTestProbeStatus" role="status" style="font-size:12px;color:#44546b;margin:8px 0 0">Chỉ kiểm tra lại nếu file Google TEST thay đổi.</p>
@@ -6562,6 +6563,7 @@ function ccSyncProjectCatalogInitialize(){
     const status=$('ccSyncBatchStatus');
     if(status)status.textContent='Đã đổi tháng. Bấm kiểm tra chung để cập nhật dữ liệu đang có.';
   });
+  $('ccSyncFoxconnReplayRepayment')?.addEventListener('click',ccSyncReplayFoxconnRepayment);
   $('ccSyncBatchAnalyze')?.addEventListener('click',ccSyncBatchAnalyzeInMemory);
   if(firebaseConfig.projectId!=='cscecmep-payment'){
     const btn=$('ccSyncBatchAnalyze');
@@ -6701,6 +6703,35 @@ async function ccSyncAuditFoxconnTestHistory(){
   }catch(error){
     status.textContent='DỪNG đối chiếu lịch sử FOXCONN TEST: '+
       String(error?.message||error).slice(0,180)+'. 0 ghi.';
+  }finally{button.disabled=false;}
+}
+
+async function ccSyncReplayFoxconnRepayment(){
+  const button=$('ccSyncFoxconnReplayRepayment');
+  const status=$('ccSyncFoxconnTestIdempotencyStatus');
+  if(!button||!status||button.disabled)return;
+  if(!currentAuthUser||!isCashControlOwner()||firebaseConfig.projectId!=='cash-control-staging'||!ccGoogleSyncToken){
+    status.textContent='Cần phiên Admin TEST và kết nối Google.';return;
+  }
+  const user=currentAuthUser;
+  button.disabled=true;
+  try{
+    for(let pass=1;pass<=2;pass++){
+      if(currentAuthUser!==user||!isCashControlOwner())throw Error('Phiên Admin đã thay đổi.');
+      const res=await fetch('/api/cash-shared-test-idempotency',{
+        method:'POST',headers:{'Content-Type':'application/json',
+          'X-Firebase-ID-Token':await user.getIdToken(),Authorization:'Bearer '+ccGoogleSyncToken},
+        body:JSON.stringify({project:'FOXCONN',action:'preview',sourceId:null})
+      });
+      const result=await res.json();
+      if(!res.ok||result.kind!=='VERIFIED_FOXCONN_REPAYMENT_TEST'||result.sampleRows!==1||
+         result.needsTestWrite!==false||result.googleWrites!==0||result.historyTransactions!==271||
+         result.projectedBalance!==29546364496)
+        throw Error(result.error||'Dòng hoàn vay TEST chưa được xác minh.');
+    }
+    status.textContent='FOXCONN TEST · 2 lượt đọc đều thấy 1 dòng hoàn vay · 0 ghi · số dư 29.546.364.496 đ.';
+  }catch(e){
+    status.textContent='DỪNG kiểm tra FOXCONN TEST: '+String(e?.message||e).slice(0,160)+'.';
   }finally{button.disabled=false;}
 }
 
