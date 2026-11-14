@@ -6534,6 +6534,15 @@ async function ccSyncBatchAnalyzeInMemory(){
   // TEST is isolated from production. Inspect only currently loaded
   // Cash Control export-equivalent rows: no Firestore/Google network calls.
   const isTestPreview=firebaseConfig.projectId==='cash-control-staging';
+  if(isTestPreview&&ccSyncImportedMonthReview&&
+     ccSyncImportedMonthReview.month===month){
+    button.disabled=true;
+    try{await ccSyncScanImportedMonthReview();}
+    catch(error){status.textContent='TEST không đọc được Google: '+
+      String(error?.message||error).slice(0,150)+' · không ghi.';}
+    finally{button.disabled=false;}
+    return;
+  }
   if(!isTestPreview&&firebaseConfig.projectId!=='cscecmep-payment'){
     status.textContent='Không hỗ trợ môi trường Firebase này. Không đọc hoặc ghi.';
     output.hidden=true;return;
@@ -6680,10 +6689,18 @@ async function ccSyncBatchAnalyzeInMemory(){
       '. Chưa xác minh đủ nguồn; KHÔNG kết luận các dự án còn lại không phát sinh. '+
       sourceMetadata+' · '+googleMessage+' · CHƯA cấp phép ghi.';
     const active=plan.rows.filter(p=>p.transactions>0);
+    if(isTestPreview&&!active.length)
+      status.textContent='TEST CHƯA CÓ NGUỒN THÁNG '+month+
+        '. Đừng bấm lại nút kiểm tra 0 dòng; dùng nút Nhập 1 gói nguồn tháng. '+
+        'Nguồn production và 35 dự án chưa được đọc. KHÔNG ghi.';
     if(!active.length){
       const empty=document.createElement('p');
       empty.style.cssText='font-size:12px;color:#6b7280';
-      empty.textContent='KHÔNG CÓ GIAO DỊCH TRONG BỘ NHỚ ĐANG TẢI. Chưa có bằng chứng các dự án không phát sinh hoặc Payment đã tải đủ. KHÔNG ghi.';
+      empty.textContent=isTestPreview?
+        'TEST CHƯA CÓ NGUỒN THÁNG '+month+
+        '. Hãy nhập MỘT gói nguồn từ Cash Control chính rồi hệ thống đọc Google theo lô. '+
+        '0 dòng ở Firebase TEST KHÔNG phải kết luận 35 dự án không phát sinh. KHÔNG ghi.':
+        'KHÔNG CÓ GIAO DỊCH TRONG BỘ NHỚ ĐANG TẢI. Chưa có bằng chứng các dự án không phát sinh hoặc Payment đã tải đủ. KHÔNG ghi.';
       output.append(empty);
       output.hidden=false;return;
     }
@@ -6844,6 +6861,15 @@ function ccSyncProjectCatalogInitialize(){
   });
   $('ccSyncFoxconnReplayRepayment')?.addEventListener('click',ccSyncReplayFoxconnRepayment);
   $('ccSyncBatchAnalyze')?.addEventListener('click',ccSyncBatchAnalyzeInMemory);
+  const exportOne=$('ccSyncMonthSourceExport');
+  const importOne=$('ccSyncMonthSourceImport');
+  if(exportOne)exportOne.hidden=firebaseConfig.projectId!=='cscecmep-payment';
+  if(importOne)importOne.hidden=firebaseConfig.projectId!=='cash-control-staging';
+  $('ccSyncMonthSourceExport')?.addEventListener('click',ccSyncExportMonthSourceReview);
+  $('ccSyncMonthSourceImport')?.addEventListener('click',()=>
+    $('ccSyncMonthSourceFile')?.click());
+  $('ccSyncMonthSourceFile')?.addEventListener('change',ccSyncImportMonthSourceReview);
+
   if(firebaseConfig.projectId!=='cscecmep-payment'){
     const btn=$('ccSyncBatchAnalyze');
     if(btn){
