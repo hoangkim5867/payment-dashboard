@@ -1403,26 +1403,24 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
 <div class="modal" id="ccGoogleSyncPreviewModal">
   <div class="mbox" style="max-width:980px;width:calc(100% - 24px);max-height:90vh;overflow:auto">
     <div class="mhead">
-      <div><h3>Đồng bộ Google Sheets · Quản lý dự án</h3>
-        <div class="csub">Quản lý link tập trung, đối chiếu theo dự án; chưa bật đồng bộ Cash Control chính thức cho 35 dự án.</div></div>
+      <div><h3>Đồng bộ Google Sheets</h3>
+        <div class="csub">Kiểm tra dữ liệu theo tháng trước khi đồng bộ.</div></div>
       <button type="button" class="btn" data-close="ccGoogleSyncPreviewModal">✕</button>
     </div>
     <section style="margin:14px 0;padding:16px;border:1px solid #dbe4f0;border-radius:12px;background:#f8fafc">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-        <div><strong>01 · Kết nối Google</strong><p style="font-size:12px;color:#64748b;margin:5px 0 0">Admin kết nối khi cần thao tác thủ công.</p></div>
+        <strong>Tài khoản Google</strong>
         <button class="btn" type="button" id="ccGoogleSyncAuthorize">Kết nối Google</button>
       </div>
-      <p id="ccGoogleSyncGoogleStatus" aria-live="polite" style="font-size:13px;color:#475569;margin:10px 0 0">Chưa kết nối Google. Không có thao tác ghi tự động.</p>
+      <p id="ccGoogleSyncGoogleStatus" aria-live="polite" style="font-size:13px;color:#475569;margin:10px 0 0">Chưa kết nối Google.</p>
     </section>
     <section style="margin:14px 0;padding:16px;border:1px solid #dbe4f0;border-radius:12px;background:#fff">
-      <strong>02 · Danh mục Google Sheets · tất cả dự án</strong>
-      <p style="font-size:12px;color:#64748b;margin:7px 0 10px">Dự án mới sẽ tự xuất hiện trong danh mục, không cần sửa code để thêm link.</p>
+      <strong>Kiểm tra theo tháng</strong>
       <div style="font-size:12px;color:#45566c;background:#f3f6fa;border-radius:9px;padding:10px;margin-bottom:10px">FOXCONN TEST đã kiểm chứng ghi mẫu và chống trùng. Đồng bộ giao dịch Cash Control thật và nút chạy chung 35 dự án vẫn khóa bảo vệ dữ liệu.</div>
       <details id="ccGoogleSyncProjectLinkCatalog" hidden open style="margin-top:10px;border:1px solid #dbe4f0;border-radius:10px;padding:10px;background:#f8fafc">
-        <summary style="cursor:pointer;font-weight:700">Danh sách dự án và link Google Sheets (Admin)</summary>
+        <summary style="cursor:pointer;font-weight:700">Đồng bộ theo dự án</summary>
         <div style="margin:11px 0;padding:11px;border:1px solid #cad8e7;border-radius:9px;background:#fff">
-          <div style="font-weight:700;font-size:13px;margin-bottom:5px">Kiểm tra chung theo tháng · tất cả dự án</div>
-          <p style="font-size:12px;color:#5c6880;margin:0 0 10px">Kiểm tra dữ liệu đã tải và xác minh phiên bản Cash Control online bằng một lượt đọc metadata trên production. TEST không đọc Payment thật; không xem số 0 là tháng không phát sinh. Không ghi Firebase hoặc Google Sheets.</p>
+          <p style="font-size:12px;color:#5c6880;margin:0 0 10px">Kiểm tra dữ liệu đã tải cho tháng đã chọn. Kết quả sẽ hiển thị dự án có giao dịch và điều kiện còn thiếu.</p>
           <div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center">
             <label for="ccSyncBatchMonth" style="font-size:12px;font-weight:600">Tháng</label>
             <input id="ccSyncBatchMonth" type="month" style="border:1px solid #cad4e3;border-radius:7px;padding:7px" aria-label="Tháng kiểm tra chung">
@@ -1431,7 +1429,9 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <p id="ccSyncBatchStatus" role="status" style="margin:9px 0 0;font-size:12px;color:#44546b">Chưa rà soát dữ liệu đang có trên trang.</p>
           <div id="ccSyncBatchResults" hidden style="margin-top:10px;max-height:290px;overflow:auto"></div>
         </div>
-        <p style="font-size:12px;margin:8px 0;color:#56647a">Dự án mới xuất hiện tự động. Link chỉ lưu nháp tại trình duyệt này; không tự gửi hoặc ghi Google Sheets.</p>
+        <details style="margin-top:10px;padding:10px;border:1px solid #dbe4f0;border-radius:8px;background:#fff">
+          <summary style="cursor:pointer;font-weight:700">Link Google Sheets theo dự án</summary>
+        <p style="font-size:12px;margin:8px 0;color:#56647a">Link lưu nháp trên trình duyệt này. Dự án mới tự xuất hiện trong danh sách.</p>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0">
           <input id="ccSyncProjectCatalogSearch" type="search" placeholder="Tìm dự án…" style="flex:1;min-width:160px;padding:8px;border:1px solid #ccd6e4;border-radius:7px">
           <button class="btn" id="ccSyncProjectCatalogRefresh" type="button">Cập nhật danh sách</button>
@@ -1445,8 +1445,10 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           </details>
         </div>
         <p id="ccSyncProjectCatalogStatus" style="font-size:12px;color:#44546b"></p>
+        <div id="ccSyncProjectCatalogEntries" style="max-height:420px;overflow:auto;display:grid;gap:7px"></div>
+        </details>
         <details id="ccSyncFoxconnTestProbeArea" style="display:none;margin:12px 0;padding:12px;border:1px solid #c7d9f3;border-radius:10px;background:#f6faff">
-          <summary style="font-weight:700;cursor:pointer;margin-bottom:8px">FOXCONN TEST · công cụ kiểm thử (mở khi cần)</summary>
+          <summary style="font-weight:700;cursor:pointer;margin-bottom:8px">Công cụ FOXCONN TEST</summary>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <label for="ccSyncTestProjectChoice" style="font-size:12px">Dự án đang kiểm tra</label>
             <select id="ccSyncTestProjectChoice" aria-label="Dự án Google TEST" style="padding:7px;border:1px solid #cad4e3;border-radius:7px">
@@ -1487,11 +1489,10 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <p style="font-size:12px;margin:5px 0">Vị trí trong bản chiếu Cash Control từ 10/2026, KHÔNG phải số hàng Google Sheets. Dòng trùng chữ ký ngày/số tiền không xác định là khoản mới.</p>
           <div id="ccSyncFoxconnExceptionRows" style="max-height:240px;overflow:auto;font-size:12px"></div>
         </div>
-        <div id="ccSyncProjectCatalogEntries" style="max-height:420px;overflow:auto;display:grid;gap:7px"></div>
       </details>
     </section>
     <details id="ccGoogleSyncLegacyPilot" style="margin:14px 0;padding:12px 14px;border:1px solid #dbe4f0;border-radius:12px;background:#f8fafc">
-      <summary style="cursor:pointer;font-weight:700;color:#45566c">PHU HUNG · công cụ thí điểm cũ và đối chiếu chuyên sâu <span style="font-size:12px;font-weight:400">(mở khi cần)</span></summary>
+      <summary style="cursor:pointer;font-weight:700;color:#45566c">Công cụ thí điểm PHU HUNG</summary>
       <p style="font-size:12px;color:#6b7280;margin:10px 0">Giữ nguyên chức năng thí điểm PHU HUNG; không sử dụng cho FOXCONN và 35 dự án khác.</p>
     <div style="margin:12px 0;padding:12px;border:1px solid #dbe4f0;border-radius:12px;background:#f8fbff">
       <div style="font-weight:700;margin-bottom:8px">1. PHU HUNG · chọn tháng thí điểm</div>
