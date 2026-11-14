@@ -51,23 +51,23 @@ function compareSourceToHistory(source,raw,month){
    identityMissing=0,counterpartReview=0,sourceKindReview=0;
  for(let i=0;i<source.length;i++){
    const r=source[i],matching=index.get(idSignature(r.values))||[];
+   // Classify source semantics BEFORE counting eligible historical matches
+   // or newer candidates. A transfer, unclear kind or Payment lacking HĐ/IPC
+   // must never inflate "new" or "matched" figures just because date/amount fits.
    let status;
-   if(matching.length>1){status='AMBIGUOUS_HISTORY';ambiguous++;}
-   else if(matching.length===1){status='EXACT_HISTORY_MATCH';historic++;}
-   else if(r.values[0]<=history.maxDate){
-     status='UNMATCHED_BEFORE_LAST_HISTORY_DATE';olderMissing++;
-   }else{status='NEWER_THAN_HISTORY_CANDIDATE';newAfter++;}
-   // The payment ID can be stable while contract/IPC remains insufficient.
-   // Neither a matching date/amount nor a unique status is an approval.
    if(r.sourceClass==='PAYMENT'&&
       (!String(r.values[2]).trim()||!String(r.values[4]).trim())){
      status='PAYMENT_CONTRACT_IPC_MISSING';identityMissing++;
    }else if(r.sourceClass==='TRANSFER'){
-     // Both ledger sides have to be verified; same money/date is insufficient.
+     // Both sides of an inter-project transfer need independent verification.
      status='TRANSFER_COUNTERPART_UNVERIFIED';counterpartReview++;
    }else if(r.sourceClass==='MIXED'||r.sourceClass==='UNKNOWN'){
      status='SOURCE_KIND_UNVERIFIED';sourceKindReview++;
-   }
+   }else if(matching.length>1){status='AMBIGUOUS_HISTORY';ambiguous++;}
+   else if(matching.length===1){status='EXACT_HISTORY_MATCH';historic++;}
+   else if(r.values[0]<=history.maxDate){
+     status='UNMATCHED_BEFORE_LAST_HISTORY_DATE';olderMissing++;
+   }else{status='NEWER_THAN_HISTORY_CANDIDATE';newAfter++;}
    if(status!=='EXACT_HISTORY_MATCH')issues.push({
       sourcePosition:i+1,reason:status,
       googleRow:matching.length===1?matching[0]:null
@@ -81,6 +81,11 @@ function compareSourceToHistory(source,raw,month){
    coreStatus=plan.status;
    if(plan.status==='CANDIDATES_ONLY')coreChanges=plan.changes.length;
  }catch{coreStatus='REVIEW_REQUIRED';}
+ // Offline planMonth has no source-kind information. Do not surface its
+ // technical append count as an actionable candidate when kinds are unresolved.
+ if(identityMissing+counterpartReview+sourceKindReview>0){
+   coreStatus='REVIEW_REQUIRED';coreChanges=0;
+ }
  return Object.freeze({
   project:'FOXCONN',month,sourceRows:source.length,
   historyTransactions:history.entries.length,
