@@ -19,6 +19,8 @@ on:
       - 'tests/cash-sync-batch-readiness.test.mjs'
       - 'site/assets/js/cash-sync-monthly-export-manifest.mjs'
       - 'tests/cash-sync-monthly-export-manifest.test.mjs'
+      - 'site/assets/js/cash-sync-monthly-google-readonly.mjs'
+      - 'tests/cash-sync-monthly-google-readonly.test.mjs'
       - 'site/cash-control.html'
       - 'tests/cash-shared-test-history-audit.test.cjs'
       - 'tests/cash-multi-project-core.test.cjs'
@@ -45,6 +47,8 @@ on:
       - 'tests/cash-sync-batch-readiness.test.mjs'
       - 'site/assets/js/cash-sync-monthly-export-manifest.mjs'
       - 'tests/cash-sync-monthly-export-manifest.test.mjs'
+      - 'site/assets/js/cash-sync-monthly-google-readonly.mjs'
+      - 'tests/cash-sync-monthly-google-readonly.test.mjs'
       - 'site/cash-control.html'
       - 'tests/cash-shared-test-history-audit.test.cjs'
       - 'tests/cash-multi-project-core.test.cjs'
@@ -61,4 +65,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Verify no-write, idempotency and balance scenarios
-        run: node --test tests/cash-multi-project-core.test.cjs tests/cash-multi-project-adapter.test.cjs tests/cash-multi-project-api.test.cjs tests/cash-shared-test-history-audit.test.cjs tests/cash-shared-test-idempotency.test.cjs tests/cash-shared-test-real-compare.test.cjs tests/cash-google-ui-layout.test.cjs tests/cash-sync-batch-readiness.test.mjs tests/cash-sync-monthly-export-manifest.test.mjs tests/cash-sync-source-readonly.test.cjs tests/cash-sync-project-source-coverage.test.mjs
+        run: node --test tests/cash-multi-project-core.test.cjs tests/cash-multi-project-adapter.test.cjs tests/cash-multi-project-api.test.cjs tests/cash-shared-test-history-audit.test.cjs tests/cash-shared-test-idempotency.test.cjs tests/cash-shared-test-real-compare.test.cjs tests/cash-google-ui-layout.test.cjs tests/cash-sync-batch-readiness.test.mjs tests/cash-sync-monthly-export-manifest.test.mjs tests/cash-sync-monthly-google-readonly.test.mjs tests/cash-sync-source-readonly.test.cjs tests/cash-sync-project-source-coverage.test.mjs
