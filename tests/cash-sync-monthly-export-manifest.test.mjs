@@ -15,7 +15,8 @@ const resolver=id=>{
 };
 test('all 35 projects, exactly 19 grouped FOXCONN October rows, historic PIT remains only one source row',()=>{
  const projects=['FOXCONN','ELYSIAN',...Array.from({length:33},(_,i)=>'P'+i)];
- const pay=Array.from({length:18},(_,i)=>base('pay'+i,{importTaxVat:0}));
+ const pay=Array.from({length:18},(_,i)=>base('pay'+i,{importTaxVat:0,
+  contractNo:'LAB-'+i,ipc:'IPC'+i,content:'Thanh toán '+i}));
  const pit=base('tax1',{_syncIds:['expense:tax1','expense:tax2'],
   _taxQuarter:'2026Q3',_taxDirection:'out',indirect:71141977,material:0,
   contractNo:'',ipc:'',importTaxVat:0});
@@ -94,4 +95,15 @@ test('no Payment cache, no Google link or unknown source kind never approves his
  assert.equal(p.googleReads,0);
  assert.throws(()=>buildMonthlyExportManifest({month:'2026-09',projects:['A']}),/INVALID_MONTH/);
  assert.throws(()=>buildMonthlyExportManifest({month:'2026-11',projects:['A','A']}),/INVALID_OR_DUPLICATE_PROJECT/);
+});
+
+test('two different IDs with identical Xuất Excel monetary identity cannot be approved as separate transactions',()=>{
+ const p=buildMonthlyExportManifest({month:'2026-10',projects:['A'],links:{A:true},
+   paymentCacheProjects:['A'],rowsByProject:{A:[
+     base('cash10'),base('cash11')
+   ]},resolveKind:resolver});
+ assert.equal(p.groups[0].issues[0].code,'DUPLICATE_EXCEL_TRANSACTION');
+ assert.equal(p.groups[0].state,'SOURCE_REVIEW_REQUIRED');
+ assert.equal(p.groups[0].sourceRecords,1);
+ assert.equal(p.canWrite,false);
 });
