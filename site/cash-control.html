@@ -1426,6 +1426,12 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
             <input id="ccSyncBatchMonth" type="month" style="border:1px solid #cad4e3;border-radius:7px;padding:7px" aria-label="Tháng kiểm tra chung">
             <button class="btn primary" type="button" id="ccSyncBatchAnalyze">Kiểm tra chung các dự án · không ghi</button>
           </div>
+          <div id="ccSyncMonthSourceBridge" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:9px 0 4px">
+            <button id="ccSyncMonthSourceExport" class="btn" type="button" hidden>Xuất 1 gói nguồn tháng từ Cash Control chính</button>
+            <button id="ccSyncMonthSourceImport" class="btn" type="button" hidden>Nhập 1 gói nguồn tháng để kiểm tra Google TEST</button>
+            <input id="ccSyncMonthSourceFile" type="file" accept=".json,application/json" hidden>
+            <span id="ccSyncMonthSourceStatus" role="status" style="font-size:12px;color:#4d6076">TEST không tự có dữ liệu production; không được xem 0 dòng là không phát sinh.</span>
+          </div>
           <p id="ccSyncBatchStatus" role="status" style="margin:9px 0 0;font-size:12px;color:#44546b">Chưa rà soát dữ liệu đang có trên trang.</p>
           <div id="ccSyncBatchResults" hidden style="margin-top:10px;max-height:290px;overflow:auto"></div>
         </div>
@@ -2037,6 +2043,7 @@ import {bonusTaxQuarterFromPaymentDate,bonusTaxDueMonth,buildLinkedBonusTaxRecor
 import {buildBatchReadiness} from "./assets/js/cash-sync-batch-readiness.mjs";
 import {buildMonthlyExportManifest} from "./assets/js/cash-sync-monthly-export-manifest.mjs";
 import {scanMonthlyGoogleReadOnly} from "./assets/js/cash-sync-monthly-google-readonly.mjs";
+import {buildMonthReviewPackage,inspectMonthReviewPackage} from "./assets/js/cash-sync-month-review-package.mjs";
 import {assessProjectSourceCoverage} from "./assets/js/cash-sync-project-source-coverage.mjs";
 const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
 const app=initializeApp(firebaseConfig),db=getFirestore(app),auth=getAuth(app),paymentsRef=collection(db,"payments");
