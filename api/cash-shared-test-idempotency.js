@@ -38,7 +38,7 @@ function typeOfCell(value){
 }
 function googleEquivalent(actual,expected,column){
  if(Object.is(actual,expected))return true;
- if(column===2&&typeof expected==='string'&&/^\\d{4}-\\d{2}-\\d{2}$/.test(expected)){
+ if(column===2&&typeof expected==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(expected)){
    const serial=Date.parse(expected+'T00:00:00Z')/86400000+25569;
    if(typeof actual==='number'&&Number.isInteger(actual)&&actual===serial)return true;
  }
@@ -46,16 +46,10 @@ function googleEquivalent(actual,expected,column){
    return true;
  if(column>=7&&typeof expected==='number'){
    if((actual===null||actual===undefined||actual==='')&&expected===0)return true;
-   if(typeof actual==='string'&&/^-?(?:0|[1-9]\\d*)$/.test(actual))
+   if(typeof actual==='string'&&/^-?(?:0|[1-9]\d*)$/.test(actual))
      return Number(actual)===expected;
  }
  return false;
-}
-function rowComparison(actual,expected,googleMode){
- if(!Array.isArray(actual)||!Array.isArray(expected))return false;
- if(actual.length>expected.length)return false;
- return expected.every((v,j)=>
-   googleMode?googleEquivalent(actual[j],v,j):Object.is(actual[j],v));
 }
 function firstDifference(actualRows,expectedRows,googleMode=false){
  if(!Array.isArray(actualRows))return {cell:'A1',actualType:typeOfCell(actualRows),
