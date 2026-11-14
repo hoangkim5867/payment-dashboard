@@ -64,6 +64,7 @@ if(require.main===module){
    path.join(__dirname,'../tests/cash-shared-test-idempotency.test.cjs'),
    path.join(__dirname,'../tests/cash-google-ui-layout.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-batch-readiness.test.mjs'),
+   path.join(__dirname,'../tests/cash-sync-monthly-export-manifest.test.mjs'),
    path.join(__dirname,'../tests/cash-sync-source-readonly.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-project-source-coverage.test.mjs'),
    path.join(__dirname,'../tests/cash-shared-test-real-compare.test.cjs'),
