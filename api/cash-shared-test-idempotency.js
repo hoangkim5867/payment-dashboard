@@ -94,6 +94,17 @@ async function run({env,project='FOXCONN',action='preview',confirm,sourceId,
     Math.abs(baseline.closingBalance-BASELINE_BALANCE)>0.000001)
    stop('FOXCONN_TEST_BASELINE_NOT_RECONCILED');
  const matrix=oldMirror.values;
+ // Google Values API represents the interior blank HĐ/IPC cells from
+ // a clipboard paste as empty strings. Validate those and every other cell
+ // exactly; normalization is limited to the explicitly empty columns.
+ const replayMatrix=real&&Array.isArray(matrix)&&Array.isArray(matrix[2])
+   ?matrix.map((row,i)=>i!==2?row:row.map((cell,j)=>{
+     if(j===5||j===6)return cell??'';
+     if(j>=7&&typeof cell==='string'&&/^-?(?:0|[1-9]\d*)$/.test(cell))
+       return Number(cell);
+     return cell;
+   }))
+   :matrix;
  // The no-input button replays only the source ID from the independently
  // read-back pilot row. A blank/missing pilot never triggers a write.
  const record=real?repaymentRow(matrix?.[2]?.[0]):SAMPLE;
@@ -102,7 +113,7 @@ async function run({env,project='FOXCONN',action='preview',confirm,sourceId,
    stop('FOXCONN_TEST_TRANSFER_ALREADY_IN_HISTORY');
  const prefix=real?[HEADER,SAMPLE]:[HEADER];
  const expected=[...prefix,record];
- const stage=same(matrix,expected)?'EXISTS':same(matrix,prefix)?'EMPTY':
+ const stage=same(replayMatrix,expected)?'EXISTS':same(replayMatrix,prefix)?'EMPTY':
    real?stop('TEST_MACHINE_TAB_CONTAINS_OTHER_DATA'):readStage(matrix);
  const result={project:'FOXCONN',kind:real?'VERIFIED_FOXCONN_REPAYMENT_TEST':'SIMULATED_TEST_ONLY',
    historyTransactions:BASELINE_COUNT,historyBalance:BASELINE_BALANCE,

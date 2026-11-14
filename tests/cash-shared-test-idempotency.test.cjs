@@ -111,7 +111,7 @@ test('one-click pilot replay reads the verified repayment twice with no writes',
  await call(f,'commit');
  const sourceId='FOXCONN:transfer:cash-transaction-id:out';
  f.machine().push([sourceId,'FOXCONN','2026-10-26','TRANSFER','Điều chuyển nội bộ',
-  '','',-5700000000,0,0,0,0,0,0,0]);
+  null,'','-5700000000','0',0,0,0,0,0,0]);
  for(let i=0;i<2;i++){
   const p=await call(f,'preview',{sourceId:null});
   assert.equal(p.kind,'VERIFIED_FOXCONN_REPAYMENT_TEST');
