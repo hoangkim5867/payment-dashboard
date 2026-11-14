@@ -24,8 +24,69 @@ function repaymentRow(sourceId){
    -5700000000,0,0,0,0,0,0,0];
 }
 const BASELINE_COUNT=271, BASELINE_BALANCE=35246364496;
-function stop(code,statusCode=409){throw Object.assign(Error(code),{statusCode})}
+function stop(code,statusCode=409,diagnostic){
+ throw Object.assign(Error(code),{statusCode,...(diagnostic?{diagnostic}:{})});
+}
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+// Values.get(UNFORMATTED_VALUE) may omit trailing empty cells, represent
+// blank cells as null/strings, serialize numeric cells as text, or serialize
+// Sheets DATE cells as spreadsheet serial numbers. Accept ONLY equivalent
+// representations of fixed, independently verified canonical TEST rows.
+const columnName=i=>String.fromCharCode(65+i);
+function typeOfCell(value){
+ return value===undefined?'missing':value===null?'null':Array.isArray(value)?'array':typeof value;
+}
+function googleEquivalent(actual,expected,column){
+ if(Object.is(actual,expected))return true;
+ if(column===2&&typeof expected==='string'&&/^\\d{4}-\\d{2}-\\d{2}$/.test(expected)){
+   const serial=Date.parse(expected+'T00:00:00Z')/86400000+25569;
+   if(typeof actual==='number'&&Number.isInteger(actual)&&actual===serial)return true;
+ }
+ if((column===5||column===6)&&expected===''&&(actual===null||actual===undefined))
+   return true;
+ if(column>=7&&typeof expected==='number'){
+   if((actual===null||actual===undefined||actual==='')&&expected===0)return true;
+   if(typeof actual==='string'&&/^-?(?:0|[1-9]\\d*)$/.test(actual))
+     return Number(actual)===expected;
+ }
+ return false;
+}
+function rowComparison(actual,expected,googleMode){
+ if(!Array.isArray(actual)||!Array.isArray(expected))return false;
+ if(actual.length>expected.length)return false;
+ return expected.every((v,j)=>
+   googleMode?googleEquivalent(actual[j],v,j):Object.is(actual[j],v));
+}
+function firstDifference(actualRows,expectedRows,googleMode=false){
+ if(!Array.isArray(actualRows))return {cell:'A1',actualType:typeOfCell(actualRows),
+   expectedType:'array',reason:'matrix_not_array'};
+ for(let i=0;i<Math.max(actualRows.length,expectedRows.length);i++){
+   const a=actualRows[i],e=expectedRows[i];
+   if(!Array.isArray(a)||!Array.isArray(e))
+     return {cell:'A'+(i+1),actualType:typeOfCell(a),
+       expectedType:typeOfCell(e),reason:'row_missing_or_extra'};
+   for(let j=0;j<Math.max(a.length,e.length);j++){
+     if(!((googleMode&&i>0)?googleEquivalent(a[j],e[j],j):Object.is(a[j],e[j])))
+       return {cell:columnName(j)+(i+1),actualType:typeOfCell(a[j]),
+         expectedType:typeOfCell(e[j]),reason:j>=e.length?'extra_cell':
+           j>=a.length?'trailing_cell_omitted':'different_value_or_representation'};
+   }
+ }
+ return null;
+}
+function normalizedCells(actualRows,expectedRows){
+ const changes=[];
+ expectedRows.forEach((e,i)=>{
+   if(!i||!Array.isArray(e)||!Array.isArray(actualRows?.[i]))return;
+   e.forEach((v,j)=>{
+     const a=actualRows[i][j];
+     if(!Object.is(a,v)&&googleEquivalent(a,v,j))
+       changes.push({cell:columnName(j)+(i+1),googleType:typeOfCell(a),
+         canonicalType:typeOfCell(v)});
+   });
+ });
+ return changes;
+}
 function readStage(matrix){
  if(!Array.isArray(matrix)||!matrix.length||!same(matrix[0],HEADER))
    stop('TEST_MACHINE_HEADER_CHANGED');
@@ -94,17 +155,6 @@ async function run({env,project='FOXCONN',action='preview',confirm,sourceId,
     Math.abs(baseline.closingBalance-BASELINE_BALANCE)>0.000001)
    stop('FOXCONN_TEST_BASELINE_NOT_RECONCILED');
  const matrix=oldMirror.values;
- // Google Values API represents the interior blank HĐ/IPC cells from
- // a clipboard paste as empty strings. Validate those and every other cell
- // exactly; normalization is limited to the explicitly empty columns.
- const replayMatrix=real&&Array.isArray(matrix)&&Array.isArray(matrix[2])
-   ?matrix.map((row,i)=>i!==2?row:row.map((cell,j)=>{
-     if(j===5||j===6)return cell??'';
-     if(j>=7&&typeof cell==='string'&&/^-?(?:0|[1-9]\d*)$/.test(cell))
-       return Number(cell);
-     return cell;
-   }))
-   :matrix;
  // The no-input button replays only the source ID from the independently
  // read-back pilot row. A blank/missing pilot never triggers a write.
  const record=real?repaymentRow(matrix?.[2]?.[0]):SAMPLE;
@@ -113,13 +163,18 @@ async function run({env,project='FOXCONN',action='preview',confirm,sourceId,
    stop('FOXCONN_TEST_TRANSFER_ALREADY_IN_HISTORY');
  const prefix=real?[HEADER,SAMPLE]:[HEADER];
  const expected=[...prefix,record];
- const stage=same(replayMatrix,expected)?'EXISTS':same(replayMatrix,prefix)?'EMPTY':
-   real?stop('TEST_MACHINE_TAB_CONTAINS_OTHER_DATA'):readStage(matrix);
+ const diffExisting=firstDifference(matrix,expected,real);
+ const diffEmpty=firstDifference(matrix,prefix,real);
+ const stage=!diffExisting?'EXISTS':!diffEmpty?'EMPTY':
+   real?stop('TEST_MACHINE_TAB_CONTAINS_OTHER_DATA',409,diffExisting):readStage(matrix);
+ const googleRepresentations=real&&stage==='EXISTS'?
+   normalizedCells(matrix,expected):[];
  const result={project:'FOXCONN',kind:real?'VERIFIED_FOXCONN_REPAYMENT_TEST':'SIMULATED_TEST_ONLY',
    historyTransactions:BASELINE_COUNT,historyBalance:BASELINE_BALANCE,
    historyUntouched:true,sourceIsCashControl:real,canWriteProduction:false,
    sampleId:record[0],
-   ...(real?{projectedBalance:baseline.closingBalance+record[7]}:{}),sampleRows:stage==='EXISTS'?1:0};
+   ...(real?{projectedBalance:baseline.closingBalance+record[7],
+     googleRepresentations}:{}),sampleRows:stage==='EXISTS'?1:0};
  if(action==='preview')
    return {...result,mode:'preview',needsTestWrite:stage==='EMPTY',
      googleReads:reads,googleWrites:0,firestoreReads:0};
@@ -175,7 +230,8 @@ async function handler(req,res){
    return res.status(status).json({error:
      /^[A-Z0-9_]+$/.test(String(error.message||''))?
        error.message:'FOXCONN_TEST_SMOKE_FAILED',writesUnknown:
-       error.message==='TEST_WRITE_UNCERTAIN_DO_NOT_RETRY'});
+       error.message==='TEST_WRITE_UNCERTAIN_DO_NOT_RETRY',
+       ...(error.diagnostic?{diagnostic:error.diagnostic}:{})});
  }
 }
 module.exports=handler;
