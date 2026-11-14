@@ -8,21 +8,28 @@ const VALUE_FIELDS=['income','subcontract','material','otherDirect','indirect',
 const MONTH=/^20\d\d-(0[1-9]|1[0-2])$/;
 const identity=x=>String(x??'').normalize('NFKC').trim();
 const finiteAmount=v=>typeof v==='number'&&Number.isFinite(v);
-function auditProject({project,rows,hasLink}){
+const validDay=date=>{
+  if(typeof date!=='string'||!/^20\d\d-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/.test(date))
+    return false;
+  const [year,month,day]=date.split('-').map(Number);
+  const parsed=new Date(Date.UTC(year,month-1,day));
+  return parsed.getUTCFullYear()===year&&parsed.getUTCMonth()===month-1&&
+    parsed.getUTCDate()===day;
+};
+function auditProject({project,month,rows,hasLink}){
   if(!Array.isArray(rows)||rows.length>10000)
     throw Error('UNBOUNDED_PROJECT_ROWS');
   const seen=new Set(),details={
     project,transactions:rows.length,hasLink:Boolean(hasLink),sourceIds:0,
     missingSourceIds:0,duplicateSourceIds:0,invalidAmounts:0,
-    invalidDates:0,unknownImportTax:0,transferRows:0,
+    invalidDates:0,wrongMonthRows:0,unknownImportTax:0,transferRows:0,
     transferCounterpartsUnverified:0,income:0,expenses:0
   };
   for(const row of rows){
     if(!row||typeof row!=='object'||Array.isArray(row))
       throw Error('INVALID_TRANSACTION');
-    if(typeof row.date!=='string'||!MONTH.test(row.date.slice(0,7))||
-       row.date.length!==10||!/^20\d\d-\d\d-\d\d$/.test(row.date))
-      details.invalidDates++;
+    if(!validDay(row.date))details.invalidDates++;
+    else if(row.date.slice(0,7)!==month)details.wrongMonthRows++;
     const ids=row._syncIds;
     if(!Array.isArray(ids)||!ids.length||
        ids.some(id=>typeof id!=='string'||!identity(id))){
@@ -56,7 +63,7 @@ function auditProject({project,rows,hasLink}){
   }
   details.net=details.income-details.expenses;
   details.needsReview=details.missingSourceIds+details.duplicateSourceIds+
-    details.invalidAmounts+details.invalidDates+details.unknownImportTax+
+    details.invalidAmounts+details.invalidDates+details.wrongMonthRows+details.unknownImportTax+
     details.transferCounterpartsUnverified;
   details.status=rows.length===0?'NO_ACTIVITY_IN_MEMORY':
     !hasLink?'MISSING_GOOGLE_LINK':
@@ -81,7 +88,7 @@ export function buildBatchReadiness({month,projects,links={},rowsByProject={}}={
     used.add(project);
     const rows=Object.prototype.hasOwnProperty.call(rowsByProject,project)?
       rowsByProject[project]:[];
-    report.push(auditProject({project,rows,hasLink:links[project]===true}));
+    report.push(auditProject({project,month,rows,hasLink:links[project]===true}));
   }
   report.sort((a,b)=>a.project.localeCompare(b.project));
   const linkedProjects=report.filter(row=>row.hasLink).length;
