@@ -122,3 +122,52 @@ test('one-click pilot replay reads the verified repayment twice with no writes',
  }
  assert.equal(f.stats.writes,1);
 });
+
+
+test('Google Values sparse final zero cells and date serial replay safely twice',async()=>{
+ const f=fixture();
+ await call(f,'commit');
+ const sourceId='FOXCONN:transfer:verified-source-row:out';
+ const dateSerial=Date.parse('2026-10-26T00:00:00Z')/86400000+25569;
+ // Values API removes trailing empty cells. Preserve amount as textual
+ // integer and date as serial, exactly as Google may return after a paste.
+ f.machine().push([sourceId,'FOXCONN',dateSerial,'TRANSFER','Điều chuyển nội bộ',
+   null,'','-5700000000']);
+ for(let i=0;i<2;i++){
+   const result=await call(f,'preview',{sourceId:null});
+   assert.equal(result.projectedBalance,29546364496);
+   assert.equal(result.sampleRows,1);
+   assert.equal(result.googleWrites,0);
+   assert.equal(result.needsTestWrite,false);
+   assert.ok(result.googleRepresentations.some(x=>x.cell==='C3'&&
+     x.googleType==='number'&&x.canonicalType==='string'));
+   assert.ok(result.googleRepresentations.some(x=>x.cell==='H3'&&
+     x.googleType==='string'&&x.canonicalType==='number'));
+   assert.ok(result.googleRepresentations.some(x=>x.cell==='I3'&&
+     x.googleType==='missing'&&x.canonicalType==='number'));
+ }
+ assert.equal(f.stats.writes,1);
+ assert.equal(f.machine().length,3);
+});
+test('unexpected cell or extra row fails with a precise, value-free coordinate',async()=>{
+ const f=fixture();
+ await call(f,'commit');
+ f.machine().push(['FOXCONN:transfer:verified-source-row:out','FOXCONN',
+   '2026-10-26','TRANSFER','Điều chuyển nội bộ','','',-5699999999,
+   0,0,0,0,0,0,0]);
+ await assert.rejects(call(f,'preview',{sourceId:null}),err=>{
+   assert.equal(err.message,'TEST_MACHINE_TAB_CONTAINS_OTHER_DATA');
+   assert.deepEqual(err.diagnostic,{cell:'H3',actualType:'number',
+     expectedType:'number',reason:'different_value_or_representation'});
+   return true;
+ });
+ assert.equal(f.stats.writes,1);
+ f.machine()[2][7]=-5700000000;
+ f.machine().push(['UNRELATED_DATA']);
+ await assert.rejects(call(f,'preview',{sourceId:null}),err=>{
+   assert.equal(err.diagnostic?.cell,'A4');
+   assert.equal(err.diagnostic?.reason,'row_missing_or_extra');
+   return true;
+ });
+ assert.equal(f.stats.writes,1);
+});
