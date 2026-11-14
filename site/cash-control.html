@@ -6372,7 +6372,7 @@ async function ccSyncBatchAnalyzeInMemory(){
       throw Error('Không xác minh được kế hoạch chỉ đọc.');
     }
     let sourceMetadata='CHƯA CÓ NGUỒN CASH CONTROL THẬT · Firebase STAGING, '+
-      'chỉ dữ liệu TEST đang nằm trong bộ nhớ; 0 Firebase reads';
+      'chỉ dữ liệu TEST đang nằm trong bộ nhớ; KHÔNG kết luận 0 giao dịch ở dự án chưa tải. 0 Firebase reads';
     if(!isTestPreview){
       // One production-only, Admin-authenticated metadata read per deliberate
       // click. Staging exits earlier; this never fetches Payment documents.
