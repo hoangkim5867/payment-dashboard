@@ -334,3 +334,16 @@ test('S13-2 TEST route rejects a wrongly titled Google file before writes',async
  assert.match(denied.error,/bản sao S13-2 TEST/);
  assert.equal(f.state.writes,0);
 });
+
+test('S13-2 production commit cannot use global allowlist for an unrelated month',async()=>{
+ const f=fixture('S13-2');
+ const preview=await f.call('preview',{enabled:true});
+ assert.equal(preview.status,200);
+ assert.equal(preview.writeConfigured,true);
+ const denied=await f.call('commit',{enabled:true,
+  signature:preview.signature,confirm:'SYNC_THIS_PROJECT'});
+ assert.equal(denied.status,409);
+ assert.match(denied.error,/S13-2 Production chỉ cho phép ba khoản/);
+ assert.equal(f.state.writes,0);
+ assert.deepEqual(f.state.history,orig);
+});
