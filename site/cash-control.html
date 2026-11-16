@@ -1481,7 +1481,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <select id="ccSyncPaymentPreflightProject" aria-label="Dự án cần đếm Payment" style="min-width:180px;padding:7px;border:1px solid #cad4e3;border-radius:7px"></select>
           <button class="btn" id="ccSyncPaymentPreflightCount" type="button">Kiểm tra số Payment một dự án · chỉ đọc</button>
           <button class="btn" id="ccSyncPaymentPreflightLoad" type="button">Tải Payment 1 dự án · chỉ đọc</button>
-          <button class="btn" id="ccSyncExportSourceForTest" type="button">Xuất nguồn đối chiếu TEST · 1 dự án</button>
+          <button class="btn" id="ccSyncExportSourceForTest" type="button">Đối chiếu nguồn TEST · 1 dự án</button>
           <button class="btn" id="ccSyncProjectCompareGoogle" type="button">Đối chiếu Payment ↔ Google · chỉ đọc</button>
           <span id="ccSyncPaymentPreflightStatus" aria-live="polite" style="font-size:12px;color:#44546b">Chưa kiểm tra.</span>
         </div>
@@ -6086,6 +6086,52 @@ async function ccSyncCompareProjectGoogleReadOnly(){
 // One deliberate Admin click: one project/month only. No scheduled jobs.
 // Google original historical tab is read-only; backend controls all writes.
 
+async function ccSyncCheckS13OctoberSource(button,status){
+  if(!cashCloudReady||!legacySeedReady||!paymentMonths.has('S13-2')){
+    status.textContent='Mở sổ S13-2 hoặc tải Payment riêng dự án trước khi kiểm tra nguồn tháng 10/2026.';
+    return;
+  }
+  const user=currentAuthUser;
+  const revision=Number(cashCloudState.revision||0);
+  button.disabled=true;
+  status.textContent='Đang so 3 dòng nguồn tháng 10/2026 với kết quả Google TEST…';
+  try{
+    const previousLang=window.cashExportLang;
+    let source;
+    try{
+      window.cashExportLang='zh';
+      source=legacyCashExportRows('2026-10','S13-2').map(row=>({
+        id:row._syncIds.map(id=>id.replace(/^expense:(?:legacy:)?/,'')).sort().join('+'),
+        values:ccGoogleSyncPayloadCells(ccGoogleSyncRowValues(row))
+      }));
+    }finally{window.cashExportLang=previousLang;}
+    if(source.length!==3)
+      throw Error('Nguồn hiện có '+source.length+' dòng sau gộp; Google TEST có 3 dòng.');
+    const response=await fetch('/api/cash-sync-source-readonly',{
+      method:'POST',headers:{'Content-Type':'application/json',
+        'X-Firebase-ID-Token':await user.getIdToken()},
+      body:JSON.stringify({action:'s13_october_source',revision,source})
+    });
+    const result=await response.json();
+    if(!response.ok||result.kind!=='S13_OCTOBER_TEST_SOURCE_COMPARISON'||
+       result.project!=='S13-2'||result.month!=='2026-10'||
+       result.sourceComplete!==false||result.canSync!==false||result.googleWrites!==0||
+       result.revision!==revision||currentAuthUser!==user||!isCashControlOwner()||
+       Number(cashCloudState.revision||0)!==revision||
+       result.projectMasters!==(cashCloudState.projectMasters||[]).length||
+       result.manualRecords!==(cashCloudState.manualRecords||[]).length||
+       result.salaryRecords!==(cashCloudState.salaryRecords||[]).length)
+      throw Error('Không xác nhận được phiên và phiên bản nguồn Cash Control.');
+    const outcome=!result.identitiesMatch?'Cần rà soát ID nguồn':
+      !result.postingMatches?'ID khớp, cần rà soát ngày hoặc cột tiền':
+      result.labelsMatch?'Khớp 3/3 dòng với dữ liệu đã ghi TEST':
+        'Khớp 3/3 ID, ngày và cột tiền; nhãn hiển thị khác';
+    status.textContent='S13-2 · 10/2026 · '+outcome+
+      '. Kiểm tra chỉ đọc. Chưa cấp phép ghi Production.';
+  }catch(error){
+    status.textContent='S13-2 · Dừng kiểm tra nguồn: '+String(error?.message||error).slice(0,150);
+  }finally{button.disabled=false;}
+}
 async function ccSyncExportSourceForTest(){
   const button=$('ccSyncExportSourceForTest'),status=$('ccSyncPaymentPreflightStatus');
   if(!button||!status||button.disabled)return;
@@ -6094,8 +6140,9 @@ async function ccSyncExportSourceForTest(){
   }
   const project=normProject($('ccSyncPaymentPreflightProject')?.value||'');
   const month=String($('ccSyncBatchMonth')?.value||'');
+  if(project==='S13-2'&&month==='2026-10')return ccSyncCheckS13OctoberSource(button,status);
   if(project!=='FOXCONN'||!/^2026-(10|11|12)$/.test(month)){
-    status.textContent='Bản thử nguồn thật hiện chỉ hỗ trợ FOXCONN, tháng 10–12/2026.';return;
+    status.textContent='Chọn S13-2 tháng 10/2026 hoặc FOXCONN tháng 10–12/2026.';return;
   }
   if(!cashCloudReady||!legacySeedReady){
     status.textContent='Nguồn Cash Control chưa sẵn sàng; không xuất file thiếu giao dịch.';return;

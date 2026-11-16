@@ -61,4 +61,19 @@ function testGateChecks(env,input){
    missing.push('TEST_SOURCE_CONTENT_MISMATCH');
  return missing;
 }
-module.exports={canWriteS13Test,testGateChecks,ORIGINAL,IDS};
+// Compare the live export with the prior TEST posting without treating text
+// labels as financial fields. A label difference is reported separately.
+function compareS13TestSource(rows){
+ const byId=new Map(rows.map(row=>[row.id,row.values]));
+ const identitiesMatch=rows.length===IDS.length&&byId.size===IDS.length&&
+   IDS.every(id=>byId.has(id));
+ const postingMatches=identitiesMatch&&IDS.every((id,i)=>{
+  const actual=byId.get(id),reference=expected[i];
+  return actual.length===reference.length&&actual[0]===reference[0]&&
+   actual.slice(6).every((value,j)=>value===reference[j+6]);
+ });
+ const labelsMatch=postingMatches&&IDS.every((id,i)=>
+  byId.get(id).slice(1,6).every((value,j)=>value===expected[i][j+1]));
+ return {identitiesMatch,postingMatches,labelsMatch};
+}
+module.exports={canWriteS13Test,testGateChecks,compareS13TestSource,ORIGINAL,IDS};

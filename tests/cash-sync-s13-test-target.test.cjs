@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {canWriteS13Test,testGateChecks,ORIGINAL,IDS}=require('../server/cash-sync-s13-test-target.cjs');
+const {canWriteS13Test,testGateChecks,compareS13TestSource,ORIGINAL,IDS}=require('../server/cash-sync-s13-test-target.cjs');
 const TEST='testcopyS13202610ABCDEF0123456789';
 const baseEnv={
  VERCEL_ENV:'preview',CASH_SYNC_FIREBASE_PROJECT_ID:'cscecmep-payment',
@@ -62,4 +62,27 @@ test('safe diagnostics identify missing TEST flags without leaking secrets',()=>
  assert.deepEqual(denied,['TEST_FLAG_DISABLED']);
  assert.deepEqual(testGateChecks({...baseEnv,CASH_SYNC_S13_TEST_HISTORY_GID:'not-a-gid'},payload()),['TEST_GID_NOT_SET']);
  assert.deepEqual(testGateChecks({...baseEnv,CASH_SYNC_S13_TEST_FILE_ID:'anotherValidGoogleSpreadsheetId_123'},payload()),['TEST_FILE_MISMATCH']);
+});
+
+
+test('S13-2 source comparison distinguishes IDs, postings and display labels',()=>{
+ const good=payload().source;
+ assert.deepEqual(compareS13TestSource([...good].reverse()),
+  {identitiesMatch:true,postingMatches:true,labelsMatch:true});
+ const missing=payload().source;
+ missing[2].id=IDS[0];
+ assert.deepEqual(compareS13TestSource(missing),
+  {identitiesMatch:false,postingMatches:false,labelsMatch:false});
+ const wrongBucket=payload().source;
+ wrongBucket[0].values[9]=wrongBucket[0].values[10];
+ wrongBucket[0].values[10]=0;
+ assert.deepEqual(compareS13TestSource(wrongBucket),
+  {identitiesMatch:true,postingMatches:false,labelsMatch:false});
+ const wrongDay=payload().source;
+ wrongDay[1].values[0]='2026-10-03';
+ assert.equal(compareS13TestSource(wrongDay).postingMatches,false);
+ const renamed=payload().source;
+ renamed[0].values[3]='Revised payroll description';
+ assert.deepEqual(compareS13TestSource(renamed),
+  {identitiesMatch:true,postingMatches:true,labelsMatch:false});
 });

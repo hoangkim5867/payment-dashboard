@@ -107,3 +107,33 @@ test('empty Firestore arrayValue counts as valid zero records and timestampValue
  assert.equal(result.updatedAt,'2026-11-13T09:00:00Z');
  assert.equal(result.sourceComplete,false);
 });
+
+
+test('S13-2 October comparison is revision-bound, read-only and withholds inputs',async()=>{
+ const source=['unknown-payroll','unknown-meal','unknown-tax'].map(id=>({
+  id,values:['2026-10-02','','','','','',0,0,0,0,1,0,0]
+ }));
+ const requests=[];
+ const fetcher=async(url,options)=>{
+  requests.push({url,method:options.method});
+  return {ok:true,json:async()=>doc};
+ };
+ const request={env:prod,action:'s13_october_source',revision:23,source,
+  firebaseJwt:token,verifyAdmin:auth,fetcher};
+ const result=await inspect(request);
+ assert.equal(result.kind,'S13_OCTOBER_TEST_SOURCE_COMPARISON');
+ assert.equal(result.project,'S13-2');
+ assert.equal(result.month,'2026-10');
+ assert.equal(result.identitiesMatch,false);
+ assert.equal(result.postingMatches,false);
+ assert.equal(result.sourceComplete,false);
+ assert.equal(result.canSync,false);
+ assert.equal(result.googleWrites,0);
+ assert.equal(JSON.stringify(result).includes('unknown-payroll'),false);
+ assert.equal(requests.length,1);
+ assert.equal(requests[0].method,'GET');
+ assert.match(requests[0].url,/cash_control_private\/lehoangoanh/);
+ await assert.rejects(inspect({...request,revision:24}),/S13_SOURCE_REVISION_CHANGED/);
+ await assert.rejects(inspect({...request,source:source.slice(1)}),/INVALID_S13_SOURCE/);
+ assert.equal(requests.length,2);
+});
