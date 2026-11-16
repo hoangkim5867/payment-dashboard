@@ -54,12 +54,8 @@ td:last-child,th:last-child{text-align:right}
 import {initializeApp,getApps} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
 import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 import {getFirestore,getDoc,doc} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
-const app=getApps()[0]||initializeApp({
- apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",
- authDomain:"cscecmep-payment.firebaseapp.com",
- projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",
- messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"
-});
+const firebaseConfig={apiKey:"BUILD_STAGING",authDomain:"BUILD_STAGING",projectId:"BUILD_STAGING",storageBucket:"BUILD_STAGING",messagingSenderId:"BUILD_STAGING",appId:"BUILD_STAGING"};
+const app=getApps()[0]||initializeApp(firebaseConfig);
 const auth=getAuth(app),db=getFirestore(app);
 const GIS_CLIENT_ID="217279768663-lkrs0o14b9kg1fi4rk1pt7cpgf7bq3sq.apps.googleusercontent.com";
 const SCOPE="https://www.googleapis.com/auth/spreadsheets";
