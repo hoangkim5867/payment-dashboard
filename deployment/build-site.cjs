@@ -386,6 +386,7 @@ if(require.main===module){
    path.join(__dirname,'../tests/cash-sync-month-review-package.test.mjs'),
    path.join(__dirname,'../tests/cash-sync-source-readonly.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-s13-original-readonly.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-s13-source-integrity.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-project-source-coverage.test.mjs'),
    path.join(__dirname,'../tests/cash-shared-test-real-compare.test.cjs'),
    path.join(__dirname,'../google-sheets-sync/pilot.test.cjs')
