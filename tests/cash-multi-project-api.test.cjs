@@ -351,11 +351,10 @@ test('S13-2 production commit cannot use global allowlist for an unrelated month
 test('S13-2 production alias or case variant never skips four-ID source check',async()=>{
  for(const project of ['s13-2','S13-2 ','Ｓ13-2']){
   const f=fixture(project);
-  const preview=await f.call('preview',{enabled:true,month:'2026-10'});
-  assert.equal(preview.status,200);
-  assert.equal(preview.writeConfigured,true);
+  // The alias must be rejected before any Google read, even when a caller
+  // possesses a syntactically valid signature and a matching allowlist.
   const denied=await f.call('commit',{enabled:true,month:'2026-10',
-   signature:preview.signature,confirm:'SYNC_THIS_PROJECT'});
+   signature:'a'.repeat(64),confirm:'SYNC_THIS_PROJECT'});
   assert.equal(denied.status,409);
   assert.match(denied.error,/yêu cầu tên dự án chuẩn/);
   assert.equal(f.state.writes,0);
