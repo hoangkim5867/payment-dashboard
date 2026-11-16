@@ -8,12 +8,14 @@ const baseEnv={
  CASH_SYNC_S13_TEST_WRITES:'YES',CASH_SYNC_S13_TEST_FILE_ID:TEST,
  CASH_SYNC_S13_TEST_HISTORY_GID:'1543850344'
 };
-const row=(id,date,amount)=>({id,project:'S13-2',month:'2026-10',
- values:[date,'中方员工工资','','测试工资','','职工薪酬',0,0,0,0,amount,0,0]});
+const row=(id,values)=>({id,project:'S13-2',month:'2026-10',values});
 const payload=()=>({project:'S13-2',month:'2026-10',spreadsheetId:TEST,
  historySheetId:1543850344,expectedMonthClosing:-72663856,openingBalance:null,
- source:[row(IDS[0],'2026-10-02',81463753),
- row(IDS[1],'2026-10-02',3859500),row(IDS[2],'2026-10-20',52923736)]});
+ source:[
+ row(IDS[0],['2026-10-02','中方员工工资','','2026年08月中方员工工资','','职工薪酬',0,0,0,0,81463753,0,0]),
+ row(IDS[1],['2026-10-02','伙食费','','2026年08月伙食费','','职工薪酬',0,0,0,0,3859500,0,0]),
+ row(IDS[2],['2026-10-20','','','2026年第3季度个人所得税','','职工薪酬',0,0,0,0,52923736,0,0])
+ ]});
 test('S13-2 TEST gate accepts exactly three verified payroll sources and TEST destination',()=>{
  assert.equal(canWriteS13Test(baseEnv,payload()),true);
 });
@@ -42,6 +44,7 @@ test('S13-2 TEST gate fails closed for wrong period, project, amount, ID, source
  p=>{p.source[2].id='excel-row:8'},
  p=>{p.source[2].id='legacy_salary_672'},
  p=>{p.source[1].values[0]='2026-10-03'},
+ p=>{p.source[1].values[3]='Wrong payroll memo'},
  p=>{p.source[1].values[10]=-3859500},
  p=>{p.source[1].values[6]=3859500},
  p=>{p.source.pop()},
