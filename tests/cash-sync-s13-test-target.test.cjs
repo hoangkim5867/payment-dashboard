@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {canWriteS13Test,ORIGINAL,IDS}=require('../server/cash-sync-s13-test-target.cjs');
+const {canWriteS13Test,testGateChecks,ORIGINAL,IDS}=require('../server/cash-sync-s13-test-target.cjs');
 const TEST='testcopyS13202610ABCDEF0123456789';
 const baseEnv={
  VERCEL_ENV:'preview',CASH_SYNC_FIREBASE_PROJECT_ID:'cscecmep-payment',
@@ -24,7 +24,6 @@ test('S13-2 TEST route never authorizes a production or original ledger write',(
  {...baseEnv,VERCEL_ENV:'production'},
  {...baseEnv,VERCEL_ENV:'development'},
  {...baseEnv,CASH_SYNC_S13_TEST_WRITES:'NO'},
- {...baseEnv,CASH_SYNC_FIREBASE_PROJECT_ID:'cash-control-staging'},
  {...baseEnv,CASH_SYNC_S13_TEST_FILE_ID:ORIGINAL},
  {...baseEnv,CASH_SYNC_S13_TEST_FILE_ID:''},
  {...baseEnv,CASH_SYNC_S13_TEST_HISTORY_GID:'other'}
@@ -52,4 +51,15 @@ test('S13-2 TEST gate fails closed for wrong period, project, amount, ID, source
  ];
  for(const change of scenarios){const p=payload();change(p);
   assert.equal(canWriteS13Test(baseEnv,p),false,JSON.stringify(p));}
+});
+
+test('staging Admin verification is independent of legacy production Firebase config',()=>{
+ assert.equal(canWriteS13Test({...baseEnv,CASH_SYNC_FIREBASE_PROJECT_ID:'cash-control-staging'},payload()),true);
+ assert.deepEqual(testGateChecks({...baseEnv,CASH_SYNC_FIREBASE_PROJECT_ID:'cash-control-staging'},payload()),[]);
+});
+test('safe diagnostics identify missing TEST flags without leaking secrets',()=>{
+ const denied=testGateChecks({...baseEnv,CASH_SYNC_S13_TEST_WRITES:'NO'},payload());
+ assert.deepEqual(denied,['TEST_FLAG_DISABLED']);
+ assert.deepEqual(testGateChecks({...baseEnv,CASH_SYNC_S13_TEST_HISTORY_GID:'not-a-gid'},payload()),['TEST_GID_NOT_SET']);
+ assert.deepEqual(testGateChecks({...baseEnv,CASH_SYNC_S13_TEST_FILE_ID:'anotherValidGoogleSpreadsheetId_123'},payload()),['TEST_FILE_MISMATCH']);
 });
