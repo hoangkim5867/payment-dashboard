@@ -6321,6 +6321,21 @@ async function ccSyncMultiProjectManual(){
           sourceComplete,spreadsheetId,historySheetId,expectedMonthClosing});
         if(!sourceComplete)mark(project,'Nguồn chưa đủ điều kiện, sẽ bỏ qua.');
       }
+      // Signed server release metadata, one Admin request for all active
+      // project destinations; zero Google/Payment reads and zero writes.
+      const releaseResponse=await fetch('/api/cash-sync-release-status',{
+        method:'POST',headers:{'Content-Type':'application/json',
+          'X-Firebase-ID-Token':firebaseToken},
+        body:JSON.stringify({projects:targets.map(x=>({
+          project:x.project,spreadsheetId:x.spreadsheetId,
+          historySheetId:x.historySheetId<0?0:x.historySheetId
+        }))})
+      });
+      const release=await releaseResponse.json().catch(()=>({}));
+      if(!releaseResponse.ok||release.kind!=='ADMIN_RELEASE_METADATA_ONLY')
+        throw Error('Không xác minh được danh sách file Google đã được máy chủ cấp phép.');
+      requireFresh();
+      const releaseReasons=new Map(release.rows.map(x=>[x.project,x.reason]));
       const result=await runManualMonthlySync({
         month,projects:targets,write:true,
         checkAdmin:async()=>{try{requireFresh();return true}catch{return false}},
@@ -6342,7 +6357,9 @@ async function ccSyncMultiProjectManual(){
           };
           mark(row.project,(note[row.status]||row.status)+
             (row.closingBalance===null?'':' · số dư '+Number(row.closingBalance).toLocaleString('vi-VN')+' đ')+
-            (row.reason==='OK'?'':' · '+row.reason));
+            (row.reason==='OK'?'':' · '+row.reason)+
+            (releaseReasons.get(row.project)==='SERVER_TARGET_ENABLED'?'':' · quyền máy chủ: '+
+              (releaseReasons.get(row.project)||'CHƯA_XÁC_MINH')));
         }
       });
       const t=result.summary;
@@ -6350,6 +6367,8 @@ async function ccSyncMultiProjectManual(){
         ' dự án có nguồn · '+t.verified+' đã ghi và đọc lại · '+t.unchanged+
         ' đã khớp · '+t.previewOnly+' chỉ xem trước (chưa cấp phép) · '+
         t.skipped+' bỏ qua · '+t.failed+' cần kiểm tra · '+
+        release.serverEnabledProjects+'/'+release.requestedProjects+
+        ' đích đã cấp phép tại máy chủ · '+
         indexedCount+' hồ sơ Payment đọc theo tháng.';
     });
   }catch(error){
