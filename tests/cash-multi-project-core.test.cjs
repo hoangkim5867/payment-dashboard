@@ -113,3 +113,50 @@ test('view formulas remain deterministic and never update original Google histor
  assert.equal(JSON.stringify(history),baseline);
  assert.equal(p.canWrite,false);
 });
+
+test('S13-2 October scoped report preserves 258 historical rows with two date inversions',()=>{
+ // Synthetic amounts/rows model the owner-reported structural totals; this
+ // NEVER reads actual Google or proves that the production source is complete.
+ const historicClose=65583133;
+ const history=Array.from({length:258},(_,i)=>[
+  i===40||i===140?'2026-09-29':'2026-09-30',
+  'Original ledger','OLD-'+i,'Existing entry','','间接费',
+  0,0,0,0,0,0,0,historicClose
+ ]);
+ const inversions=history.reduce((n,row,i)=>
+  n+(i>0&&row[0]<history[i-1][0]?1:0),0);
+ assert.equal(inversions,2);
+ const frozenHistory=JSON.stringify(history);
+ const make=(id,day,company,description,expense)=>source(
+  'S13-2','2026-10',id,
+  [day,company,'',description,'','职工薪酬',0,0,0,0,expense,0,0]);
+ const sourceRows=[
+  make('manual_salary_payroll_1790835443846_m4hd2','2026-10-02',
+   '中方员工工资','2026年08月中方员工工资',81463753),
+  make('manual_salary_payroll_1790835443852_ihc3a','2026-10-02',
+   '伙食费','2026年08月伙食费',3859500),
+  make('legacy_salary_672+legacy_salary_680','2026-10-20',
+   '','2026年第3季度个人所得税',52923736)
+ ];
+ const args={project:'S13-2',month:'2026-10',source:sourceRows,history};
+ const first=planMonth(args);
+ assert.equal(first.status,'CANDIDATES_ONLY');
+ assert.equal(first.viewRows.length,261);
+ assert.equal(first.historicalClosing,historicClose);
+ assert.deepEqual(first.changes.map(x=>x.action),['append','append','append']);
+ assert.equal(first.closingBalance,-72663856);
+ assert.equal(first.canWrite,false);
+ assert.equal(first.approvedWrites,0);
+ assert.equal(first.requiresOtherProjects,false);
+ for(let i=0;i<258;i++)
+  assert.deepEqual(first.viewRows[i].values,history[i].slice(0,13));
+ assert.equal(JSON.stringify(history),frozenHistory);
+ // A repeated source snapshot must reuse all three immutable IDs.
+ const second=planMonth({...args,mirror:first.mirrorNext});
+ assert.equal(second.status,'CANDIDATES_ONLY');
+ assert.equal(second.changes.length,0);
+ assert.equal(second.viewRows.length,261);
+ assert.equal(second.closingBalance,-72663856);
+ assert.equal(second.canWrite,false);
+ assert.equal(JSON.stringify(history),frozenHistory);
+});
