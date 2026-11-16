@@ -60,6 +60,35 @@ test('Admin read-only details show source and Google row positions, without raw 
  assert.ok(!serialized.includes('120'));
 });
 
+test('unique matching contract IPC with different amount gets a review-only pair',()=>{
+ const x=compareHistoryToExport({project:'ELYSIAN',month:'2026-10',
+   records:[source('invoice:changing-amount',120)],history:[raw(100)],audit});
+ const candidate=x.reviewRows.find(r=>r.origin==='CASH_CONTROL');
+ assert.equal(candidate.sourceRow,1);
+ assert.equal(candidate.googleRow,1);
+ assert.equal(candidate.code,'SAME_CONTRACT_IPC_REVIEW');
+ assert.equal(x.exactMatches,0);
+ assert.equal(x.canWrite,false);
+ assert.equal(x.googleWrites,0);
+});
+test('unique same-day amount but contract mismatch is only a review hint',()=>{
+ const changed={...source('invoice:another-contract'),values:[...source('invoice:another-contract').values]};
+ changed.values[2]='DIFFERENT-CONTRACT';
+ const x=compareHistoryToExport({project:'ELYSIAN',month:'2026-10',
+  records:[changed],history:[raw()],audit});
+ assert.equal(x.reviewRows.find(r=>r.origin==='CASH_CONTROL').code,'POSSIBLE_SAME_DAY_AMOUNT_REVIEW');
+ assert.equal(x.reviewRows.find(r=>r.origin==='CASH_CONTROL').googleRow,1);
+ assert.equal(x.canWrite,false);
+});
+test('ambiguous amount-only matches must not make invented pairs',()=>{
+ const src={...source('invoice:different-contract'),values:[...source('invoice:different-contract').values]};
+ src.values[2]='OTHER';
+ const x=compareHistoryToExport({project:'ELYSIAN',month:'2026-10',records:[src],
+  history:[raw(),[...raw().slice(0,2),'SECOND',...raw().slice(3)]],audit});
+ assert.equal(x.reviewRows.find(r=>r.origin==='CASH_CONTROL').googleRow,null);
+ assert.equal(x.canWrite,false);
+});
+
 test('35-project one-click read-only scan fetches Google only for active and eligible projects',async()=>{
  const groups=Array.from({length:35},(_,i)=>({
    project:'PROJECT'+i,month:'2026-10',groupedExcelRows:0,records:[],
