@@ -104,6 +104,16 @@ test('historic audit requiring inspection cannot be promoted to ready',()=>{
  records:[source('expense:1')],history:[raw()],audit:()=>({
    ...audit([raw()]),status:'review-date-order',nonMonotonicDates:3})});
  assert.equal(x.result,'REVIEW_REQUIRED');
+ assert.equal(x.reviewCategory,'DATE_ORDER_ONLY');
+ assert.equal(x.canWrite,false);
+});
+
+test('an unresolved historical posting remains a transaction review even with a date warning',()=>{
+ const x=compareHistoryToExport({project:'ELYSIAN',month:'2026-10',
+  records:[source('expense:1',120)],history:[raw(100)],audit:()=>({
+   ...audit([raw()]),status:'review-date-order',nonMonotonicDates:2})});
+ assert.equal(x.result,'REVIEW_REQUIRED');
+ assert.equal(x.reviewCategory,'TRANSACTION_REVIEW');
  assert.equal(x.canWrite,false);
 });
 
