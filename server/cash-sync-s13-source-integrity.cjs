@@ -49,7 +49,8 @@ function checkRecord(record,day){
     !Number.isSafeInteger(amount(record))||amount(record)<=0)
    bad('S13_SOURCE_RECORD_CHANGED');
 }
-function inspectS13({cashDocument,legacySeedDocument,revision,sourceRows}={}){
+function inspectS13({cashDocument,legacySeedDocument,revision,sourceRows}={},
+ {expectedSeedHash=SEED_HASH}={}){
  if(!Number.isSafeInteger(revision)||revision<0)bad('S13_SOURCE_REVISION_INVALID');
  if(!Array.isArray(sourceRows)||sourceRows.length!==3)
   bad('S13_SOURCE_POSTINGS_INVALID');
@@ -59,8 +60,8 @@ function inspectS13({cashDocument,legacySeedDocument,revision,sourceRows}={}){
  const cloud=readFields(cashDocument),seed=readFields(legacySeedDocument);
  if(cloud.revision!==revision)bad('S13_SOURCE_REVISION_CHANGED');
  if(typeof seed.payload!=='string'||seed.schemaVersion!==1||
-    seed.sha256!==SEED_HASH||
-    createHash('sha256').update(seed.payload).digest('hex')!==SEED_HASH)
+    seed.sha256!==expectedSeedHash||
+    createHash('sha256').update(seed.payload).digest('hex')!==expectedSeedHash)
   bad('S13_LEGACY_SEED_SIGNATURE_MISMATCH');
  let parsed;
  try{parsed=JSON.parse(seed.payload)}catch{bad('S13_LEGACY_SEED_JSON_INVALID')}
