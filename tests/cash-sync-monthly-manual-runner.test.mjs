@@ -126,3 +126,37 @@ test('source validation rejects forged placeholders and wrong periods before net
  await assert.rejects(runManualMonthlySync({month:MONTH,projects:[make('A'),make('A')],
   checkAdmin:async()=>true,preview:async()=>ok({project:'A',month:MONTH})}),/DUPLICATE/);
 });
+
+test('signed server release preflight skips unapproved destinations with zero Google requests',async()=>{
+ const projects=[make('ELYSIAN'),make('FOXCONN'),make('S13-2')];
+ const reads=[],writes=[],checks=[];
+ const report=await runManualMonthlySync({
+  month:MONTH,projects,write:true,
+  checkRelease:name=>{checks.push(name);return name==='FOXCONN'},
+  checkAdmin:async()=>true,confirmBatch:async()=>true,
+  preview:async body=>{reads.push(body.project);return ok(body)},
+  commit:async body=>{writes.push(body.project);return {...ok(body),mode:'verified',writes:1}}
+ });
+ assert.deepEqual(checks,['ELYSIAN','FOXCONN','S13-2']);
+ assert.deepEqual(reads,['FOXCONN','FOXCONN']);
+ assert.deepEqual(writes,['FOXCONN']);
+ assert.equal(report.summary.skipped,2);
+ assert.equal(report.summary.verified,1);
+ assert.equal(report.rows.find(x=>x.project==='ELYSIAN').reason,'SERVER_TARGET_NOT_RELEASED');
+});
+test('all 35 unapproved destinations consume zero Google previews, zero writes',async()=>{
+ let reads=0,writes=0;
+ const result=await runManualMonthlySync({
+  month:MONTH,
+  projects:Array.from({length:35},(_,i)=>make('P'+i)),
+  write:true,checkRelease:()=>false,checkAdmin:async()=>true,
+  confirmBatch:async()=>{throw Error('No projects must be offered approval')},
+  preview:async()=>{reads++;throw Error('MUST_NOT_PREVIEW')},
+  commit:async()=>{writes++;throw Error('MUST_NOT_WRITE')}
+ });
+ assert.equal(reads,0);
+ assert.equal(writes,0);
+ assert.equal(result.summary.skipped,35);
+ assert.equal(result.summary.recordedGoogleWriteRequests,0);
+ assert.equal(result.approved,false);
+});
