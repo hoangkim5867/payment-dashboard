@@ -133,8 +133,8 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
  // financial mismatch, and categorization NEVER permits a write.
  const reviewCategory=financialReview?'FINANCIAL_HISTORY_REVIEW':
    reviewCount?'TRANSACTION_REVIEW':
-   dateReview?'DATE_ORDER_ONLY':
-   newerCandidates?'NEWER_CANDIDATES_ONLY':'EXACT_HISTORY';
+   newerCandidates?'NEWER_CANDIDATES_ONLY':
+   dateReview?'DATE_ORDER_ONLY':'EXACT_HISTORY';
  return Object.freeze({
    project,month,sourceRows:records.length,historyRows:historicalAudit.transactionRows,
    historyInMonth,exactMatches,newerCandidates,unmatchedBeforeHistoryEnd,
@@ -165,7 +165,7 @@ export async function scanMonthlyGoogleReadOnly({
      throw Error('ADMIN_SESSION_CHANGED');
    if(group.state!=='HISTORY_COMPARISON_CANDIDATE'){
      results.push({project:group.project,result:'SOURCE_NOT_READY',
-       reason:group.state,googleReads:0,googleWrites:0,canWrite:false});
+       reason:group.sourceBlockReason||group.state,googleReads:0,googleWrites:0,canWrite:false});
      onProgress?.(results.length,active.length,results.at(-1));continue;
    }
    if(!links[group.project]){
