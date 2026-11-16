@@ -1,0 +1,39 @@
+name: Cash Month Read-Only Production Release
+on:
+  pull_request:
+    paths:
+      - 'api/cash-sync-source-readonly.js'
+      - 'site/cash-control.html'
+      - 'site/assets/js/cash-sync-monthly-google-readonly.mjs'
+      - 'site/assets/js/cash-sync-monthly-export-manifest.mjs'
+      - 'site/assets/js/cash-sync-batch-readiness.mjs'
+      - 'tests/cash-month-readonly-release.test.cjs'
+      - 'tests/cash-sync-source-readonly.test.cjs'
+      - 'tests/cash-sync-monthly-google-readonly.test.mjs'
+      - 'tests/cash-sync-monthly-export-manifest.test.mjs'
+      - 'tests/cash-sync-batch-readiness.test.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'api/cash-sync-source-readonly.js'
+      - 'site/cash-control.html'
+      - 'site/assets/js/cash-sync-monthly-google-readonly.mjs'
+      - 'site/assets/js/cash-sync-monthly-export-manifest.mjs'
+      - 'site/assets/js/cash-sync-batch-readiness.mjs'
+      - 'tests/cash-month-readonly-release.test.cjs'
+      - 'tests/cash-sync-source-readonly.test.cjs'
+      - 'tests/cash-sync-monthly-google-readonly.test.mjs'
+      - 'tests/cash-sync-monthly-export-manifest.test.mjs'
+      - 'tests/cash-sync-batch-readiness.test.mjs'
+permissions:
+  contents: read
+jobs:
+  readonly-no-write:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Validate isolated Cash Control readonly batch and Google comparison
+        run: node --test tests/cash-month-readonly-release.test.cjs tests/cash-sync-source-readonly.test.cjs tests/cash-sync-monthly-google-readonly.test.mjs tests/cash-sync-monthly-export-manifest.test.mjs tests/cash-sync-batch-readiness.test.mjs
