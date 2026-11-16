@@ -9,11 +9,12 @@
  */
 const {verifyFirebaseAdminToken}=require('../server/cash-sync-guard.cjs');
 const {compareS13TestSource}=require('../server/cash-sync-s13-test-target.cjs');
+const {inspectS13}=require('../server/cash-sync-s13-source-integrity.cjs');
 const FIREBASE='cscecmep-payment';
 const HOST='https://firestore.googleapis.com/v1/projects/'+FIREBASE+
   '/databases/(default)/documents';
 const DATA_PATH='/cash_control_private/lehoangoanh';
-const ACTIONS=new Set(['metadata','project_count','s13_october_source']);
+const ACTIONS=new Set(['metadata','project_count','s13_october_source','s13_integrity']);
 function stop(code,statusCode=409){throw Object.assign(new Error(code),{statusCode});}
 function checkedConfig(env){
   if(!env||env.VERCEL_ENV!=='production'||
@@ -26,14 +27,14 @@ function checkedConfig(env){
 }
 function validateRequest(payload){
   if(!payload||typeof payload!=='object'||Array.isArray(payload)||
-    JSON.stringify(payload).length>(payload.action==='s13_october_source'?3000:1000)||!ACTIONS.has(payload.action))
+    JSON.stringify(payload).length>(['s13_october_source','s13_integrity'].includes(payload.action)?3000:1000)||!ACTIONS.has(payload.action))
     stop('INVALID_SOURCE_ACTION',400);
   if(payload.action==='metadata'){
     if(Object.keys(payload).sort().join(',')!=='action')
       stop('UNEXPECTED_SOURCE_FIELDS',400);
     return {action:'metadata'};
   }
-  if(payload.action==='s13_october_source'){
+  if(payload.action==='s13_october_source'||payload.action==='s13_integrity'){
     const {revision,source}=payload;
     if(Object.keys(payload).sort().join(',')!=='action,revision,source'||
        !Number.isSafeInteger(revision)||revision<0||!Array.isArray(source)||
@@ -114,10 +115,25 @@ async function inspect({env,action,project,revision,source,firebaseJwt,fetcher=f
   const config=checkedConfig(env);
   const request={action};
   if(action==='project_count')request.project=project;
-  if(action==='s13_october_source')Object.assign(request,{revision,source});
+  if(action==='s13_october_source'||action==='s13_integrity')Object.assign(request,{revision,source});
   const input=validateRequest(request);
   await verifyAdmin(firebaseJwt,config);
   const token='Bearer '+firebaseJwt;
+  if(input.action==='s13_integrity'){
+    const ids=['lehoangoanh','legacy_seed_20261021_v1'];
+    const reads=await Promise.all(ids.map(async id=>{
+      const response=await fetcher(HOST+'/cash_control_private/'+id,{
+        method:'GET',headers:{Authorization:token},
+        signal:AbortSignal.timeout(15000)
+      });
+      return parseGoogleResponse(response);
+    }));
+    return Object.freeze({
+      ...inspectS13({cashDocument:reads[0],legacySeedDocument:reads[1],
+        revision:input.revision,sourceRows:input.source}),
+      firestoreRequests:2,paymentDocumentReads:0,googleReads:0,googleWrites:0
+    });
+  }
   if(input.action==='metadata'||input.action==='s13_october_source'){
     const reply=await fetcher(HOST+DATA_PATH+'?mask.fieldPaths=revision'+
       '&mask.fieldPaths=projectMasters&mask.fieldPaths=manualRecords'+
