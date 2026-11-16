@@ -8,6 +8,7 @@ const {readConfig,verifyFirebaseAdminToken}=require('../server/cash-sync-guard.c
 const core=require('../server/cash-sync-multi-project-core.cjs');
 const adapter=require('../server/cash-sync-multi-project-adapter.cjs');
 const {canWriteTarget}=require('../server/cash-sync-multi-targets.cjs');
+const {canWriteS13Test}=require('../server/cash-sync-s13-test-target.cjs');
 const {planMonth,parseValues,sha,net}=core;
 const {MIRROR,VIEW,parseStoredMirror,verifyExistingView,compileBatch}=adapter;
 const prefix='https://sheets.googleapis.com/v4/spreadsheets/';
@@ -111,7 +112,7 @@ async function prepare(bearer,input){
   historySheetId:input.historySheetId});
  return {plan,snapshot,batch,blocked:[]};
 }
-module.exports=async function handler(req,res){
+async function handler(req,res,testOnly=false){
  res.setHeader('Cache-Control','no-store,max-age=0');
  res.setHeader('Content-Type','application/json; charset=utf-8');
  if(req.method!=='POST')return res.status(405).json({error:'Only POST supported.'});
@@ -124,7 +125,9 @@ module.exports=async function handler(req,res){
   if(!/^Bearer [A-Za-z0-9._~-]{20,4096}$/.test(authorization))
    die('Google OAuth token missing.',401);
   const input=validBody(typeof req.body==='string'?JSON.parse(req.body):req.body);
-  const writeConfigured=canWriteTarget(process.env,input.project,input.spreadsheetId,input.historySheetId);
+  const writeConfigured=testOnly?
+   canWriteS13Test(process.env,input):
+   canWriteTarget(process.env,input.project,input.spreadsheetId,input.historySheetId);
   if(input.action==='commit'&&!writeConfigured)
    die('Dự án/file Google chưa được cho phép ghi trên máy chủ hoặc chưa bật phát hành.',503);
   const current=await prepare(authorization,input);
@@ -170,3 +173,6 @@ module.exports=async function handler(req,res){
    String(error.message||'Chặn đồng bộ.')});
  }
 };
+
+module.exports=(req,res)=>handler(req,res,false);
+module.exports.testHandler=(req,res)=>handler(req,res,true);
