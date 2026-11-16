@@ -57,7 +57,7 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
  // The source must be the canonical grouped Export Excel numeric values.
  const signatures=new Map(),historyRows=[],sourceRows=[];
  let historyInMonth=0,invalidHistoryRows=0,latest='';
- for(const row of history){
+ for(const [rowIndex,row] of history.entries()){
    if(!Array.isArray(row))continue;
    const day=date(row[0]);
    if(!day)continue;
@@ -73,7 +73,7 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    // The original Excel places FOXCONN import tax inside other direct costs.
    if(excelOnly&&project==='FOXCONN'){values[9]+=values[13];values[13]=0;}
    const sig=signature(values);
-   const entry={values,matched:false};
+   const entry={values,matched:false,rowNumber:rowIndex+1};
    historyRows.push(entry);
    if(!signatures.has(sig))signatures.set(sig,[]);
    signatures.get(sig).push(entry);
@@ -81,7 +81,7 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
  let exactMatches=0,unmatchedBeforeHistoryEnd=0,newerCandidates=0,
    duplicateHistory=0,duplicateSource=0,invalidSource=0,likelyLabelDifferences=0;
  const consumed=new Set(),sourceCounts=new Map(),unmatched=[];
- for(const record of records){
+ for(const [sourceIndex,record] of records.entries()){
    if(record?.project!==project||record?.month!==month||
      typeof record.id!=='string'||!record.id||consumed.has(record.id)||
      !Array.isArray(record.values)||
@@ -93,7 +93,7 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    }
    consumed.add(record.id);
    const sig=signature(record.values);
-   sourceRows.push({values:record.values,sig});
+   sourceRows.push({values:record.values,sig,sourceRow:sourceIndex+1});
    sourceCounts.set(sig,(sourceCounts.get(sig)||0)+1);
  }
  for(const {values,sig} of sourceRows){
@@ -103,6 +103,34 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    else if(candidates.length===1){exactMatches++;candidates[0].matched=true;}
    else if(values[0]<=latest){unmatchedBeforeHistoryEnd++;unmatched.push(values);}
    else newerCandidates++;
+ }
+ // Detailed diagnostics stay inside the signed Admin browser session.
+ // Never include amounts, descriptions, raw IDs, or Google file identifiers
+ // in the copyable aggregate report.
+ const reviewRows=[];
+ let detailsTruncated=false;
+ const addDetail=entry=>{
+   if(reviewRows.length>=100){detailsTruncated=true;return;}
+   reviewRows.push(Object.freeze(entry));
+ };
+ for(const source of sourceRows){
+   const candidates=signatures.get(source.sig)||[];
+   if(candidates.length===1&&sourceCounts.get(source.sig)===1)continue;
+   const nearest=historyRows.filter(h=>paymentIdentity(h.values)&&
+     paymentIdentity(h.values)===paymentIdentity(source.values));
+   const code=sourceCounts.get(source.sig)>1?'DUPLICATE_SOURCE':
+     candidates.length>1?'DUPLICATE_GOOGLE_HISTORY':
+     nearest.length===1?'SAME_POSTING_DIFFERENT_LABEL':
+     source.values[0]>latest?'NEWER_THAN_GOOGLE':'SOURCE_NOT_MATCHED';
+   addDetail({origin:'CASH_CONTROL',sourceRow:source.sourceRow,
+     googleRow:nearest.length===1?nearest[0].rowNumber:null,
+     date:source.values[0],code,matchingHint:nearest.length===1?
+       'SAME_DATE_CONTRACT_IPC_AMOUNT':'NO_UNIQUE_POSTING_MATCH'});
+ }
+ for(const row of historyRows.filter(h=>!h.matched)){
+   addDetail({origin:'GOOGLE_HISTORY',googleRow:row.rowNumber,
+     sourceRow:null,date:row.values[0],code:'GOOGLE_ROW_NOT_MATCHED',
+     matchingHint:'CHECK_SOURCE_OR_HISTORICAL_ENTRY'});
  }
  const historicalIdentities=new Map(),sourceIdentities=new Map();
  for(const entry of historyRows){
@@ -140,6 +168,7 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    historyInMonth,exactMatches,newerCandidates,unmatchedBeforeHistoryEnd,
    historyUnmatched,duplicateHistory,duplicateSource,invalidHistoryRows,invalidSource,
    likelyLabelDifferences,financialReview,dateReview,reviewCategory,
+   reviewRows:Object.freeze(reviewRows),detailsTruncated,
    historyStatus:historicalAudit.status,closingBalance:historicalAudit.closingBalance,
    nonMonotonicDates:historicalAudit.nonMonotonicDates,
    result:financialReview||dateReview||reviewCount?'REVIEW_REQUIRED':
