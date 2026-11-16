@@ -223,3 +223,20 @@ test('Staging Firebase credentials cannot authorize production commit',async()=>
  assert.equal(f.state.reads||0,0);
  assert.equal(f.state.writes,0);
 });
+
+test('Excel review row positions cannot be used as source IDs for Google commit',async()=>{
+ const f=fixture('S13-2');
+ const placeholder=[{id:'excel-row:6',project:'S13-2',month:'2026-11',
+   values:newValues,hash:sha(newValues)}];
+ const preview=await f.call('preview',{enabled:true,source:placeholder});
+ // A local review can remain read-only; no placeholder is write-authorized.
+ assert.equal(preview.status,200);
+ const readsBefore=f.state.reads;
+ const denied=await f.call('commit',{enabled:true,source:placeholder,
+   signature:preview.signature,confirm:'SYNC_THIS_PROJECT'});
+ assert.equal(denied.status,409);
+ assert.match(denied.error,/ID giao dịch Cash Control gốc/);
+ assert.equal(f.state.reads,readsBefore);
+ assert.equal(f.state.writes,0);
+ assert.deepEqual(f.state.history,orig);
+});
