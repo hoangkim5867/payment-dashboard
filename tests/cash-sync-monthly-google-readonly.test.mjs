@@ -45,6 +45,21 @@ test('newer source rows are candidates, never proof of full source or write perm
  assert.equal(x.sourceComplete,false);
  assert.equal(x.canWrite,false);
 });
+test('Admin read-only details show source and Google row positions, without raw payment data',()=>{
+ const changed={...source('private-payment-id',120),values:[...source('private-payment-id',120).values]};
+ const x=compareHistoryToExport({project:'ELYSIAN',month:'2026-10',
+  records:[changed],history:[['HEADER'],raw(100)],audit});
+ assert.equal(x.result,'REVIEW_REQUIRED');
+ assert.equal(x.googleWrites,0);
+ assert.equal(x.canWrite,false);
+ assert.ok(x.reviewRows.some(r=>r.origin==='CASH_CONTROL'&&r.sourceRow===1));
+ assert.ok(x.reviewRows.some(r=>r.origin==='GOOGLE_HISTORY'&&r.googleRow===2));
+ const serialized=JSON.stringify(x.reviewRows);
+ assert.ok(!serialized.includes('private-payment-id'));
+ assert.ok(!serialized.includes('LAB-001'));
+ assert.ok(!serialized.includes('120'));
+});
+
 test('35-project one-click read-only scan fetches Google only for active and eligible projects',async()=>{
  const groups=Array.from({length:35},(_,i)=>({
    project:'PROJECT'+i,month:'2026-10',groupedExcelRows:0,records:[],
