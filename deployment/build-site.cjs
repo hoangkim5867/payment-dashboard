@@ -110,8 +110,8 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    text=text.replace(oldSummaryTail,newSummaryTail);
 
    // The owner explicitly supplied the already-tested PHU HUNG sheet URL.
-   // Restore it only when Admin's Production browser has no local link.
-   // Never overwrite an existing draft, inspect Google on page load, or
+   // Restore it when the Production browser has no local link.
+   // Auth often initializes AFTER catalog bootstrap; do not require Admin\n   // identity for setting this inert browser-local URL.\n   // Never overwrite an existing draft, inspect Google on page load, or
    // grant production writer permission. The read-only scan checks gid/title.
    const loadDraft='  ccSyncProjectCatalogLoadDraft();';
    if(!text.includes(loadDraft))throw Error('Link draft bootstrap changed');
@@ -120,7 +120,7 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    // become invalid JavaScript and blank the entire Cash Control page.
    const restoredLinkCode=[
      loadDraft,
-     "  if(firebaseConfig.projectId==='cscecmep-payment'&&isCashControlOwner()&&",
+     "  if(firebaseConfig.projectId==='cscecmep-payment'&&",
      "     !ccSyncProjectLinkDraft['PHU HUNG']&&ccSyncProjectLinkValid("+JSON.stringify(phuHungLink)+")){",
      "    ccSyncProjectLinkDraft['PHU HUNG']="+JSON.stringify(phuHungLink)+";",
      "    ccSyncProjectCatalogSaveDraft();",
