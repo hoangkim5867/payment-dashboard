@@ -50,6 +50,58 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    if(!text.includes(oldGroup))throw Error('Monthly source blocker moved; refusing unchecked build');
    text=text.replace(oldGroup,newGroup);
 
+   // Show row positions and diagnostic categories for owner-only, read-only
+   // review. These details remain in the browser, not the copied JSON.
+   const oldDetailAnchor="        table.append(tr);\n      }\n      // Share only aggregate";
+   const newDetailAnchor=`        table.append(tr);
+        if(['ELYSIAN','EATON','FOXCONN','C17-2'].includes(item.project)&&
+           Array.isArray(item.reviewRows)&&item.reviewRows.length){
+          const detailTr=document.createElement('tr');
+          const cell=document.createElement('td');cell.colSpan=6;
+          const details=document.createElement('details');
+          const summary=document.createElement('summary');
+          summary.textContent='Xem '+item.reviewRows.length+' vị trí cần đối chiếu trong phiên Admin (chỉ đọc)';
+          details.append(summary);
+          const list=document.createElement('ol');
+          for(const entry of item.reviewRows){
+            const li=document.createElement('li');
+            li.textContent=(entry.origin==='CASH_CONTROL'?'Xuất Excel dòng '+entry.sourceRow:
+              'Google dòng '+entry.googleRow)+' · '+entry.date+
+              ' · '+entry.code+
+              (entry.googleRow&&entry.origin==='CASH_CONTROL'?' · đối chiếu Google dòng '+entry.googleRow:'');
+            list.append(li);
+          }
+          details.append(list);
+          if(item.detailsTruncated){
+            const note=document.createElement('p');
+            note.textContent='Chỉ hiển thị tối đa 100 vị trí; không cấp phép ghi.';
+            details.append(note);
+          }
+          cell.append(details);detailTr.append(cell);table.append(detailTr);
+        }
+        if(item.project==='PHU HUNG'&&item.result==='SOURCE_NOT_READY'){
+          const detailTr=document.createElement('tr');
+          const cell=document.createElement('td');cell.colSpan=6;
+          const source=byProject.get('PHU HUNG');
+          const readinessRow=readies.get('PHU HUNG');
+          const reasons=[];
+          if(source?.issues?.length){
+            const counts=new Map();
+            for(const issue of source.issues)counts.set(issue.code,(counts.get(issue.code)||0)+1);
+            for(const [code,count] of counts)reasons.push(code+' ('+count+')');
+          }
+          if(readinessRow?.needsReview)reasons.push('READINESS_REVIEW_REQUIRED ('+readinessRow.needsReview+')');
+          if(!Number.isFinite(balances['PHU HUNG']))reasons.push('OPENING_BALANCE_NOT_VERIFIED');
+          cell.textContent='PHU HUNG · '+(reasons.join(' · ')||String(item.reason||'SOURCE_NOT_READY'))+
+            ' · Không ghi Google; cần xác minh nguồn, không suy ra 0 phát sinh.';
+          detailTr.append(cell);table.append(detailTr);
+        }
+      }
+      // Share only aggregate`;
+   if(!text.includes(oldDetailAnchor))throw Error('Monthly audit table moved; refuse unsafe build');
+   text=text.replace(oldDetailAnchor,newDetailAnchor);
+
+
 
  }
  if(target==='staging'&&text.includes('cscecmep-payment.firebaseapp.com'))throw Error('Production Auth endpoint left in staging output');
