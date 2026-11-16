@@ -17,7 +17,6 @@ on:
       - 'api/cash-sync-s13-original-readonly.js'
       - 'tests/cash-sync-s13-original-readonly.test.cjs'
       - 'server/cash-sync-s13-source-integrity.cjs'
-      - 'api/cash-sync-s13-source-integrity.js'
       - 'tests/cash-sync-s13-source-integrity.test.cjs'
       - 'tests/cash-sync-source-readonly.test.cjs'
       - 'site/assets/js/cash-sync-project-source-coverage.mjs'
