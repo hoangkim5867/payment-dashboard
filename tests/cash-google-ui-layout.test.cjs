@@ -234,3 +234,26 @@ test('fresh indexed-month production audit checks all active projects in Google 
  assert.doesNotMatch(block,/setDoc\(|addDoc\(|writeBatch\(|updateDoc\(|\/api\/cash-sync-multi-project|action:'commit'/);
  assert.match(html,/ccSyncAuditFreshMonthGoogleReadOnly\(\):ccSyncBatchAnalyzeInMemory\(\)/);
 });
+
+test('completed S13-2 replay shows already-synced and never offers a second write',()=>{
+ const build=fs.readFileSync(path.join(__dirname,'../deployment/build-site.cjs'),'utf8');
+ assert.match(build,/if\(preview\.summary\.changes===0\)/);
+ assert.match(build,/preview\.summary\.generated!==261/);
+ assert.match(build,/S13-2 tháng 10\/2026 · ĐÃ ĐỒNG BỘ/);
+ assert.match(build,/if\(commitButton\)commitButton\.hidden=true/);
+ assert.match(build,/0 Google writes, KHÔNG BẤM GHI LẠI/);
+ assert.match(build,/preview\.summary\.changes!==3/);
+});
+test('next project ELYSIAN uses only the existing one-project readonly comparator',()=>{
+ const build=fs.readFileSync(path.join(__dirname,'../deployment/build-site.cjs'),'utf8');
+ const a=build.indexOf('const nextProjectSource=String.raw');
+ const b=build.indexOf('text=text.replace(s13FunctionAnchor,',a);
+ assert.ok(a>0&&b>a);
+ const handoff=build.slice(a,b);
+ assert.match(build,/id="ccSyncNextProjectReadOnly"/);
+ assert.match(handoff,/const project="ELYSIAN"/);
+ assert.match(handoff,/https:\/\/www\.googleapis\.com\/auth\/spreadsheets\.readonly/);
+ assert.match(handoff,/includeGrantedScopes:false/);
+ assert.match(handoff,/await ccSyncCompareProjectGoogleReadOnly\(\)/);
+ assert.doesNotMatch(handoff,/writeBatch\(|setDoc\(|updateDoc\(|:batchUpdate|action:"commit"|action:'commit'/);
+});
