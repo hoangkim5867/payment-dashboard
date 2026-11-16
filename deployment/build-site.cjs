@@ -117,7 +117,8 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    const s13NewButton=s13OldButton+
      '<button class="btn" id="ccSyncS13OriginalProof" type="button">Xác minh sổ gốc S13-2 · chỉ đọc</button>'+
      '<button class="btn" id="ccSyncS13DryRun" type="button">Xem trước 3 khoản S13-2 · 0 ghi</button>'+
-     '<button class="btn" id="ccSyncS13Commit" type="button" hidden>Ghi 3 khoản S13-2 · cần xác nhận</button>';
+     '<button class="btn" id="ccSyncS13Commit" type="button" hidden>Ghi 3 khoản S13-2 · cần xác nhận</button>'+
+     '<button class="btn" id="ccSyncNextProjectReadOnly" type="button">Tiếp ELYSIAN · đối chiếu riêng, chỉ đọc</button>';
    const s13FunctionAnchor='async function ccSyncCheckS13OctoberSource(button,status){';
    if(!text.includes(s13OldButton)||!text.includes(s13FunctionAnchor))
      throw Error('S13 original preflight anchors moved; refuse unchecked build');
@@ -283,11 +284,25 @@ async function ccSyncS13DryRunReadonly(){
         Number(cashCloudState.revision||0)!==revision)
       throw Error("Nguồn/phiên Admin thay đổi trong lúc xem trước.");
      if(preview.mode!=="preview"||preview.writes!==0||
-        preview.summary?.changes!==3||preview.summary?.historical!==258||
+        preview.summary?.historical!==258||
         preview.summary?.monthClosingBalance!==-72663856||
         preview.summary?.originalUntouched!==true||
         ![true,false].includes(preview.writeConfigured))
-      throw Error("Bản xem trước không khớp 3 khoản hoặc trạng thái khóa ghi.");
+      throw Error("Sổ gốc hoặc số dư thay đổi; không ghi Google.");
+     // S13-2 has ALREADY been written, read back and the release relocked.
+     // On fresh Google replay 0 changes, never report a false error or
+     // encourage a second commit. A 261-line view is 258 original + 3 synced.
+     if(preview.summary.changes===0){
+      if(preview.summary.generated!==261)
+       throw Error("Số dòng VIEW sau ghi khác 258+3; cần đối chiếu chỉ đọc.");
+      if(commitButton)commitButton.hidden=true;
+      finish("S13-2 tháng 10/2026 · ĐÃ ĐỒNG BỘ: 3 khoản đã có, "+
+       "VIEW 261 dòng (258 lịch sử + 3 kỹ thuật), số dư -72.663.856 đ. "+
+       "0 Google writes, KHÔNG BẤM GHI LẠI. Tiếp dự án khác bằng nút đối chiếu riêng.");
+      return;
+     }
+     if(preview.summary.changes!==3)
+      throw Error("Dòng Google mới không phải 0 hoặc 3, cần đối chiếu riêng.");
      if(preview.writeConfigured===true&&commitButton)
       commitButton.hidden=false;
      const statusText=preview.writeConfigured===true?
@@ -448,9 +463,54 @@ for(const key of ["ccSyncBatchMonth","ccSyncPaymentPreflightProject"])
   if(button)button.hidden=true;
  });
 `;
+   // One-project handoff: ELYSIAN has a known Google history / needs
+   // manual reconciliation, not an approved write. A single click can
+   // trigger existing ELYSIAN-only Payment/Google compare in readonly scope.
+   const nextProjectSource=String.raw\`
+async function ccSyncNextProjectReadOnly(){
+ const button=document.getElementById("ccSyncNextProjectReadOnly");
+ const status=document.getElementById("ccSyncPaymentPreflightStatus");
+ if(!button||button.disabled||!status)return;
+ if(!currentAuthUser||!isCashControlOwner()||firebaseConfig.projectId!=="cscecmep-payment"){
+  status.textContent="Chỉ Admin Production được kiểm tra dự án kế tiếp.";return;
+ }
+ const project="ELYSIAN";
+ const link=ccSyncProjectLinkDraft[project];
+ if(!link||!ccSyncProjectLinkValid(link)){
+  status.textContent="ELYSIAN chưa có link Google trong danh mục ở tên miền này; "+
+   "cần lưu link đúng file/tab trước khi kiểm tra. Chưa đọc/ghi dữ liệu.";return;
+ }
+ const selector=document.getElementById("ccSyncPaymentPreflightProject");
+ const month=document.getElementById("ccSyncBatchMonth");
+ if(!selector||![...selector.options].some(x=>x.value===project)){
+  status.textContent="Danh mục chưa tải ELYSIAN; không tự suy diễn dự án.";return;
+ }
+ button.disabled=true;
+ const original=ccGoogleSyncToken;
+ try{
+  status.textContent="ELYSIAN: xin Google quyền chỉ đọc; chỉ truy vấn đúng 1 dự án…";
+  const token=await ccGoogleSheetsAccessToken(
+   "https://www.googleapis.com/auth/spreadsheets.readonly",
+   {includeGrantedScopes:false,prompt:""});
+  if(!isCashControlOwner()||!currentAuthUser||
+     firebaseConfig.projectId!=="cscecmep-payment")
+   throw Error("Phiên Admin đã thay đổi");
+  ccGoogleSyncToken=token;
+  selector.value=project;
+  if(month)month.value="2026-10";
+  await ccSyncCompareProjectGoogleReadOnly();
+ }catch(e){
+  status.textContent="ELYSIAN: chưa đối chiếu được: "+
+   String(e?.message||e).slice(0,140)+". Không ghi.";
+ }finally{ccGoogleSyncToken=original;button.disabled=false;}
+}
+document.getElementById("ccSyncNextProjectReadOnly")
+ ?.addEventListener("click",ccSyncNextProjectReadOnly);
+\`;
    text=text.replace(s13FunctionAnchor,
      s13ProofFunction+String.fromCharCode(10)+s13DryRunSource+
      String.fromCharCode(10)+s13CommitSource+
+     String.fromCharCode(10)+nextProjectSource+
      String.fromCharCode(10)+s13FunctionAnchor);
 
    // The owner explicitly supplied the already-tested PHU HUNG sheet URL.
