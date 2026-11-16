@@ -22,7 +22,7 @@ function canWriteS13Test(env,input){
     !/^[A-Za-z0-9_-]{20,100}$/.test(env.CASH_SYNC_S13_TEST_FILE_ID||'')||
     env.CASH_SYNC_S13_TEST_FILE_ID===ORIGINAL||
     input.spreadsheetId!==env.CASH_SYNC_S13_TEST_FILE_ID||
-    !/^(0|[1-9]\\d*)$/.test(env.CASH_SYNC_S13_TEST_HISTORY_GID||'')||
+    !/^(0|[1-9]\d*)$/.test(env.CASH_SYNC_S13_TEST_HISTORY_GID||'')||
     input.historySheetId!==Number(env.CASH_SYNC_S13_TEST_HISTORY_GID)||
     input.expectedMonthClosing!==-72663856||
     !Array.isArray(input.source)||input.source.length!==3||
