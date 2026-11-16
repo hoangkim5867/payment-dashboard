@@ -116,12 +116,17 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    const loadDraft='  ccSyncProjectCatalogLoadDraft();';
    if(!text.includes(loadDraft))throw Error('Link draft bootstrap changed');
    const phuHungLink='https://docs.google.com/spreadsheets/d/1gOEvJmOCW9EV5zfBNyJZ35a8EtMZihI2yZyuKj93dVg/edit?gid=1049774332#gid=1049774332';
-   text=text.replace(loadDraft,loadDraft+
-     "\n  if(firebaseConfig.projectId==='cscecmep-payment'&&isCashControlOwner()&&"+
-     "\n     !ccSyncProjectLinkDraft['PHU HUNG']&&ccSyncProjectLinkValid("+JSON.stringify(phuHungLink)+")){"+
-     "\n    ccSyncProjectLinkDraft['PHU HUNG']="+JSON.stringify(phuHungLink)+";"+
-     "\n    ccSyncProjectCatalogSaveDraft();"+
-     "\n  }");
+   // Join using an actual line feed. An escaped backslash-n in output would
+   // become invalid JavaScript and blank the entire Cash Control page.
+   const restoredLinkCode=[
+     loadDraft,
+     "  if(firebaseConfig.projectId==='cscecmep-payment'&&isCashControlOwner()&&",
+     "     !ccSyncProjectLinkDraft['PHU HUNG']&&ccSyncProjectLinkValid("+JSON.stringify(phuHungLink)+")){",
+     "    ccSyncProjectLinkDraft['PHU HUNG']="+JSON.stringify(phuHungLink)+";",
+     "    ccSyncProjectCatalogSaveDraft();",
+     "  }"
+   ].join(String.fromCharCode(10));
+   text=text.replace(loadDraft,restoredLinkCode);
 
 
 
@@ -149,6 +154,15 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
  const expectedConfigs=target==='staging'?10:9;
  if(configs!==expectedConfigs)throw Error('Unexpected Firebase app configurations: expected '+expectedConfigs+', got '+configs);
  if(v2PageGuards!==2)throw Error('Expected two guarded V2 pages');
+ // Validate the actual HTML module after all build-time substitutions.
+ // Checking only source modules does not catch accidentally injected tokens.
+ if(target==='production'){
+   const finalHtml=fs.readFileSync(path.join(out,'cash-control.html'),'utf8');
+   const mainModule=/<script type="module">([\\s\\S]*?)<\\/script>/.exec(finalHtml)?.[1];
+   if(!mainModule)throw Error('Missing Cash Control main module in production build');
+   require('node:child_process').execFileSync(process.execPath,
+     ['--input-type=module','--check'],{input:mainModule,timeout:15000});
+ }
  const writerSource=fs.readFileSync(path.join(out,'assets/js/firestore-payment.mjs'),'utf8');
  const contractV2ReadyToActivate=target==='production' &&
    writerSource.includes('PAYMENT_V2_WRITERS_ENABLED=true') && v2PageGuards===2;
