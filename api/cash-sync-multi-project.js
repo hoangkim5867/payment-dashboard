@@ -24,6 +24,12 @@ function validBody(payload){
     !Array.isArray(source)||source.length>3000||
     action==='commit'&&(!/^[a-f0-9]{64}$/.test(signature)||payload.confirm!=='SYNC_THIS_PROJECT'))
   die('Thiếu ID dự án, tháng, file Google hoặc xác nhận ký số.',400);
+ // Export Excel review packages carry row positions, NOT immutable source IDs.
+ // Never let a signed preview or a release flag turn those positions into writes.
+ if(action==='commit'&&source.some(row=>
+   typeof row?.id!=='string'||!row.id.trim()||
+   /^excel-row:/i.test(row.id.trim())))
+   die('Thiếu ID giao dịch Cash Control gốc; chỉ có vị trí dòng Excel, KHÔNG ghi.',409);
  return payload;
 }
 async function google(bearer,id,extra,method='GET',body=null){
