@@ -347,3 +347,36 @@ test('S13-2 production commit cannot use global allowlist for an unrelated month
  assert.equal(f.state.writes,0);
  assert.deepEqual(f.state.history,orig);
 });
+
+test('S13-2 production alias or case variant never skips four-ID source check',async()=>{
+ for(const project of ['s13-2','S13-2 ','Ｓ13-2']){
+  const f=fixture(project);
+  const preview=await f.call('preview',{enabled:true,month:'2026-10'});
+  assert.equal(preview.status,200);
+  assert.equal(preview.writeConfigured,true);
+  const denied=await f.call('commit',{enabled:true,month:'2026-10',
+   signature:preview.signature,confirm:'SYNC_THIS_PROJECT'});
+  assert.equal(denied.status,409);
+  assert.match(denied.error,/yêu cầu tên dự án chuẩn/);
+  assert.equal(f.state.writes,0);
+  assert.deepEqual(f.state.history,orig);
+ }
+});
+test('release allowlist is exact single original Google file and gid only',()=>{
+ const {canWriteTarget,parseAllowlist}=require('../server/cash-sync-multi-targets.cjs');
+ const spreadsheetId='1s7-EZqTfS_6raZDxpK74m5gxDoAbRwBIJptCkG2lyUg';
+ const historySheetId=1543850344;
+ const env={VERCEL_ENV:'production',CASH_SYNC_FIREBASE_PROJECT_ID:'cscecmep-payment',
+  CASH_SYNC_MULTI_PRODUCTION_WRITES:'YES',
+  CASH_SYNC_MULTI_ALLOWED_TARGETS:JSON.stringify({
+   'S13-2':{spreadsheetId,historySheetId}
+  })};
+ const allowed=parseAllowlist(env.CASH_SYNC_MULTI_ALLOWED_TARGETS);
+ assert.deepEqual([...allowed.keys()],['S13-2']);
+ assert.equal(canWriteTarget(env,'S13-2',spreadsheetId,historySheetId),true);
+ assert.equal(canWriteTarget(env,'FOXCONN',spreadsheetId,historySheetId),false);
+ assert.equal(canWriteTarget(env,'S13-2',spreadsheetId,historySheetId+1),false);
+ assert.equal(canWriteTarget(env,'S13-2','anotherGoogleSpreadsheetId_12345678',historySheetId),false);
+ assert.equal(canWriteTarget({...env,CASH_SYNC_MULTI_PRODUCTION_WRITES:'NO'},'S13-2',spreadsheetId,historySheetId),false);
+ assert.equal(canWriteTarget({...env,VERCEL_ENV:'preview'},'S13-2',spreadsheetId,historySheetId),false);
+});
