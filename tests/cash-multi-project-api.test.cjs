@@ -287,7 +287,7 @@ test('S13-2 verified October sources use TEST route: write, readback, repeat wit
   ['2026-10-02','伙食费','','2026年08月伙食费','','职工薪酬',0,0,0,0,3859500,0,0],
   ['2026-10-20','','','2026年第3季度个人所得税','','职工薪酬',0,0,0,0,52923736,0,0]
  ].map((values,i)=>({id:ids[i],project:'S13-2',month:'2026-10',
-  values,hash:sha(values)}));
+  values,hash:sha([...values,0])}));
  const request={testOnly:true,month:'2026-10',source:records,
   expectedMonthClosing:-72663856};
  const preview=await f.call('preview',request);
