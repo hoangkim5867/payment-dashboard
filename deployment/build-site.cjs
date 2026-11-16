@@ -228,7 +228,21 @@ async function ccSyncS13DryRunReadonly(){
      source.postingMatches!==true||source.labelsMatch!==true||
      source.sourceComplete!==false||source.canSync!==false||source.googleWrites!==0)
    throw Error("Nguồn không còn khớp 3/3 hoặc phiên dữ liệu thay đổi.");
-  status.textContent="S13-2: nguồn 3/3 đã khớp; đang xem trước Google chỉ đọc…";
+  const integrity=await request("/api/cash-sync-s13-source-integrity",{
+   project:"S13-2",month:"2026-10",revision,source:rows
+  });
+  if(integrity.kind!=="S13_FOUR_ORIGINAL_IDS_VERIFIED"||
+     integrity.pinnedSourceMatched!==true||
+     integrity.verifiedSourceItems!==4||integrity.groupedGoogleRows!==3||
+     integrity.scopedCashEntriesMatched!==true||
+     integrity.extraPrivateAndLegacyCashEntries!==0||
+     integrity.sourceRevision!==revision||
+     integrity.sourceComplete!==false||
+     integrity.canSync!==false||integrity.googleWrites!==0||
+     currentAuthUser!==admin||!isCashControlOwner()||
+     Number(cashCloudState.revision||0)!==revision)
+   throw Error("4 ID Cash Control chưa được xác minh độc lập hoặc nguồn tháng có thêm dòng.");
+  status.textContent="S13-2: 4 ID nguồn đã xác minh từ Firestore; đang xem trước Google chỉ đọc…";
   const oauth=google.accounts.oauth2.initTokenClient({
    client_id:"781332326791-s033knic9cmpf3h20altttsqmhjbot1t.apps.googleusercontent.com",
    scope:"https://www.googleapis.com/auth/spreadsheets.readonly",
