@@ -10,6 +10,7 @@ require.cache[guard]={id:guard,filename:guard,loaded:true,exports:{
  verifyFirebaseAdminToken:async()=>({project:'cscecmep-payment',uid:'synthetic-admin'})
 }};
 const handler=require('../api/cash-sync-multi-project.js');
+const testHandler=require('../api/cash-sync-s13-test.js');
 if(saved)require.cache[guard]=saved;else delete require.cache[guard];
 const ID='12345678901234567890ABCDEFGHIJKLMNOPQRST';
 const orig=[['2026-10-01','Vendor','SUBP-1','Invoice','IPC01','分包款',
@@ -73,8 +74,16 @@ function fixture(project='ELYSIAN',spreadsheetId=ID){
   const prevTargets=process.env.CASH_SYNC_MULTI_ALLOWED_TARGETS;
   const prevEnv=process.env.VERCEL_ENV;
   const prevProject=process.env.CASH_SYNC_FIREBASE_PROJECT_ID;
+  const prevTestFlag=process.env.CASH_SYNC_S13_TEST_WRITES;
+  const prevTestId=process.env.CASH_SYNC_S13_TEST_FILE_ID;
+  const prevTestGid=process.env.CASH_SYNC_S13_TEST_HISTORY_GID;
   // This is a local mock: no Vercel or real Google request occurs.
-  process.env.VERCEL_ENV=extra.simulatePreview?'preview':'production';
+  process.env.VERCEL_ENV=(extra.simulatePreview||extra.testOnly)?'preview':'production';
+  if(extra.testOnly){
+   process.env.CASH_SYNC_S13_TEST_WRITES='YES';
+   process.env.CASH_SYNC_S13_TEST_FILE_ID=spreadsheetId;
+   process.env.CASH_SYNC_S13_TEST_HISTORY_GID='42';
+  }
   process.env.CASH_SYNC_FIREBASE_PROJECT_ID=
     extra.simulateStaging?'cash-control-staging':'cscecmep-payment';
   if(extra.enabled){
@@ -92,7 +101,7 @@ function fixture(project='ELYSIAN',spreadsheetId=ID){
    status(n){this.statusCode=n;return this},
    json(v){this.payload=v;return this}};
   try{
-   await handler({method:'POST',headers:{
+   await (extra.testOnly?testHandler:handler)({method:'POST',headers:{
     host:'example.vercel.app',origin:'https://example.vercel.app',
     authorization:'Bearer '+'T'.repeat(40),'x-firebase-id-token':'synthetic'
    },body},response);
@@ -107,6 +116,11 @@ function fixture(project='ELYSIAN',spreadsheetId=ID){
    else process.env.VERCEL_ENV=prevEnv;
    if(prevProject===undefined)delete process.env.CASH_SYNC_FIREBASE_PROJECT_ID;
    else process.env.CASH_SYNC_FIREBASE_PROJECT_ID=prevProject;
+   for(const [name,value] of [
+    ['CASH_SYNC_S13_TEST_WRITES',prevTestFlag],
+    ['CASH_SYNC_S13_TEST_FILE_ID',prevTestId],
+    ['CASH_SYNC_S13_TEST_HISTORY_GID',prevTestGid]
+   ])if(value===undefined)delete process.env[name];else process.env[name]=value;
   }
  }
  return {state,call};
@@ -258,4 +272,44 @@ test('monthly batch compares the selected closing balance independently of futur
  assert.equal(rejected.status,409);
  assert.match(rejected.error,/Số dư cuối tháng/);
  assert.equal(h.state.writes,0);
+});
+
+test('S13-2 verified October sources use TEST route: write, readback, repeat with 0 new writes',async()=>{
+ const TEST='testcopyS13202610ABCDEF0123456789';
+ const f=fixture('S13-2',TEST);
+ f.state.history[0][13]=65583133;
+ const before=structuredClone(f.state.history);
+ const ids=['manual_salary_payroll_1790835443846_m4hd2',
+  'manual_salary_payroll_1790835443852_ihc3a',
+  'legacy_salary_672+legacy_salary_680'];
+ const records=[
+  ['2026-10-02','中方员工工资','','2026年08月中方员工工资','','职工薪酬',0,0,0,0,81463753,0,0],
+  ['2026-10-02','伙食费','','2026年08月伙食费','','职工薪酬',0,0,0,0,3859500,0,0],
+  ['2026-10-20','','','2026年第3季度个人所得税','','职工薪酬',0,0,0,0,52923736,0,0]
+ ].map((values,i)=>({id:ids[i],project:'S13-2',month:'2026-10',
+  values,hash:sha(values)}));
+ const request={testOnly:true,month:'2026-10',source:records,
+  expectedMonthClosing:-72663856};
+ const preview=await f.call('preview',request);
+ assert.equal(preview.status,200);
+ assert.equal(preview.summary.changes,3);
+ assert.equal(preview.summary.monthClosingBalance,-72663856);
+ assert.equal(f.state.writes,0);
+ const first=await f.call('commit',{...request,signature:preview.signature,confirm:'SYNC_THIS_PROJECT'});
+ assert.equal(first.status,200);
+ assert.equal(first.mode,'verified');
+ assert.equal(first.summary.changes,3);
+ assert.equal(first.summary.monthClosingBalance,-72663856);
+ assert.equal(f.state.writes,1);
+ assert.equal(f.state.mirror.length,4);
+ assert.deepEqual(f.state.history,before);
+ const secondPreview=await f.call('preview',request);
+ assert.equal(secondPreview.status,200);
+ assert.equal(secondPreview.summary.changes,0);
+ const second=await f.call('commit',{...request,signature:secondPreview.signature,confirm:'SYNC_THIS_PROJECT'});
+ assert.equal(second.status,200);
+ assert.equal(second.mode,'unchanged');
+ assert.equal(second.writes,0);
+ assert.equal(f.state.writes,1);
+ assert.deepEqual(f.state.history,before);
 });
