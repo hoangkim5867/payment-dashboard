@@ -226,6 +226,11 @@ test('fresh indexed-month production audit checks all active projects in Google 
  assert.match(block,/https:\/\/www\.googleapis\.com\/auth\/spreadsheets\.readonly/);
  assert.match(block,/Number\(cashCloudState\.revision\|\|0\)===revision/);
  assert.match(block,/KHÔNG ghi Google\/Firebase/);
+ assert.match(block,/CASH_SYNC_MONTH_READONLY_SUMMARY_V1/);
+ assert.match(block,/sourceComplete:false,writeApproved:false/);
+ assert.match(block,/Sao chép báo cáo đối chiếu/);
+ assert.doesNotMatch(block,/shareSummary[\\s\\S]{0,4000}?(?:spreadsheetId:|sourceRecords:|sourceValues:)/);
+
  assert.doesNotMatch(block,/setDoc\(|addDoc\(|writeBatch\(|updateDoc\(|\/api\/cash-sync-multi-project|action:'commit'/);
  assert.match(html,/ccSyncAuditFreshMonthGoogleReadOnly\(\):ccSyncBatchAnalyzeInMemory\(\)/);
 });
