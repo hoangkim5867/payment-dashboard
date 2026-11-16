@@ -20,7 +20,7 @@ const newValues=['2026-11-03','Vendor','SUBP-2','Another invoice','IPC02','分�
 const source=[{id:'ELYSIAN:expense:new',project:'ELYSIAN',month:'2026-11',
  values:newValues,hash:sha(newValues)}];
 function fixture(project='ELYSIAN',spreadsheetId=ID){
- const state={meta:{spreadsheetId,sheets:[
+ const state={meta:{spreadsheetId,properties:{title:project==='S13-2'?'S13-2 TEST':'Normal project ledger'},sheets:[
   {properties:{sheetId:42,title:'SỔ GỐC',gridProperties:{rowCount:1000,columnCount:15}}}
  ]},history:structuredClone(orig),mirror:null,view:null,formulas:null,writes:0};
  const ok=data=>({ok:true,status:200,json:async()=>data});
@@ -312,4 +312,16 @@ test('S13-2 verified October sources use TEST route: write, readback, repeat wit
  assert.equal(second.writes,0);
  assert.equal(f.state.writes,1);
  assert.deepEqual(f.state.history,before);
+});
+
+test('S13-2 TEST route rejects a wrongly titled Google file before writes',async()=>{
+ const f=fixture('S13-2','testcopyS13202610ABCDEF0123456789');
+ f.state.history[0][13]=65583133;
+ f.state.meta.properties.title='S13-2 PRODUCTION';
+ const vals=['2026-10-02','中方员工工资','','2026年08月中方员工工资','','职工薪酬',0,0,0,0,81463753,0,0];
+ const records=[{id:'manual_salary_payroll_1790835443846_m4hd2',project:'S13-2',month:'2026-10',values:vals,hash:sha([...vals,0])}];
+ const denied=await f.call('preview',{testOnly:true,month:'2026-10',source:records,expectedMonthClosing:-72663856});
+ assert.equal(denied.status,409);
+ assert.match(denied.error,/bản sao S13-2 TEST/);
+ assert.equal(f.state.writes,0);
 });
