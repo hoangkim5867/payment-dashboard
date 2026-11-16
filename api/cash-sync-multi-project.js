@@ -51,7 +51,7 @@ const range=(title,cols)=>'/values/'+encodeURIComponent(
  '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER';
 async function state(bearer,id,historySheetId){
  const meta=await google(bearer,id,
-  '?fields=spreadsheetId,sheets(properties(sheetId,title,hidden,gridProperties(rowCount,columnCount)))');
+  '?fields=spreadsheetId,properties(title),sheets(properties(sheetId,title,hidden,gridProperties(rowCount,columnCount)))');
  if(meta.spreadsheetId!==id)die('Google file ID không khớp.');
  const historic=tabById(meta,historySheetId);
  if(!historic||[MIRROR,VIEW].includes(historic.title))
@@ -131,6 +131,9 @@ async function handler(req,res,testOnly=false){
   if(input.action==='commit'&&!writeConfigured)
    die('Dự án/file Google chưa được cho phép ghi trên máy chủ hoặc chưa bật phát hành.',503);
   const current=await prepare(authorization,input);
+  if(testOnly&&(!/S13[-_ ]?2/i.test(String(current.snapshot.meta.properties?.title||''))||
+     !/TEST/i.test(String(current.snapshot.meta.properties?.title||''))))
+   die('Chỉ được ghi vào bản sao S13-2 TEST có tên xác minh qua Google metadata.');
   if(testOnly&&Math.abs(core.auditHistory(current.snapshot.history).closingBalance-65583133)>0.00001)
    die('S13-2 TEST không khớp số dư sổ gốc trước ba khoản (65.583.133 VND).');
   if(current.blocked.length)
