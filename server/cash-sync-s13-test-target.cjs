@@ -46,7 +46,7 @@ function testGateChecks(env,input){
  if(!/^[A-Za-z0-9_-]{20,100}$/.test(env.CASH_SYNC_S13_TEST_FILE_ID||'')||
     env.CASH_SYNC_S13_TEST_FILE_ID===ORIGINAL)missing.push('TEST_FILE_NOT_SET');
  else if(input.spreadsheetId!==env.CASH_SYNC_S13_TEST_FILE_ID)missing.push('TEST_FILE_MISMATCH');
- if(!/^(0|[1-9]\\d*)$/.test(env.CASH_SYNC_S13_TEST_HISTORY_GID||''))
+ if(!/^(0|[1-9]\d*)$/.test(env.CASH_SYNC_S13_TEST_HISTORY_GID||''))
    missing.push('TEST_GID_NOT_SET');
  else if(input.historySheetId!==Number(env.CASH_SYNC_S13_TEST_HISTORY_GID))
    missing.push('TEST_GID_MISMATCH');
