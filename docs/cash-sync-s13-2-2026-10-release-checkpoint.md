@@ -81,3 +81,19 @@ If (and only if) the **actual production original** historical closing balance e
 5. Ask the owner explicitly before any Production write authorization. Keep PR Draft and environment flags absent meanwhile.
 
 A synthetic, scoped unit regression was added to `tests/cash-multi-project-core.test.cjs`: 258 prior rows, two date inversions, three October S13-2 source IDs, no-op replay and preservation of historic order. This fixture **does not** replace the real Google verification.
+
+## S13-2 original Google history proof — owner-reported live result, 2026-11-16
+
+Production `fdb1fa21148614704cbef98fbe820080122cb4d2` deployed the authenticated, **read-only** S13 original-history preflight with pinned spreadsheet ID `1s7-EZqTfS_6raZDxpK74m5gxDoAbRwBIJptCkG2lyUg` and historical gid `1543850344`.
+
+The owner ran `Xác minh sổ gốc S13-2 · chỉ đọc` in Production Admin and reported:
+
+> S13-2 · Sổ gốc 258 giao dịch · 2 ngày đảo thứ tự · 0 dòng từ 10/2026 · số dư lịch sử 65.583.133 đ · dự kiến sau 3 khoản -72.663.856 đ. KHỚP MỐC LỊCH SỬ (CHỈ ĐỌC). Chưa chứng nhận nguồn; không cấp phép ghi.
+
+**Pass:** the application checked signed Admin + readonly Google scope, exact pinned original file/gid, 258 rows, two historical date inversions, no October rows and original closing **65,583,133 VND**. This is a scoped in-app observation supplied by owner, not an independent API call from Chat.
+
+**Now completed / never repeat:** Google TEST first/readback/replay with 0 second writes, Cash Control 3/3 live source-to-TEST reference comparison, Google original 258-row history/balance verification, and the one-project read-only Google↔Cash comparison. Original ledger remains unchanged; no Production write approval.
+
+**Still not certified:** 166 canonical Payment records count equality does not prove aliases/renamed project history or complete business source. Existing `cash-sync-project-source-coverage.mjs` purposefully returns `paymentBusinessComplete:false` even at `CANONICAL_COUNT_MATCH_ONLY`. Existing monthly export manifest and manual runner return/block on `sourceComplete:false` / `SOURCE_NOT_VERIFIED`. Do not force these fields to true.
+
+**Next release work:** establish an independent, scoped, canonical+alias Payment source attestation and three October original Cash Control IDs bound to live revision, then an authenticated signed S13-only Google preview. Present exact changes and ask owner before any Production write flag change. Server allowlist remains absent; PR stays Draft. No additional global 266-row review or TEST posting needed.
