@@ -197,9 +197,15 @@ test('manual Admin batch uses the selected month, skips projects independently, 
  assert.match(batch,/navigator\.locks\.request/);
  assert.match(batch,/isCashControlOwner\(\)/);
  assert.match(batch,/expectedMonthClosing/);
- assert.match(batch,/if\(!plan\.writeConfigured\)/);
- assert.match(batch,/prepared\.length&&confirm\(/);
+ assert.match(batch,/runManualMonthlySync\(/);
+ assert.match(batch,/preview:post,commit:post/);
+ assert.match(batch,/confirmBatch:async review=>/);
+ assert.match(batch,/requireFresh\(\)/);
+ assert.match(batch,/group\.state==='HISTORY_COMPARISON_CANDIDATE'/);
+ assert.match(batch,/sourceComplete/);
+ assert.match(batch,/t\.previewOnly/);
  assert.match(batch,/Bỏ qua/);
+ assert.match(html,/import \{runManualMonthlySync\} from "\.\/assets\/js\/cash-sync-monthly-manual-runner\.mjs"/);
  assert.doesNotMatch(batch,/loadProjectPayments\(/);
  assert.match(html,/syncBatch\.hidden=firebaseConfig\.projectId!=='cscecmep-payment'/);
 });
