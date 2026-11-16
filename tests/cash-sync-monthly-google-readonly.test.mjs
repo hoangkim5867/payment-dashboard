@@ -120,7 +120,7 @@ test('an unresolved historical posting remains a transaction review even with a 
 test('new month candidates are never labeled date-only when history has inverted dates',()=>{
  const later={...source('expense:2'),values:['2026-10-27',...source('expense:2').values.slice(1)]};
  const x=compareHistoryToExport({project:'ELYSIAN',month:'2026-10',
-  records:[later],history:[raw()],audit:()=>({
+  records:[later],history:[['2026-09-26',...raw().slice(1)]],audit:()=>({
    ...audit([raw()]),status:'review-date-order',nonMonotonicDates:2})});
  assert.equal(x.newerCandidates,1);
  assert.equal(x.reviewCategory,'NEWER_CANDIDATES_ONLY');
