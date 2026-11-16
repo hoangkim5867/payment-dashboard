@@ -97,3 +97,24 @@ The owner ran `Xác minh sổ gốc S13-2 · chỉ đọc` in Production Admin a
 **Still not certified:** 166 canonical Payment records count equality does not prove aliases/renamed project history or complete business source. Existing `cash-sync-project-source-coverage.mjs` purposefully returns `paymentBusinessComplete:false` even at `CANONICAL_COUNT_MATCH_ONLY`. Existing monthly export manifest and manual runner return/block on `sourceComplete:false` / `SOURCE_NOT_VERIFIED`. Do not force these fields to true.
 
 **Next release work:** establish an independent, scoped, canonical+alias Payment source attestation and three October original Cash Control IDs bound to live revision, then an authenticated signed S13-only Google preview. Present exact changes and ask owner before any Production write flag change. Server allowlist remains absent; PR stays Draft. No additional global 266-row review or TEST posting needed.
+
+## Live Google preview PASS — owner confirmation, 2026-11-16
+
+Owner ran the Production one-click read-only S13-2 dry-run and supplied the exact application output:
+
+> S13-2 · XEM TRƯỚC THỰC TẾ ĐẠT: nguồn 3/3, lịch sử 258, 3 khoản mới, số dư dự kiến -72.663.856 đ, Google writes 0. CHƯA CHỨNG NHẬN ĐẦY ĐỦ PAYMENT/NGUỒN; CHƯA CẤP PHÉP GHI.
+
+This satisfies the **authenticated signed Google preview** checkpoint. Do not repeat the existing TEST replay, original history review, or 266-row aggregate audit.
+
+### Independent four-source-ID gate under development, not yet live certified
+
+Three Google postings are derived from *four original Cash Control source IDs*:
+two live `manual_salary_payroll_*` entries and two `legacy_salary_*` entries grouped into Q3 personal income tax. The current client's 3/3 comparison is backed by live Cash Control *revision metadata*, but not yet direct server-side authentication of those four source records.
+
+New `server/cash-sync-s13-source-integrity.cjs` and `api/cash-sync-s13-source-integrity.js` verify the four source IDs against the Admin-protected current Cash Control Firestore document and the immutable SHA-256 checked legacy seed. They verify source dates, paid/out status, S13-2 membership, amounts, duplicate/extra scoped cash entries, and the exact revision, without returning raw accounting rows. This is **two document GETs** and **zero Google writes**. It deliberately returns `paymentBusinessComplete:false`, `sourceComplete:false`, `canSync:false` even if the four entries match.
+
+The existing S13-2 one-click dry-run now checks that live integrity result before the original-ledger proof and signed Google preview. Backend production **commit** has an additional independent recheck of the four source IDs and revision after both production write gates, and rejects any S13 project/month/target outside the pinned 3 October rows.
+
+**Do not mistake these additional safety layers for real-source proof until the revised live Admin view has run**. Even after the narrow proof passes, it attests only the three pinned October transactions, not every historical Payment alias or all future S13 invoices. Do not grant general monthly/35-project writer permission.
+
+Release flags `CASH_SYNC_MULTI_PRODUCTION_WRITES` and `CASH_SYNC_MULTI_ALLOWED_TARGETS` are left **unset**, and PR #124 remains Draft. Owner approval is required before any one-project production writes.
