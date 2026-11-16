@@ -8,20 +8,21 @@ const {readConfig,verifyFirebaseAdminToken}=require('../server/cash-sync-guard.c
 const core=require('../server/cash-sync-multi-project-core.cjs');
 const adapter=require('../server/cash-sync-multi-project-adapter.cjs');
 const {canWriteTarget}=require('../server/cash-sync-multi-targets.cjs');
-const {planMonth,parseValues,sha}=core;
+const {planMonth,parseValues,sha,net}=core;
 const {MIRROR,VIEW,parseStoredMirror,verifyExistingView,compileBatch}=adapter;
 const prefix='https://sheets.googleapis.com/v4/spreadsheets/';
 const die=(message,code=409)=>{throw Object.assign(new Error(message),{statusCode:code})};
 function validBody(payload){
  if(!payload||Array.isArray(payload)||typeof payload!=='object'||
     JSON.stringify(payload).length>850000)die('Dữ liệu đồng bộ không hợp lệ.',413);
- const {action,project,month,spreadsheetId,historySheetId,source,signature}=payload;
+ const {action,project,month,spreadsheetId,historySheetId,source,signature,expectedMonthClosing}=payload;
  if(!['preview','commit'].includes(action)||typeof project!=='string'||
     !project.trim()||project.length>180||
     !/^20\d\d-(0[1-9]|1[0-2])$/.test(month)||month<'2026-10'||
     typeof spreadsheetId!=='string'||!/^[A-Za-z0-9_-]{20,100}$/.test(spreadsheetId)||
     !Number.isSafeInteger(historySheetId)||historySheetId<0||
     !Array.isArray(source)||source.length>3000||
+    expectedMonthClosing!==undefined&&!Number.isFinite(expectedMonthClosing)||
     action==='commit'&&(!/^[a-f0-9]{64}$/.test(signature)||payload.confirm!=='SYNC_THIS_PROJECT'))
   die('Thiếu ID dự án, tháng, file Google hoặc xác nhận ký số.',400);
  // Export Excel review packages carry row positions, NOT immutable source IDs.
@@ -131,10 +132,15 @@ module.exports=async function handler(req,res){
    return res.status(409).json({error:'Có khoản cần đối chiếu, không ghi.',
     project:input.project,blocked:current.blocked.slice(0,30),writes:0});
   const {plan,snapshot,batch}=current;
+  const monthClosingBalance=plan.viewRows.reduce((balance,row)=>
+   row.values[0].slice(0,7)<=input.month?balance+net(row.values):balance,plan.historicalOpening);
+  if(input.expectedMonthClosing!==undefined&&
+     Math.abs(monthClosingBalance-input.expectedMonthClosing)>0.00001)
+   die('Số dư cuối tháng trên Google lệch Cash Control.');
   const summary={project:plan.project,month:plan.month,
    historical:plan.viewRows.filter(x=>x.origin==='HISTORY').length,
    generated:plan.viewRows.length,changes:plan.changes.length,
-   closingBalance:plan.closingBalance,originalUntouched:true};
+   closingBalance:plan.closingBalance,monthClosingBalance,originalUntouched:true};
   if(input.action==='preview')
    return res.status(200).json({mode:'preview',summary,signature:batch.fingerprint,
     writeConfigured,writes:0});

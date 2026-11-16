@@ -24,7 +24,7 @@ test('one primary Google connection and a 35-project catalog before legacy PHU H
  assert.ok(index('ccGoogleSyncLegacyPilot')<index('ccGoogleSyncDirectSync'));
  assert.match(modal,/<details id="ccGoogleSyncProjectLinkCatalog" hidden open/);
  assert.match(modal,/<details id="ccGoogleSyncLegacyPilot"/);
- assert.match(modal,/Đồng bộ giao dịch Cash Control thật và nút chạy chung 35 dự án vẫn khóa/);
+ assert.match(modal,/Chỉ ghi dự án đã đối chiếu số dư và được máy chủ cấp phép/);
 });
 test('FOXCONN TEST is collapsed inside catalog with old actions retained',()=>{
  assert.ok(index('ccSyncFoxconnTestProbeArea')>index('ccGoogleSyncProjectLinkCatalog'));
@@ -54,7 +54,7 @@ test('35-project mapping and JSON recovery remain usable with no duplicated IDs'
  assert.equal(sectionOpen,sectionClose);
 });
 
-test('35-project batch readiness button is primary, Admin-only, and read-only',()=>{
+test('35-project readiness button is Admin-only and read-only',()=>{
  const page=html;
  for(const id of ['ccSyncBatchAnalyze','ccSyncBatchMonth','ccSyncBatchStatus',
    'ccSyncBatchResults'])assert.equal(count('id="'+id+'"'),1);
@@ -161,7 +161,9 @@ test('source bridge requires explicit Admin and one scoped actual month query, n
  const b=html.indexOf('async function ccSyncImportMonthSourceReview(){',a);
  const c=html.indexOf('async function ccSyncBatchAnalyzeInMemory(){',b);
  assert.ok(a>0&&b>a&&c>b);
- const exporter=html.slice(a,b), importer=html.slice(b,c);
+ const load=html.indexOf('async function ccSyncLoadMonthlyExport(',0);
+ assert.ok(load>0&&load<a);
+ const exporter=html.slice(load,b), importer=html.slice(b,c);
  const scanStart=html.indexOf('async function ccSyncScanImportedMonthReview(){',a);
  assert.ok(scanStart>a&&scanStart<b);
  const scanner=html.slice(scanStart,b);
@@ -183,4 +185,21 @@ test('source bridge requires explicit Admin and one scoped actual month query, n
    'ccSyncMonthSourceImport','ccSyncMonthSourceFile','ccSyncMonthSourceStatus']){
    assert.equal(count('id="'+id+'"'),1,'missing or duplicated '+id);
  }
+});
+
+test('manual Admin batch uses the selected month, skips projects independently, and requires server and user approval',()=>{
+ const start=html.indexOf('async function ccSyncMultiProjectManual(){');
+ const end=html.indexOf('async function ccSyncLoadMonthlyExport(',start);
+ const batch=html.slice(start,end);
+ assert.ok(start>0&&end>start);
+ assert.ok(index('ccSyncMultiProjectManual')<index('ccSyncMonthSourceBridge'));
+ assert.match(batch,/ccSyncLoadMonthlyExport\(month,uid,\{batch:true\}\)/);
+ assert.match(batch,/navigator\.locks\.request/);
+ assert.match(batch,/isCashControlOwner\(\)/);
+ assert.match(batch,/expectedMonthClosing/);
+ assert.match(batch,/if\(!plan\.writeConfigured\)/);
+ assert.match(batch,/prepared\.length&&confirm\(/);
+ assert.match(batch,/Bỏ qua/);
+ assert.doesNotMatch(batch,/loadProjectPayments\(/);
+ assert.match(html,/syncBatch\.hidden=firebaseConfig\.projectId!=='cscecmep-payment'/);
 });

@@ -1416,7 +1416,7 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
     </section>
     <section style="margin:14px 0;padding:16px;border:1px solid #dbe4f0;border-radius:12px;background:#fff">
       <strong>Kiểm tra theo tháng</strong>
-      <div style="font-size:12px;color:#45566c;background:#f3f6fa;border-radius:9px;padding:10px;margin-bottom:10px">FOXCONN TEST đã kiểm chứng ghi mẫu và chống trùng. Đồng bộ giao dịch Cash Control thật và nút chạy chung 35 dự án vẫn khóa bảo vệ dữ liệu.</div>
+      <div style="font-size:12px;color:#45566c;background:#f3f6fa;border-radius:9px;padding:10px;margin-bottom:10px">Đồng bộ thủ công theo tháng. Chỉ ghi dự án đã đối chiếu số dư và được máy chủ cấp phép.</div>
       <details id="ccGoogleSyncProjectLinkCatalog" hidden open style="margin-top:10px;border:1px solid #dbe4f0;border-radius:10px;padding:10px;background:#f8fafc">
         <summary style="cursor:pointer;font-weight:700">Đồng bộ theo dự án</summary>
         <div style="margin:11px 0;padding:11px;border:1px solid #cad8e7;border-radius:9px;background:#fff">
@@ -1424,7 +1424,8 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center">
             <label for="ccSyncBatchMonth" style="font-size:12px;font-weight:600">Tháng</label>
             <input id="ccSyncBatchMonth" type="month" style="border:1px solid #cad4e3;border-radius:7px;padding:7px" aria-label="Tháng kiểm tra chung">
-            <button class="btn primary" type="button" id="ccSyncBatchAnalyze">Kiểm tra chung các dự án · không ghi</button>
+            <button class="btn primary" type="button" id="ccSyncMultiProjectManual" hidden>Đồng bộ các dự án đủ điều kiện</button>
+            <button class="btn" type="button" id="ccSyncBatchAnalyze">Kiểm tra chung các dự án · chỉ đọc</button>
           </div>
           <div id="ccSyncMonthSourceBridge" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:9px 0 4px">
             <button id="ccSyncMonthSourceExport" class="btn" type="button" hidden>Xuất 1 gói nguồn tháng từ Cash Control chính</button>
@@ -1482,7 +1483,6 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
           <button class="btn" id="ccSyncPaymentPreflightLoad" type="button">Tải Payment 1 dự án · chỉ đọc</button>
           <button class="btn" id="ccSyncExportSourceForTest" type="button">Xuất nguồn đối chiếu TEST · 1 dự án</button>
           <button class="btn" id="ccSyncProjectCompareGoogle" type="button">Đối chiếu Payment ↔ Google · chỉ đọc</button>
-          <button class="btn primary" id="ccSyncMultiProjectManual" type="button">Đồng bộ dự án đang chọn · Admin</button>
           <span id="ccSyncPaymentPreflightStatus" aria-live="polite" style="font-size:12px;color:#44546b">Chưa kiểm tra.</span>
         </div>
         <div id="ccSyncIndependentProjectSummary" hidden aria-live="polite" style="font-size:12px;color:#24354b;background:#f7f9fc;border:1px solid #dce4ec;border-radius:8px;padding:9px;margin:8px 0"></div>
@@ -6229,121 +6229,221 @@ async function ccSyncCompareImportedRealSource(){
 }
 
 async function ccSyncMultiProjectManual(){
-  const button=$('ccSyncMultiProjectManual'),status=$('ccSyncPaymentPreflightStatus');
-  if(!button||!status||button.disabled)return;
-  const project=normProject($('ccSyncPaymentPreflightProject')?.value||'');
-  const month=String($('ccGoogleSyncMonth')?.value||'');
-  if(!currentAuthUser||!isCashControlOwner()||
-     firebaseConfig.projectId!=='cscecmep-payment'){
-    status.textContent='Chỉ Admin Cash Control chính được đồng bộ.';return;
+  const button=$('ccSyncMultiProjectManual');
+  const monthInput=$('ccSyncBatchMonth');
+  const auditButton=$('ccSyncBatchAnalyze');
+  const status=$('ccSyncBatchStatus');
+  const output=$('ccSyncBatchResults');
+  if(!button||button.disabled||auditButton.disabled)return;
+  const month=monthInput.value;
+  const uid=currentAuthUser?.uid;
+  const isAdmin=()=>Boolean(uid&&currentAuthUser?.uid===uid&&isCashControlOwner()&&
+    firebaseConfig.projectId==='cscecmep-payment');
+  if(!isAdmin()||!cashCloudReady||!legacySeedReady){
+    status.textContent='Cần phiên Admin và dữ liệu Cash Control đã tải.';return;
   }
-  if(project==='PHU HUNG'){
-    status.textContent='PHU HUNG đã có luồng đồng bộ gốc riêng; không thay đổi sổ qua cổng đa dự án.';return;
+  if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)||month<'2026-10'){
+    status.textContent='Chọn tháng từ 10/2026.';return;
   }
-  if(!ccGoogleSyncToken){
+  const googleToken=ccGoogleSyncToken;
+  if(!googleToken){
     status.textContent='Kết nối Google trước khi đồng bộ.';return;
   }
-  if(!/^20\d\d-(0[1-9]|1[0-2])$/.test(month)||month<'2026-10'||
-     !ccSyncProjectCatalogNames().includes(project)){
-    status.textContent='Chọn đúng dự án và tháng từ 10/2026.';return;
+  if(!navigator.locks){
+    status.textContent='Trình duyệt chưa hỗ trợ khóa đồng bộ giữa các tab.';return;
   }
-  const link=ccSyncProjectLinkDraft[project];
-  if(!link||!ccSyncProjectLinkValid(link)){
-    status.textContent='Chưa có link Google Sheets cho '+project+'.';return;
-  }
-  const url=new URL(link);
-  const spreadsheetId=/^\/spreadsheets\/d\/([A-Za-z0-9_-]{20,})(?:\/|$)/.exec(url.pathname)?.[1];
-  const gid=url.searchParams.get('gid')??/^#gid=(\d+)$/.exec(url.hash)?.[1];
-  if(!spreadsheetId||gid===null||!/^[0-9]+$/.test(gid)){
-    status.textContent='Link Google cần gid của tab lịch sử, không phải tab kỹ thuật.';return;
-  }
-  if(!confirm('ĐỒNG BỘ THỦ CÔNG '+project+' · '+month+'?\n'+
-    'Làm mới Payment một dự án (phát sinh Firestore reads), đọc Google và xem trước. '+
-    'Chỉ ghi nếu máy chủ cho phép, số dư và ID đã kiểm chứng. Không chạy nền.'))return;
-  button.disabled=true;
-  status.textContent='Đang làm mới nguồn '+project+' và kiểm tra Google…';
-  const adminUid=currentAuthUser.uid;
-  let openingBalance=null;
+  button.disabled=auditButton.disabled=monthInput.disabled=true;
+  output.hidden=true;
+  output.replaceChildren();
   try{
-    const loaded=await loadProjectPayments(project,{force:true,quiet:true,refresh:true});
-    if(!loaded||!paymentMonths.has(project))throw Error('Không tải đủ Payment dự án.');
-    if(!currentAuthUser||currentAuthUser.uid!==adminUid||!isCashControlOwner())
-      throw Error('Phiên Admin đã thay đổi.');
-    rebuildPaymentsFromLoadedMonths();
-    const rows=project==='FOXCONN'?
-      ccSyncFoxconnAuditRows(month):legacyCashExportRows(month,project);
-    const records=[];
-    for(const row of rows){
-      const ids=Array.isArray(row._syncIds)?row._syncIds.map(String):[];
-      if(!ids.length)throw Error('Có giao dịch thiếu ID nguồn, không được tự nhập Google.');
-      const id=row._taxQuarter?
-        'tax:'+project+':'+row.date+':'+row._taxQuarter+':'+(row._taxDirection||'out'):
-        project+':'+ids.slice().sort().join('+');
-      const tax=project==='FOXCONN'?row.importTaxVat:0;
-      if(!Number.isFinite(tax))
-        throw Error('FOXCONN chưa xác minh thuế nhập khẩu/VAT, chặn ghi.');
-      const values=ccGoogleSyncPayloadCells([...ccGoogleSyncRowValues(row),tax]);
-      records.push({id,project,month,values,
-        hash:await ccGoogleSyncSha(values)});
-    }
-    const post=async(action,extra={})=>{
-      const result=await fetch('/api/cash-sync-multi-project',{
-        method:'POST',
-        headers:{'Content-Type':'application/json',
-          'X-Firebase-ID-Token':await currentAuthUser.getIdToken(),
-          Authorization:'Bearer '+ccGoogleSyncToken},
-        body:JSON.stringify({action,project,month,spreadsheetId,
-          historySheetId:Number(gid),source:records,openingBalance,...extra})
-      });
-      const data=await result.json().catch(()=>({}));
-      if(!result.ok)throw Error(String(data.error||'Máy chủ chặn đồng bộ')+
-        (data.blocked?.length?' · '+data.blocked.length+' khoản cần kiểm tra':''));
-      return data;
-    };
-    let preview;
-    try{preview=await post('preview')}
-    catch(error){
-      if(!String(error.message).includes('số dư đầu kỳ')||
-         !confirm('Google chưa có giao dịch. Xác nhận số dư đầu kỳ dự án '+project+
-           ' là 0 VND? Chỉ xác nhận nếu thực tế đúng.')){
-        throw error;
+    await navigator.locks.request('cash-control-google-sync',{ifAvailable:true},async lock=>{
+      if(!lock)throw Error('Đang đồng bộ ở tab khác.');
+      status.textContent='Đang tải Payment thực trả tháng '+month+'…';
+      const snapshot=await ccSyncLoadMonthlyExport(month,uid,{batch:true});
+      const {manifest,readiness,balances,revision,links,indexedCount}=snapshot;
+      const requireFresh=()=>{
+        if(!isAdmin()||ccGoogleSyncToken!==googleToken||
+           Number(cashCloudState.revision||0)!==revision)
+          throw Error('Phiên hoặc dữ liệu Cash Control đã đổi. Chạy lại đối chiếu.');
+      };
+      requireFresh();
+      const firebaseToken=await currentAuthUser.getIdToken();
+      const post=async(input,action,extra={})=>{
+        requireFresh();
+        const response=await fetch('/api/cash-sync-multi-project',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','X-Firebase-ID-Token':firebaseToken,
+            Authorization:'Bearer '+googleToken},
+          body:JSON.stringify({...input,action,...extra})
+        });
+        const result=await response.json().catch(()=>({}));
+        if(!response.ok)throw Error(String(result.error||'Máy chủ chặn đồng bộ')+
+          (result.blocked?.length?' · '+result.blocked.length+' khoản cần kiểm tra':''));
+        return result;
+      };
+      const results=document.createElement('ul');
+      output.append(results);
+      output.hidden=false;
+      const readinessByProject=new Map(readiness.rows.map(row=>[row.project,row]));
+      const prepared=[];
+      let skipped=0,unchanged=0,verified=0,writeErrors=0,processed=0;
+      for(const group of manifest.groups){
+        if(!group.groupedExcelRows)continue;
+        const {project,records}=group;
+        status.textContent='Đang đối chiếu '+(++processed)+'/'+manifest.activeProjects+' · '+project;
+        const item=document.createElement('li');
+        results.append(item);
+        const show=message=>{item.textContent=project+' · '+message;};
+        try{
+          requireFresh();
+          if(project==='PHU HUNG')throw Error('Đang dùng luồng PHU HUNG riêng.');
+          if(group.state==='MISSING_GOOGLE_LINK')throw Error('Thiếu link Google.');
+          const sourceIssues=group.issues.map(issue=>issue.code);
+          if(readinessByProject.get(project)?.transferCounterpartsUnverified)
+            throw Error('Điều chuyển chưa khớp đủ hai đầu.');
+          if(group.state!=='HISTORY_COMPARISON_CANDIDATE'||readinessByProject.get(project)?.needsReview)
+            throw Error('Nguồn Xuất Excel cần rà soát'+(sourceIssues.length?' ('+
+              [...new Set(sourceIssues)].join(', ')+').':'.'));
+          if(records.some(row=>row.sourceClass==='PAYMENT'&&
+             (!row.values[2].trim()||!row.values[4].trim())))
+            throw Error('Payment thiếu số hợp đồng hoặc IPC.');
+          const url=new URL(links[project]);
+          const spreadsheetId=/^\/spreadsheets\/d\/([A-Za-z0-9_-]{20,100})(?:\/|$)/.exec(url.pathname)?.[1];
+          const gid=url.searchParams.get('gid')??/^#gid=(\d+)$/.exec(url.hash)?.[1];
+          if(!spreadsheetId||!/^\d+$/.test(gid??'')||!Number.isSafeInteger(Number(gid)))
+            throw Error('Link thiếu gid của tab sổ gốc.');
+          const expectedMonthClosing=balances[project];
+          if(!Number.isFinite(expectedMonthClosing))
+            throw Error('Thiếu dữ liệu các kỳ trước để xác nhận số dư Cash Control.');
+          const source=await Promise.all(records.map(async row=>{
+            const values=ccGoogleSyncPayloadCells(project==='FOXCONN'?row.values:[...row.values,0]);
+            return {id:row.id,project,month,values,hash:await ccGoogleSyncSha(values)};
+          }));
+          const input={project,month,spreadsheetId,historySheetId:Number(gid),source,expectedMonthClosing};
+          const plan=await post(input,'preview');
+          requireFresh();
+          if(!plan.writeConfigured)throw Error('Máy chủ chưa cấp phép ghi cho file Google này.');
+          if(!plan.summary.changes){
+            unchanged++;show('Đã khớp · 0 dòng thay đổi.');continue;
+          }
+          show(plan.summary.changes+' thay đổi dự kiến · số dư tháng '+
+            Number(plan.summary.monthClosingBalance).toLocaleString('vi-VN')+' đ.');
+          prepared.push({input,plan,show});
+        }catch(error){
+          skipped++;show('Bỏ qua · '+String(error?.message||error).slice(0,220));
+        }
       }
-      openingBalance=0;
-      preview=await post('preview');
-    }
-    if(!preview.writeConfigured){
-      status.textContent='ĐÃ KIỂM TRA '+project+' '+month+
-        ': '+preview.summary.changes+' thay đổi dự kiến; số dư '+preview.summary.closingBalance+
-        '. Máy chủ chưa bật ghi đa dự án, 0 writes.';
-      return;
-    }
-    if(!preview.summary.changes){
-      status.textContent='KHÔNG CẦN GHI '+project+' '+month+
-        ': đã khớp hoặc chưa phát sinh; 0 writes.';return;
-    }
-    if(!confirm('XÁC NHẬN GHI GOOGLE '+project+' tháng '+month+
-      '\n'+preview.summary.changes+' thay đổi; số dư mới '+
-      Number(preview.summary.closingBalance).toLocaleString('vi-VN')+
-      'đ. Tab lịch sử gốc không đổi. Tiếp tục?')){
-      status.textContent='Đã hủy, không ghi Google.';return;
-    }
-    if(!currentAuthUser||currentAuthUser.uid!==adminUid||!isCashControlOwner())
-      throw Error('Quyền Admin đã thay đổi trước khi ghi.');
-    const saved=await post('commit',{signature:preview.signature,confirm:'SYNC_THIS_PROJECT'});
-    status.textContent='GOOGLE '+project+' '+month+' · '+
-      (saved.mode==='unchanged'?'ĐÃ KHỚP, KHÔNG GHI':'ĐÃ GHI VÀ ĐỌC LẠI XÁC MINH')+
-      ' · '+saved.summary.generated+' giao dịch · số dư '+
-      saved.summary.closingBalance+'đ · lịch sử gốc giữ nguyên.';
+      if(prepared.length&&confirm('Đồng bộ '+prepared.length+' dự án đủ điều kiện tháng '+month+
+          '? Chỉ cập nhật các tab kỹ thuật đã được máy chủ cấp phép.')){
+        for(const {input,plan,show} of prepared){
+          status.textContent='Đang ghi và đọc lại · '+input.project;
+          try{
+            const saved=await post(input,'commit',{signature:plan.signature,confirm:'SYNC_THIS_PROJECT'});
+            if(saved.mode==='unchanged'){unchanged++;show('Đã khớp · 0 dòng thay đổi.');}
+            else if(saved.mode==='verified'){
+              verified++;show('Đã ghi và đọc lại · số dư tháng '+
+                Number(saved.summary.monthClosingBalance).toLocaleString('vi-VN')+' đ.');
+            }else throw Error('Máy chủ chưa xác nhận kết quả ghi.');
+          }catch(error){
+            writeErrors++;show('Cần kiểm tra lại · '+String(error?.message||error).slice(0,220));
+          }
+        }
+      }else{
+        skipped+=prepared.length;
+        for(const {show} of prepared)show('Bỏ qua · Đã hủy xác nhận ghi.');
+      }
+      status.textContent=month+' · '+manifest.activeProjects+'/'+manifest.catalogProjects+
+        ' dự án có dòng nguồn · '+verified+' đã ghi và đọc lại · '+unchanged+
+        ' đã khớp · '+skipped+' bỏ qua · '+writeErrors+
+        ' cần kiểm tra kết quả ghi · '+indexedCount+' hồ sơ Payment đọc theo tháng.';
+    });
   }catch(error){
-    status.textContent='DỪNG '+project+': '+
-      String(error?.message||error).slice(0,210)+
-      '. Không tự ghi lại; kiểm tra trạng thái trước khi bấm lần nữa.';
-  }finally{button.disabled=false}
+    status.textContent='Dừng đồng bộ · '+String(error?.message||error).slice(0,200);
+  }finally{button.disabled=auditButton.disabled=monthInput.disabled=false;}
 }
 
 // One local, ephemeral snapshot; never stored in localStorage or Firestore.
 // A TEST browser cannot inherit the authenticated production browser's data.
 let ccSyncImportedMonthReview=null;
+
+// Capture canonical Excel rows using a single actual-Payment month query.
+async function ccSyncLoadMonthlyExport(month,uid,{batch=false}={}){
+  let before=null;
+  const beforeExportLang=window.cashExportLang;
+  try{
+    const ok=await autoLoadPaymentActualMonth(month,{force:true});
+    if(!ok||!paymentAutoActualMonthsLoaded.has(month)||
+      !currentAuthUser||currentAuthUser.uid!==uid||!isCashControlOwner()||
+      firebaseConfig.projectId!=='cscecmep-payment')
+      throw Error('Không tải được đúng nguồn Payment đã thực trả trong tháng.');
+    const indexed=paymentAutoActualRowsByMonth.get(month);
+    if(!(indexed instanceof Map))throw Error('Thiếu kết quả truy vấn Payment theo tháng.');
+    // Use the month-indexed rows in the batch. Earlier months are already
+    // cached during ordinary Cash Control loading, and are never fetched here.
+    before=payments;
+    const months=actualMonthsNeededForOpening(month);
+    const covered=months.every(m=>paymentAutoActualRowsByMonth.get(m) instanceof Map);
+    if(batch){
+      const actual=new Map();
+      for(const m of months){
+        for(const [id,row] of paymentAutoActualRowsByMonth.get(m)||[]){
+          if(String(row.processPaymentDate||'').slice(0,7)===m)actual.set(id,row);
+        }
+      }
+      payments=[...actual.values()];
+      window.cashExportLang='zh'; // Existing Google ledgers use the Chinese Excel layout.
+    }else{
+      const combined=new Map(payments.map(p=>[String(p.id),p]));
+      for(const [id,row] of combined)
+        if(String(row?.processPaymentDate||'').slice(0,7)===month)
+          combined.delete(id);
+      indexed.forEach((row,id)=>combined.set(String(id),row));
+      payments=[...combined.values()];
+    }
+    invalidateCashCalculations();
+    const projects=ccSyncProjectCatalogNames();
+    const rowsByProject=Object.create(null),hasLink=Object.create(null);
+    const links={...ccSyncProjectLinkDraft};
+    for(const project of projects){
+      rowsByProject[project]=project==='FOXCONN'?
+        ccSyncFoxconnAuditRows(month):legacyCashExportRows(month,project);
+      hasLink[project]=ccSyncProjectLinkValid(links[project]||'');
+    }
+    const expenseIds=new Map(allExpenses().filter(x=>x?.id)
+      .map(x=>[String(x.id),x]));
+    const resolveKind=id=>{
+      if(!id.startsWith('expense:'))return 'UNKNOWN';
+      const expense=expenseIds.get(id.slice(8));
+      if(!expense)return 'UNKNOWN';
+      if(expense.source==='payment')return 'PAYMENT';
+      if(expense.source==='payroll'||expense.linkedModule==='payroll')return 'PAYROLL';
+      return 'CASH';
+    };
+    const manifest=buildMonthlyExportManifest({
+      month,projects,rowsByProject,links:hasLink,
+      // Indexed month coverage is distinct from full-project source coverage.
+      paymentCacheProjects:projects,resolveKind,
+      expectedCounts:month==='2026-10'?{FOXCONN:19}:{}
+    });
+    const readiness=buildBatchReadiness({month,projects,links:hasLink,rowsByProject});
+    const balances=Object.create(null);
+    if(batch&&covered){
+      for(const project of projects){
+        if(rowsByProject[project].length)
+          balances[project]=opening(project,month)+movements(month,project)
+            .reduce((sum,row)=>sum+row.in-row.out,0);
+      }
+    }
+    return {manifest,readiness,balances,links,indexedCount:indexed.size,
+      revision:Number(cashCloudState.revision||0)};
+  }finally{
+    if(before!==null){
+      payments=before;
+      if(batch)window.cashExportLang=beforeExportLang;
+      invalidateCashCalculations();
+    }
+  }
+}
 
 async function ccSyncExportMonthSourceReview(){
   const button=$('ccSyncMonthSourceExport');
@@ -6362,54 +6462,11 @@ async function ccSyncExportMonthSourceReview(){
   const uid=currentAuthUser.uid;
   status.textContent='Đọc Payment đã thực trả theo chỉ mục tháng '+month+
     ' (1 truy vấn tháng, không quét 35 dự án)…';
-  // All changes below remain temporary in RAM, restored even on failure.
-  let before=null;
   try{
-    const ok=await autoLoadPaymentActualMonth(month,{force:true});
-    if(!ok||!paymentAutoActualMonthsLoaded.has(month)||
-      !currentAuthUser||currentAuthUser.uid!==uid||!isCashControlOwner()||
-      firebaseConfig.projectId!=='cscecmep-payment')
-      throw Error('Không tải được đúng nguồn Payment đã thực trả trong tháng.');
-    const indexed=paymentAutoActualRowsByMonth.get(month);
-    if(!(indexed instanceof Map))throw Error('Thiếu kết quả truy vấn Payment theo tháng.');
-    // A cached full-project read may have an older copy of a paid row.
-    // Prioritize this freshly indexed month, without modifying Firebase.
-    before=payments;
-    const combined=new Map(payments.map(p=>[String(p.id),p]));
-    for(const [id,row] of combined)
-      if(String(row?.processPaymentDate||'').slice(0,7)===month)
-        combined.delete(id);
-    indexed.forEach((row,id)=>combined.set(String(id),row));
-    payments=[...combined.values()];
-    invalidateCashCalculations();
-    const projects=ccSyncProjectCatalogNames();
-    const rowsByProject=Object.create(null),links=Object.create(null);
-    for(const project of projects){
-      rowsByProject[project]=project==='FOXCONN'?
-        ccSyncFoxconnAuditRows(month):legacyCashExportRows(month,project);
-      links[project]=ccSyncProjectLinkValid(ccSyncProjectLinkDraft[project]||'');
-    }
-    const expenseIds=new Map(allExpenses().filter(x=>x?.id)
-      .map(x=>[String(x.id),x]));
-    const resolveKind=id=>{
-      if(!id.startsWith('expense:'))return 'UNKNOWN';
-      const expense=expenseIds.get(id.slice(8));
-      if(!expense)return 'UNKNOWN';
-      if(expense.source==='payment')return 'PAYMENT';
-      if(expense.source==='payroll'||expense.linkedModule==='payroll')return 'PAYROLL';
-      return 'CASH';
-    };
-    const manifest=buildMonthlyExportManifest({
-      month,projects,rowsByProject,links,
-      // Used solely to calculate READ-ONLY history candidates.
-      // Indexed month coverage is NOT full-project source certification.
-      paymentCacheProjects:projects,resolveKind,
-      expectedCounts:month==='2026-10'?{FOXCONN:19}:{}
-    });
+    const {manifest,indexedCount,revision}=await ccSyncLoadMonthlyExport(month,uid);
     const packageData=buildMonthReviewPackage({
       month,manifest,actualMonthLoaded:true,
-      monthQueryCount:indexed.size,
-      revision:Number(cashCloudState.revision||0)
+      monthQueryCount:indexedCount,revision
     });
     const json=JSON.stringify(packageData);
     if(json.length>5000000)throw Error('Gói nguồn vượt 5MB, không tự chia giao dịch.');
@@ -6423,14 +6480,13 @@ async function ccSyncExportMonthSourceReview(){
     }finally{setTimeout(()=>URL.revokeObjectURL(url),2000)}
     status.textContent='ĐÃ XUẤT 1 GÓI '+month+' · '+manifest.activeProjects+
       ' dự án có dòng / '+manifest.groupedRows+
-      ' dòng sau gộp · Payment chỉ đọc theo tháng '+indexed.size+
+      ' dòng sau gộp · Payment chỉ đọc theo tháng '+indexedCount+
       ' hồ sơ · '+manifest.needsSourceReview+
       ' dự án cần rà soát. Mang file sang TEST để đọc Google, chưa cấp phép ghi.';
   }catch(error){
     status.textContent='DỪNG xuất nguồn: '+String(error?.message||error).slice(0,160)+
       '. 0 ghi Firebase/Google.';
   }finally{
-    if(before!==null){payments=before;invalidateCashCalculations();}
     button.disabled=false;
   }
 }
@@ -6916,7 +6972,11 @@ function ccSyncProjectCatalogInitialize(){
   $('ccSyncPaymentPreflightCount')?.addEventListener('click',ccSyncCountOneProject);
   $('ccSyncPaymentPreflightLoad')?.addEventListener('click',ccSyncLoadOneProjectReadOnly);
   $('ccSyncProjectCompareGoogle')?.addEventListener('click',ccSyncCompareProjectGoogleReadOnly);
-  $('ccSyncMultiProjectManual')?.addEventListener('click',ccSyncMultiProjectManual);
+  const syncBatch=$('ccSyncMultiProjectManual');
+  if(syncBatch){
+    syncBatch.hidden=firebaseConfig.projectId!=='cscecmep-payment';
+    syncBatch.addEventListener('click',ccSyncMultiProjectManual);
+  }
   $('ccSyncProjectCatalogExport')?.addEventListener('click',()=>{
     const payload={schema:'CASH_SYNC_PROJECT_LINK_DRAFT_V1',projects:ccSyncProjectLinkDraft,
       note:'Local draft only; does not authorize Google Sheets sync'};

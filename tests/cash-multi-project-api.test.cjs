@@ -240,3 +240,22 @@ test('Excel review row positions cannot be used as source IDs for Google commit'
  assert.equal(f.state.writes,0);
  assert.deepEqual(f.state.history,orig);
 });
+
+test('monthly batch compares the selected closing balance independently of future Google entries',async()=>{
+ const f=fixture();
+ f.state.history.push(['2026-12-01','Vendor','SUBP-3','Future invoice','IPC03','分包款',
+   0,50,0,0,0,0,0,850]);
+ const cutoff=await f.call('preview',{enabled:true,expectedMonthClosing:900,source:[]});
+ assert.equal(cutoff.status,200);
+ assert.equal(cutoff.summary.monthClosingBalance,900);
+ assert.equal(cutoff.summary.closingBalance,850);
+ assert.equal(f.state.writes,0);
+ const h=fixture();
+ const plan=await h.call('preview',{enabled:true,expectedMonthClosing:700});
+ assert.equal(plan.summary.monthClosingBalance,700);
+ const rejected=await h.call('commit',{enabled:true,expectedMonthClosing:701,
+   signature:plan.signature,confirm:'SYNC_THIS_PROJECT'});
+ assert.equal(rejected.status,409);
+ assert.match(rejected.error,/Số dư cuối tháng/);
+ assert.equal(h.state.writes,0);
+});
