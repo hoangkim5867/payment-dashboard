@@ -38,7 +38,7 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
  fs.writeFileSync(file,text);
  }
  if(indexReadGuards!==3)throw Error('Expected three safe-read guards');
- if(configs!==9)throw Error('Expected nine Firebase app configurations, got '+configs);
+ if(configs!==10)throw Error('Expected ten Firebase app configurations, including S13 TEST UI, got '+configs);
  if(v2PageGuards!==2)throw Error('Expected two guarded V2 pages');
  const writerSource=fs.readFileSync(path.join(out,'assets/js/firestore-payment.mjs'),'utf8');
  const contractV2ReadyToActivate=target==='production' &&
