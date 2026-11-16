@@ -160,7 +160,7 @@ runTest.addEventListener('click',async()=>{
   if(![0,3].includes(changes))throw Error('Số dòng dự kiến bất thường: '+changes);
   check(first,changes);
   log('Google TEST: '+changes+' thay đổi dự kiến, số dư tháng: '+first.summary.monthClosingBalance.toLocaleString('vi-VN')+' đ.');
-  if(first.writeConfigured!==true)throw Error('Máy chủ chưa bật TEST-only allowlist trên bản Preview này.');
+  if(first.writeConfigured!==true)throw Error('Cổng TEST chưa cấp phép ('+(Array.isArray(first.testGateChecks)?first.testGateChecks.join(', '):'chưa rõ lý do')+'). KHÔNG ghi.');
   if(changes===3){
    log('Bước 2 — Ghi 3 giao dịch vào các tab kỹ thuật TEST, sau đó API đọc lại xác minh…');
    const saved=await call('commit',rows,{signature:first.signature,confirm:'SYNC_THIS_PROJECT'});
