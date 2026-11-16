@@ -109,6 +109,21 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
      throw Error('Aggregate report shape changed; refusing unsafe build');
    text=text.replace(oldSummaryTail,newSummaryTail);
 
+   // The owner explicitly supplied the already-tested PHU HUNG sheet URL.
+   // Restore it only when Admin's Production browser has no local link.
+   // Never overwrite an existing draft, inspect Google on page load, or
+   // grant production writer permission. The read-only scan checks gid/title.
+   const loadDraft='  ccSyncProjectCatalogLoadDraft();';
+   if(!text.includes(loadDraft))throw Error('Link draft bootstrap changed');
+   const phuHungLink='https://docs.google.com/spreadsheets/d/1gOEvJmOCW9EV5zfBNyJZ35a8EtMZihI2yZyuKj93dVg/edit?gid=1049774332#gid=1049774332';
+   text=text.replace(loadDraft,loadDraft+
+     "\\n  if(firebaseConfig.projectId==='cscecmep-payment'&&isCashControlOwner()&&"+
+     "\\n     !ccSyncProjectLinkDraft['PHU HUNG']&&ccSyncProjectLinkValid("+JSON.stringify(phuHungLink)+")){"+
+     "\\n    ccSyncProjectLinkDraft['PHU HUNG']="+JSON.stringify(phuHungLink)+";"+
+     "\\n    ccSyncProjectCatalogSaveDraft();"+
+     "\\n  }");
+
+
 
 
 
