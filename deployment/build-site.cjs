@@ -36,12 +36,20 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
 
    // Explain read-only outcomes without weakening any backend commit gate.
    const oldReview="item.result==='REVIEW_REQUIRED'?'Cần đối chiếu lịch sử / giao dịch':";
-   const newReview="item.result==='REVIEW_REQUIRED'?(item.reviewCategory==='DATE_ORDER_ONLY'?'Khớp giao dịch; cảnh báo thứ tự ngày (chưa cấp phép ghi)':'Cần đối chiếu lịch sử / giao dịch'):";
+   const newReview="item.result==='REVIEW_REQUIRED'?(item.reviewCategory==='NEWER_CANDIDATES_ONLY'?('Có '+item.newerCandidates+' ứng viên mới; chưa cấp phép ghi'):item.reviewCategory==='DATE_ORDER_ONLY'?'Khớp dòng trong tháng; cảnh báo thứ tự ngày (chưa cấp phép ghi)':'Cần đối chiếu lịch sử / giao dịch'):";
    const oldNotReady="item.result==='SOURCE_NOT_READY'?'Nguồn chưa đủ điều kiện đọc Google':";
-   const newNotReady="item.result==='SOURCE_NOT_READY'?('Nguồn chưa đủ điều kiện: '+String(item.reason||'chưa xác minh')+'; '+issues.length+' vấn đề nguồn'):";
+   const newNotReady="item.result==='SOURCE_NOT_READY'?('Nguồn chưa đủ điều kiện: '+String(item.reason||'chưa xác minh')):";
    if(!text.includes(oldReview)||!text.includes(oldNotReady))
      throw Error('Read-only report UI changed; refusing unchecked build');
    text=text.replace(oldReview,newReview).replace(oldNotReady,newNotReady);
+
+   // Distinguish a missing opening balance from malformed source rows.
+   // Never turn a blocked project's source into an eligible candidate.
+   const oldGroup="g:{...g,state:'SOURCE_REVIEW_REQUIRED'};";
+   const newGroup="g:{...g,state:'SOURCE_REVIEW_REQUIRED',sourceBlockReason:g.state!=='HISTORY_COMPARISON_CANDIDATE'?g.state:(r?.needsReview?'READINESS_REVIEW_REQUIRED':!Number.isFinite(balances[g.project])?'OPENING_BALANCE_NOT_VERIFIED':'SOURCE_REVIEW_REQUIRED')};";
+   if(!text.includes(oldGroup))throw Error('Monthly source blocker moved; refusing unchecked build');
+   text=text.replace(oldGroup,newGroup);
+
 
  }
  if(target==='staging'&&text.includes('cscecmep-payment.firebaseapp.com'))throw Error('Production Auth endpoint left in staging output');
