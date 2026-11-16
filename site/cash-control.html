@@ -6721,7 +6721,46 @@ async function ccSyncAuditFreshMonthGoogleReadOnly(){
         }
         table.append(tr);
       }
-      output.replaceChildren(table);output.hidden=false;
+      // Share only aggregate read-only findings, never source rows, Google
+      // file IDs, authentication tokens, salary details or payment amounts.
+      const shareSummary={
+        schema:'CASH_SYNC_MONTH_READONLY_SUMMARY_V1',month,
+        catalogProjects:manifest.catalogProjects,
+        activeProjects:manifest.activeProjects,
+        groupedExcelRows:manifest.groupedRows,
+        indexedPaidMonthDocuments:indexedCount,
+        cashRevision:revision,
+        googleCheckedProjects:scan.checkedGoogleProjects,
+        googleReviewProjects:scan.blockedProjects,
+        googleReads:scan.googleReads,googleWrites:0,
+        sourceComplete:false,writeApproved:false,
+        projects:scan.results.map(row=>({
+          project:row.project,
+          groupedExcelRows:byProject.get(row.project)?.groupedExcelRows??0,
+          status:row.result,
+          reason:row.reason||null,
+          exactMatches:row.exactMatches??null,
+          newerCandidates:row.newerCandidates??null,
+          historyUnmatched:row.historyUnmatched??null,
+          duplicateHistory:row.duplicateHistory??null,
+          duplicateSource:row.duplicateSource??null,
+          financialReview:row.financialReview===true,
+          dateReview:row.dateReview===true
+        }))
+      };
+      const copy=document.createElement('button');
+      copy.type='button';copy.className='btn';
+      copy.textContent='Sao chép báo cáo đối chiếu (không chứa số tiền)';
+      copy.style.marginTop='9px';
+      copy.addEventListener('click',async()=>{
+        try{
+          await navigator.clipboard.writeText(JSON.stringify(shareSummary,null,2));
+          copy.textContent='Đã sao chép báo cáo · có thể dán vào ChatGPT';
+        }catch{
+          copy.textContent='Không sao chép được; kiểm tra quyền clipboard.';
+        }
+      });
+      output.replaceChildren(table,copy);output.hidden=false;
       status.textContent='ĐỐI CHIẾU THÁNG '+month+' · '+manifest.activeProjects+
         ' dự án có dòng / '+manifest.groupedRows+' dòng Xuất Excel đang tải · '+
         indexedCount+' hồ sơ Payment đã thực trả trong tháng được truy vấn · '+
