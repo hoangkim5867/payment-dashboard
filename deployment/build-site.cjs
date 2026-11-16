@@ -23,6 +23,17 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
  let configs=0,indexReadGuards=0,v2PageGuards=0;
  for(const name of fs.readdirSync(out).filter(n=>n.endsWith('.html'))){const file=path.join(out,name);let text=fs.readFileSync(file,'utf8');const pattern=/const firebaseConfig\s*=\s*\{[\s\S]*?\};/g;
  text=text.replace(pattern,original=>{configs++;return target==='staging'?'const firebaseConfig='+JSON.stringify(stagingConfig)+';':original});
+ if(target==='production'&&name==='cash-control.html'){
+   // The catalog may include a legacy/external project without activity.
+   // Limit the actual monthly audit to 35 ACTIVE projects, not 35 names.
+   const oldGuard='manifest.month!==month||manifest.catalogProjects>35||';
+   const newGuard='manifest.month!==month||manifest.catalogProjects>150||manifest.activeProjects>35||';
+   if(!text.includes(oldGuard))throw Error('Monthly audit guard moved; refuse unsafe build');
+   text=text.replace(oldGuard,newGuard);
+   const oldHint='TEST không tự có dữ liệu production; không được xem 0 dòng là không phát sinh.';
+   if(!text.includes(oldHint))throw Error('Monthly audit environment hint moved; refuse unsafe build');
+   text=text.replace(oldHint,'Production: chỉ kiểm tra nguồn Cash Control theo tháng đã xác thực; chưa cấp phép ghi Google.');
+ }
  if(target==='staging'&&text.includes('cscecmep-payment.firebaseapp.com'))throw Error('Production Auth endpoint left in staging output');
  // Indexed V2 requires BOTH pages to ship the guarded query. Staging
  // always disables it, even when source has the release-ready code.
