@@ -129,11 +129,17 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
  const historyUnmatched=historyRows.filter(entry=>!entry.matched).length;
  const reviewCount=invalidHistoryRows+duplicateHistory+duplicateSource+invalidSource+
    unmatchedBeforeHistoryEnd+historyUnmatched;
+ // Reporting category only: a date-order warning must not masquerade as a
+ // financial mismatch, and categorization NEVER permits a write.
+ const reviewCategory=financialReview?'FINANCIAL_HISTORY_REVIEW':
+   reviewCount?'TRANSACTION_REVIEW':
+   dateReview?'DATE_ORDER_ONLY':
+   newerCandidates?'NEWER_CANDIDATES_ONLY':'EXACT_HISTORY';
  return Object.freeze({
    project,month,sourceRows:records.length,historyRows:historicalAudit.transactionRows,
    historyInMonth,exactMatches,newerCandidates,unmatchedBeforeHistoryEnd,
    historyUnmatched,duplicateHistory,duplicateSource,invalidHistoryRows,invalidSource,
-   likelyLabelDifferences,financialReview,dateReview,
+   likelyLabelDifferences,financialReview,dateReview,reviewCategory,
    historyStatus:historicalAudit.status,closingBalance:historicalAudit.closingBalance,
    nonMonotonicDates:historicalAudit.nonMonotonicDates,
    result:financialReview||dateReview||reviewCount?'REVIEW_REQUIRED':
