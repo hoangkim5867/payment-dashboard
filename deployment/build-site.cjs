@@ -68,7 +68,9 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
             li.textContent=(entry.origin==='CASH_CONTROL'?'Xuất Excel dòng '+entry.sourceRow:
               'Google dòng '+entry.googleRow)+' · '+entry.date+
               ' · '+entry.code+
-              (entry.googleRow&&entry.origin==='CASH_CONTROL'?' · đối chiếu Google dòng '+entry.googleRow:'');
+              (entry.googleRow&&entry.origin==='CASH_CONTROL'?' · đối chiếu Google dòng '+entry.googleRow:'')+
+              (entry.changedFields?.length?' · khác: '+entry.changedFields.join(', '):'')+
+              (entry.financialDifference===true?' · KHÁC CỘT TIỀN; KHÔNG GHI':'');
             list.append(li);
           }
           details.append(list);
@@ -104,7 +106,7 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    // Include only safe row location/code diagnostics in the owner's copied
    // report: no amounts, transaction IDs, descriptions or Google sheet IDs.
    const oldSummaryTail="          dateReview:row.dateReview===true\n        }))";
-   const newSummaryTail="          dateReview:row.dateReview===true,\n          reviewRows:['ELYSIAN','EATON','FOXCONN','C17-2'].includes(row.project)&&Array.isArray(row.reviewRows)?row.reviewRows.map(entry=>({origin:entry.origin,sourceRow:entry.sourceRow??null,googleRow:entry.googleRow??null,date:entry.date,code:entry.code})):[]\n        }))";
+   const newSummaryTail="          dateReview:row.dateReview===true,\n          reviewRows:['ELYSIAN','EATON','FOXCONN','C17-2'].includes(row.project)&&Array.isArray(row.reviewRows)?row.reviewRows.map(entry=>({origin:entry.origin,sourceRow:entry.sourceRow??null,googleRow:entry.googleRow??null,date:entry.date,code:entry.code,changedFields:entry.changedFields||[],financialDifference:entry.financialDifference===true})):[]\n        }))";
    if(!text.includes(oldSummaryTail))
      throw Error('Aggregate report shape changed; refusing unsafe build');
    text=text.replace(oldSummaryTail,newSummaryTail);
