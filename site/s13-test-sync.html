@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S13-2 TEST — Đối chiếu Google Sheets</title>
+<style>
+:root{font-family:Inter,Arial,sans-serif;color-scheme:light}
+*{box-sizing:border-box}body{margin:0;background:#f3f6fb;color:#14243b}
+main{max-width:800px;margin:30px auto;padding:0 16px 40px}
+h1{font-size:25px;margin:0 0 6px}p{line-height:1.6}
+.panel{background:white;border:1px solid #d9e1ec;border-radius:14px;padding:22px;margin-top:16px}
+.muted{color:#5c697a;font-size:14px}.pill{display:inline-block;border-radius:20px;background:#e8f1ff;color:#194e99;padding:5px 10px;font-size:12px;font-weight:700;margin-bottom:12px}
+button{appearance:none;padding:12px 18px;border-radius:9px;border:1px solid #c6d0df;background:#f8fafc;color:#153257;font-weight:700;cursor:pointer}
+button.primary{background:#145bc2;border-color:#145bc2;color:white}button:disabled{cursor:wait;opacity:.58}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+a{color:#155fc1;overflow-wrap:anywhere}
+table{border-collapse:collapse;width:100%;font-size:14px}th,td{border-bottom:1px solid #e7edf5;padding:10px 8px;text-align:left}
+td:last-child,th:last-child{text-align:right}
+#progress{white-space:pre-wrap;overflow-wrap:anywhere;background:#f8fafc;padding:14px;border-radius:10px;border:1px solid #dde5ef;font-size:14px;line-height:1.6}
+.good{color:#136d49}.bad{color:#a62222}.warn{color:#965400}
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+<main>
+<span class="pill">PR #124 · GOOGLE TEST · KHÔNG PRODUCTION</span>
+<h1>Kiểm thử S13-2 tháng 10/2026</h1>
+<p class="muted">Công cụ một lần dành cho Admin: ghi 3 giao dịch vào tab kỹ thuật trong bản sao Google TEST, đọc lại và chạy lần hai kiểm tra chống trùng. Không chỉnh sửa sổ lịch sử gốc.</p>
+<div class="panel">
+  <strong>Đích ghi đã được máy chủ giới hạn</strong>
+  <p><a href="https://docs.google.com/spreadsheets/d/1vmWWQVInXPtT95n5G-tHEY66YobMO0jLCxFftyAKD9k/edit?gid=1543850344" target="_blank" rel="noopener noreferrer">S13-2 TEST — bản sao riêng</a></p>
+  <p class="muted">Sổ gốc bị khóa tuyệt đối trong cổng TEST. Chỉ sử dụng tháng 10/2026 và ba ID đã xác minh. Máy chủ tự kiểm tra tên file, số dư lịch sử và nội dung từng dòng.</p>
+  <table><thead><tr><th>Ngày</th><th>Khoản</th><th>Số tiền</th></tr></thead>
+  <tbody><tr><td>02/10/2026</td><td>Lương nhân viên Trung Quốc</td><td>81.463.753 đ</td></tr>
+  <tr><td>02/10/2026</td><td>Tiền ăn</td><td>3.859.500 đ</td></tr>
+  <tr><td>20/10/2026</td><td>Thuế TNCN quý III, đã gộp</td><td>52.923.736 đ</td></tr></tbody></table>
+  <p><strong>Số dư cần đạt: −72.663.856 đ</strong> (sổ lịch sử trước 3 khoản: 65.583.133 đ)</p>
+</div>
+<div class="panel">
+  <h2 style="margin-top:0;font-size:19px">Xác thực và chạy kiểm thử</h2>
+  <div id="adminStatus" role="status">Đang kiểm tra phiên Admin…</div>
+  <div id="googleStatus" class="muted" role="status">Google chưa cấp quyền Sheets.</div>
+  <div class="actions">
+    <button type="button" id="googleConnect" disabled>Kết nối Google Sheets</button>
+    <button type="button" class="primary" id="runTest" disabled>Kiểm tra → Ghi TEST → Đọc lại → Chống trùng</button>
+  </div>
+  <p class="muted">Google yêu cầu cấp quyền <code>spreadsheets</code> để ghi vào file TEST. Token chỉ lưu trong bộ nhớ trang, không lưu vào Google khác hoặc Firebase.</p>
+  <p><a href="./index.html">Đăng nhập qua Trang chủ nếu chưa có phiên Admin</a></p>
+  <h3 style="font-size:16px;margin-bottom:8px">Nhật ký kiểm thử</h3>
+  <div id="progress" aria-live="polite">Chưa thực hiện Google writes.</div>
+</div>
+</main>
+<script type="module">
+import {initializeApp,getApps} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+import {getFirestore,getDoc,doc} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+const app=getApps()[0]||initializeApp({
+ apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",
+ authDomain:"cscecmep-payment.firebaseapp.com",
+ projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",
+ messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"
+});
+const auth=getAuth(app),db=getFirestore(app);
+const GIS_CLIENT_ID="217279768663-lkrs0o14b9kg1fi4rk1pt7cpgf7bq3sq.apps.googleusercontent.com";
+const SCOPE="https://www.googleapis.com/auth/spreadsheets";
+const testFileId="1vmWWQVInXPtT95n5G-tHEY66YobMO0jLCxFftyAKD9k";
+const historySheetId=1543850344;
+const expectedMonthClosing=-72663856;
+const get=id=>document.getElementById(id);
+const adminStatus=get('adminStatus'),googleStatus=get('googleStatus'),progress=get('progress');
+const googleConnect=get('googleConnect'),runTest=get('runTest');
+let adminUser=null,googleToken='',googleTokenExpiry=0,busy=false,tokenClient=null;
+const values=[
+ ["2026-10-02","中方员工工资","","2026年08月中方员工工资","","职工薪酬",0,0,0,0,81463753,0,0],
+ ["2026-10-02","伙食费","","2026年08月伙食费","","职工薪酬",0,0,0,0,3859500,0,0],
+ ["2026-10-20","","","2026年第3季度个人所得税","","职工薪酬",0,0,0,0,52923736,0,0]
+];
+const ids=[
+ "manual_salary_payroll_1790835443846_m4hd2",
+ "manual_salary_payroll_1790835443852_ihc3a",
+ "legacy_salary_672+legacy_salary_680"
+];
+function log(message,kind=''){
+ const line=document.createElement('div');line.textContent=message;
+ if(kind)line.className=kind;
+ if(progress.textContent==='Chưa thực hiện Google writes.')progress.textContent='';
+ progress.append(line);
+}
+function refresh(){
+ googleConnect.disabled=!adminUser||busy;
+ runTest.disabled=!adminUser||busy||!googleToken||Date.now()>googleTokenExpiry;
+}
+onAuthStateChanged(auth,async user=>{
+ adminUser=null;refresh();
+ if(!user){adminStatus.textContent='Chưa đăng nhập. Mở Trang chủ trên cùng tên miền và đăng nhập Admin.';return}
+ try{
+  const snap=await getDoc(doc(db,'authUsers',user.uid));
+  if(auth.currentUser!==user)return;
+  const role=String(snap.data()?.role||'').toLowerCase();
+  if(role!=='admin'){adminStatus.textContent='Tài khoản hiện tại không có vai trò Admin.';return}
+  adminUser=user;adminStatus.textContent='Đã xác thực tài khoản Admin trên Firebase: '+(user.email||'UID '+user.uid);
+ }catch(e){adminStatus.textContent='Không xác minh được vai trò Admin trên Firebase: '+e.message}
+ refresh();
+});
+googleConnect.addEventListener('click',()=>{
+ if(!adminUser)return;
+ if(!window.google?.accounts?.oauth2){googleStatus.textContent='Google Identity chưa tải xong. Bấm lại.';return}
+ tokenClient=google.accounts.oauth2.initTokenClient({
+  client_id:GIS_CLIENT_ID,scope:SCOPE,include_granted_scopes:false,
+  callback:result=>{
+   if(result.error||!result.access_token){
+    googleStatus.textContent='Google không cấp quyền: '+(result.error_description||result.error||'unknown');return
+   }
+   if(!String(result.scope||'').includes('spreadsheets')){
+    googleStatus.textContent='Thiếu quyền Google Sheets.';return
+   }
+   googleToken=result.access_token;
+   googleTokenExpiry=Date.now()+Math.max(0,Number(result.expires_in||3600)-120)*1000;
+   googleStatus.textContent='Google Sheets đã cấp quyền cho phiên TEST. Chưa ghi dữ liệu.';
+   refresh();
+  },
+  error_callback:error=>{googleStatus.textContent='Kết nối Google lỗi: '+String(error.type||error.message||'unknown')}
+ });
+ tokenClient.requestAccessToken({prompt:'select_account'});
+});
+async function hash(values){
+ const bytes=new TextEncoder().encode(JSON.stringify(values));
+ const digest=await crypto.subtle.digest('SHA-256',bytes);
+ return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function source(){
+ return Promise.all(values.map(async(v,i)=>({id:ids[i],project:'S13-2',month:'2026-10',values:v,hash:await hash([...v,0])})));
+}
+async function call(action,records,extra={}){
+ if(!adminUser||!googleToken||Date.now()>googleTokenExpiry)throw Error('Cần đăng nhập Admin và cấp quyền Google Sheets lại.');
+ const jwt=await adminUser.getIdToken();
+ const response=await fetch('/api/cash-sync-s13-test',{
+  method:'POST',credentials:'same-origin',
+  headers:{'Content-Type':'application/json','X-Firebase-ID-Token':jwt,'Authorization':'Bearer '+googleToken},
+  body:JSON.stringify({action,project:'S13-2',month:'2026-10',
+   spreadsheetId:testFileId,historySheetId,source:records,
+   expectedMonthClosing,...extra})
+ });
+ const body=await response.json().catch(()=>({error:'Server không trả JSON hợp lệ.'}));
+ if(!response.ok)throw Error('HTTP '+response.status+': '+String(body.error||'Không xác minh được kết quả'));
+ return body;
+}
+function check(response,expectedChanges){
+ const s=response?.summary;
+ if(!s||s.project!=='S13-2'||s.month!=='2026-10'||
+    s.changes!==expectedChanges||s.monthClosingBalance!==expectedMonthClosing||
+    s.originalUntouched!==true)
+  throw Error('Kết quả không khớp kỳ, số dư hoặc số giao dịch. KHÔNG chạy tiếp.');
+}
+runTest.addEventListener('click',async()=>{
+ if(busy||!adminUser||!googleToken)return;
+ if(!confirm('Chỉ ghi vào S13-2 TEST, KHÔNG ghi Google gốc. Chạy kiểm thử ghi 3 khoản tháng 10/2026, đọc lại và chống trùng lần hai?'))return;
+ busy=true;refresh();progress.textContent='';
+ try{
+  const rows=await source();
+  log('Bước 1 — Xác thực Google TEST và xem trước từ API Admin…');
+  const first=await call('preview',rows);
+  const changes=first.summary?.changes;
+  if(![0,3].includes(changes))throw Error('Số dòng dự kiến bất thường: '+changes);
+  check(first,changes);
+  log('Google TEST: '+changes+' thay đổi dự kiến, số dư tháng: '+first.summary.monthClosingBalance.toLocaleString('vi-VN')+' đ.');
+  if(first.writeConfigured!==true)throw Error('Máy chủ chưa bật TEST-only allowlist trên bản Preview này.');
+  if(changes===3){
+   log('Bước 2 — Ghi 3 giao dịch vào các tab kỹ thuật TEST, sau đó API đọc lại xác minh…');
+   const saved=await call('commit',rows,{signature:first.signature,confirm:'SYNC_THIS_PROJECT'});
+   check(saved,3);
+   if(saved.mode!=='verified'||saved.writes!==1)throw Error('API chưa xác nhận ghi và đọc lại; tuyệt đối không tự chạy lại.');
+   log('ĐẠT: API đã ghi và xác minh đúng 3 dòng; sổ lịch sử gốc không thay đổi.','good');
+  }else{
+   log('Ba dòng đã hiện diện trong TEST; không thực hiện ghi lại.','warn');
+  }
+  log('Bước 3 — Xem trước lần hai; xác nhận 0 thay đổi và số dư giữ nguyên…');
+  const repeated=await call('preview',rows);
+  check(repeated,0);
+  const noWrite=await call('commit',rows,{signature:repeated.signature,confirm:'SYNC_THIS_PROJECT'});
+  check(noWrite,0);
+  if(noWrite.mode!=='unchanged'||noWrite.writes!==0)throw Error('Lần hai không xác nhận 0 ghi.');
+  log('ĐẠT: Lần hai 0 dòng mới. Số dư tháng −72.663.856 đ.','good');
+  log('HOÀN TẤT S13-2 GOOGLE TEST: 3 ID đã xác minh, không trùng, sổ gốc giữ nguyên.','good');
+ }catch(e){
+  log('DỪNG AN TOÀN: '+e.message,'bad');
+  log('Nếu có lỗi sau khi bắt đầu ghi, KHÔNG bấm thử lại trước khi đối chiếu tab kỹ thuật.','warn');
+ }finally{busy=false;refresh()}
+});
+</script>
+</body></html>
