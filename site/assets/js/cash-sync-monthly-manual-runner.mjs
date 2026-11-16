@@ -77,12 +77,13 @@ function verifyReply(response,item){
  * write=true asks for one explicit approval after all projects preview.
  */
 export async function runManualMonthlySync({
- month,projects,preview,commit,confirmBatch,checkAdmin,write=false,
+ month,projects,preview,commit,confirmBatch,checkAdmin,checkRelease,write=false,
  onProject
 }={}){
  if(!MONTH.test(month)||month<'2026-10'||!Array.isArray(projects)||
     projects.length>35||typeof preview!=='function'||
-    typeof checkAdmin!=='function'||write&&
+    typeof checkAdmin!=='function'||
+    checkRelease!==undefined&&typeof checkRelease!=='function'||write&&
     (typeof commit!=='function'||typeof confirmBatch!=='function'))
    throw Error('INVALID_BATCH_INPUT');
  const rows=[],candidates=[],names=new Set();
@@ -93,6 +94,13 @@ export async function runManualMonthlySync({
   const why=checkProject(month,item);
   if(why){
    const row=entry(name,'SKIPPED',why);rows.push(row);onProject?.(row);continue;
+  }
+  // Signed Admin server release report is a strict preflight gate. When
+  // explicitly supplied, a closed destination does not even trigger a Sheets
+  // preview; dedicated Google read-only comparison remains available separately.
+  if(checkRelease&&checkRelease(name)!==true){
+   const row=entry(name,'SKIPPED','SERVER_TARGET_NOT_RELEASED');
+   rows.push(row);onProject?.(row);continue;
   }
   if(!await checkAdmin()){
    const row=entry(name,'SKIPPED','ADMIN_SESSION_EXPIRED');
