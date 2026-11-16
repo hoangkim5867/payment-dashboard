@@ -228,8 +228,8 @@ async function ccSyncS13DryRunReadonly(){
      source.postingMatches!==true||source.labelsMatch!==true||
      source.sourceComplete!==false||source.canSync!==false||source.googleWrites!==0)
    throw Error("Nguồn không còn khớp 3/3 hoặc phiên dữ liệu thay đổi.");
-  const integrity=await request("/api/cash-sync-s13-source-integrity",{
-   project:"S13-2",month:"2026-10",revision,source:rows
+  const integrity=await request("/api/cash-sync-source-readonly",{
+   action:"s13_integrity",revision,source:rows
   });
   if(integrity.kind!=="S13_FOUR_ORIGINAL_IDS_VERIFIED"||
      integrity.pinnedSourceMatched!==true||
