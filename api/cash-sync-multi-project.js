@@ -10,6 +10,7 @@ const adapter=require('../server/cash-sync-multi-project-adapter.cjs');
 const {canWriteTarget}=require('../server/cash-sync-multi-targets.cjs');
 const {canWriteS13Test,testGateChecks}=require('../server/cash-sync-s13-test-target.cjs');
 const {verifyTestAdmin}=require('../server/cash-sync-s13-test-admin.cjs');
+const {verify:verifyS13SourceIntegrity}=require('./cash-sync-s13-source-integrity.js')._internals;
 const {planMonth,parseValues,sha,net}=core;
 const {MIRROR,VIEW,parseStoredMirror,verifyExistingView,compileBatch}=adapter;
 const prefix='https://sheets.googleapis.com/v4/spreadsheets/';
@@ -132,6 +133,32 @@ async function handler(req,res,testOnly=false){
    canWriteTarget(process.env,input.project,input.spreadsheetId,input.historySheetId);
   if(input.action==='commit'&&!writeConfigured)
    die('Dự án/file Google chưa được cho phép ghi trên máy chủ hoặc chưa bật phát hành.',503);
+  // S13 production can only commit the three October salary/tax postings that
+  // were independently verified from two protected Firestore source documents.
+  // This gate is separate from the manual 35-project runner's sourceComplete flag.
+  // NEVER infer that all Payment aliases or the whole project are complete.
+  if(!testOnly&&input.action==='commit'&&input.project==='S13-2'){
+   if(input.month!=='2026-10'||
+      input.spreadsheetId!=='1s7-EZqTfS_6raZDxpK74m5gxDoAbRwBIJptCkG2lyUg'||
+      input.historySheetId!==1543850344||
+      !Number.isSafeInteger(input.revision)||input.revision<0||
+      input.expectedMonthClosing!==-72663856||
+      input.source.length!==3)
+    die('S13-2 Production chỉ cho phép ba khoản đã xác minh của tháng 10/2026.',409);
+   const integrity=await verifyS13SourceIntegrity({
+    env:process.env,jwt:token,
+    body:{project:'S13-2',month:'2026-10',revision:input.revision,
+     source:input.source.map(r=>({id:r.id,values:r.values}))}
+   });
+   if(integrity?.pinnedSourceMatched!==true||integrity.verifiedSourceItems!==4||
+      integrity.groupedGoogleRows!==3||
+      integrity.scopedCashEntriesMatched!==true||
+      integrity.extraPrivateAndLegacyCashEntries!==0||
+      integrity.sourceRevision!==input.revision||
+      integrity.canSync!==false||integrity.sourceComplete!==false||
+      integrity.googleWrites!==0)
+    die('Nguồn S13-2 chưa được chứng thực độc lập; KHÔNG ghi.',409);
+  }
   const current=await prepare(authorization,input);
   if(testOnly&&(!/S13[-_ ]?2/i.test(String(current.snapshot.meta.properties?.title||''))||
      !/TEST/i.test(String(current.snapshot.meta.properties?.title||''))))
