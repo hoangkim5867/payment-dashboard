@@ -142,7 +142,11 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    if(sourceCounts.get(source.sig)>1||(signatures.get(source.sig)||[]).length>1)continue;
    const pair=findUniquePair(source,contractIpcKey,'SAME_CONTRACT_IPC_REVIEW')||
      findUniquePair(source,amountKey,'POSSIBLE_SAME_DAY_AMOUNT_REVIEW');
-   if(pair){candidatePairs.set(source,pair);pairedGoogle.add(pair.history);}
+   if(pair){
+     if(paymentIdentity(source.values)&&paymentIdentity(source.values)===paymentIdentity(pair.history.values))
+       pair.code='SAME_POSTING_DIFFERENT_LABEL';
+     candidatePairs.set(source,pair);pairedGoogle.add(pair.history);
+   }
  }
  for(const source of unpairedSource){
    const candidates=signatures.get(source.sig)||[];
