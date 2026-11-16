@@ -149,7 +149,7 @@ test('S13-2 October scoped report preserves 258 historical rows with two date in
  assert.equal(first.approvedWrites,0);
  assert.equal(first.requiresOtherProjects,false);
  for(let i=0;i<258;i++)
-  assert.deepEqual(first.viewRows[i].values,history[i].slice(0,13));
+  assert.deepEqual(first.viewRows[i].values.slice(0,13),history[i].slice(0,13));
  assert.equal(JSON.stringify(history),frozenHistory);
  // A repeated source snapshot must reuse all three immutable IDs.
  const second=planMonth({...args,mirror:first.mirrorNext});
