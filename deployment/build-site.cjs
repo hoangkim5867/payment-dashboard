@@ -158,7 +158,7 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
  // Checking only source modules does not catch accidentally injected tokens.
  if(target==='production'){
    const finalHtml=fs.readFileSync(path.join(out,'cash-control.html'),'utf8');
-   const mainModule=/<script type="module">([\\s\\S]*?)<\\/script>/.exec(finalHtml)?.[1];
+   const mainModule=finalHtml.split('<script type="module">')[1]?.split('</script>')[0];
    if(!mainModule)throw Error('Missing Cash Control main module in production build');
    require('node:child_process').execFileSync(process.execPath,
      ['--input-type=module','--check'],{input:mainModule,timeout:15000});
