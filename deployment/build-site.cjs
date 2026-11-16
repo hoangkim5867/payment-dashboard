@@ -116,7 +116,8 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    const s13OldButton='<button class="btn" id="ccSyncExportSourceForTest" type="button">Đối chiếu nguồn TEST · 1 dự án</button>';
    const s13NewButton=s13OldButton+
      '<button class="btn" id="ccSyncS13OriginalProof" type="button">Xác minh sổ gốc S13-2 · chỉ đọc</button>'+
-     '<button class="btn" id="ccSyncS13DryRun" type="button">Xem trước 3 khoản S13-2 · 0 ghi</button>';
+     '<button class="btn" id="ccSyncS13DryRun" type="button">Xem trước 3 khoản S13-2 · 0 ghi</button>'+
+     '<button class="btn" id="ccSyncS13Commit" type="button" hidden>Ghi 3 khoản S13-2 · cần xác nhận</button>';
    const s13FunctionAnchor='async function ccSyncCheckS13OctoberSource(button,status){';
    if(!text.includes(s13OldButton)||!text.includes(s13FunctionAnchor))
      throw Error('S13 original preflight anchors moved; refuse unchecked build');
@@ -173,6 +174,8 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    // proofs into a signed no-write Google preview. No global source approval.
    const s13DryRunSource=String.raw`
 async function ccSyncS13DryRunReadonly(){
+ const commitButton=document.getElementById("ccSyncS13Commit");
+ if(commitButton)commitButton.hidden=true;
  const button=document.getElementById("ccSyncS13DryRun");
  const status=document.getElementById("ccSyncPaymentPreflightStatus");
  if(!button||!status||button.disabled)return;
@@ -283,11 +286,15 @@ async function ccSyncS13DryRunReadonly(){
         preview.summary?.changes!==3||preview.summary?.historical!==258||
         preview.summary?.monthClosingBalance!==-72663856||
         preview.summary?.originalUntouched!==true||
-        preview.writeConfigured!==false)
-      throw Error("Bản xem trước không khớp 3 khoản hoặc khóa ghi.");
+        ![true,false].includes(preview.writeConfigured))
+      throw Error("Bản xem trước không khớp 3 khoản hoặc trạng thái khóa ghi.");
+     if(preview.writeConfigured===true&&commitButton)
+      commitButton.hidden=false;
+     const statusText=preview.writeConfigured===true?
+      "CỔNG GHI RIÊNG S13-2 ĐÃ MỞ; CHƯA GHI. Phải xác nhận riêng và máy chủ sẽ kiểm tra nguồn lại lúc ghi.":
+      "CHƯA CHỨNG NHẬN ĐẦY ĐỦ PAYMENT/NGUỒN; CHƯA CẤP PHÉP GHI.";
      finish("S13-2 · XEM TRƯỚC THỰC TẾ ĐẠT: nguồn 3/3, lịch sử 258, 3 khoản mới, "+
-      "số dư dự kiến -72.663.856 đ, Google writes 0. "+
-      "CHƯA CHỨNG NHẬN ĐẦY ĐỦ PAYMENT/NGUỒN; CHƯA CẤP PHÉP GHI.");
+      "số dư dự kiến -72.663.856 đ, Google writes 0. "+statusText);
     }catch(err){
      finish("S13-2 · XEM TRƯỚC BỊ CHẶN: "+String(err?.message||err).slice(0,140)+". 0 ghi.");
     }
@@ -299,8 +306,151 @@ async function ccSyncS13DryRunReadonly(){
 }
 document.getElementById("ccSyncS13DryRun")?.addEventListener("click",ccSyncS13DryRunReadonly);
 `;
+   // Prepared one-project release UI only; stays hidden until a signed
+   // authenticated preview reports writeConfigured=true. The production
+   // destination allowlist and release flag remain separately server-controlled.
+   // Always require a SECOND explicit per-write confirmation.
+   const s13CommitSource=String.raw\`
+async function ccSyncS13CommitVerified(){
+ const button=document.getElementById("ccSyncS13Commit");
+ const status=document.getElementById("ccSyncPaymentPreflightStatus");
+ if(!button||button.hidden||button.disabled||!status)return;
+ button.hidden=true;
+ const admin=currentAuthUser,rev=Number(cashCloudState.revision||0);
+ if(!admin||!isCashControlOwner()||firebaseConfig.projectId!=="cscecmep-payment"||
+   document.getElementById("ccSyncPaymentPreflightProject")?.value!=="S13-2"||
+   document.getElementById("ccSyncBatchMonth")?.value!=="2026-10"||
+   !cashCloudReady||!legacySeedReady||!paymentMonths.has("S13-2")){
+  status.textContent="S13-2: phiên Admin, nguồn hoặc tháng đã thay đổi. Không ghi.";return;
+ }
+ const getRows=()=>{
+  const previous=window.cashExportLang;try{
+   window.cashExportLang="zh";
+   return legacyCashExportRows("2026-10","S13-2").map(row=>({
+    id:row._syncIds.map(id=>id.replace(/^expense:(?:legacy:)?/,"")).sort().join("+"),
+    values:ccGoogleSyncPayloadCells(ccGoogleSyncRowValues(row))
+   }));
+  }finally{window.cashExportLang=previous;}
+ };
+ let rows;
+ try{rows=getRows();if(rows.length!==3)throw Error("Nguồn không còn 3 khoản");}
+ catch(e){status.textContent="S13-2: không ghi, nguồn đã đổi: "+String(e?.message||e);return;}
+ const stable=()=>currentAuthUser===admin&&isCashControlOwner()&&
+  Number(cashCloudState.revision||0)===rev&&
+  document.getElementById("ccSyncPaymentPreflightProject")?.value==="S13-2"&&
+  document.getElementById("ccSyncBatchMonth")?.value==="2026-10";
+ const make=async(data,token)=>{
+  const response=await fetch(data.api,{method:"POST",
+   headers:{"Content-Type":"application/json","X-Firebase-ID-Token":await admin.getIdToken(),
+   ...(token?{"Authorization":"Bearer "+token}:{})},body:JSON.stringify(data.body)});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok)throw Error(String(result.error||"PREFLIGHT_DENIED").slice(0,180));
+  return result;
+ };
+ button.disabled=true;
+ status.textContent="S13-2: kiểm tra lại 4 ID nguồn trước khi xin quyền ghi Google…";
+ const done=text=>{status.textContent=text;button.disabled=false;};
+ try{
+  const source=await make({api:"/api/cash-sync-source-readonly",body:{
+   action:"s13_integrity",revision:rev,source:rows
+  }});
+  if(!stable()||source.kind!=="S13_FOUR_ORIGINAL_IDS_VERIFIED"||
+     source.verifiedSourceItems!==4||source.groupedGoogleRows!==3||
+     source.scopedCashEntriesMatched!==true||source.sourceRevision!==rev||
+     source.sourceComplete!==false||source.canSync!==false||source.googleWrites!==0)
+   throw Error("4 ID nguồn không còn khớp; không ghi.");
+  if(!window.google?.accounts?.oauth2)throw Error("Google OAuth không sẵn sàng");
+  const oauth=google.accounts.oauth2.initTokenClient({
+   client_id:"781332326791-s033knic9cmpf3h20altttsqmhjbot1t.apps.googleusercontent.com",
+   scope:"https://www.googleapis.com/auth/spreadsheets",
+   include_granted_scopes:false,
+   callback:async response=>{
+    if(!response?.access_token||response.error){done("Google không cấp quyền ghi; không ghi.");return;}
+    let submitted=false;
+    try{
+     const token=response.access_token;
+     const hash=async values=>{
+      const bytes=new TextEncoder().encode(JSON.stringify([...values,0]));
+      return [...new Uint8Array(await crypto.subtle.digest("SHA-256",bytes))]
+       .map(n=>n.toString(16).padStart(2,"0")).join("");
+     };
+     const sourceRecords=await Promise.all(rows.map(async r=>({
+      ...r,project:"S13-2",month:"2026-10",hash:await hash(r.values)
+     })));
+     const payload={project:"S13-2",month:"2026-10",
+      spreadsheetId:"1s7-EZqTfS_6raZDxpK74m5gxDoAbRwBIJptCkG2lyUg",
+      historySheetId:1543850344,source:sourceRecords,revision:rev,
+      openingBalance:null,expectedMonthClosing:-72663856};
+     const preflight=async()=>{
+      if(!stable())throw Error("Phiên Admin hoặc revision đã thay đổi.");
+      const history=await make({api:"/api/cash-sync-s13-original-readonly",
+       body:{project:"S13-2",month:"2026-10"}},token);
+      if(!history.originalHistoryMatched||history.historyTransactions!==258||
+         history.historyClosingBalance!==65583133||history.googleWrites!==0)
+       throw Error("Sổ gốc không còn đúng mốc đã xác minh.");
+      const p=await make({api:"/api/cash-sync-multi-project",
+       body:{...payload,action:"preview"}},token);
+      if(!stable()||p.mode!=="preview"||p.writes!==0||
+         p.writeConfigured!==true||p.summary?.project!=="S13-2"||
+         p.summary?.month!=="2026-10"||
+         p.summary?.monthClosingBalance!==-72663856||
+         p.summary?.historical!==258||
+         p.summary?.originalUntouched!==true||
+         !/^[a-f0-9]{64}$/.test(p.signature||""))
+       throw Error("Bản xem trước có chữ ký không hợp lệ hoặc khóa ghi chưa mở.");
+      return p;
+     };
+     const before=await preflight();
+     if(before.summary.changes===0){
+      done("S13-2: Google đã có đủ 3 giao dịch, không cần ghi lại. 0 writes.");return;
+     }
+     if(before.summary.changes!==3)
+      throw Error("Không đúng 3 giao dịch mới; không ghi.");
+     if(!window.confirm("CHỈ S13-2 THÁNG 10/2026\n"+
+       "Ghi 3 khoản: lương 81.463.753 đ, tiền ăn 3.859.500 đ, thuế TNCN 52.923.736 đ.\n"+
+       "Tổng chi 138.246.989 đ. Số dư dự kiến -72.663.856 đ.\n"+
+       "Sổ lịch sử gốc 258 dòng không được sửa. Có đồng ý ghi một lần vào tab kỹ thuật Google không?")){
+      done("Đã hủy ghi S13-2; 0 Google writes.");return;
+     }
+     status.textContent="S13-2: đối chiếu lại Google lần cuối và kiểm tra revision trước khi ghi…";
+     const fresh=await preflight();
+     if(fresh.summary.changes===0){
+      done("S13-2: dữ liệu đã có ở Google trước khi ghi, 0 writes.");return;
+     }
+     if(fresh.summary.changes!==3)throw Error("Lượt kiểm tra cuối không đúng 3 khoản.");
+     submitted=true;
+     const written=await make({api:"/api/cash-sync-multi-project",body:{
+      ...payload,action:"commit",signature:fresh.signature,confirm:"SYNC_THIS_PROJECT"
+     }},token);
+     if(written.mode==="verified"&&written.writes===1&&
+        written.summary?.changes===3&&
+        written.summary?.monthClosingBalance===-72663856&&
+        written.summary?.originalUntouched===true)
+      done("S13-2 · GHI VÀ ĐỌC LẠI ĐẠT: 3 khoản, số dư -72.663.856 đ; "+
+       "tab lịch sử 258 dòng giữ nguyên. Không bấm ghi lần nữa.");
+     else
+      done("S13-2: kết quả ghi chưa chắc chắn. KHÔNG THỬ LẠI. "+
+       "Phải đối chiếu Google chỉ đọc trước khi thực hiện tiếp.");
+    }catch(e){
+     done("S13-2 · "+(submitted?"KẾT QUẢ GHI KHÔNG CHẮC CHẮN — KHÔNG BẤM LẠI: ":
+       "CHƯA GHI: ")+String(e?.message||e).slice(0,170));
+    }
+   },
+   error_callback:e=>done("Google OAuth bị từ chối; KHÔNG ghi: "+String(e?.type||"").slice(0,90))
+  });
+  oauth.requestAccessToken({prompt:"select_account"});
+ }catch(e){done("S13-2: không ghi: "+String(e?.message||e).slice(0,170));}
+}
+document.getElementById("ccSyncS13Commit")?.addEventListener("click",ccSyncS13CommitVerified);
+for(const key of ["ccSyncBatchMonth","ccSyncPaymentPreflightProject"])
+ document.getElementById(key)?.addEventListener("change",()=>{
+  const button=document.getElementById("ccSyncS13Commit");
+  if(button)button.hidden=true;
+ });
+\`;
    text=text.replace(s13FunctionAnchor,
      s13ProofFunction+String.fromCharCode(10)+s13DryRunSource+
+     String.fromCharCode(10)+s13CommitSource+
      String.fromCharCode(10)+s13FunctionAnchor);
 
    // The owner explicitly supplied the already-tested PHU HUNG sheet URL.
