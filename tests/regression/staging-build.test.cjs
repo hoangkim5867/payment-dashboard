@@ -6,6 +6,14 @@ test('preview rejects missing, production or mixed staging config',()=>{for(cons
 test('staging includes TEST-only S13 page and preserves isolated configuration; site assets retained',()=>{const dir=fs.mkdtempSync(path.join(os.tmpdir(),'payment-staging-build-')),out=path.join(dir,'site');const result=buildSite({source:path.resolve(__dirname,'../../site'),output:out,target:'staging',stagingConfig:config});assert.equal(result.configs,10);assert.equal(result.contractV2ReadyToActivate,false);for(const file of fs.readdirSync(out).filter(x=>x.endsWith('.html'))){const text=fs.readFileSync(path.join(out,file),'utf8');assert(!text.includes('cscecmep-payment.firebaseapp.com'));assert(!text.includes('projectId:"cscecmep-payment"'));}assert(fs.existsSync(path.join(out,'assets/js/firestore-payment.mjs')));for(const page of ['payment.html','payment-mobile-renderer.html'])assert.match(fs.readFileSync(path.join(out,page),'utf8'),/PAYMENT_INDEX_V2_QUERY_CODE_ENABLED = false/);for(const file of ['payment.html','payment-mobile-renderer.html','contract-master.html'])assert.match(fs.readFileSync(path.join(out,file),'utf8'),/INDEX_QUERY_CODE_ENABLED = false;/);});
 test('production build preserves inherited source app configuration',()=>{const out=path.join(fs.mkdtempSync(path.join(os.tmpdir(),'payment-production-build-')),'site');const built=buildSite({source:path.resolve(__dirname,'../../site'),output:out,target:'production'});assert.equal(built.configs,9);assert(!fs.existsSync(path.join(out,'s13-test-sync.html')));assert.equal(built.contractV2ReadyToActivate,true);const metadata=JSON.parse(fs.readFileSync(path.join(out,'release-environment.json'),'utf8'));assert.equal(metadata.contractV2ReadyToActivate,true);assert.equal(fs.readFileSync(path.join(out,'payment.html'),'utf8').replace('PAYMENT_INDEX_QUERY_CODE_ENABLED = false;','PAYMENT_INDEX_QUERY_CODE_ENABLED = true;'),fs.readFileSync(path.resolve(__dirname,'../../site/payment.html'),'utf8'));});
 
+test('production Cash Control inline scripts remain parseable after PHU HUNG link restoration',()=>{
+ const {verifyInlineScripts}=require('../deployment-gate.cjs');
+ const out=path.join(fs.mkdtempSync(path.join(os.tmpdir(),'cash-control-production-parse-')),'site');
+ buildSite({source:path.resolve(__dirname,'../../site'),output:out,target:'production'});
+ const html=fs.readFileSync(path.join(out,'cash-control.html'),'utf8');
+ assert.ok(verifyInlineScripts(html,'cash-control.html')>0);
+ assert.match(html,/ccSyncProjectLinkDraft\['PHU HUNG'\]/);
+});
 test('production refuses indexed V1 even when all environment approvals are present',()=>{
  const out=path.join(fs.mkdtempSync(path.join(os.tmpdir(),'payment-index-release-')),'site');
  assert.throws(()=>buildSite({source:path.resolve(__dirname,'../../site'),output:out,target:'production',enableIndexQueries:true}),/release blocked/);
