@@ -10,7 +10,7 @@ const adapter=require('../server/cash-sync-multi-project-adapter.cjs');
 const {canWriteTarget}=require('../server/cash-sync-multi-targets.cjs');
 const {canWriteS13Test,testGateChecks}=require('../server/cash-sync-s13-test-target.cjs');
 const {verifyTestAdmin}=require('../server/cash-sync-s13-test-admin.cjs');
-const {verify:verifyS13SourceIntegrity}=require('./cash-sync-s13-source-integrity.js')._internals;
+const {inspect:inspectVerifiedSource}=require('./cash-sync-source-readonly.js')._internals;
 const {planMonth,parseValues,sha,net}=core;
 const {MIRROR,VIEW,parseStoredMirror,verifyExistingView,compileBatch}=adapter;
 const prefix='https://sheets.googleapis.com/v4/spreadsheets/';
@@ -145,10 +145,10 @@ async function handler(req,res,testOnly=false){
       input.expectedMonthClosing!==-72663856||
       input.source.length!==3)
     die('S13-2 Production chỉ cho phép ba khoản đã xác minh của tháng 10/2026.',409);
-   const integrity=await verifyS13SourceIntegrity({
-    env:process.env,jwt:token,
-    body:{project:'S13-2',month:'2026-10',revision:input.revision,
-     source:input.source.map(r=>({id:r.id,values:r.values}))}
+   const integrity=await inspectVerifiedSource({
+    env:process.env,firebaseJwt:token,
+    action:'s13_integrity',revision:input.revision,
+    source:input.source.map(r=>({id:r.id,values:r.values}))
    });
    if(integrity?.pinnedSourceMatched!==true||integrity.verifiedSourceItems!==4||
       integrity.groupedGoogleRows!==3||
