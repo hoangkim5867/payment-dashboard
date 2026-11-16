@@ -3,7 +3,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {createHash}=require('node:crypto');
 const {inspectS13,SOURCE_ID,SEED_HASH}=require('../server/cash-sync-s13-source-integrity.cjs');
-const {verify}=require('../api/cash-sync-s13-source-integrity.js')._internals;
+const {inspect}=require('../api/cash-sync-source-readonly.js')._internals;
 const amount=[81463753,3859500,30000000,22923736];
 const sourceRows=[
  {id:SOURCE_ID[0],values:['2026-10-02','中方员工工资','','2026年08月中方员工工资','','职工薪酬',0,0,0,0,81463753,0,0]},
@@ -103,15 +103,15 @@ test('production API requires Admin and performs two GETs without returning reco
  // Fixture hash differs from production seed; passing the fixture through the
  // pure verifier (tested above) rather than overriding the live API signature.
  let checked=0;
- await assert.rejects(()=>verify({env,body:payload,jwt:'jwt',
+ await assert.rejects(()=>inspect({env,action:'s13_integrity',revision:42,source:sourceRows,firebaseJwt:'jwt',
   verifyAdmin:async()=>{checked++;throw Error('DENIED')},
   fetcher:async()=>{calls.push('network');return ok(ds.cashDocument)}
  }),/DENIED/);
  assert.equal(checked,1);assert.equal(calls.length,0);
- await assert.rejects(()=>verify({env:{...env,VERCEL_ENV:'preview'},
-  body:payload,jwt:'jwt',verifyAdmin:async()=>{},fetcher:async()=>{calls.push('network')}
- }),/S13_PRODUCTION_ADMIN_REQUIRED/);
+ await assert.rejects(()=>inspect({env:{...env,VERCEL_ENV:'preview'},
+  action:'s13_integrity',revision:42,source:sourceRows,firebaseJwt:'jwt',verifyAdmin:async()=>{},fetcher:async()=>{calls.push('network')}
+ }),/PRODUCTION_FIREBASE_AUTH_REQUIRED/);
  assert.equal(calls.length,0);
- assert.throws(()=>require('../api/cash-sync-s13-source-integrity.js')._internals.valid(
-  {...payload,project:'FOXCONN'}),/S13_INTEGRITY_SCOPE_INVALID/);
+ assert.throws(()=>require('../api/cash-sync-source-readonly.js')._internals.validateRequest(
+  {action:'s13_integrity',revision:42,source:sourceRows.slice(1)}),/INVALID_S13_SOURCE/);
 });
