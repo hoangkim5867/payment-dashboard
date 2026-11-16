@@ -1426,7 +1426,6 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
             <input id="ccSyncBatchMonth" type="month" style="border:1px solid #cad4e3;border-radius:7px;padding:7px" aria-label="Tháng kiểm tra chung">
             <button class="btn primary" type="button" id="ccSyncMultiProjectManual" hidden>Đồng bộ các dự án đủ điều kiện</button>
             <button class="btn" type="button" id="ccSyncBatchAnalyze">Kiểm tra chung các dự án · chỉ đọc</button>
-            <button class="btn" type="button" id="ccSyncFreshMonthGoogleAudit" hidden>Đọc nguồn tháng mới nhất → Đối chiếu Google · chỉ đọc</button>
           </div>
           <div id="ccSyncMonthSourceBridge" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:9px 0 4px">
             <button id="ccSyncMonthSourceExport" class="btn" type="button" hidden>Xuất 1 gói nguồn tháng từ Cash Control chính</button>
@@ -6610,7 +6609,7 @@ async function ccSyncImportMonthSourceReview(){
 }
 
 async function ccSyncAuditFreshMonthGoogleReadOnly(){
-  const button=$('ccSyncFreshMonthGoogleAudit');
+  const button=$('ccSyncBatchAnalyze');
   const status=$('ccSyncBatchStatus');
   const output=$('ccSyncBatchResults');
   const month=String($('ccSyncBatchMonth')?.value||'');
@@ -6638,6 +6637,24 @@ async function ccSyncAuditFreshMonthGoogleReadOnly(){
       const snapshot=await ccSyncLoadMonthlyExport(month,uid,{batch:true});
       if(!requireOwner())throw Error('Phiên Admin thay đổi trong lúc nạp nguồn.');
       const {manifest,readiness,revision,links,indexedCount,balances}=snapshot;
+      // One privileged Cash Control metadata read confirms this loaded
+      // session still matches server revision and core record counts.
+      // This does not certify all historic Payment project aliases.
+      const evidenceResponse=await fetch('/api/cash-sync-source-readonly',{
+        method:'POST',headers:{'Content-Type':'application/json',
+          'X-Firebase-ID-Token':await currentAuthUser.getIdToken()},
+        body:JSON.stringify({action:'metadata'})
+      });
+      const evidence=await evidenceResponse.json().catch(()=>({}));
+      if(!evidenceResponse.ok||evidence.kind!=='CASH_CONTROL_PRIVATE_METADATA_ONLY'||
+         evidence.firebaseProject!=='cscecmep-payment'||
+         evidence.metadataPresent!==true||evidence.revision!==revision||
+         evidence.projectMasters!==(cashCloudState.projectMasters||[]).length||
+         evidence.manualRecords!==(cashCloudState.manualRecords||[]).length||
+         evidence.salaryRecords!==(cashCloudState.salaryRecords||[]).length||
+         evidence.canSync!==false||evidence.googleWrites!==0)
+        throw Error('Metadata nguồn Cash Control không khớp phiên Admin; dừng đối chiếu.');
+      if(!requireOwner())throw Error('Phiên Admin thay đổi sau khi xác minh nguồn.');
       if(manifest.month!==month||manifest.catalogProjects>35||
          manifest.canWrite!==false||!Array.isArray(manifest.groups))
         throw Error('Nguồn tháng không đủ điều kiện kiểm tra an toàn.');
@@ -7064,12 +7081,11 @@ function ccSyncProjectCatalogInitialize(){
     if(status)status.textContent='Đã đổi tháng. Bấm kiểm tra chung để cập nhật dữ liệu đang có.';
   });
   $('ccSyncFoxconnReplayRepayment')?.addEventListener('click',ccSyncReplayFoxconnRepayment);
-  $('ccSyncBatchAnalyze')?.addEventListener('click',ccSyncBatchAnalyzeInMemory);
-  const freshAuditButton=$('ccSyncFreshMonthGoogleAudit');
-  if(freshAuditButton){
-    freshAuditButton.hidden=firebaseConfig.projectId!=='cscecmep-payment';
-    freshAuditButton.addEventListener('click',ccSyncAuditFreshMonthGoogleReadOnly);
-  }
+  // ONE Admin read-only button: fresh indexed-month source in production,
+  // imported read-only package in isolated staging TEST.
+  $('ccSyncBatchAnalyze')?.addEventListener('click',()=>
+    firebaseConfig.projectId==='cscecmep-payment'?
+      ccSyncAuditFreshMonthGoogleReadOnly():ccSyncBatchAnalyzeInMemory());
   const exportOne=$('ccSyncMonthSourceExport');
   const importOne=$('ccSyncMonthSourceImport');
   if(exportOne)exportOne.hidden=firebaseConfig.projectId!=='cscecmep-payment';
