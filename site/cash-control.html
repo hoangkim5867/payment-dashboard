@@ -6340,6 +6340,8 @@ async function ccSyncMultiProjectManual(){
         month,projects:targets,write:true,
         checkAdmin:async()=>{try{requireFresh();return true}catch{return false}},
         preview:post,commit:post,
+        checkRelease:project=>release.rows.some(row=>
+          row.project===project&&row.serverTargetEnabled===true),
         confirmBatch:async review=>{
           requireFresh();
           return confirm('Đồng bộ '+review.readyProjects.length+
