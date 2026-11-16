@@ -8,7 +8,7 @@ const {readConfig,verifyFirebaseAdminToken}=require('../server/cash-sync-guard.c
 const core=require('../server/cash-sync-multi-project-core.cjs');
 const adapter=require('../server/cash-sync-multi-project-adapter.cjs');
 const {canWriteTarget}=require('../server/cash-sync-multi-targets.cjs');
-const {canWriteS13Test}=require('../server/cash-sync-s13-test-target.cjs');
+const {canWriteS13Test,testGateChecks}=require('../server/cash-sync-s13-test-target.cjs');
 const {verifyTestAdmin}=require('../server/cash-sync-s13-test-admin.cjs');
 const {planMonth,parseValues,sha,net}=core;
 const {MIRROR,VIEW,parseStoredMirror,verifyExistingView,compileBatch}=adapter;
@@ -153,7 +153,7 @@ async function handler(req,res,testOnly=false){
    closingBalance:plan.closingBalance,monthClosingBalance,originalUntouched:true};
   if(input.action==='preview')
    return res.status(200).json({mode:'preview',summary,signature:batch.fingerprint,
-    writeConfigured,writes:0});
+    writeConfigured,...(testOnly&&!writeConfigured?{testGateChecks:testGateChecks(process.env,input)}:{}),writes:0});
   if(input.signature!==batch.fingerprint)
    die('Google hoặc nguồn Cash Control đã thay đổi sau bước xem trước.');
   if(!plan.changes.length&&snapshot.hasTabs)
