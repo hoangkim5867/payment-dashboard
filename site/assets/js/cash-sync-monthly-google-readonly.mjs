@@ -158,9 +158,18 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
      pair?.code||(identical.length===1?'SAME_POSTING_DIFFERENT_LABEL':
        source.values[0]>latest?'NEWER_THAN_GOOGLE':'SOURCE_NOT_MATCHED');
    const matchedByIdentity=!pair&&identical.length===1?identical[0]:null;
+   const counterpart=pair?.history||matchedByIdentity;
+   const labelColumns=['COMPANY','CONTRACT','DESCRIPTION','IPC','TYPE'];
+   const changedFields=counterpart?Object.freeze([
+     ...labelColumns.filter((_,i)=>canonical(source.values[i+1])!==
+       canonical(counterpart.values[i+1])),
+     ...(source.values.slice(6).some((amount,i)=>
+       amount!==counterpart.values[i+6])?['AMOUNT_COLUMNS']:[])
+   ]):Object.freeze([]);
+   const financialDifference=changedFields.includes('AMOUNT_COLUMNS');
    addDetail({origin:'CASH_CONTROL',sourceRow:source.sourceRow,
-     googleRow:pair?.history.rowNumber??matchedByIdentity?.rowNumber??null,
-     date:source.values[0],code,
+     googleRow:counterpart?.rowNumber??null,
+     date:source.values[0],code,changedFields,financialDifference,
      matchingHint:pair?.code||(
        matchedByIdentity?'SAME_DATE_CONTRACT_IPC_AMOUNT':'NO_UNIQUE_POSTING_MATCH')});
  }
