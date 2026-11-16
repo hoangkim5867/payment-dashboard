@@ -115,7 +115,8 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    // exact destination fixed on server; one explicit Admin OAuth read-only click.
    const s13OldButton='<button class="btn" id="ccSyncExportSourceForTest" type="button">Đối chiếu nguồn TEST · 1 dự án</button>';
    const s13NewButton=s13OldButton+
-     '<button class="btn" id="ccSyncS13OriginalProof" type="button">Xác minh sổ gốc S13-2 · chỉ đọc</button>';
+     '<button class="btn" id="ccSyncS13OriginalProof" type="button">Xác minh sổ gốc S13-2 · chỉ đọc</button>'+
+     '<button class="btn" id="ccSyncS13DryRun" type="button">Xem trước 3 khoản S13-2 · 0 ghi</button>';
    const s13FunctionAnchor='async function ccSyncCheckS13OctoberSource(button,status){';
    if(!text.includes(s13OldButton)||!text.includes(s13FunctionAnchor))
      throw Error('S13 original preflight anchors moved; refuse unchecked build');
@@ -168,7 +169,125 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
      '}',
      'document.getElementById("ccSyncS13OriginalProof")?.addEventListener("click",ccSyncS13OriginalHistoryReadOnly);'
    ].join(String.fromCharCode(10));
-   text=text.replace(s13FunctionAnchor,s13ProofFunction+String.fromCharCode(10)+s13FunctionAnchor);
+   // One verified, manual S13-only dry-run combining the previously separate
+   // proofs into a signed no-write Google preview. No global source approval.
+   const s13DryRunSource=String.raw`
+async function ccSyncS13DryRunReadonly(){
+ const button=document.getElementById("ccSyncS13DryRun");
+ const status=document.getElementById("ccSyncPaymentPreflightStatus");
+ if(!button||!status||button.disabled)return;
+ const admin=currentAuthUser;
+ if(!admin||!isCashControlOwner()||firebaseConfig.projectId!=="cscecmep-payment"){
+  status.textContent="Chỉ Admin Production mới được xem trước S13-2.";return;
+ }
+ if(String(document.getElementById("ccSyncPaymentPreflightProject")?.value||"")!=="S13-2"||
+    String(document.getElementById("ccSyncBatchMonth")?.value||"")!=="2026-10"){
+  status.textContent="Chỉ hỗ trợ S13-2 tháng 10/2026.";return;
+ }
+ if(!cashCloudReady||!legacySeedReady||!paymentMonths.has("S13-2")){
+  status.textContent="Cần tải Payment riêng S13-2 và nguồn Cash Control trước.";return;
+ }
+ if(!window.google?.accounts?.oauth2){
+  status.textContent="Google OAuth chưa sẵn sàng; thử lại sau khi kết nối Sheets.";return;
+ }
+ const revision=Number(cashCloudState.revision||0);
+ let rows;
+ button.disabled=true;
+ try{
+  const lang=window.cashExportLang;
+  try{
+   window.cashExportLang="zh";
+   rows=legacyCashExportRows("2026-10","S13-2").map(row=>({
+    id:row._syncIds.map(id=>id.replace(/^expense:(?:legacy:)?/,"")).sort().join("+"),
+    values:ccGoogleSyncPayloadCells(ccGoogleSyncRowValues(row))
+   }));
+  }finally{window.cashExportLang=lang;}
+  if(rows.length!==3||rows.some(x=>x.values.length!==13))
+   throw Error("Số dòng nguồn thay đổi; không thể xem trước.");
+ }catch(e){
+  status.textContent="S13-2: nguồn thay đổi: "+String(e?.message||e).slice(0,120);
+  button.disabled=false;return;
+ }
+ let finished=false;
+ const finish=msg=>{if(finished)return;finished=true;button.disabled=false;status.textContent=msg;};
+ const request=async(url,body,token)=>{
+  const res=await fetch(url,{method:"POST",
+   headers:{"Content-Type":"application/json","X-Firebase-ID-Token":await admin.getIdToken(),
+    ...(token?{"Authorization":"Bearer "+token}:{})},
+   body:JSON.stringify(body)});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok)throw Error(String(data.error||"READONLY_PREFLIGHT_DENIED"));
+  return data;
+ };
+ try{
+  const source=await request("/api/cash-sync-source-readonly",
+   {action:"s13_october_source",revision,source:rows});
+  if(currentAuthUser!==admin||!isCashControlOwner()||
+     Number(cashCloudState.revision||0)!==revision||
+     source.revision!==revision||source.identitiesMatch!==true||
+     source.postingMatches!==true||source.labelsMatch!==true||
+     source.sourceComplete!==false||source.canSync!==false||source.googleWrites!==0)
+   throw Error("Nguồn không còn khớp 3/3 hoặc phiên dữ liệu thay đổi.");
+  status.textContent="S13-2: nguồn 3/3 đã khớp; đang xem trước Google chỉ đọc…";
+  const oauth=google.accounts.oauth2.initTokenClient({
+   client_id:"781332326791-s033knic9cmpf3h20altttsqmhjbot1t.apps.googleusercontent.com",
+   scope:"https://www.googleapis.com/auth/spreadsheets.readonly",
+   include_granted_scopes:false,
+   callback:async response=>{
+    if(!response?.access_token||response.error){
+     finish("Google không cấp quyền chỉ đọc; không ghi.");return;
+    }
+    try{
+     const token=response.access_token;
+     if(currentAuthUser!==admin||!isCashControlOwner()||
+        Number(cashCloudState.revision||0)!==revision)
+      throw Error("Nguồn hoặc phiên Admin đã thay đổi.");
+     const historic=await request("/api/cash-sync-s13-original-readonly",
+      {project:"S13-2",month:"2026-10"},token);
+     if(historic.originalHistoryMatched!==true||historic.historyTransactions!==258||
+        historic.historyClosingBalance!==65583133||historic.googleWrites!==0||
+        historic.canSync!==false)
+      throw Error("Lịch sử Google khác mốc đã xác nhận.");
+     const digest=async values=>{
+      const data=new TextEncoder().encode(JSON.stringify([...values,0]));
+      const sha=await crypto.subtle.digest("SHA-256",data);
+      return [...new Uint8Array(sha)].map(c=>c.toString(16).padStart(2,"0")).join("");
+     };
+     const records=await Promise.all(rows.map(async row=>({
+      ...row,project:"S13-2",month:"2026-10",hash:await digest(row.values)
+     })));
+     const preview=await request("/api/cash-sync-multi-project",{
+      action:"preview",project:"S13-2",month:"2026-10",
+      spreadsheetId:"1s7-EZqTfS_6raZDxpK74m5gxDoAbRwBIJptCkG2lyUg",
+      historySheetId:1543850344,source:records,openingBalance:null,
+      expectedMonthClosing:-72663856
+     },token);
+     if(currentAuthUser!==admin||!isCashControlOwner()||
+        Number(cashCloudState.revision||0)!==revision)
+      throw Error("Nguồn/phiên Admin thay đổi trong lúc xem trước.");
+     if(preview.mode!=="preview"||preview.writes!==0||
+        preview.summary?.changes!==3||preview.summary?.historical!==258||
+        preview.summary?.monthClosingBalance!==-72663856||
+        preview.summary?.originalUntouched!==true||
+        preview.writeConfigured!==false)
+      throw Error("Bản xem trước không khớp 3 khoản hoặc khóa ghi.");
+     finish("S13-2 · XEM TRƯỚC THỰC TẾ ĐẠT: nguồn 3/3, lịch sử 258, 3 khoản mới, "+
+      "số dư dự kiến -72.663.856 đ, Google writes 0. "+
+      "CHƯA CHỨNG NHẬN ĐẦY ĐỦ PAYMENT/NGUỒN; CHƯA CẤP PHÉP GHI.");
+    }catch(err){
+     finish("S13-2 · XEM TRƯỚC BỊ CHẶN: "+String(err?.message||err).slice(0,140)+". 0 ghi.");
+    }
+   },
+   error_callback:e=>finish("S13-2: Google OAuth lỗi "+String(e?.type||"").slice(0,80)+". 0 ghi.")
+  });
+  oauth.requestAccessToken({prompt:"select_account"});
+ }catch(e){finish("S13-2 · DỪNG XEM TRƯỚC: "+String(e?.message||e).slice(0,140)+". 0 ghi.");}
+}
+document.getElementById("ccSyncS13DryRun")?.addEventListener("click",ccSyncS13DryRunReadonly);
+`;
+   text=text.replace(s13FunctionAnchor,
+     s13ProofFunction+String.fromCharCode(10)+s13DryRunSource+
+     String.fromCharCode(10)+s13FunctionAnchor);
 
    // The owner explicitly supplied the already-tested PHU HUNG sheet URL.
    // Restore it when the Production browser has no local link.
