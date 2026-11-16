@@ -26,6 +26,8 @@ function fixture(project='ELYSIAN',spreadsheetId=ID){
  const ok=data=>({ok:true,status:200,json:async()=>data});
  const fakeFetch=async(url,request={})=>{
   const method=request.method||'GET';
+  if(url.startsWith('https://firestore.googleapis.com/v1/projects/'))
+   return ok({fields:{role:{stringValue:'admin'}}});
   if(method==='POST'){
    assert.ok(url.endsWith(':batchUpdate'));
    state.writes++;
@@ -77,9 +79,11 @@ function fixture(project='ELYSIAN',spreadsheetId=ID){
   const prevTestFlag=process.env.CASH_SYNC_S13_TEST_WRITES;
   const prevTestId=process.env.CASH_SYNC_S13_TEST_FILE_ID;
   const prevTestGid=process.env.CASH_SYNC_S13_TEST_HISTORY_GID;
+  const prevStagingConfig=process.env.PAYMENT_FIREBASE_STAGING_CONFIG;
   // This is a local mock: no Vercel or real Google request occurs.
   process.env.VERCEL_ENV=(extra.simulatePreview||extra.testOnly)?'preview':'production';
   if(extra.testOnly){
+   process.env.PAYMENT_FIREBASE_STAGING_CONFIG=JSON.stringify({projectId:'cash-control-staging',authDomain:'cash-control-staging.firebaseapp.com'});
    process.env.CASH_SYNC_S13_TEST_WRITES='YES';
    process.env.CASH_SYNC_S13_TEST_FILE_ID=spreadsheetId;
    process.env.CASH_SYNC_S13_TEST_HISTORY_GID='42';
@@ -103,7 +107,11 @@ function fixture(project='ELYSIAN',spreadsheetId=ID){
   try{
    await (extra.testOnly?testHandler:handler)({method:'POST',headers:{
     host:'example.vercel.app',origin:'https://example.vercel.app',
-    authorization:'Bearer '+'T'.repeat(40),'x-firebase-id-token':'synthetic'
+    authorization:'Bearer '+'T'.repeat(40),
+    'x-firebase-id-token':extra.testOnly?[
+      Buffer.from('{}').toString('base64url'),
+      Buffer.from(JSON.stringify({sub:'synthetic-admin',padding:'x'.repeat(120)})).toString('base64url'),
+      'signed-for-mock-only'].join('.'):'synthetic'
    },body},response);
    return {status:response.statusCode,...response.payload};
   }finally{
@@ -119,7 +127,8 @@ function fixture(project='ELYSIAN',spreadsheetId=ID){
    for(const [name,value] of [
     ['CASH_SYNC_S13_TEST_WRITES',prevTestFlag],
     ['CASH_SYNC_S13_TEST_FILE_ID',prevTestId],
-    ['CASH_SYNC_S13_TEST_HISTORY_GID',prevTestGid]
+    ['CASH_SYNC_S13_TEST_HISTORY_GID',prevTestGid],
+    ['PAYMENT_FIREBASE_STAGING_CONFIG',prevStagingConfig]
    ])if(value===undefined)delete process.env[name];else process.env[name]=value;
   }
  }
