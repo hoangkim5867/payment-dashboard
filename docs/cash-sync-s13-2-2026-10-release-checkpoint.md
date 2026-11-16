@@ -47,3 +47,37 @@ Do not add any of the other 34+ projects or draft targets. **Leave `CASH_SYNC_MU
 - Preserve all actual Cash Control and historic Google ledger data.
 - No all-project Payment document scans, background listeners or automatic sync.
 - With absent `CASH_SYNC_MULTI_ALLOWED_TARGETS` and `CASH_SYNC_MULTI_PRODUCTION_WRITES`, the existing server gate remains closed.
+
+## Owner-reported scoped Admin original-history comparison — 2026-11-16
+
+The owner pasted the output of **`Đối chiếu Payment ↔ Google · chỉ đọc`**, scoped to S13-2 / 2026-10; treat as an authenticated in-app observation, not a direct Google API fetch by the assistant:
+
+| Observed source/history fact | Result |
+| --- | --- |
+| S13-2 Payment loaded / canonical Firestore project count | 166 / 166 (count equality **does not** prove alias/legacy completeness) |
+| Original Google ledger rows observed | 258 |
+| Google rows from 2026-10 onward in comparison scope | 0 |
+| Cash Control October export rows | 3 |
+| Possible new source postings | 3; no already-matched Google posting, no overlapping same-month matches, no ambiguity |
+| Unmatched Google October rows | 0 |
+| Date-order inversions in existing historical ledger | 2; **do not sort or rewrite original history** |
+| Unparseable dates / schema errors / balance-chain discrepancies | 0 / 0 / 0 |
+| Reported Google writes | 0 |
+| Final state | **CHƯA ĐỦ ĐIỀU KIỆN / no production write permission** |
+
+The three source postings were matched to the prior real Google TEST fixture by the separate authenticated Admin source comparator (3/3); their original IDs remain distinct and include a grouped quarterly tax pair. They sum to **138,246,989 VND** in expense postings:
+- 2026-10-02: Chinese employee August salary 81,463,753 VND
+- 2026-10-02: August meals 3,859,500 VND
+- 2026-10-20: Q3 personal income tax 52,923,736 VND
+
+If (and only if) the **actual production original** historical closing balance equals the prior TEST clone baseline **65,583,133 VND**, then the projected closing after these three rows is **−72,663,856 VND**. The in-app scan reported zero historical balance errors, but did not provide the original balance figure or bind its real Google spreadsheet ID/gid into this shared text report. **Do not take the TEST clone baseline as fresh original-balance verification.**
+
+### Narrow remaining checks, without repeat audits
+
+1. Reuse the focused Admin Google scan above; **do not rerun the 266-row global report or S13-2 TEST writes**.
+2. Validate live original spreadsheet ID and historical gid against the saved *draft* pair; capture actual last historical balance and historical max date, preserving two out-of-order dates.
+3. Bind 166 indexed Firestore records to the correctly scoped canonical + alias Payment coverage (including deletions/legacy records where applicable), Cash Control source revision and all three immutable October posting IDs. A count match alone cannot certify business completeness; `sourceComplete:false` remains locked.
+4. Only once complete, obtain a fresh read-only signed preview from the existing manual Google API for **S13-2 only**, showing the three expected new postings and projected closing balance, before any flag or allowlist change.
+5. Ask the owner explicitly before any Production write authorization. Keep PR Draft and environment flags absent meanwhile.
+
+A synthetic, scoped unit regression was added to `tests/cash-multi-project-core.test.cjs`: 258 prior rows, two date inversions, three October S13-2 source IDs, no-op replay and preservation of historic order. This fixture **does not** replace the real Google verification.
