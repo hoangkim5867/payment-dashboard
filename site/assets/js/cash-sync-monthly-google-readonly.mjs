@@ -113,23 +113,58 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    if(reviewRows.length>=100){detailsTruncated=true;return;}
    reviewRows.push(Object.freeze(entry));
  };
- for(const source of sourceRows){
+ // All pairing signals below are REVIEW HINTS, never certified matches.
+ // Require uniqueness on both sides: repeated dates/amounts cannot be paired.
+ const unpairedSource=sourceRows.filter(src=>
+   !(sourceCounts.get(src.sig)===1&&signatures.get(src.sig)?.length===1));
+ const unpairedHistory=historyRows.filter(h=>!h.matched);
+ const amountKey=v=>JSON.stringify([v[0],...v.slice(6)]);
+ const contractIpcKey=v=>{
+   const contract=canonical(v[2]),ipc=canonical(v[4]);
+   return contract&&ipc?JSON.stringify([v[0],contract,ipc]):'';
+ };
+ const candidatePairs=new Map(),pairedGoogle=new Set();
+ const unmatchedHistoryByKey=(keyFn)=>new Map(
+   unpairedHistory.map(h=>[h,keyFn(h.values)]).filter(([,key])=>key));
+ function findUniquePair(source,keyFn,code){
+   const key=keyFn(source.values);
+   if(!key)return null;
+   const historyCandidates=unmatchedHistoryByKey(keyFn);
+   const matches=[...historyCandidates].filter(([,candidateKey])=>candidateKey===key).map(([h])=>h);
+   if(matches.length!==1||pairedGoogle.has(matches[0]))return null;
+   const reverse=unpairedSource.filter(other=>keyFn(other.values)===key);
+   if(reverse.length!==1)return null;
+   return {history:matches[0],code};
+ }
+ // Keep a strict contract/IPC/date identity ahead of amount-only comparison.
+ // A matching IPC with different amounts is a discrepancy, NOT a safe row.
+ for(const source of unpairedSource){
+   if(sourceCounts.get(source.sig)>1||(signatures.get(source.sig)||[]).length>1)continue;
+   const pair=findUniquePair(source,contractIpcKey,'SAME_CONTRACT_IPC_REVIEW')||
+     findUniquePair(source,amountKey,'POSSIBLE_SAME_DAY_AMOUNT_REVIEW');
+   if(pair){candidatePairs.set(source,pair);pairedGoogle.add(pair.history);}
+ }
+ for(const source of unpairedSource){
    const candidates=signatures.get(source.sig)||[];
-   if(candidates.length===1&&sourceCounts.get(source.sig)===1)continue;
-   const nearest=historyRows.filter(h=>paymentIdentity(h.values)&&
-     paymentIdentity(h.values)===paymentIdentity(source.values));
+   const pair=candidatePairs.get(source);
+   const identity=paymentIdentity(source.values);
+   const identical=identity?unpairedHistory.filter(h=>paymentIdentity(h.values)===identity):[];
    const code=sourceCounts.get(source.sig)>1?'DUPLICATE_SOURCE':
      candidates.length>1?'DUPLICATE_GOOGLE_HISTORY':
-     nearest.length===1?'SAME_POSTING_DIFFERENT_LABEL':
-     source.values[0]>latest?'NEWER_THAN_GOOGLE':'SOURCE_NOT_MATCHED';
+     pair?.code||(identical.length===1?'SAME_POSTING_DIFFERENT_LABEL':
+       source.values[0]>latest?'NEWER_THAN_GOOGLE':'SOURCE_NOT_MATCHED');
+   const matchedByIdentity=!pair&&identical.length===1?identical[0]:null;
    addDetail({origin:'CASH_CONTROL',sourceRow:source.sourceRow,
-     googleRow:nearest.length===1?nearest[0].rowNumber:null,
-     date:source.values[0],code,matchingHint:nearest.length===1?
-       'SAME_DATE_CONTRACT_IPC_AMOUNT':'NO_UNIQUE_POSTING_MATCH'});
+     googleRow:pair?.history.rowNumber??matchedByIdentity?.rowNumber??null,
+     date:source.values[0],code,
+     matchingHint:pair?.code||(
+       matchedByIdentity?'SAME_DATE_CONTRACT_IPC_AMOUNT':'NO_UNIQUE_POSTING_MATCH')});
  }
- for(const row of historyRows.filter(h=>!h.matched)){
+ for(const row of unpairedHistory){
    addDetail({origin:'GOOGLE_HISTORY',googleRow:row.rowNumber,
-     sourceRow:null,date:row.values[0],code:'GOOGLE_ROW_NOT_MATCHED',
+     sourceRow:null,date:row.values[0],
+     code:[...candidatePairs.values()].some(p=>p.history===row)?
+       'GOOGLE_ROW_POSSIBLE_PAIR':'GOOGLE_ROW_NOT_MATCHED',
      matchingHint:'CHECK_SOURCE_OR_HISTORICAL_ENTRY'});
  }
  const historicalIdentities=new Map(),sourceIdentities=new Map();
