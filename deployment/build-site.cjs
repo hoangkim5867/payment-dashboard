@@ -33,6 +33,16 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    const oldHint='TEST không tự có dữ liệu production; không được xem 0 dòng là không phát sinh.';
    if(!text.includes(oldHint))throw Error('Monthly audit environment hint moved; refuse unsafe build');
    text=text.replace(oldHint,'Production: chỉ kiểm tra nguồn Cash Control theo tháng đã xác thực; chưa cấp phép ghi Google.');
+
+   // Explain read-only outcomes without weakening any backend commit gate.
+   const oldReview="item.result==='REVIEW_REQUIRED'?'Cần đối chiếu lịch sử / giao dịch':";
+   const newReview="item.result==='REVIEW_REQUIRED'?(item.reviewCategory==='DATE_ORDER_ONLY'?'Khớp giao dịch; cảnh báo thứ tự ngày (chưa cấp phép ghi)':'Cần đối chiếu lịch sử / giao dịch'):";
+   const oldNotReady="item.result==='SOURCE_NOT_READY'?'Nguồn chưa đủ điều kiện đọc Google':";
+   const newNotReady="item.result==='SOURCE_NOT_READY'?('Nguồn chưa đủ điều kiện: '+String(item.reason||'chưa xác minh')+'; '+issues.length+' vấn đề nguồn'):";
+   if(!text.includes(oldReview)||!text.includes(oldNotReady))
+     throw Error('Read-only report UI changed; refusing unchecked build');
+   text=text.replace(oldReview,newReview).replace(oldNotReady,newNotReady);
+
  }
  if(target==='staging'&&text.includes('cscecmep-payment.firebaseapp.com'))throw Error('Production Auth endpoint left in staging output');
  // Indexed V2 requires BOTH pages to ship the guarded query. Staging
