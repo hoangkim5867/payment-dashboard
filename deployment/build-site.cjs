@@ -17,7 +17,10 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
  if(!['staging','production'].includes(target))throw Error('Unknown deployment target');
  if(target==='staging')validateStagingConfig(stagingConfig);
  const src=path.resolve(source),out=path.resolve(output);if(out===src||out.startsWith(src+path.sep))throw Error('Output cannot overwrite or nest within source');
- fs.mkdirSync(out,{recursive:true});fs.cpSync(src,out,{recursive:true});let configs=0,indexReadGuards=0,v2PageGuards=0;
+ fs.mkdirSync(out,{recursive:true});fs.cpSync(src,out,{recursive:true});
+ // This Admin TEST page must never be bundled into the production site.
+ if(target==='production')fs.rmSync(path.join(out,'s13-test-sync.html'),{force:true});
+ let configs=0,indexReadGuards=0,v2PageGuards=0;
  for(const name of fs.readdirSync(out).filter(n=>n.endsWith('.html'))){const file=path.join(out,name);let text=fs.readFileSync(file,'utf8');const pattern=/const firebaseConfig\s*=\s*\{[\s\S]*?\};/g;
  text=text.replace(pattern,original=>{configs++;return target==='staging'?'const firebaseConfig='+JSON.stringify(stagingConfig)+';':original});
  if(target==='staging'&&text.includes('cscecmep-payment.firebaseapp.com'))throw Error('Production Auth endpoint left in staging output');
@@ -38,7 +41,8 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
  fs.writeFileSync(file,text);
  }
  if(indexReadGuards!==3)throw Error('Expected three safe-read guards');
- if(configs!==10)throw Error('Expected ten Firebase app configurations, including S13 TEST UI, got '+configs);
+ const expectedConfigs=target==='staging'?10:9;
+ if(configs!==expectedConfigs)throw Error('Unexpected Firebase app configurations: expected '+expectedConfigs+', got '+configs);
  if(v2PageGuards!==2)throw Error('Expected two guarded V2 pages');
  const writerSource=fs.readFileSync(path.join(out,'assets/js/firestore-payment.mjs'),'utf8');
  const contractV2ReadyToActivate=target==='production' &&
