@@ -131,6 +131,8 @@ async function handler(req,res,testOnly=false){
   if(input.action==='commit'&&!writeConfigured)
    die('Dự án/file Google chưa được cho phép ghi trên máy chủ hoặc chưa bật phát hành.',503);
   const current=await prepare(authorization,input);
+  if(testOnly&&Math.abs(core.auditHistory(current.snapshot.history).closingBalance-65583133)>0.00001)
+   die('S13-2 TEST không khớp số dư sổ gốc trước ba khoản (65.583.133 VND).');
   if(current.blocked.length)
    return res.status(409).json({error:'Có khoản cần đối chiếu, không ghi.',
     project:input.project,blocked:current.blocked.slice(0,30),writes:0});
