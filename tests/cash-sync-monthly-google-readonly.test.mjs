@@ -67,6 +67,8 @@ test('unique matching contract IPC with different amount gets a review-only pair
  assert.equal(candidate.sourceRow,1);
  assert.equal(candidate.googleRow,1);
  assert.equal(candidate.code,'SAME_CONTRACT_IPC_REVIEW');
+ assert.deepEqual(candidate.changedFields,['AMOUNT_COLUMNS']);
+ assert.equal(candidate.financialDifference,true);
  assert.equal(x.exactMatches,0);
  assert.equal(x.canWrite,false);
  assert.equal(x.googleWrites,0);
@@ -78,6 +80,8 @@ test('unique same-day amount but contract mismatch is only a review hint',()=>{
   records:[changed],history:[raw()],audit});
  assert.equal(x.reviewRows.find(r=>r.origin==='CASH_CONTROL').code,'POSSIBLE_SAME_DAY_AMOUNT_REVIEW');
  assert.equal(x.reviewRows.find(r=>r.origin==='CASH_CONTROL').googleRow,1);
+ assert.deepEqual(x.reviewRows.find(r=>r.origin==='CASH_CONTROL').changedFields,['CONTRACT']);
+ assert.equal(x.reviewRows.find(r=>r.origin==='CASH_CONTROL').financialDifference,false);
  assert.equal(x.canWrite,false);
 });
 test('ambiguous amount-only matches must not make invented pairs',()=>{
