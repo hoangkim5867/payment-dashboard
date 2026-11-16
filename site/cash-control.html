@@ -6619,7 +6619,7 @@ async function ccSyncAuditFreshMonthGoogleReadOnly(){
      !isCashControlOwner()||!cashCloudReady||!legacySeedReady){
     status.textContent='Chỉ Admin Cash Control chính với nguồn đã tải mới được kiểm tra.';return;
   }
-  if(!/^20\\d{2}-(0[1-9]|1[0-2])$/.test(month)||month<'2026-10'){
+  if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)||month<'2026-10'){
     status.textContent='Chọn tháng từ 10/2026.';return;
   }
   if(!navigator.locks){
