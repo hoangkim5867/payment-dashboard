@@ -9,9 +9,9 @@ const IDS=[
  'legacy_salary_672+legacy_salary_680'
 ];
 const expected=[
- ['2026-10-02',81463753],
- ['2026-10-02',3859500],
- ['2026-10-20',52923736]
+ ['2026-10-02','中方员工工资','','2026年08月中方员工工资','','职工薪酬',0,0,0,0,81463753,0,0],
+ ['2026-10-02','伙食费','','2026年08月伙食费','','职工薪酬',0,0,0,0,3859500,0,0],
+ ['2026-10-20','','','2026年第3季度个人所得税','','职工薪酬',0,0,0,0,52923736,0,0]
 ];
 const net=values=>values[6]-values.slice(7,14).reduce((a,b)=>a+b,0);
 function canWriteS13Test(env,input){
@@ -33,10 +33,9 @@ function canWriteS13Test(env,input){
   const record=map.get(id),values=record?.values;
   return record?.project==='S13-2'&&record?.month==='2026-10'&&
    Array.isArray(values)&&values.length===13&&
-   values[0]===expected[i][0]&&
-   values.slice(1,6).every(x=>typeof x==='string')&&
+   values.every((x,j)=>x===expected[i][j])&&
    values.slice(6).every(x=>typeof x==='number'&&Number.isSafeInteger(x))&&
-   net(values)===-expected[i][1];
+   net(values)===-expected[i][10];
  });
 }
 module.exports={canWriteS13Test,ORIGINAL,IDS};
