@@ -111,6 +111,65 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
      throw Error('Aggregate report shape changed; refusing unsafe build');
    text=text.replace(oldSummaryTail,newSummaryTail);
 
+   // S13-2 independent original Google history preflight. Production UI only:
+   // exact destination fixed on server; one explicit Admin OAuth read-only click.
+   const s13OldButton='<button class="btn" id="ccSyncExportSourceForTest" type="button">Đối chiếu nguồn TEST · 1 dự án</button>';
+   const s13NewButton=s13OldButton+
+     '<button class="btn" id="ccSyncS13OriginalProof" type="button">Xác minh sổ gốc S13-2 · chỉ đọc</button>';
+   const s13FunctionAnchor='async function ccSyncCheckS13OctoberSource(button,status){';
+   if(!text.includes(s13OldButton)||!text.includes(s13FunctionAnchor))
+     throw Error('S13 original preflight anchors moved; refuse unchecked build');
+   text=text.replace(s13OldButton,s13NewButton);
+   const s13ProofFunction=[
+     'async function ccSyncS13OriginalHistoryReadOnly(){',
+     ' const button=document.getElementById("ccSyncS13OriginalProof");',
+     ' const status=document.getElementById("ccSyncPaymentPreflightStatus");',
+     ' if(!button||!status||button.disabled)return;',
+     ' if(!isCashControlOwner()||!currentAuthUser){status.textContent="Cần đăng nhập đúng Admin Cash Control.";return;}',
+     ' if(String(document.getElementById("ccSyncPaymentPreflightProject")?.value||"")!=="S13-2"||String(document.getElementById("ccSyncBatchMonth")?.value||"")!=="2026-10"){',
+     '   status.textContent="Chỉ hỗ trợ S13-2 tháng 10/2026.";return;',
+     ' }',
+     ' if(!window.google?.accounts?.oauth2){status.textContent="Google OAuth chưa tải; hãy kết nối Google Sheets và thử lại.";return;}',
+     ' const admin=currentAuthUser;',
+     ' button.disabled=true;',
+     ' status.textContent="S13-2: đang yêu cầu quyền Google Sheets chỉ đọc để xác minh sổ gốc…";',
+     ' let finished=false;',
+     ' const finish=(message)=>{if(finished)return;finished=true;status.textContent=message;button.disabled=false;};',
+     ' try{',
+     '  const oauth=google.accounts.oauth2.initTokenClient({',
+     '   client_id:"781332326791-s033knic9cmpf3h20altttsqmhjbot1t.apps.googleusercontent.com",',
+     '   scope:"https://www.googleapis.com/auth/spreadsheets.readonly",',
+     '   include_granted_scopes:false,',
+     '   callback:async response=>{',
+     '    if(!response?.access_token||response.error){finish("Google chưa cấp quyền chỉ đọc; không có dữ liệu nào bị ghi.");return;}',
+     '    try{',
+     '     if(currentAuthUser!==admin||!isCashControlOwner())throw Error("Phiên Admin đã thay đổi.");',
+     '     const res=await fetch("/api/cash-sync-s13-original-readonly",{method:"POST",',
+     '      headers:{"Content-Type":"application/json","Authorization":"Bearer "+response.access_token,',
+     '       "X-Firebase-ID-Token":await admin.getIdToken()},',
+     '      body:JSON.stringify({project:"S13-2",month:"2026-10"})});',
+     '     const proof=await res.json();',
+     '     if(!res.ok||proof?.kind!=="S13_ORIGINAL_HISTORY_READONLY"||proof.googleWrites!==0||proof.canSync!==false)',
+     '       throw Error(String(proof?.error||"Chưa xác minh được sổ gốc."));',
+     '     if(currentAuthUser!==admin||!isCashControlOwner())throw Error("Phiên Admin đã thay đổi.");',
+     '     const report="S13-2 · Sổ gốc "+proof.historyTransactions+" giao dịch · "+proof.dateInversions+',
+     '      " ngày đảo thứ tự · "+proof.octoberHistoryRows+" dòng từ 10/2026 · số dư lịch sử "+',
+     '      Number(proof.historyClosingBalance).toLocaleString("vi-VN")+" đ · dự kiến sau 3 khoản "+',
+     '      Number(proof.expectedClosingIfSourceVerified).toLocaleString("vi-VN")+" đ.";',
+     '     finish(report+(proof.originalHistoryMatched?',
+     '      " KHỚP MỐC LỊCH SỬ (CHỈ ĐỌC). Chưa chứng nhận nguồn; không cấp phép ghi.":',
+     '      " CHƯA KHỚP MỐC LỊCH SỬ; KHÔNG GHI."));',
+     '    }catch(error){finish("S13-2: chưa xác minh được Google gốc: "+String(error?.message||error).slice(0,110));}',
+     '   },',
+     '   error_callback:error=>finish("S13-2: lỗi xác thực Google OAuth "+String(error?.type||"").slice(0,90))',
+     '  });',
+     '  oauth.requestAccessToken({prompt:"select_account"});',
+     ' }catch(error){finish("S13-2: Google chỉ đọc chưa sẵn sàng: "+String(error?.message||error).slice(0,120));}',
+     '}',
+     'document.getElementById("ccSyncS13OriginalProof")?.addEventListener("click",ccSyncS13OriginalHistoryReadOnly);'
+   ].join(String.fromCharCode(10));
+   text=text.replace(s13FunctionAnchor,s13ProofFunction+String.fromCharCode(10)+s13FunctionAnchor);
+
    // The owner explicitly supplied the already-tested PHU HUNG sheet URL.
    // Restore it when the Production browser has no local link.
    // Auth often initializes AFTER catalog bootstrap; do not require Admin\n   // identity for setting this inert browser-local URL.\n   // Never overwrite an existing draft, inspect Google on page load, or
