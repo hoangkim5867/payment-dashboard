@@ -209,3 +209,21 @@ test('manual Admin batch uses the selected month, skips projects independently, 
  assert.doesNotMatch(batch,/loadProjectPayments\(/);
  assert.match(html,/syncBatch\.hidden=firebaseConfig\.projectId!=='cscecmep-payment'/);
 });
+
+test('fresh indexed-month production audit checks all active projects in Google with read-only scope and zero writes',()=>{
+ const start=html.indexOf('async function ccSyncAuditFreshMonthGoogleReadOnly(){');
+ const end=html.indexOf('async function ccSyncBatchAnalyzeInMemory(){',start);
+ const block=html.slice(start,end);
+ assert.ok(start>0&&end>start,'fresh-month audit function present');
+ assert.equal(count('id="ccSyncFreshMonthGoogleAudit"'),1,'only one fresh audit button');
+ assert.match(block,/firebaseConfig\.projectId!=='cscecmep-payment'/);
+ assert.match(block,/isCashControlOwner\(\)/);
+ assert.match(block,/ccSyncLoadMonthlyExport\(month,uid,\{batch:true\}\)/);
+ assert.match(block,/navigator\.locks\.request\('cash-control-google-sync'/);
+ assert.match(block,/scanMonthlyGoogleReadOnly\(/);
+ assert.match(block,/https:\/\/www\.googleapis\.com\/auth\/spreadsheets\.readonly/);
+ assert.match(block,/Number\(cashCloudState\.revision\|\|0\)===revision/);
+ assert.match(block,/KHÔNG ghi Google\/Firebase/);
+ assert.doesNotMatch(block,/setDoc\(|addDoc\(|writeBatch\(|updateDoc\(|\/api\/cash-sync-multi-project|action:'commit'/);
+ assert.match(html,/freshAuditButton\.hidden=firebaseConfig\.projectId!=='cscecmep-payment'/);
+});
