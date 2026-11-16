@@ -310,7 +310,7 @@ document.getElementById("ccSyncS13DryRun")?.addEventListener("click",ccSyncS13Dr
    // authenticated preview reports writeConfigured=true. The production
    // destination allowlist and release flag remain separately server-controlled.
    // Always require a SECOND explicit per-write confirmation.
-   const s13CommitSource=String.raw\`
+   const s13CommitSource=String.raw`
 async function ccSyncS13CommitVerified(){
  const button=document.getElementById("ccSyncS13Commit");
  const status=document.getElementById("ccSyncPaymentPreflightStatus");
@@ -447,7 +447,7 @@ for(const key of ["ccSyncBatchMonth","ccSyncPaymentPreflightProject"])
   const button=document.getElementById("ccSyncS13Commit");
   if(button)button.hidden=true;
  });
-\`;
+`;
    text=text.replace(s13FunctionAnchor,
      s13ProofFunction+String.fromCharCode(10)+s13DryRunSource+
      String.fromCharCode(10)+s13CommitSource+
