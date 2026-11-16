@@ -101,6 +101,15 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    if(!text.includes(oldDetailAnchor))throw Error('Monthly audit table moved; refuse unsafe build');
    text=text.replace(oldDetailAnchor,newDetailAnchor);
 
+   // Include only safe row location/code diagnostics in the owner's copied
+   // report: no amounts, transaction IDs, descriptions or Google sheet IDs.
+   const oldSummaryTail="          dateReview:row.dateReview===true\\n        }))";
+   const newSummaryTail="          dateReview:row.dateReview===true,\\n          reviewRows:['ELYSIAN','EATON','FOXCONN','C17-2'].includes(row.project)&&Array.isArray(row.reviewRows)?row.reviewRows.map(entry=>({origin:entry.origin,sourceRow:entry.sourceRow??null,googleRow:entry.googleRow??null,date:entry.date,code:entry.code})):[]\\n        }))";
+   if(!text.includes(oldSummaryTail))
+     throw Error('Aggregate report shape changed; refusing unsafe build');
+   text=text.replace(oldSummaryTail,newSummaryTail);
+
+
 
 
  }
