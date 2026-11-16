@@ -55,7 +55,7 @@ test('mismatched original balance cannot be reported as matched',()=>{
  assert.equal(result.canSync,false);
 });
 test('date inversion changes, unexpected October or 259 rows block',()=>{
- const changed=historical();changed[42][0]='2026-09-29';
+ const changed=historical();changed[41][0]='2026-09-30';
  assert.equal(summarizeHistory(meta,{values:changed}).originalHistoryMatched,false);
  const inMonth=historical();inMonth[257][0]='2026-10-01';
  assert.equal(summarizeHistory(meta,{values:inMonth}).originalHistoryMatched,false);
