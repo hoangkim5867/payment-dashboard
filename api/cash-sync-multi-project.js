@@ -9,6 +9,7 @@ const core=require('../server/cash-sync-multi-project-core.cjs');
 const adapter=require('../server/cash-sync-multi-project-adapter.cjs');
 const {canWriteTarget}=require('../server/cash-sync-multi-targets.cjs');
 const {canWriteS13Test}=require('../server/cash-sync-s13-test-target.cjs');
+const {verifyTestAdmin}=require('../server/cash-sync-s13-test-admin.cjs');
 const {planMonth,parseValues,sha,net}=core;
 const {MIRROR,VIEW,parseStoredMirror,verifyExistingView,compileBatch}=adapter;
 const prefix='https://sheets.googleapis.com/v4/spreadsheets/';
@@ -119,8 +120,9 @@ async function handler(req,res,testOnly=false){
  if(!req.headers.host||req.headers.origin!=='https://'+req.headers.host)
   return res.status(403).json({error:'Cross-origin request rejected.'});
  try{
-  const config=readConfig(process.env);
-  await verifyFirebaseAdminToken(String(req.headers['x-firebase-id-token']||''),config);
+  const token=String(req.headers['x-firebase-id-token']||'');
+  if(testOnly)await verifyTestAdmin(token,process.env);
+  else await verifyFirebaseAdminToken(token,readConfig(process.env));
   const authorization=String(req.headers.authorization||'');
   if(!/^Bearer [A-Za-z0-9._~-]{20,4096}$/.test(authorization))
    die('Google OAuth token missing.',401);
