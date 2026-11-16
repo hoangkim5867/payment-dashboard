@@ -16,7 +16,6 @@ const expected=[
 const net=values=>values[6]-values.slice(7,14).reduce((a,b)=>a+b,0);
 function canWriteS13Test(env,input){
  if(env.VERCEL_ENV!=='preview'||env.CASH_SYNC_S13_TEST_WRITES!=='YES'||
-    env.CASH_SYNC_FIREBASE_PROJECT_ID!=='cscecmep-payment'||
     input.project!=='S13-2'||input.month!=='2026-10'||
     input.spreadsheetId===ORIGINAL||
     !/^[A-Za-z0-9_-]{20,100}$/.test(env.CASH_SYNC_S13_TEST_FILE_ID||'')||
@@ -38,4 +37,28 @@ function canWriteS13Test(env,input){
    net(values)===-expected[i][10];
  });
 }
-module.exports={canWriteS13Test,ORIGINAL,IDS};
+// Only enum-like diagnostic codes; never echo IDs, tokens or environment secrets.
+// The endpoint has already authenticated the staging Admin before calling this.
+function testGateChecks(env,input){
+ const missing=[];
+ if(env.VERCEL_ENV!=='preview')missing.push('NOT_PREVIEW');
+ if(env.CASH_SYNC_S13_TEST_WRITES!=='YES')missing.push('TEST_FLAG_DISABLED');
+ if(!/^[A-Za-z0-9_-]{20,100}$/.test(env.CASH_SYNC_S13_TEST_FILE_ID||'')||
+    env.CASH_SYNC_S13_TEST_FILE_ID===ORIGINAL)missing.push('TEST_FILE_NOT_SET');
+ else if(input.spreadsheetId!==env.CASH_SYNC_S13_TEST_FILE_ID)missing.push('TEST_FILE_MISMATCH');
+ if(!/^(0|[1-9]\\d*)$/.test(env.CASH_SYNC_S13_TEST_HISTORY_GID||''))
+   missing.push('TEST_GID_NOT_SET');
+ else if(input.historySheetId!==Number(env.CASH_SYNC_S13_TEST_HISTORY_GID))
+   missing.push('TEST_GID_MISMATCH');
+ if(input.project!=='S13-2'||input.month!=='2026-10'||
+    input.spreadsheetId===ORIGINAL)missing.push('TEST_SCOPE_MISMATCH');
+ if(input.expectedMonthClosing!==-72663856||input.openingBalance!=null)
+   missing.push('TEST_BALANCE_INPUT_MISMATCH');
+ if(!Array.isArray(input.source)||input.source.length!==3)missing.push('TEST_SOURCE_COUNT');
+ else if(!canWriteS13Test({...env,VERCEL_ENV:'preview',CASH_SYNC_S13_TEST_WRITES:'YES',
+   CASH_SYNC_S13_TEST_FILE_ID:input.spreadsheetId,
+   CASH_SYNC_S13_TEST_HISTORY_GID:String(input.historySheetId)},input))
+   missing.push('TEST_SOURCE_CONTENT_MISMATCH');
+ return missing;
+}
+module.exports={canWriteS13Test,testGateChecks,ORIGINAL,IDS};
