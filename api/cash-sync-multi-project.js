@@ -137,7 +137,10 @@ async function handler(req,res,testOnly=false){
   // were independently verified from two protected Firestore source documents.
   // This gate is separate from the manual 35-project runner's sourceComplete flag.
   // NEVER infer that all Payment aliases or the whole project are complete.
-  if(!testOnly&&input.action==='commit'&&input.project==='S13-2'){
+  if(!testOnly&&input.action==='commit'&&
+     String(input.project).normalize('NFKC').trim().toUpperCase()==='S13-2'){
+   if(input.project!=='S13-2')
+    die('S13-2 Production yêu cầu tên dự án chuẩn; KHÔNG ghi.',409);
    if(input.month!=='2026-10'||
       input.spreadsheetId!=='1s7-EZqTfS_6raZDxpK74m5gxDoAbRwBIJptCkG2lyUg'||
       input.historySheetId!==1543850344||
