@@ -466,7 +466,7 @@ for(const key of ["ccSyncBatchMonth","ccSyncPaymentPreflightProject"])
    // One-project handoff: ELYSIAN has a known Google history / needs
    // manual reconciliation, not an approved write. A single click can
    // trigger existing ELYSIAN-only Payment/Google compare in readonly scope.
-   const nextProjectSource=String.raw\`
+   const nextProjectSource=String.raw`
 async function ccSyncNextProjectReadOnly(){
  const button=document.getElementById("ccSyncNextProjectReadOnly");
  const status=document.getElementById("ccSyncPaymentPreflightStatus");
@@ -506,7 +506,7 @@ async function ccSyncNextProjectReadOnly(){
 }
 document.getElementById("ccSyncNextProjectReadOnly")
  ?.addEventListener("click",ccSyncNextProjectReadOnly);
-\`;
+`;
    text=text.replace(s13FunctionAnchor,
      s13ProofFunction+String.fromCharCode(10)+s13DryRunSource+
      String.fromCharCode(10)+s13CommitSource+
