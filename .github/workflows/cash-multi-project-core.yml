@@ -26,6 +26,9 @@ on:
       - 'site/assets/js/cash-sync-batch-readiness.mjs'
       - 'site/assets/js/cash-sync-monthly-manual-runner.mjs'
       - 'tests/cash-sync-monthly-manual-runner.test.mjs'
+      - 'server/cash-sync-release-audit.cjs'
+      - 'api/cash-sync-release-status.js'
+      - 'tests/cash-sync-release-audit.test.cjs'
       - 'tests/cash-sync-batch-readiness.test.mjs'
       - 'site/assets/js/cash-sync-monthly-export-manifest.mjs'
       - 'tests/cash-sync-monthly-export-manifest.test.mjs'
@@ -66,6 +69,9 @@ on:
       - 'site/assets/js/cash-sync-batch-readiness.mjs'
       - 'site/assets/js/cash-sync-monthly-manual-runner.mjs'
       - 'tests/cash-sync-monthly-manual-runner.test.mjs'
+      - 'server/cash-sync-release-audit.cjs'
+      - 'api/cash-sync-release-status.js'
+      - 'tests/cash-sync-release-audit.test.cjs'
       - 'tests/cash-sync-batch-readiness.test.mjs'
       - 'site/assets/js/cash-sync-monthly-export-manifest.mjs'
       - 'tests/cash-sync-monthly-export-manifest.test.mjs'
@@ -89,4 +95,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Verify no-write, idempotency and balance scenarios
-        run: node --test tests/cash-multi-project-core.test.cjs tests/cash-multi-project-adapter.test.cjs tests/cash-multi-project-api.test.cjs tests/cash-sync-s13-test-target.test.cjs tests/cash-sync-s13-test-page.test.cjs tests/cash-sync-s13-test-admin.test.cjs tests/cash-shared-test-history-audit.test.cjs tests/cash-shared-test-idempotency.test.cjs tests/cash-shared-test-real-compare.test.cjs tests/cash-google-ui-layout.test.cjs tests/cash-sync-batch-readiness.test.mjs tests/cash-sync-monthly-manual-runner.test.mjs tests/cash-sync-monthly-export-manifest.test.mjs tests/cash-sync-monthly-google-readonly.test.mjs tests/cash-sync-month-review-package.test.mjs tests/cash-sync-source-readonly.test.cjs tests/cash-sync-project-source-coverage.test.mjs
+        run: node --test tests/cash-multi-project-core.test.cjs tests/cash-multi-project-adapter.test.cjs tests/cash-multi-project-api.test.cjs tests/cash-sync-s13-test-target.test.cjs tests/cash-sync-s13-test-page.test.cjs tests/cash-sync-s13-test-admin.test.cjs tests/cash-shared-test-history-audit.test.cjs tests/cash-shared-test-idempotency.test.cjs tests/cash-shared-test-real-compare.test.cjs tests/cash-google-ui-layout.test.cjs tests/cash-sync-batch-readiness.test.mjs tests/cash-sync-monthly-manual-runner.test.mjs tests/cash-sync-release-audit.test.cjs tests/cash-sync-monthly-export-manifest.test.mjs tests/cash-sync-monthly-google-readonly.test.mjs tests/cash-sync-month-review-package.test.mjs tests/cash-sync-source-readonly.test.cjs tests/cash-sync-project-source-coverage.test.mjs
