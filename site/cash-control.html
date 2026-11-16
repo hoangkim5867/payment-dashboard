@@ -6460,7 +6460,7 @@ async function ccSyncScanImportedMonthReview(){
   const table=document.createElement('table');
   table.style.cssText='width:100%;border-collapse:collapse;font-size:12px';
   const th=document.createElement('tr');
-  for(const header of ['Dự án','Dòng Excel','Đã có','Mới dự kiến','Cũ chưa khớp','Trùng','Chỉ Google','Điều chuyển thiếu đối ứng','Kết quả']){
+  for(const header of ['Dự án','Dòng Excel','Đã có','Mới dự kiến','Cũ chưa khớp','Có thể lệch mô tả','Trùng Excel / Google','Chỉ Google','Điều chuyển thiếu đối ứng','Kết quả']){
     const cell=document.createElement('th');
     cell.textContent=header;cell.style.cssText='text-align:left;padding:7px;border-bottom:1px solid #cdd8e6';
     th.append(cell);
@@ -6475,10 +6475,14 @@ async function ccSyncScanImportedMonthReview(){
       REVIEW_REQUIRED:'Cần kiểm tra lịch sử',
       GOOGLE_LINK_MISSING:'Thiếu link Google',SOURCE_NOT_READY:'Thiếu bằng chứng nguồn'};
     const result=labels[item.reason]||labels[item.result]||item.reason||item.result;
+    const historyFlags=[item.financialReview?'Số dư hoặc bố cục cần kiểm tra':'',
+      item.dateReview?'Ngày đảo thứ tự':''].filter(Boolean).join(' · ');
+    const duplicates=item.duplicateSource===undefined?'—':
+      item.duplicateSource+' / '+item.duplicateHistory;
     for(const val of [item.project,group?.groupedExcelRows||0,
       item.exactMatches??'—',item.newerCandidates??'—',
-      item.unmatchedBeforeHistoryEnd??'—',item.duplicateHistory??'—',
-      item.historyUnmatched??'—',group?.unresolvedTransferLegs??'—',result]){
+      item.unmatchedBeforeHistoryEnd??'—',item.likelyLabelDifferences??'—',duplicates,
+      item.historyUnmatched??'—',group?.unresolvedTransferLegs??'—',[result,historyFlags].filter(Boolean).join(' · ')]){
       const cell=document.createElement('td');
       cell.textContent=String(val);
       cell.style.cssText='padding:7px;border-bottom:1px solid #ebeff5;vertical-align:top';

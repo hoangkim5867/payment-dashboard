@@ -116,3 +116,23 @@ test('FOXCONN Excel comparison folds import VAT into other direct only for workb
  assert.equal(compareHistoryToExport(args).exactMatches,0);
  assert.equal(compareHistoryToExport({...args,excelOnly:true}).exactMatches,1);
 });
+
+test('identical source rows remain duplicates even with different Excel positions',()=>{
+ const x=compareHistoryToExport({project:'ELYSIAN',month:'2026-10',
+   records:[source('excel-row:6'),source('excel-row:7')],history:[raw()],audit});
+ assert.equal(x.duplicateSource,2);
+ assert.equal(x.exactMatches,0);
+ assert.equal(x.newerCandidates,0);
+ assert.equal(x.result,'REVIEW_REQUIRED');
+});
+
+test('unique contract and IPC posting with a label difference stays review-only',()=>{
+ const old=raw();
+ old[3]='Old wording';
+ const args={project:'ELYSIAN',month:'2026-10',records:[source('expense:1')],audit};
+ const x=compareHistoryToExport({...args,history:[old]});
+ assert.equal(x.likelyLabelDifferences,1);
+ assert.equal(x.exactMatches,0);
+ assert.equal(x.canWrite,false);
+ assert.equal(compareHistoryToExport({...args,history:[old,old]}).likelyLabelDifferences,0);
+});

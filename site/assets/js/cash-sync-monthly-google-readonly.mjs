@@ -27,9 +27,13 @@ const signature=values=>JSON.stringify([
  date(values[0]),...values.slice(1,6).map(canonical),
  ...values.slice(6).map(money)
 ]);
-const sourceSignature=values=>JSON.stringify([
- values[0],...values.slice(1,6).map(canonical),...values.slice(6)
-]);
+// A shared contract/IPC, date and posting can identify rows worth reviewing
+// even if the company, description or type labels differ.
+function paymentIdentity(values){
+ const contract=canonical(values[2]),ipc=canonical(values[4]);
+ if(!contract||!ipc||!values.slice(6).some(amount=>amount!==0))return '';
+ return JSON.stringify([values[0],contract,ipc,...values.slice(6)]);
+}
 export function parseLedgerLink(link){
  let url;
  try{url=new URL(String(link||''))}catch{throw Error('GOOGLE_LINK_INVALID')}
@@ -51,7 +55,7 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    records.length>10000||!Array.isArray(history)||history.length>20000||
    typeof audit!=='function')throw Error('INVALID_READONLY_COMPARISON');
  // The source must be the canonical grouped Export Excel numeric values.
- const signatures=new Map();
+ const signatures=new Map(),historyRows=[],sourceRows=[];
  let historyInMonth=0,invalidHistoryRows=0,latest='';
  for(const row of history){
    if(!Array.isArray(row))continue;
@@ -69,29 +73,49 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    // The original Excel places FOXCONN import tax inside other direct costs.
    if(excelOnly&&project==='FOXCONN'){values[9]+=values[13];values[13]=0;}
    const sig=signature(values);
-   signatures.set(sig,(signatures.get(sig)||0)+1);
+   const entry={values,matched:false};
+   historyRows.push(entry);
+   if(!signatures.has(sig))signatures.set(sig,[]);
+   signatures.get(sig).push(entry);
  }
  let exactMatches=0,unmatchedBeforeHistoryEnd=0,newerCandidates=0,
-   duplicateHistory=0,invalidSource=0;
- const consumed=new Set();
+   duplicateHistory=0,duplicateSource=0,invalidSource=0,likelyLabelDifferences=0;
+ const consumed=new Set(),sourceCounts=new Map(),unmatched=[];
  for(const record of records){
    if(record?.project!==project||record?.month!==month||
-     typeof record.id!=='string'||!record.id||
+     typeof record.id!=='string'||!record.id||consumed.has(record.id)||
      !Array.isArray(record.values)||
      record.values.length!==(project==='FOXCONN'?14:13)||
+     date(record.values[0])!==record.values[0]||
      record.values[0].slice(0,7)!==month||
      record.values.slice(6).some(x=>typeof x!=='number'||!Number.isFinite(x))){
      invalidSource++;continue;
    }
-   if(consumed.has(record.id)){invalidSource++;continue}
    consumed.add(record.id);
-   const sig=sourceSignature(record.values);
-   const n=signatures.get(sig)||0;
-   if(n===1){exactMatches++;signatures.set(sig,0)}
-   else if(n>1)duplicateHistory++;
-   else if(record.values[0]<=latest)unmatchedBeforeHistoryEnd++;
+   const sig=signature(record.values);
+   sourceRows.push({values:record.values,sig});
+   sourceCounts.set(sig,(sourceCounts.get(sig)||0)+1);
+ }
+ for(const {values,sig} of sourceRows){
+   const candidates=signatures.get(sig)||[];
+   if(sourceCounts.get(sig)>1)duplicateSource++;
+   else if(candidates.length>1)duplicateHistory++;
+   else if(candidates.length===1){exactMatches++;candidates[0].matched=true;}
+   else if(values[0]<=latest){unmatchedBeforeHistoryEnd++;unmatched.push(values);}
    else newerCandidates++;
  }
+ const historicalIdentities=new Map(),sourceIdentities=new Map();
+ for(const entry of historyRows){
+   if(entry.matched)continue;
+   const id=paymentIdentity(entry.values);
+   if(id)historicalIdentities.set(id,(historicalIdentities.get(id)||0)+1);
+ }
+ for(const values of unmatched){
+   const id=paymentIdentity(values);
+   if(id)sourceIdentities.set(id,(sourceIdentities.get(id)||0)+1);
+ }
+ for(const [id,count] of sourceIdentities)
+   if(count===1&&historicalIdentities.get(id)===1)likelyLabelDifferences++;
  // This audit checks actual running balances, dates and tax layout, rather
  // than inferring Google correctness from row counts or matching amounts.
  const historicalAudit=audit(history,{project,probeBalanceIndex:project==='FOXCONN'?14:undefined});
@@ -102,13 +126,14 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    historicalAudit.balanceColumnUnconfirmed===true||
    historicalAudit.layoutErrors>0;
  const dateReview=historicalAudit.nonMonotonicDates>0;
- const historyUnmatched=[...signatures.values()].reduce((a,b)=>a+b,0);
- const reviewCount=invalidHistoryRows+duplicateHistory+invalidSource+
+ const historyUnmatched=historyRows.filter(entry=>!entry.matched).length;
+ const reviewCount=invalidHistoryRows+duplicateHistory+duplicateSource+invalidSource+
    unmatchedBeforeHistoryEnd+historyUnmatched;
  return Object.freeze({
    project,month,sourceRows:records.length,historyRows:historicalAudit.transactionRows,
    historyInMonth,exactMatches,newerCandidates,unmatchedBeforeHistoryEnd,
-   historyUnmatched,duplicateHistory,invalidHistoryRows,invalidSource,
+   historyUnmatched,duplicateHistory,duplicateSource,invalidHistoryRows,invalidSource,
+   likelyLabelDifferences,financialReview,dateReview,
    historyStatus:historicalAudit.status,closingBalance:historicalAudit.closingBalance,
    nonMonotonicDates:historicalAudit.nonMonotonicDates,
    result:financialReview||dateReview||reviewCount?'REVIEW_REQUIRED':
