@@ -6243,7 +6243,7 @@ async function ccSyncMultiProjectManual(){
   if(!isAdmin()||!cashCloudReady||!legacySeedReady){
     status.textContent='Cần phiên Admin và dữ liệu Cash Control đã tải.';return;
   }
-  if(!/^20\\d{2}-(0[1-9]|1[0-2])$/.test(month)||month<'2026-10'){
+  if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)||month<'2026-10'){
     status.textContent='Chọn tháng từ 10/2026.';return;
   }
   const googleToken=ccGoogleSyncToken;
@@ -6305,9 +6305,9 @@ async function ccSyncMultiProjectManual(){
         let spreadsheetId='',historySheetId=-1;
         try{
           const url=new URL(links[project]);
-          spreadsheetId=/^\\/spreadsheets\\/d\\/([A-Za-z0-9_-]{20,100})(?:\\/|$)/.exec(url.pathname)?.[1]||'';
-          const gid=url.searchParams.get('gid')??/^#gid=(\\d+)$/.exec(url.hash)?.[1];
-          if(/^\\d+$/.test(gid??'')&&Number.isSafeInteger(Number(gid)))
+          spreadsheetId=/^\/spreadsheets\/d\/([A-Za-z0-9_-]{20,100})(?:\/|$)/.exec(url.pathname)?.[1]||'';
+          const gid=url.searchParams.get('gid')??/^#gid=(\d+)$/.exec(url.hash)?.[1];
+          if(/^\d+$/.test(gid??'')&&Number.isSafeInteger(Number(gid)))
             historySheetId=Number(gid);
         }catch{}
         const expectedMonthClosing=balances[project];
