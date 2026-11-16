@@ -117,6 +117,17 @@ test('an unresolved historical posting remains a transaction review even with a 
  assert.equal(x.canWrite,false);
 });
 
+test('new month candidates are never labeled date-only when history has inverted dates',()=>{
+ const later={...source('expense:2'),values:['2026-10-27',...source('expense:2').values.slice(1)]};
+ const x=compareHistoryToExport({project:'ELYSIAN',month:'2026-10',
+  records:[later],history:[raw()],audit:()=>({
+   ...audit([raw()]),status:'review-date-order',nonMonotonicDates:2})});
+ assert.equal(x.newerCandidates,1);
+ assert.equal(x.reviewCategory,'NEWER_CANDIDATES_ONLY');
+ assert.equal(x.result,'REVIEW_REQUIRED');
+ assert.equal(x.canWrite,false);
+});
+
 test('FOXCONN Excel comparison folds import VAT into other direct only for workbook evidence',()=>{
  const values=[date,'Vendor','','Invoice','','Tax',0,0,0,125,0,0,0,0];
  const google=[date,'Vendor','','Invoice','','Tax',0,0,0,25,0,0,0,100,875];
