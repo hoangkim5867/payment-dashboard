@@ -42,7 +42,7 @@ on:
       - 'tests/cash-sync-batch-decisions.test.mjs'
       - 'site/assets/js/cash-sync-batch-release.mjs'
       - 'tests/cash-sync-batch-release.test.mjs'
-      - 'api/cash-sync-batch-source-readonly.js'
+      - 'server/cash-sync-batch-source-reader.cjs'
       - 'server/cash-sync-project-source-attestation.cjs'
       - 'tests/cash-sync-batch-source-attestation.test.cjs'
       - 'site/assets/js/cash-sync-main-only-export.mjs'
