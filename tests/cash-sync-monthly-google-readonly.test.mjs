@@ -225,12 +225,12 @@ test('PHU HUNG archived original may be hidden only with real visible main and h
    expectedOwner:()=>true,fetcher:async url=>{
     reads++;
     return {ok:true,json:async()=>url.includes('?fields=')?
-     makeMeta(mainVisible,mirrorHidden):{values:[raw()]}};
+     makeMeta(mainVisible,mirrorHidden):{values:url.includes('DATA_CASHCONTROL')?[]:[raw()]}};
    }});
   assert.equal(result.googleWrites,0);
   assert.equal(result.canWrite,false);
   assert.equal(result.checkedGoogleProjects,pass?1:0);
-  assert.equal(reads,pass?2:1);
+  assert.equal(reads,pass?3:1);
   if(pass)assert.equal(result.results[0].exactMatches,1);
   else assert.equal(result.results[0].reason,'ORIGINAL_HISTORY_TAB_NOT_VERIFIED');
  }
@@ -284,4 +284,58 @@ test('start-month proposal depends only on presence of October 2026 original row
  assert.equal(missing.syncStartMonth,'2026-10');
  assert.equal(missing.originalOctoberPresent,false);
  assert.equal(missing.canWrite,false);
+});
+
+const mirrorHeader=['sourceId','projectKey','month','date','company','contractNo',
+ 'content','ipc','type','income','subcontract','material','otherDirect',
+ 'indirect','financial','otherPayable','importTaxVat','sourceHash','syncStatus'];
+const synced=(r,status='synced')=>[r.id,r.project,r.month,...r.values,0,'a'.repeat(64),status];
+
+test('reads a managed archived ledger and recognizes a posted ID even when labels differ',async()=>{
+ const receipt=source('expense:posted');
+ const existing=synced(receipt);
+ existing[6]='Previously posted wording';
+ const calls=[];
+ const result=await scanMonthlyGoogleReadOnly({month:'2026-10',
+  groups:[{project:'ELYSIAN',groupedExcelRows:1,records:[receipt],
+   state:'HISTORY_COMPARISON_CANDIDATE'}],links:{ELYSIAN:link},
+  accessToken:'T'.repeat(60),audit,fetcher:async (url,{method})=>{
+    calls.push(method);
+    return {ok:true,json:async()=>url.includes('?fields=')?
+      {spreadsheetId:sheetId,sheets:[
+       {properties:{sheetId:17,title:'ELYSIAN_HISTORY_BACKUP',hidden:true}},
+       {properties:{sheetId:18,title:'ELYSIAN'}},
+       {properties:{sheetId:19,title:'DATA_CASHCONTROL',hidden:true}}]}:
+      {values:url.includes('DATA_CASHCONTROL')?[mirrorHeader,existing]:[]}};
+  }});
+ assert.deepEqual(calls,['GET','GET','GET']);
+ assert.equal(result.results[0].syncedMatches,1);
+ assert.equal(result.results[0].newerCandidates,0);
+ assert.equal(result.results[0].result,'EXACT_HISTORY_ONLY');
+ assert.equal(result.googleWrites,0);
+});
+
+test('changed or duplicate mirror IDs cannot become new candidates',()=>{
+ const existing=source('expense:posted');
+ const args={project:'ELYSIAN',month:'2026-10',history:[],audit,
+   records:[source(existing.id,120)],mirror:[mirrorHeader,synced(existing)]};
+ const result=compareHistoryToExport(args);
+ assert.equal(result.mirrorConflicts,1);
+ assert.equal(result.newerCandidates,0);
+ assert.equal(result.result,'REVIEW_REQUIRED');
+ assert.throws(()=>compareHistoryToExport({...args,
+   mirror:[...args.mirror,synced(existing)]}),/GOOGLE_SYNC_INDEX_INVALID/);
+});
+
+test('S6-1 opening balance remains in the audit but is not an unmatched transaction',()=>{
+ const opening=['2026-11-01','','','Số dư đầu kỳ tháng 11/2026','','Số dư đầu kỳ',
+  0,0,0,0,0,0,0,978418722];
+ const receipt={id:'expense:receipt',project:'S6-1',month:'2026-11',
+  values:['2026-11-01','','','IPC23','IPC23','Receipt',138700853,0,0,0,0,0,0]};
+ const result=compareHistoryToExport({project:receipt.project,month:receipt.month,
+  history:[opening],records:[receipt],mirror:[mirrorHeader,synced(receipt)],
+  audit:rows=>{assert.deepEqual(rows,[opening]);return audit(rows)}});
+ assert.equal(result.historyUnmatched,0);
+ assert.equal(result.syncedMatches,1);
+ assert.equal(result.result,'EXACT_HISTORY_ONLY');
 });

@@ -27,6 +27,38 @@ const signature=values=>JSON.stringify([
  date(values[0]),...values.slice(1,6).map(canonical),
  ...values.slice(6).map(money)
 ]);
+const mirrorPrefix=['sourceId','projectKey','month','date','company','contractNo',
+ 'content','ipc','type','income','subcontract','material','otherDirect',
+ 'indirect','financial','otherPayable'];
+function monthlyMirrorById(rows,project,month){
+ const index=new Map();
+ if(!rows.length)return index;
+ const header=rows[0];
+ const last=project==='PHU HUNG'?'balance':'importTaxVat';
+ if(header?.length!==19||!mirrorPrefix.every((name,i)=>header[i]===name)||
+    header[16]!==last||header[17]!=='sourceHash'||header[18]!=='syncStatus')
+   throw Error('GOOGLE_SYNC_INDEX_LAYOUT');
+ const seen=new Set();
+ for(const row of rows.slice(1)){
+   const [id,key,period,rawDate]=row;
+   const day=date(rawDate);
+   const amounts=row.slice(9,project==='FOXCONN'?17:16).map(money);
+   const status=row[18];
+   if(row.length!==19||typeof id!=='string'||!id||seen.has(id)||key!==project||
+      !day||day.slice(0,7)!==period||!/^[a-f0-9]{64}$/.test(row[17])||
+      !/^(?:synced|history(?:Updated)?:[1-9]\d*)$/.test(status)||
+      amounts.some(n=>!Number.isFinite(n)))
+     throw Error('GOOGLE_SYNC_INDEX_INVALID');
+   seen.add(id);
+   if(period===month)index.set(id,{day,amounts,status});
+ }
+ return index;
+}
+function samePosting(posting,values){
+ return posting.day===date(values[0])&&
+   posting.amounts.length===values.length-6&&
+   posting.amounts.every((n,i)=>Math.abs(n-money(values[i+6]))<0.000001);
+}
 // A shared contract/IPC, date and posting can identify rows worth reviewing
 // even if the company, description or type labels differ.
 function paymentIdentity(values){
@@ -50,7 +82,7 @@ export function parseLedgerLink(link){
  if(!Number.isSafeInteger(number)||number<0)throw Error('GOOGLE_GID_INVALID');
  return Object.freeze({spreadsheetId:id,gid:number});
 }
-export function compareHistoryToExport({project,month,records,history,audit,excelOnly=false}){
+export function compareHistoryToExport({project,month,records,history,mirror=[],audit,excelOnly=false}){
  if(!validMonth(month)||!project||!Array.isArray(records)||
    records.length>10000||!Array.isArray(history)||history.length>20000||
    typeof audit!=='function')throw Error('INVALID_READONLY_COMPARISON');
@@ -61,6 +93,7 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
  const originalOctoberPresent=history.some(row=>Array.isArray(row)&&
   date(row[0])?.slice(0,7)==='2026-10');
  const syncStartMonth=originalOctoberPresent?'2026-11':'2026-10';
+ const synced=monthlyMirrorById(mirror,project,month);
  const signatures=new Map(),historyRows=[],sourceRows=[];
  let historyInMonth=0,invalidHistoryRows=0,latest='';
  for(const [rowIndex,row] of history.entries()){
@@ -69,6 +102,11 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    if(!day)continue;
    if(day>latest)latest=day;
    if(day.slice(0,7)!==month)continue;
+   // The S6-1 opening anchor establishes a balance with zero cash movement.
+   // Keep it in the balance audit, but never match it as a transaction.
+   if(project==='S6-1'&&row[3]==='Số dư đầu kỳ tháng 11/2026'&&
+      row[5]==='Số dư đầu kỳ'&&row.slice(6,13).length===7&&
+      row.slice(6,13).every(n=>money(n)===0))continue;
    historyInMonth++;
    const amountCount=project==='FOXCONN'?8:7;
    const values=[day,...Array.from({length:5},(_,i)=>String(row[1+i]??'')),
@@ -100,11 +138,28 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    }
    consumed.add(record.id);
    const sig=signature(record.values);
-   sourceRows.push({values:record.values,sig,sourceRow:sourceIndex+1});
+   sourceRows.push({id:record.id,values:record.values,sig,sourceRow:sourceIndex+1});
    sourceCounts.set(sig,(sourceCounts.get(sig)||0)+1);
  }
- for(const {values,sig,sourceRow} of sourceRows){
+ const matchedMirrorRows=new Set();
+ let syncedMatches=0,mirrorConflicts=0;
+ for(const {id,values,sig,sourceRow} of sourceRows){
    const candidates=signatures.get(sig)||[];
+   const posting=synced.get(id);
+   if(posting&&sourceCounts.get(sig)===1){
+     const boundRow=posting.status==='synced'?null:
+       historyRows.find(h=>h.rowNumber===Number(posting.status.split(':')[1]));
+     if(!samePosting(posting,values)||
+        posting.status!=='synced'&&(!boundRow||boundRow.matched||
+          !samePosting(posting,boundRow.values))){
+       mirrorConflicts++;
+       continue;
+     }
+     if(boundRow)boundRow.matched=true;
+     matchedMirrorRows.add(sourceRow);
+     exactMatches++;syncedMatches++;
+     continue;
+   }
    if(sourceCounts.get(sig)>1)duplicateSource++;
    else if(candidates.length>1)duplicateHistory++;
    else if(candidates.length===1){exactMatches++;candidates[0].matched=true;}
@@ -149,7 +204,7 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
  };
  // All pairing signals below are REVIEW HINTS, never certified matches.
  // Require uniqueness on both sides: repeated dates/amounts cannot be paired.
- const unpairedSource=sourceRows.filter(src=>
+ const unpairedSource=sourceRows.filter(src=>!matchedMirrorRows.has(src.sourceRow)&&
    !(sourceCounts.get(src.sig)===1&&signatures.get(src.sig)?.length===1));
  const unpairedHistory=historyRows.filter(h=>!h.matched);
  const amountKey=v=>JSON.stringify([v[0],...v.slice(6)]);
@@ -187,7 +242,8 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    const pair=candidatePairs.get(source);
    const identity=paymentIdentity(source.values);
    const identical=identity?unpairedHistory.filter(h=>paymentIdentity(h.values)===identity):[];
-   const code=sourceCounts.get(source.sig)>1?'DUPLICATE_SOURCE':
+   const code=synced.has(source.id)?'EXISTING_SOURCE_ID_REVIEW':
+     sourceCounts.get(source.sig)>1?'DUPLICATE_SOURCE':
      candidates.length>1?'DUPLICATE_GOOGLE_HISTORY':
      pair?.code||(identical.length===1?'SAME_POSTING_DIFFERENT_LABEL':
        source.values[0]>latest?'NEWER_THAN_GOOGLE':'SOURCE_NOT_MATCHED');
@@ -237,7 +293,9 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    historicalAudit.layoutErrors>0;
  const dateReview=historicalAudit.nonMonotonicDates>0;
  const historyUnmatched=historyRows.filter(entry=>!entry.matched).length;
- const reviewCount=invalidHistoryRows+duplicateHistory+duplicateSource+invalidSource+
+ const unmatchedMirrorRows=[...synced.keys()].filter(id=>!consumed.has(id)).length;
+ const reviewCount=mirrorConflicts+unmatchedMirrorRows+
+   invalidHistoryRows+duplicateHistory+duplicateSource+invalidSource+
    unsafeBackfill+historyUnmatched;
  // Reporting category only: a date-order warning must not masquerade as a
  // financial mismatch, and categorization NEVER permits a write.
@@ -247,7 +305,8 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    dateReview?'DATE_ORDER_ONLY':'EXACT_HISTORY';
  return Object.freeze({
    project,month,syncStartMonth,originalOctoberPresent,sourceRows:records.length,historyRows:historicalAudit.transactionRows,
-   historyInMonth,exactMatches,newerCandidates,backfillCandidates,unsafeBackfill,
+   historyInMonth,exactMatches,syncedMatches,mirrorConflicts,unmatchedMirrorRows,
+   newerCandidates,backfillCandidates,unsafeBackfill,
    candidateSourceRows:Object.freeze(candidateSourceRows),
    unmatchedBeforeHistoryEnd,
    historyUnmatched,duplicateHistory,duplicateSource,invalidHistoryRows,invalidSource,
@@ -307,25 +366,27 @@ export async function scanMonthlyGoogleReadOnly({
        !Array.isArray(metadata.sheets))throw Error('GOOGLE_FILE_MISMATCH');
      const tabs=metadata.sheets.map(s=>s?.properties);
      const selected=tabs.find(s=>s?.sheetId===gid);
-     // PHU HUNG is already activated: its immutable original was renamed
-     // PHU_HUNG_HISTORY_BACKUP and deliberately hidden, while the live
-     // public-facing PHU HUNG view remains visible and the mirror hidden.
-     // Reading this ONE verified legacy backup is safe; never accept arbitrary
-     // hidden tabs, even if the user supplies a hidden gid manually.
-     const phuArchive=group.project==='PHU HUNG'&&
-       selected?.title==='PHU_HUNG_HISTORY_BACKUP'&&selected.hidden===true&&
-       tabs.some(s=>s?.title==='PHU HUNG'&&s.hidden!==true)&&
-       tabs.some(s=>s?.title==='DATA_CASHCONTROL'&&s.hidden===true);
+     const mirrorTab=tabs.find(s=>s?.title==='DATA_CASHCONTROL'&&s.hidden===true);
+     const visibleMain=tabs.some(s=>s?.title===group.project&&
+       s.hidden!==true&&s.sheetId!==gid);
+     const visibleLegacy=tabs.some(s=>s?.title==='CASHCONTROL_VIEW'&&s.hidden!==true);
+     const archive=selected?.hidden===true&&mirrorTab&&visibleMain&&
+       selected.title===(group.project==='PHU HUNG'?
+         'PHU_HUNG_HISTORY_BACKUP':group.project+'_HISTORY_BACKUP');
      if(!selected||!selected.title||
-       (selected.hidden===true&&!phuArchive)||
+       (selected.hidden===true&&!archive)||
        /^(?:DATA_CASHCONTROL|CASHCONTROL_VIEW|DATA_CASHCONTROL_TEST_)/i.test(selected.title)||
        selected.gridProperties?.rowCount>20000)
        throw Error('ORIGINAL_HISTORY_TAB_NOT_VERIFIED');
      const quoted="'"+selected.title.replace(/'/g,"''")+"'";
      const raw=await get('/values/'+encodeURIComponent(quoted+'!A1:O20000')+
        '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER');
+     const mirror=group.excelOnly!==true&&mirrorTab&&(archive||visibleLegacy)?
+       await get('/values/'+encodeURIComponent("'DATA_CASHCONTROL'!A1:S20000")+
+         '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER'):null;
      const compared=compareHistoryToExport({
-       project:group.project,month,records:group.records,history:raw.values||[],audit,excelOnly:group.excelOnly===true
+       project:group.project,month,records:group.records,history:raw.values||[],
+       mirror:mirror?.values||[],audit,excelOnly:group.excelOnly===true
      });
      results.push({...compared,googleReads:reads});
    }catch(err){
