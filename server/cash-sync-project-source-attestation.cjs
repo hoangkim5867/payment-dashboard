@@ -1,0 +1,159 @@
+'use strict';
+/*
+ * Source certification from REAL server documents, one bounded paid-month
+ * Payment query and two protected Cash Control/legacy archive documents.
+ *
+ * Gate intentionally supports ONLY unambiguous, 1:1 paid Payment expenses
+ * in the first phase. Legacy cash, payroll, grouped quarterly PIT, internal
+ * transfers, linked inflows, older aliases, unknown buckets or changed
+ * archive -> REVIEW_REQUIRED, never auto-approve.
+ *
+ * This deliberately does NOT infer all 35 projects are certified from
+ * a 187-document monthly Payment query or from a cached spreadsheet.
+ */
+const {sha,parseValues}=require('./cash-sync-multi-project-core.cjs');
+const {readFields,SEED_HASH}=require('./cash-sync-s13-source-integrity.cjs');
+const {createHash}=require('node:crypto');
+const norm=v=>String(v??'').normalize('NFKC').trim();
+const validDate=v=>typeof v==='string'&&/^20\d{2}-(0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/.test(v);
+const money=v=>(typeof v==='number'||typeof v==='string'&&v.trim()!=='')?
+ Number(v):NaN;
+const eq=(a,b)=>Math.abs(a-b)<0.000001;
+const bounded=(a,n)=>Array.isArray(a)&&a.length<=n;
+const problem=(code)=>{throw Object.assign(Error(code),{statusCode:409})};
+const NEXT=(m)=>{const [y,n]=m.split('-').map(Number);return n===12?
+ (y+1)+'-01':y+'-'+String(n+1).padStart(2,'0')};
+function category(raw,project){
+ const c=norm(raw?.costType).toLowerCase();
+ const details=[raw?.contractName,raw?.note,raw?.remark,raw?.description,raw?.content].map(norm).join(' ').toLowerCase();
+ if(/(?:招标|投标)(?:文件|资料).*购买费|(?:购买|购置).*(?:招标|投标)(?:文件|资料)/.test(details))return 9;
+ if(/(?:投标|履约|预付款)保函.*手续费/.test(details))return 11;
+ if(/投标保证金|投标押金/.test(details))return 9;
+ if(/材料|vật tư|vat tu/.test(c))return 8;
+ if(/分包|thầu phụ|thau phu/.test(c))return 7;
+ if(/劳务|nhân công|nhan cong/.test(c))return 9;
+ if(/其他直接|trực tiếp|truc tiep/.test(c))return 9;
+ if(/财务|tài chính|tai chinh/.test(c))return 11;
+ if(/间接|gián tiếp|gian tiep/.test(c)&&project!=='FOXCONN')return 10;
+ // FOXCONN import tax/VAT has a special column and must be classified
+ // by its original import-tax rule; refuse generic proof here.
+ return null;
+}
+function unpackSeed(seed){
+ const raw=readFields(seed);
+ if(raw.schemaVersion!==1||raw.sha256!==SEED_HASH||
+  typeof raw.payload!=='string'||
+  createHash('sha256').update(raw.payload).digest('hex')!==SEED_HASH)
+  problem('LEGACY_ARCHIVE_FINGERPRINT_CHANGED');
+ let json;
+ try{json=JSON.parse(raw.payload)}catch{problem('LEGACY_ARCHIVE_INVALID')}
+ for(const key of ['LEGACY_SALARY','LEGACY_FINANCE','LEGACY_CASH_SPECIAL','LEGACY_VNB'])
+  if(!bounded(json[key],20000))problem('LEGACY_ARCHIVE_INCOMPLETE');
+ return json;
+}
+function activeCashRecord(x,project,month){
+ if(!x||typeof x!=='object'||Array.isArray(x)||x.status!=='paid'||
+  !validDate(x.actualDate)||!x.actualDate.startsWith(month+'-')||
+  x.isAllocation===true||x.direction==='adjustment')return false;
+ return norm(x.project)===project||norm(x.fromProject)===project||
+  norm(x.toProject)===project;
+}
+function attestMonth({project,month,revision,records,payments,cashDocument,seedDocument}={}){
+ if(typeof project!=='string'||!project||norm(project)!==project||
+   !/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)||month<'2026-10'||
+   !Number.isSafeInteger(revision)||revision<0||
+   !bounded(records,1000)||!bounded(payments,1000)||
+   !cashDocument||!seedDocument)
+  problem('SOURCE_CERTIFICATION_SCOPE_INVALID');
+ const state=readFields(cashDocument),legacy=unpackSeed(seedDocument);
+ if(state.revision!==revision||!bounded(state.manualRecords,20000)||
+   !bounded(state.deletedLegacy,20000)||
+   typeof state.legacyOverrides!=='object'||!state.legacyOverrides)
+  problem('SOURCE_REVISION_OR_ARCHIVE_CHANGED');
+ const blockers=[];
+ const all=[...state.manualRecords];
+ for(const key of ['LEGACY_SALARY','LEGACY_FINANCE','LEGACY_CASH_SPECIAL','LEGACY_VNB']){
+  for(const item of legacy[key]){
+   if(state.deletedLegacy.includes(item.id))continue;
+   all.push({...item,...(state.legacyOverrides[item.id]||{})});
+  }
+ }
+ for(const entry of all)if(activeCashRecord(entry,project,month)){
+  blockers.push('CASH_OR_LEGACY_SOURCE_REQUIRES_RULES');break;
+ }
+ for(const key of ['inflowRecords','salaryRecords','paymentRequests']){
+  const collection=state[key];
+  if(collection!==undefined&&!bounded(collection,20000))
+    blockers.push('UNVERIFIED_CASH_COLLECTION');
+  else if(Array.isArray(collection)&&collection.some(x=>
+    (norm(x?.project)===project||norm(x?.fromProject)===project||
+      norm(x?.toProject)===project)&&
+    String(x?.actualDate||x?.paymentDate||'').startsWith(month+'-')))
+    blockers.push('LINKED_CASH_SOURCE_REQUIRES_RULES');
+ }
+ const paid=new Map();
+ for(const p of payments){
+  if(!p||typeof p!=='object'||typeof p.id!=='string'||
+    !p.id||typeof p.processPaymentDate!=='string'||
+    !p.processPaymentDate.startsWith(month+'-')||
+    !validDate(p.processPaymentDate))problem('MONTH_PAYMENT_QUERY_UNVERIFIED');
+  if(p.deleted===true)continue;
+  if(norm(p.project)!==project){
+   if(norm(p.project).toUpperCase()===project.toUpperCase())
+    blockers.push('PROJECT_ALIAS_REQUIRES_REVIEW');
+   continue;
+  }
+  if(paid.has(p.id))problem('DUPLICATE_PAYMENT_DOC');
+  paid.set(p.id,p);
+ }
+ const seen=new Set();
+ for(const r of records){
+  if(!r||r.project!==project||r.month!==month||
+    typeof r.id!=='string'||r.id.length>500||
+    !Array.isArray(r.members)||r.members.length!==1||
+    typeof r.members[0]!=='string'||
+    !/^expense:pay_[A-Za-z0-9_-]{1,180}$/.test(r.members[0])||
+    r.id!==project+':'+r.members[0]||
+    r.sourceClass!=='PAYMENT'||
+    !Array.isArray(r.values)||r.values.length!==13||
+    seen.has(r.members[0])){
+   blockers.push('GROUPED_TAX_TRANSFER_OR_SOURCE_ID_UNSUPPORTED');continue;
+  }
+  seen.add(r.members[0]);
+  const rawId=r.members[0].slice('expense:pay_'.length);
+  const p=paid.get(rawId);
+  if(!p){blockers.push('PAYMENT_SOURCE_DOC_NOT_FOUND');continue;}
+  const values=parseValues(r.values,{foxconn:false});
+  if(sha(values)!==r.hash){blockers.push('SOURCE_HASH_CHANGED');continue;}
+  const target=category(p,project);
+  if(target===null){blockers.push('PAYMENT_CATEGORY_UNVERIFIED');continue;}
+  const actual=p.processActualAmount!==undefined&&p.processActualAmount!==null&&
+    p.processActualAmount!==''?money(p.processActualAmount):money(p.amount);
+  if(!Number.isSafeInteger(actual)||actual<=0||
+    values[0]!==p.processPaymentDate||
+    norm(values[1])!==norm(p.company)||norm(values[2])!==norm(p.contractNo)||
+    (norm(p.ipcNo)&&!norm(values[4]).includes(norm(p.ipcNo)))||
+    values[6]!==0||
+    values.slice(7,14).some((n,i)=>!eq(n,i+7===target?actual:0))){
+   blockers.push('PAYMENT_ROW_DATE_AMOUNT_OR_CATEGORY_CHANGED');
+  }
+ }
+ if(seen.size!==paid.size)blockers.push('PAID_MONTH_PROJECT_COUNT_OR_ALIAS_MISMATCH');
+ if(project==='FOXCONN')blockers.push('FOXCONN_IMPORT_TAX_LAYOUT_REQUIRES_RULES');
+ if(!records.length&&paid.size)blockers.push('PAYMENT_ROWS_NOT_IN_EXPORT');
+ const unique=[...new Set(blockers)].sort();
+ return Object.freeze({
+  kind:'INDEPENDENT_PROJECT_MONTH_SOURCE_CHECK_V1',project,month,revision,
+  paymentRowsRead:payments.length,canonicalPaidRows:paid.size,
+  sourceRowsChecked:records.length,
+  sourceIdsMatched:seen.size===paid.size,
+  blockers:Object.freeze(unique),verified:unique.length===0&&records.length>0,
+  // This narrow certification is ONLY about the known canonical paid-month
+  // payment stream, not aliases/old cash outside the stored archive.
+  legacyAndTransfersCertified:unique.length===0,
+  fullPaymentAliasHistoryCertified:false,
+  sourceComplete:false,canWrite:false,googleWrites:0,
+  sourceFingerprint:sha(records.map(r=>[r.id,r.values,r.hash,r.members]))
+ });
+}
+module.exports={attestMonth,unpackSeed,category};
