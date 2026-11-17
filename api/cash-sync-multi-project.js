@@ -7,7 +7,8 @@
 const {readConfig,verifyFirebaseAdminToken}=require('../server/cash-sync-guard.cjs');
 const core=require('../server/cash-sync-multi-project-core.cjs');
 const adapter=require('../server/cash-sync-multi-project-adapter.cjs');
-const {canWriteTarget}=require('../server/cash-sync-multi-targets.cjs');
+const {canWriteTarget,canWriteMonthlyTarget}=require('../server/cash-sync-multi-targets.cjs');
+const {inspect:inspectBatchSource}=require('./cash-sync-batch-source-readonly.js')._internals;
 const {canWriteS13Test,testGateChecks}=require('../server/cash-sync-s13-test-target.cjs');
 const {verifyTestAdmin}=require('../server/cash-sync-s13-test-admin.cjs');
 const {inspect:inspectVerifiedSource}=require('./cash-sync-source-readonly.js')._internals;
@@ -130,7 +131,10 @@ async function handler(req,res,testOnly=false){
   const input=validBody(typeof req.body==='string'?JSON.parse(req.body):req.body);
   const writeConfigured=testOnly?
    canWriteS13Test(process.env,input):
-   canWriteTarget(process.env,input.project,input.spreadsheetId,input.historySheetId);
+   input.project==='S13-2'?
+     canWriteTarget(process.env,input.project,input.spreadsheetId,input.historySheetId):
+     canWriteMonthlyTarget(process.env,input.project,input.spreadsheetId,
+       input.historySheetId,input.month);
   if(input.action==='commit'&&!writeConfigured)
    die('Dự án/file Google chưa được cho phép ghi trên máy chủ hoặc chưa bật phát hành.',503);
   // S13 production can only commit the three October salary/tax postings that
@@ -188,6 +192,36 @@ async function handler(req,res,testOnly=false){
    die('Google hoặc nguồn Cash Control đã thay đổi sau bước xem trước.');
   if(!plan.changes.length&&snapshot.hasTabs)
    return res.status(200).json({mode:'unchanged',summary,writes:0});
+  if(!testOnly&&input.project!=='S13-2'){
+   // Independent real Firebase certification is performed AGAIN immediately
+   // before the Google write. A browser hash or exact Payment count is not a
+   // certificate: read protected Cash Control + signed legacy seed and the
+   // exact indexed paid-month Payment stream on the server.
+   if(!Number.isSafeInteger(input.revision)||input.revision<0||
+      input.source.length<1||input.source.length>1000||
+      input.source.some(row=>!Array.isArray(row?.members)||
+        row.members.length<1||typeof row.sourceClass!=='string'))
+    die('Thiếu ID nguồn gốc và phiên bản Cash Control; KHÔNG ghi.',409);
+   const certified=await inspectBatchSource({
+    env:process.env,jwt:token,
+    input:{action:'verify_monthly_projects',month:input.month,
+      revision:input.revision,projects:[{
+        project:input.project,
+        records:input.source.map(row=>({
+          id:row.id,project:row.project,month:row.month,
+          sourceClass:row.sourceClass,members:row.members,
+          values:row.values,hash:row.hash
+        }))
+      }]}
+   });
+   if(certified.kind!=='INDEPENDENT_MONTHLY_SOURCE_BATCH_READONLY_V1'||
+      certified.month!==input.month||certified.revision!==input.revision||
+      certified.projects?.length!==1||
+      certified.projects[0]?.project!==input.project||
+      certified.projects[0]?.verified!==true||
+      certified.googleWrites!==0||certified.canWrite!==false)
+    die('Nguồn Cash Control/Payment độc lập chưa đạt; KHÔNG ghi.',409);
+  }
   // Atomic Google batchUpdate only touches machine-owned grid IDs.
   await google(authorization,input.spreadsheetId,':batchUpdate','POST',
    {requests:batch.requests,includeSpreadsheetInResponse:false});
