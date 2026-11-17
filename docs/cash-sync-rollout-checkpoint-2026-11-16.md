@@ -36,3 +36,24 @@ Last updated: 2026-11-16 · Draft PR #124 · no background jobs
 5. Return `CASH_SYNC_MULTI_PRODUCTION_WRITES=NO` and redeploy before proceeding to another project. Keep PR #124 Draft until safe to release the general process.
 
 **Costs and safety:** no background listeners, no Apps Script timer, no automatic browser-authenticated scans, no broad Firebase reads. Distinguish local code/tests from real owner-reported Admin observations. Never use a draft Google link as authority to write.
+
+## ELYSIAN signed-in Admin result received 2026-11-17 — source/history REVIEW, not released
+
+User-provided October-onward one-project Payment ↔ Google read-only output:
+- Payment browser loaded **630**; exact-canonical Firestore count **631**. A difference of one is NOT proof of a missing business invoice; loaded cache may omit soft-deleted rows or contain legacy aliases. No full Payment history completeness certification.
+- Original Google **777** historic rows, date-order inversions **3**, layout errors **0**, balance errors **0**, unidentified date **0**; NEVER resort historic rows.
+- October-onward Google **71** rows, Cash Control **76** rows, **70** same-date/seven-category monetary candidates, **6** Cash-only, **1** Google-only.
+- Cash-only positions: **35** quarterly personal income tax 2026-10-20; **36** FOXCONN repays ELYSIAN 2026-10-26; **73–76** ELYSIAN subcontract invoices paid on 2026-11-13, with contract/IPC metadata supplied.
+- Google-only row **745** dated 2026-10-26 has Chinese repayment description **FOXCONN归还ELYSIAN借款**. Cash row **36** has Vietnamese **FOXCONN hoàn trả ELYSIAN** same date. This is an obvious semantic counterpart **candidate only**: compare signed amounts in all 7 money columns and original source IDs before declaring a duplicate; no automatic pairing.
+- Eight rows flagged contract/IPC conflicts (**26–28,32–34,37–38**) are payroll, meals, insurance or union fee. These are **noncontract expense classes**; their company/person metadata may still be unverified, but they must not be presented as missing subcontract HĐ/IPC.
+- Three lines flagged missing HĐ/IPC (**68–70**) are employee home leave/family visits; verify the payroll/HR source identity instead of inventing an IPC.
+- A separate earlier independent planner reported 14 candidates / 62 blockers, which has DIFFERENT matching granularity. **Do not combine** this count with the authoritative 70/6/1 same-date and 7 money-column scope or suggest 14 new payable rows.
+- **No write permission**: ELYSIAN 0 Google writes; Production global write gate stays **NO**.
+
+Code improvements on Draft PR #124:
+- `site/assets/js/cash-sync-historical-audit.js` adds pure `reviewElysianExceptions` triage, using current-memory records only, with an explicit exact-date and **signed money-by-category** test for potential FOXCONN repayment counterparts, never an automatic ID match.
+- Production Cash Control build injects a concise 70/6/1 source comparison with segregated non-contract HR and FOXCONN transfer warnings; it suppresses the unrelated planner's 14/62 summary in this ELYSIAN view, while retaining all underlying source/history issues and keeping `canWrite:false`.
+- Additional regression tests cover personnel/HR categories, signed transfer mismatch and no write safety.
+- Existing TESTs, the original 777-row history and the broader 266-row report should NOT be rerun to make progress; the next meaningful step is verifying the specific 6 cash-only / 1 Google-only items, their immutable source IDs and amounts.
+
+This checkpoint is based on the user's authenticated UI report, not a separate Google API read by Chat.
