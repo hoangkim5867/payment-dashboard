@@ -84,6 +84,9 @@ function buildProject({project,month,rows,hasGoogleLink,paymentCacheLoaded,
    }
    seenSignatures.add(signature);
    records.push(Object.freeze({id,project,month,sourceClass:kind,
+     // These are the ORIGINAL Cash Control member IDs, not Excel positions.
+     // The server checks every member against protected Firestore source.
+     members:Object.freeze(row._syncIds.slice().map(text).sort()),
      // No hash until an authenticated, fresh source snapshot is certified.
      values:Object.freeze(values)}));
  }
