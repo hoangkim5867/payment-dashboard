@@ -633,6 +633,7 @@ if(require.main===module){
    path.join(__dirname,'../tests/cash-sync-monthly-export-manifest.test.mjs'),
    path.join(__dirname,'../tests/cash-sync-monthly-google-readonly.test.mjs'),
    path.join(__dirname,'../tests/cash-sync-batch-decisions.test.mjs'),
+   path.join(__dirname,'../tests/cash-sync-main-only-export.test.mjs'),
    path.join(__dirname,'../tests/cash-sync-month-review-package.test.mjs'),
    path.join(__dirname,'../tests/cash-sync-source-readonly.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-s13-original-readonly.test.cjs'),
