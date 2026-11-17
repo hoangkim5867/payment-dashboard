@@ -12,15 +12,15 @@ require.cache[guard]={id:guard,filename:guard,loaded:true,exports:{
 // Offline source proof fixture: generic API production paths in real
 // deployments require 3 protected Firebase reads. Separate source verifier
 // tests inspect those reads and archive signature; this fake has NO network.
-const sourceRoute=require('../api/cash-sync-batch-source-readonly.js');
-const savedSourceInspect=sourceRoute._internals.inspect;
-sourceRoute._internals.inspect=async({input})=>({
+const sourceRoute=require('../server/cash-sync-batch-source-reader.cjs');
+const savedSourceInspect=sourceRoute.inspect;
+sourceRoute.inspect=async({input})=>({
  kind:'INDEPENDENT_MONTHLY_SOURCE_BATCH_READONLY_V1',
  month:input.month,revision:input.revision,canWrite:false,googleWrites:0,
  projects:input.projects.map(g=>({project:g.project,verified:true}))
 });
 const handler=require('../api/cash-sync-multi-project.js');
-sourceRoute._internals.inspect=savedSourceInspect;
+sourceRoute.inspect=savedSourceInspect;
 const testHandler=require('../api/cash-sync-s13-test.js');
 if(saved)require.cache[guard]=saved;else delete require.cache[guard];
 const ID='12345678901234567890ABCDEFGHIJKLMNOPQRST';
