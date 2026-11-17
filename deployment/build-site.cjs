@@ -619,6 +619,22 @@ document.getElementById("ccSyncNextProjectReadOnly")
    ].join(String.fromCharCode(10));
    text=text.replace(loadDraft,restoredLinkCode);
    // Live Production owner workflow: direct Cash Control -> Google Sheets on one Admin click
+   const directOld0="            '? Chỉ cập nhật tab kỹ thuật, không sửa sổ gốc.');";
+   if(!text.includes(directOld0))throw Error('Direct Google sync/pilot anchor 0 moved');
+   text=text.replace(directOld0,"            '? Chỉ thêm giao dịch mới vào tab dự án; bảo toàn sổ lịch sử gốc.');");
+   const directOld1="        'đ. Không phát sinh ghi Google. Nguồn Firestore chỉ được làm mới khi Admin bấm.');\n      return;";
+   if(!text.includes(directOld1))throw Error('Direct Google sync/pilot anchor 1 moved');
+   text=text.replace(directOld1,"        'đ. Không phát sinh ghi Google. Nguồn Firestore chỉ được làm mới khi Admin bấm.');\n      return {mode:'unchanged',summary:sum};");
+   const directOld2="      ccGoogleSyncStatus('ĐÃ HỦY: chỉ kiểm tra và làm mới nguồn, không ghi file Google Sheets gốc.');\n      return;";
+   if(!text.includes(directOld2))throw Error('Direct Google sync/pilot anchor 2 moved');
+   text=text.replace(directOld2,"      ccGoogleSyncStatus('ĐÃ HỦY: chỉ kiểm tra và làm mới nguồn, không ghi file Google Sheets gốc.');\n      return {mode:'canceled',summary:sum};");
+   const directOld3="      'Không sửa Firestore, không chạy đồng bộ ngầm.');\n  }finally{ccGoogleSyncWriteInFlight=false}\n}";
+   if(!text.includes(directOld3))throw Error('Direct Google sync/pilot anchor 3 moved');
+   text=text.replace(directOld3,"      'Không sửa Firestore, không chạy đồng bộ ngầm.');\n    return {mode:'verified',summary:result.summary};\n  }finally{ccGoogleSyncWriteInFlight=false}\n}");
+   const directPilotHook="      const t=result.summary;";
+   if(!text.includes(directPilotHook))throw Error('Multi-project live PHU HUNG bridge anchor moved');
+   text=text.replace(directPilotHook,"      // PHU HUNG's established live original-sync engine uses a different\n      // mirror schema. One Admin click can invoke it AFTER the other project\n      // commits, never before or after an ambiguous Google write. This keeps\n      // the already-activated PHU HUNG workbook entirely unchanged in structure.\n      if(result.mode!=='NOT_APPROVED'&&\n         !result.rows.some(r=>r.reason==='PREVIOUS_WRITE_UNCERTAIN_REQUIRE_GOOGLE_READBACK')&&\n         manifest.groups.some(g=>g.project==='PHU HUNG'&&g.groupedExcelRows)){\n        try{\n          const pilot=await ccGoogleSyncRunOriginalManually();\n          mark('PHU HUNG',pilot?.mode==='verified'?\n            'Đã ghi và đọc lại Google theo mẫu PHU HUNG':\n            pilot?.mode==='unchanged'?'Đã khớp Google, không ghi thêm':\n            'Admin đã hủy xác nhận riêng PHU HUNG');\n        }catch(error){\n          mark('PHU HUNG','Chưa ghi · '+String(error?.message||error).slice(0,140));\n        }\n      }\n      const t=result.summary;");
+
    // and a single Cash Control month JSON. Legacy technical tools remain
    // present but de-emphasized; never represent unsupported direct write as ready.
    const uiBefore0="title=\"Chỉ Admin; bản thử PHU HUNG, ghi được vào file Google Sheets TEST sau khi xác nhận\">↗ Đồng bộ Google Sheets (thử)";
