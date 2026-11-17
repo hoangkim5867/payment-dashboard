@@ -435,3 +435,33 @@ test('independent source rejection reports only safe reason codes and zero Googl
  assert.equal(f.state.writes,0);
  assert.equal(JSON.stringify(result).includes('Vendor'),false);
 });
+
+test('per-project start month follows existing October in original or technical mirror',()=>{
+ const {startMonthFromGoogle}=require('../server/cash-sync-multi-project-core.cjs');
+ assert.equal(startMonthFromGoogle({history:orig,mirror:[]}), '2026-11');
+ assert.equal(startMonthFromGoogle({history:[['2026-09-30']],mirror:[]}), '2026-10');
+ assert.equal(startMonthFromGoogle({history:[],mirror:[
+  {values:['2026-10-21','Client','','','','',100,0,0,0,0,0,0,0]}
+ ]}), '2026-11');
+ assert.equal(startMonthFromGoogle({history:[['2026-10-invalid']],mirror:[]}), '2026-10');
+ assert.throws(()=>startMonthFromGoogle({history:{}}),/Invalid Google history/);
+});
+test('rolling project/month releases allow future new months without retroactive or future writes',()=>{
+ const {canWriteMonthlyTarget}=require('../server/cash-sync-multi-targets.cjs');
+ const spreadsheetId='1s7-EZqTfS_6raZDxpK74m5gxDoAbRwBIJptCkG2lyUg';
+ const historySheetId=1543850344;
+ const env={VERCEL_ENV:'production',CASH_SYNC_FIREBASE_PROJECT_ID:'cscecmep-payment',
+  CASH_SYNC_MULTI_PRODUCTION_WRITES:'YES',
+  CASH_SYNC_MULTI_APPROVED_FROM_MONTH:'2026-10',
+  CASH_SYNC_MULTI_ALLOWED_TARGETS:JSON.stringify({
+   'CN8-2':{spreadsheetId,historySheetId}
+  })};
+ assert.equal(canWriteMonthlyTarget(env,'CN8-2',spreadsheetId,historySheetId,'2026-10'),true);
+ assert.equal(canWriteMonthlyTarget(env,'CN8-2',spreadsheetId,historySheetId,'2026-09'),false);
+ assert.equal(canWriteMonthlyTarget(env,'CN8-2',spreadsheetId,historySheetId,'2099-01'),false);
+ assert.equal(canWriteMonthlyTarget(env,'CN8-2','unknown-sheet-id',historySheetId,'2026-10'),false);
+ assert.equal(canWriteMonthlyTarget({...env,CASH_SYNC_MULTI_PRODUCTION_WRITES:'NO'},
+  'CN8-2',spreadsheetId,historySheetId,'2026-10'),false);
+ assert.equal(canWriteMonthlyTarget({...env,VERCEL_ENV:'preview'},
+  'CN8-2',spreadsheetId,historySheetId,'2026-10'),false);
+});
