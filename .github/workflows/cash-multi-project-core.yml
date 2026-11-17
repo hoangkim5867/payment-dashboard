@@ -38,6 +38,8 @@ on:
       - 'tests/cash-sync-monthly-export-manifest.test.mjs'
       - 'site/assets/js/cash-sync-monthly-google-readonly.mjs'
       - 'tests/cash-sync-monthly-google-readonly.test.mjs'
+      - 'site/assets/js/cash-sync-batch-decisions.mjs'
+      - 'tests/cash-sync-batch-decisions.test.mjs'
       - 'site/assets/js/cash-sync-month-review-package.mjs'
       - 'tests/cash-sync-month-review-package.test.mjs'
       - 'site/cash-control.html'
