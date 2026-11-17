@@ -193,13 +193,10 @@ function planMonth({project,month,source,history,mirror=[],foxconn=false,opening
       continue;
     }
     const backdated=current.values[0]<=historical.maxDate;
-    // Only the requested October/November 2026 rollout is eligible for
-    // backfill. Older-period adjustments must remain manually reviewed.
+    // Backfill applies from the approved start month into every later paid
+    // month. Exact release/month eligibility is checked by the Production
+    // server, not by a frozen October/November list in this pure planner.
     if(backdated){
-      if(!['2026-10','2026-11'].includes(month)){
-        reviews.push({id:current.id,reason:'BACKFILL_OUTSIDE_APPROVED_PERIOD'});
-        continue;
-      }
       const collision=possibleDuplicate(current.values,historical.entries,
         combinedMirror.filter(x=>x.status==='synced'));
       if(collision){
