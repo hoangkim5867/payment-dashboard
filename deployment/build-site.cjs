@@ -618,7 +618,7 @@ document.getElementById("ccSyncNextProjectReadOnly")
      "  }"
    ].join(String.fromCharCode(10));
    text=text.replace(loadDraft,restoredLinkCode);
-   // Production owner workflow: tested Google Sheets edits via connected Drive
+   // Live Production owner workflow: direct Cash Control -> Google Sheets on one Admin click
    // and a single Cash Control month JSON. Legacy technical tools remain
    // present but de-emphasized; never represent unsupported direct write as ready.
    const uiBefore0="title=\"Chỉ Admin; bản thử PHU HUNG, ghi được vào file Google Sheets TEST sau khi xác nhận\">↗ Đồng bộ Google Sheets (thử)";
@@ -632,31 +632,31 @@ document.getElementById("ccSyncNextProjectReadOnly")
    text=text.replace(uiBefore2,"<strong>Cập nhật dữ liệu theo tháng</strong>");
    const uiBefore3="Đồng bộ thủ công theo tháng. Chỉ ghi dự án đã đối chiếu số dư và được máy chủ cấp phép.";
    if(!text.includes(uiBefore3))throw Error('Cash Control owner UI anchor 3 moved');
-   text=text.replace(uiBefore3,"Quy trình hiện tại: chọn tháng → xuất một gói JSON từ Cash Control → gửi vào ChatGPT đã kết nối Google Drive. Các tháng sau chỉ bổ sung dòng mới.");
+   text=text.replace(uiBefore3,"Chọn tháng → bấm Đồng bộ Google Sheets → xác nhận. Chỉ bổ sung giao dịch mới, không ghi trùng hoặc sửa sổ lịch sử.");
    const uiBefore4="<summary style=\"cursor:pointer;font-weight:700\">Đồng bộ theo dự án</summary>";
    if(!text.includes(uiBefore4))throw Error('Cash Control owner UI anchor 4 moved');
    text=text.replace(uiBefore4,"<summary style=\"cursor:pointer;font-weight:700\">Cập nhật theo dự án</summary>");
    const uiBefore5="Kiểm tra dữ liệu đã tải cho tháng đã chọn. Kết quả sẽ hiển thị dự án có giao dịch và điều kiện còn thiếu.";
    if(!text.includes(uiBefore5))throw Error('Cash Control owner UI anchor 5 moved');
-   text=text.replace(uiBefore5,"Dự án có link Google được xử lý trước; dự án chưa có link được bỏ qua. Không cần xuất Excel hay làm lại PHU HUNG.");
+   text=text.replace(uiBefore5,"Chỉ đồng bộ dự án có link Google. Dự án chưa có link tự bỏ qua; tháng sau chỉ cần bấm đồng bộ lần nữa.");
    const uiBefore6="<button class=\"btn primary\" type=\"button\" id=\"ccSyncMultiProjectManual\" hidden>Đồng bộ các dự án đủ điều kiện</button>";
    if(!text.includes(uiBefore6))throw Error('Cash Control owner UI anchor 6 moved');
-   text=text.replace(uiBefore6,"<button class=\"btn\" type=\"button\" id=\"ccSyncMultiProjectManual\" hidden disabled title=\"Đang nâng cấp tương thích với tab dự án theo mẫu PHU HUNG. Hãy xuất gói JSON bên dưới để đồng bộ thật.\">Đồng bộ trực tiếp (chưa hỗ trợ mẫu mới)</button>");
+   text=text.replace(uiBefore6,"<button class=\"btn primary\" type=\"button\" id=\"ccSyncMultiProjectManual\" hidden title=\"Admin: ghi trực tiếp các giao dịch mới vào Google Sheets đã liên kết; xác nhận trước khi ghi, đọc lại sau khi ghi\">Đồng bộ trực tiếp → Google Sheets</button>");
    const uiBefore7="<button class=\"btn\" type=\"button\" id=\"ccSyncBatchAnalyze\">Kiểm tra chung các dự án · chỉ đọc</button>";
    if(!text.includes(uiBefore7))throw Error('Cash Control owner UI anchor 7 moved');
    text=text.replace(uiBefore7,"<details style=\"display:inline-block;border:1px solid #dbe4f0;border-radius:8px;padding:7px 10px;background:#fff\"><summary style=\"cursor:pointer;font-size:12px\">Kiểm tra kỹ thuật · nâng cao</summary><div style=\"display:flex;gap:8px;flex-wrap:wrap;padding-top:8px\"><button class=\"btn\" type=\"button\" id=\"ccSyncBatchAnalyze\">Đối chiếu nguồn · chỉ đọc</button></div></details>");
    const uiBefore8="<button id=\"ccSyncMonthSourceExport\" class=\"btn\" type=\"button\" hidden>Xuất 1 gói nguồn tháng từ Cash Control chính</button>";
    if(!text.includes(uiBefore8))throw Error('Cash Control owner UI anchor 8 moved');
-   text=text.replace(uiBefore8,"<button id=\"ccSyncMonthSourceExport\" class=\"btn primary\" type=\"button\" hidden>Xuất gói giao dịch tháng (JSON)</button>");
+   text=text.replace(uiBefore8,"<button id=\"ccSyncMonthSourceExport\" class=\"btn\" type=\"button\" hidden>Xuất gói tháng (dự phòng · JSON)</button>");
    const uiBefore9="Production: dùng nguồn Cash Control đã xác thực; ghi khi vượt kiểm tra mã chứng từ, số dư và quyền file Google.";
    if(!text.includes(uiBefore9))throw Error('Cash Control owner UI anchor 9 moved');
-   text=text.replace(uiBefore9,"Tải JSON rồi gửi trong ChatGPT đã kết nối Google Drive để bổ sung trực tiếp vào Google Sheets, giữ nguyên dòng cũ.");
+   text=text.replace(uiBefore9,"Đồng bộ trực tiếp từ Cash Control sang đúng Google Sheets từng dự án. Không cần xuất JSON hoặc mở ChatGPT.");
    const uiBefore10="<summary style=\"cursor:pointer;font-weight:700\">Link Google Sheets theo dự án</summary>";
    if(!text.includes(uiBefore10))throw Error('Cash Control owner UI anchor 10 moved');
    text=text.replace(uiBefore10,"<summary style=\"cursor:pointer;font-weight:700\">Quản lý link Google Sheets · dự án mới</summary>");
    const uiBefore11="<summary style=\"cursor:pointer;font-weight:700;color:#45566c\">Công cụ thí điểm PHU HUNG</summary>";
    if(!text.includes(uiBefore11))throw Error('Cash Control owner UI anchor 11 moved');
-   text=text.replace(uiBefore11,"<summary style=\"cursor:pointer;font-weight:700;color:#45566c\">Công cụ PHU HUNG cũ · Nâng cao</summary>");
+   text=text.replace(uiBefore11,"<summary style=\"cursor:pointer;font-weight:700;color:#45566c\">Công cụ PHU HUNG đã triển khai · Nâng cao</summary>");
 
 
 
