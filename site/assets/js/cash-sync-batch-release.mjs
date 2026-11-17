@@ -88,6 +88,13 @@ export function buildBatchReleasePlan({month,revision,manifest,scan}={}){
    exactMatches:valid(result.exactMatches)?result.exactMatches:null,
    newerCandidates:valid(result.newerCandidates)?result.newerCandidates:null,
    backfillCandidates:valid(result.backfillCandidates)?result.backfillCandidates:0,
+   // These are positions in the already-loaded grouped Export Excel only.
+   // Never treat positions as source IDs or submit them for Google writes.
+   candidateSourceRows:Object.freeze(
+     Array.isArray(result.candidateSourceRows)&&
+     result.candidateSourceRows.every(n=>Number.isSafeInteger(n)&&n>=1&&
+       n<=source.records.length)?
+       [...new Set(result.candidateSourceRows)]:[]),
    canCommit:false,sourceCertified:false,googleWrites:0
   }));
  }
