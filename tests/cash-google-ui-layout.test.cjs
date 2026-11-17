@@ -278,3 +278,23 @@ test('unified 35-project batch uses existing one-click readonly scan, no misplac
  assert.match(build,/CHUẨN BỊ ĐỒNG BỘ CHUNG/);
  assert.ok(build.includes('batchRelease:{schema:batchRelease.schema'));
 });
+
+test('35-project Admin batch button is gated by independent source proof, signed preview, exact Google destination and fresh confirmation',()=>{
+ const build=fs.readFileSync(path.join(__dirname,'../deployment/build-site.cjs'),'utf8');
+ assert.match(build,/executeCertifiedBatch/);
+ assert.match(build,/batchCommitButton.hidden=readyBatchItems.length===0/);
+ assert.match(build,/independentSource\?\.projects/);
+ assert.match(build,/x\?\.verified===true/);
+ assert.match(build,/batchRelease.groups.needsSourceProof/);
+ assert.match(build,/ccSyncProjectLinkValid\(raw\)/);
+ assert.match(build,/signed.writeConfigured!==true/);
+ assert.match(build,/signed.summary\?\.changes!==candidate.newerCandidates/);
+ assert.match(build,/signed.summary\?\.originalUntouched!==true/);
+ assert.match(build,/CASH_CONTROL_PRIVATE_METADATA_ONLY|verify_monthly_projects/);
+ assert.match(build,/window.confirm/);
+ assert.match(build,/SYNC_THIS_PROJECT/);
+ assert.match(build,/navigator.locks.request/);
+ assert.match(build,/batchCommitButton.hidden=true/);
+ assert.match(build,/KHÔNG BẤM GHI LẦN HAI/);
+ assert.doesNotMatch(build,/CASH_SYNC_MULTI_PRODUCTION_WRITES=['"]YES['"]/);
+});
