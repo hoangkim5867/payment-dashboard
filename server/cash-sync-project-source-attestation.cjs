@@ -58,7 +58,8 @@ function activeCashRecord(x,project,month){
  return norm(x.project)===project||norm(x.fromProject)===project||
   norm(x.toProject)===project;
 }
-function attestMonth({project,month,revision,records,payments,cashDocument,seedDocument,expectedSeedHash=SEED_HASH}={}){
+function attestMonth({project,month,revision,records,payments,cashDocument,seedDocument,expectedSeedHash=SEED_HASH,
+ appendOnly=false}={}){
  if(typeof project!=='string'||!project||norm(project)!==project||
    !/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)||month<'2026-10'||
    !Number.isSafeInteger(revision)||revision<0||
@@ -78,14 +79,14 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
    all.push({...item,...(state.legacyOverrides[item.id]||{})});
   }
  }
- for(const entry of all)if(activeCashRecord(entry,project,month)){
+ for(const entry of all)if(!appendOnly&&activeCashRecord(entry,project,month)){
   blockers.push('CASH_OR_LEGACY_SOURCE_REQUIRES_RULES');break;
  }
  for(const key of ['inflowRecords','salaryRecords','paymentRequests']){
   const collection=state[key];
   if(collection!==undefined&&!bounded(collection,20000))
     blockers.push('UNVERIFIED_CASH_COLLECTION');
-  else if(Array.isArray(collection)&&collection.some(x=>
+  else if(!appendOnly&&Array.isArray(collection)&&collection.some(x=>
     (norm(x?.project)===project||norm(x?.fromProject)===project||
       norm(x?.toProject)===project)&&
     String(x?.actualDate||x?.paymentDate||'').startsWith(month+'-')))
@@ -138,20 +139,22 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
    blockers.push('PAYMENT_ROW_DATE_AMOUNT_OR_CATEGORY_CHANGED');
   }
  }
- if(seen.size!==paid.size)blockers.push('PAID_MONTH_PROJECT_COUNT_OR_ALIAS_MISMATCH');
+ if(!appendOnly&&seen.size!==paid.size)
+  blockers.push('PAID_MONTH_PROJECT_COUNT_OR_ALIAS_MISMATCH');
  if(project==='FOXCONN')blockers.push('FOXCONN_IMPORT_TAX_LAYOUT_REQUIRES_RULES');
- if(!records.length&&paid.size)blockers.push('PAYMENT_ROWS_NOT_IN_EXPORT');
+ if(!records.length&&(appendOnly||paid.size))blockers.push('PAYMENT_ROWS_NOT_IN_EXPORT');
  const unique=[...new Set(blockers)].sort();
  return Object.freeze({
   kind:'INDEPENDENT_PROJECT_MONTH_SOURCE_CHECK_V1',project,month,revision,
   paymentRowsRead:payments.length,canonicalPaidRows:paid.size,
   sourceRowsChecked:records.length,
-  sourceIdsMatched:seen.size===paid.size,
+  sourceIdsMatched:appendOnly?seen.size===records.length:seen.size===paid.size,
   blockers:Object.freeze(unique),verified:unique.length===0&&records.length>0,
   // This narrow certification is ONLY about the known canonical paid-month
   // payment stream, not aliases/old cash outside the stored archive.
-  legacyAndTransfersCertified:unique.length===0,
+  legacyAndTransfersCertified:!appendOnly&&unique.length===0,
   fullPaymentAliasHistoryCertified:false,
+  newlyAppendedOnly:appendOnly,
   sourceComplete:false,canWrite:false,googleWrites:0,
   sourceFingerprint:sha(records.map(r=>[r.id,r.values,r.hash,r.members]))
  });
