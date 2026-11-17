@@ -17,6 +17,7 @@ const savedSourceInspect=sourceRoute.inspect;
 sourceRoute.inspect=async({input})=>({
  kind:'INDEPENDENT_MONTHLY_SOURCE_BATCH_READONLY_V1',
  month:input.month,revision:input.revision,canWrite:false,googleWrites:0,
+ newlyAppendedOnly:true,
  projects:input.projects.map(g=>({project:g.project,verified:true}))
 });
 const handler=require('../api/cash-sync-multi-project.js');
