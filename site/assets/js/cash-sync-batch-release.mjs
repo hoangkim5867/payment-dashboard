@@ -70,7 +70,9 @@ export function buildBatchReleasePlan({month,revision,manifest,scan}={}){
   }else if(result.result==='NEWER_THAN_HISTORY_CANDIDATE'&&
     !flags.financial&&!flags.duplicate&&!flags.mismatch&&
     result.dateReview!==true&&valid(result.newerCandidates)&&
-    result.newerCandidates>0){
+    valid(result.backfillCandidates??0)&&
+    result.newerCandidates+(result.backfillCandidates||0)>0&&
+    (result.unsafeBackfill||0)===0){
    category='needsSourceProof';
    reason='Đã thấy giao dịch mới. Phải chứng nhận ID Cash Control từ máy chủ, đối chiếu số dư và kiểm tra tab kỹ thuật trước khi ghi.';
   }else{
@@ -85,6 +87,7 @@ export function buildBatchReleasePlan({month,revision,manifest,scan}={}){
    sourceCount:source.groupedExcelRows,
    exactMatches:valid(result.exactMatches)?result.exactMatches:null,
    newerCandidates:valid(result.newerCandidates)?result.newerCandidates:null,
+   backfillCandidates:valid(result.backfillCandidates)?result.backfillCandidates:0,
    canCommit:false,sourceCertified:false,googleWrites:0
   }));
  }
@@ -156,8 +159,11 @@ export async function executeCertifiedBatch({
    return frozen({status:'stopped_preview',project:item.project,
     error:String(error.message||error).slice(0,160),written,skipped,requiresReadback:false});
   }
-  if(signed.summary.changes===0){skipped.push(item.project);continue;}
-  if(signed.summary.changes!==item.newRows)
+  if(signed.summary.newRows===0&&signed.summary.changes===0){
+   skipped.push(item.project);continue;
+  }
+  if(signed.summary.newRows!==item.newRows||
+     signed.summary.changes<item.newRows)
    return frozen({status:'stopped_changed_rows',project:item.project,
     written,skipped,requiresReadback:false});
   if(!sessionCurrent())return frozen({
@@ -174,7 +180,8 @@ export async function executeCertifiedBatch({
   if(!result||result.mode!=='verified'||result.writes!==1||
     result.summary?.project!==item.project||
     result.summary?.month!==month||result.summary?.originalUntouched!==true||
-    result.summary?.changes!==item.newRows){
+    result.summary?.newRows!==item.newRows||
+    result.summary?.changes<item.newRows){
    return frozen({status:'uncertain_never_retry',project:item.project,
     written,skipped,requiresReadback:true});
   }
