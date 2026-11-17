@@ -116,6 +116,8 @@ async function prepare(bearer,input){
  return {plan,snapshot,batch,blocked:[]};
 }
 async function handler(req,res,testOnly=false){
+ // Only server-attested pre-write failures can safely let the next project run.
+ let googleWriteAttempted=false;
  res.setHeader('Cache-Control','no-store,max-age=0');
  res.setHeader('Content-Type','application/json; charset=utf-8');
  if(req.method!=='POST')return res.status(405).json({error:'Only POST supported.'});
@@ -181,7 +183,7 @@ async function handler(req,res,testOnly=false){
    die('S13-2 TEST không khớp số dư sổ gốc trước ba khoản (65.583.133 VND).');
   if(current.blocked.length)
    return res.status(409).json({error:'Có khoản cần đối chiếu, không ghi.',
-    project:input.project,blocked:current.blocked.slice(0,30),writes:0});
+    project:input.project,blocked:current.blocked.slice(0,30),writes:0,writeAttempted:false});
   const {plan,snapshot,batch}=current;
   const monthClosingBalance=plan.viewRows.reduce((balance,row)=>
    row.values[0].slice(0,7)<=input.month?balance+net(row.values):balance,plan.historicalOpening);
@@ -229,7 +231,9 @@ async function handler(req,res,testOnly=false){
           records:missingRows.map(row=>({
             id:row.id,project:row.project,month:row.month,
             sourceClass:row.sourceClass,members:row.members,
-            values:row.values,hash:row.hash
+            // Google writer uses 14 normalized fields; source proof accepts
+            // the canonical 13 fields and independently re-normalizes them.
+            values:row.values.slice(0,13),hash:row.hash
           }))
         }]}
     });
@@ -244,6 +248,8 @@ async function handler(req,res,testOnly=false){
    }
   }
   // Atomic Google batchUpdate only touches machine-owned grid IDs.
+  // After this point, a timeout may hide a successful Google write.
+  googleWriteAttempted=true;
   await google(authorization,input.spreadsheetId,':batchUpdate','POST',
    {requests:batch.requests,includeSpreadsheetInResponse:false});
   // Verify exact mirror data, spreadsheet formula layout and closing balance.
@@ -262,7 +268,9 @@ async function handler(req,res,testOnly=false){
    error.statusCode:500;
   return res.status(code).json({error:code===500?
    'Không xác minh được Google Sheets; KHÔNG tự ghi lại.':
-   String(error.message||'Chặn đồng bộ.')});
+   String(error.message||'Chặn đồng bộ.'),
+   writeAttempted:googleWriteAttempted,
+   ...(googleWriteAttempted?{}:{writes:0})});
  }
 };
 
