@@ -55,6 +55,12 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    records.length>10000||!Array.isArray(history)||history.length>20000||
    typeof audit!=='function')throw Error('INVALID_READONLY_COMPARISON');
  // The source must be the canonical grouped Export Excel numeric values.
+ // Project-specific owner policy: if the original Google ledger has an
+ // October 2026 transaction, its forward sync starts in November. Otherwise
+ // October is the first month that may require appending.
+ const originalOctoberPresent=history.some(row=>Array.isArray(row)&&
+  date(row[0])?.slice(0,7)==='2026-10');
+ const syncStartMonth=originalOctoberPresent?'2026-11':'2026-10';
  const signatures=new Map(),historyRows=[],sourceRows=[];
  let historyInMonth=0,invalidHistoryRows=0,latest='';
  for(const [rowIndex,row] of history.entries()){
@@ -240,7 +246,7 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    newerCandidates||backfillCandidates?'NEWER_OR_BACKFILL_CANDIDATES_ONLY':
    dateReview?'DATE_ORDER_ONLY':'EXACT_HISTORY';
  return Object.freeze({
-   project,month,sourceRows:records.length,historyRows:historicalAudit.transactionRows,
+   project,month,syncStartMonth,originalOctoberPresent,sourceRows:records.length,historyRows:historicalAudit.transactionRows,
    historyInMonth,exactMatches,newerCandidates,backfillCandidates,unsafeBackfill,
    candidateSourceRows:Object.freeze(candidateSourceRows),
    unmatchedBeforeHistoryEnd,
