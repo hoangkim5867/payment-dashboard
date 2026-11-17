@@ -73,7 +73,7 @@ const candidate=(project)=>({
 });
 const signed=(project,changes=1)=>({
  mode:'preview',writes:0,writeConfigured:true,signature:'b'.repeat(64),
- summary:{project,month,changes,originalUntouched:true}
+ summary:{project,month,changes,newRows:changes,originalUntouched:true}
 });
 test('one confirmation, sequential per-project preview+write; zero second write for no-change project',async()=>{
  const calls=[];let confirmations=0;
@@ -85,7 +85,7 @@ test('one confirmation, sequential per-project preview+write; zero second write 
    return signed(x.project,x.project==='EATON'?1:0)},
   commit:async x=>{calls.push('commit:'+x.project);return{
    mode:'verified',writes:1,summary:{project:x.project,month,
-    changes:1,originalUntouched:true}}}
+    changes:1,newRows:1,originalUntouched:true}}}
  });
  assert.equal(r.status,'verified');
  assert.deepEqual(r.written,['EATON']);
@@ -132,4 +132,30 @@ test('failed signed preview never commits and does not continue later projects',
  });
  assert.equal(r.status,'stopped_preview');
  assert.equal(commits,0);
+});
+
+test('safe backdated October posting enters source attestation queue without gaining write permission',()=>{
+ const scan=record('ELYSIAN','NEWER_THAN_HISTORY_CANDIDATE',{
+  sourceRows:2,exactMatches:1,newerCandidates:0,backfillCandidates:1,
+  unsafeBackfill:0,historyUnmatched:0,reviewCategory:'NEWER_OR_BACKFILL_CANDIDATES_ONLY'});
+ const plan=make([group('ELYSIAN',2)],[scan]);
+ assert.equal(plan.counts.needsSourceProof,1);
+ assert.equal(plan.groups.needsSourceProof[0].backfillCandidates,1);
+ assert.equal(plan.groups.needsSourceProof[0].newerCandidates,0);
+ assert.equal(plan.canCommit,false);
+});
+test('batch differentiates brand new Google entries from ID bindings of already existing history',async()=>{
+ const item=candidate('EATON');item.newRows=1;
+ let commits=0;
+ const result=await executeCertifiedBatch({
+  month,revision:341,items:[item],sessionCurrent:()=>true,
+  confirm:async xs=>{assert.equal(xs[0].newRows,1);return true},
+  preview:async()=>({...signed('EATON'),summary:{project:'EATON',month,
+    changes:70,newRows:1,boundExisting:69,originalUntouched:true}}),
+  commit:async()=>{commits++;return{mode:'verified',writes:1,
+   summary:{project:'EATON',month,changes:70,newRows:1,originalUntouched:true}}}
+ });
+ assert.equal(result.status,'verified');
+ assert.equal(commits,1);
+ assert.deepEqual(result.written,['EATON']);
 });
