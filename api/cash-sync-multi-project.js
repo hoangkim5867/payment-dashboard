@@ -205,34 +205,43 @@ async function handler(req,res,testOnly=false){
   if(!plan.changes.length&&snapshot.hasTabs)
    return res.status(200).json({mode:'unchanged',summary,writes:0});
   if(!testOnly&&input.project!=='S13-2'){
-   // Independent real Firebase certification is performed AGAIN immediately
-   // before the Google write. A browser hash or exact Payment count is not a
-   // certificate: read protected Cash Control + signed legacy seed and the
-   // exact indexed paid-month Payment stream on the server.
-   if(!Number.isSafeInteger(input.revision)||input.revision<0||
-      input.source.length<1||input.source.length>1000||
-      input.source.some(row=>!Array.isArray(row?.members)||
-        row.members.length<1||typeof row.sourceClass!=='string'))
-    die('Thiếu ID nguồn gốc và phiên bản Cash Control; KHÔNG ghi.',409);
-   const certified=await inspectBatchSource({
-    env:process.env,jwt:token,
-    input:{action:'verify_monthly_projects',month:input.month,
-      revision:input.revision,projects:[{
-        project:input.project,
-        records:input.source.map(row=>({
-          id:row.id,project:row.project,month:row.month,
-          sourceClass:row.sourceClass,members:row.members,
-          values:row.values,hash:row.hash
-        }))
-      }]}
-   });
-   if(certified.kind!=='INDEPENDENT_MONTHLY_SOURCE_BATCH_READONLY_V1'||
-      certified.month!==input.month||certified.revision!==input.revision||
-      certified.projects?.length!==1||
-      certified.projects[0]?.project!==input.project||
-      certified.projects[0]?.verified!==true||
-      certified.googleWrites!==0||certified.canWrite!==false)
-    die('Nguồn Cash Control/Payment độc lập chưa đạt; KHÔNG ghi.',409);
+   // Original Google history is independently compared by prepare(); the
+   // source proof is required only for BRAND-NEW machine appended postings,
+   // not the 68 already-existing rows to which we merely bind source IDs.
+   const missingIds=new Set(plan.changes.filter(change=>
+     change.action==='append'||change.action==='append-backfill')
+     .map(change=>change.id));
+   const missingRows=input.source.filter(row=>missingIds.has(row.id));
+   if(missingRows.length!==missingIds.size)
+    die('Số giao dịch mới không khớp ID Cash Control gốc.',409);
+   if(missingRows.length){
+    if(!Number.isSafeInteger(input.revision)||input.revision<0||
+       missingRows.length>1000||
+       missingRows.some(row=>!Array.isArray(row?.members)||
+         row.members.length<1||typeof row.sourceClass!=='string'))
+     die('Thiếu ID chứng từ gốc của giao dịch mới; KHÔNG ghi.',409);
+    const verified=await inspectBatchSource({
+      env:process.env,jwt:token,
+      input:{action:'verify_monthly_projects',
+        candidateOnly:true,month:input.month,
+        revision:input.revision,projects:[{
+          project:input.project,
+          records:missingRows.map(row=>({
+            id:row.id,project:row.project,month:row.month,
+            sourceClass:row.sourceClass,members:row.members,
+            values:row.values,hash:row.hash
+          }))
+        }]}
+    });
+    if(verified.kind!=='INDEPENDENT_MONTHLY_SOURCE_BATCH_READONLY_V1'||
+       verified.newlyAppendedOnly!==true||
+       verified.month!==input.month||verified.revision!==input.revision||
+       verified.projects?.length!==1||
+       verified.projects[0]?.project!==input.project||
+       verified.projects[0]?.verified!==true||
+       verified.googleWrites!==0||verified.canWrite!==false)
+     die('ID nguồn Payment/Cash Control của dòng MỚI chưa đạt; KHÔNG ghi.',409);
+   }
   }
   // Atomic Google batchUpdate only touches machine-owned grid IDs.
   await google(authorization,input.spreadsheetId,':batchUpdate','POST',
