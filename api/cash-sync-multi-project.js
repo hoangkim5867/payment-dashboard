@@ -191,6 +191,11 @@ async function handler(req,res,testOnly=false){
   const summary={project:plan.project,month:plan.month,
    historical:plan.viewRows.filter(x=>x.origin==='HISTORY').length,
    generated:plan.viewRows.length,changes:plan.changes.length,
+   // Bind-existing-history is technical bookkeeping, NOT a new payment.
+   // Never tell Admin to approve 70 "new" rows when 68 already exist.
+   newRows:plan.changes.filter(x=>x.action==='append'||x.action==='append-backfill').length,
+   backfillRows:plan.changes.filter(x=>x.action==='append-backfill').length,
+   boundExisting:plan.changes.filter(x=>x.action==='bind-history').length,
    closingBalance:plan.closingBalance,monthClosingBalance,originalUntouched:true};
   if(input.action==='preview')
    return res.status(200).json({mode:'preview',summary,signature:batch.fingerprint,
