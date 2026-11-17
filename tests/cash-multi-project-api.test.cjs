@@ -14,12 +14,22 @@ require.cache[guard]={id:guard,filename:guard,loaded:true,exports:{
 // tests inspect those reads and archive signature; this fake has NO network.
 const sourceRoute=require('../server/cash-sync-batch-source-reader.cjs');
 const savedSourceInspect=sourceRoute.inspect;
-sourceRoute.inspect=async({input})=>({
+sourceRoute.inspect=async({input})=>{
+ assert.equal(input.action,'verify_monthly_projects');
+ assert.equal(input.newlyAppendedOnly,undefined);
+ assert.equal(input.revision,42);
+ for(const group of input.projects)for(const row of group.records){
+  assert.equal(row.values.length,13,'source proof must use 13 original fields');
+  assert.ok(Array.isArray(row.members)&&row.members.length>0);
+  assert.equal(typeof row.sourceClass,'string');
+ }
+ return ({
  kind:'INDEPENDENT_MONTHLY_SOURCE_BATCH_READONLY_V1',
  month:input.month,revision:input.revision,canWrite:false,googleWrites:0,
  newlyAppendedOnly:true,
  projects:input.projects.map(g=>({project:g.project,verified:true}))
-});
+ });
+};
 const handler=require('../api/cash-sync-multi-project.js');
 sourceRoute.inspect=savedSourceInspect;
 const testHandler=require('../api/cash-sync-s13-test.js');
@@ -395,4 +405,15 @@ test('release allowlist is exact single original Google file and gid only',()=>{
  assert.equal(canWriteTarget(env,'S13-2','anotherGoogleSpreadsheetId_12345678',historySheetId),false);
  assert.equal(canWriteTarget({...env,CASH_SYNC_MULTI_PRODUCTION_WRITES:'NO'},'S13-2',spreadsheetId,historySheetId),false);
  assert.equal(canWriteTarget({...env,VERCEL_ENV:'preview'},'S13-2',spreadsheetId,historySheetId),false);
+});
+
+test('missing original member identity rejects BEFORE Google write, reports no-write state',async()=>{
+ const f=fixture('CN8-2');
+ const preview=await f.call('preview',{enabled:true});
+ const blocked=await f.call('commit',{enabled:true,revision:undefined,
+  signature:preview.signature,confirm:'SYNC_THIS_PROJECT'});
+ assert.equal(blocked.status,409);
+ assert.equal(blocked.writeAttempted,false);
+ assert.equal(blocked.writes,0);
+ assert.equal(f.state.writes,0);
 });
