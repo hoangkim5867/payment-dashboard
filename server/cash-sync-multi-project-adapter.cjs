@@ -86,6 +86,45 @@ function gridRows(rows,balanceIndex=null){
    i>0&&balanceIndex!==null&&j===balanceIndex?
      {userEnteredValue:{formulaValue:value}}:cell(value))}));
 }
+// Match PHU HUNG's clean green finance style for the existing internal
+// CASHCONTROL_VIEW without shifting rows, changing formulas or the original
+// historical worksheet. Only DATA_CASHCONTROL remains a hidden machine tab.
+// Excel distributed to staff is separately built with ONE sheet only.
+function presentationRequests(viewId,rowCount){
+ if(!Number.isSafeInteger(viewId)||viewId<0||
+    !Number.isSafeInteger(rowCount)||rowCount<1||rowCount>10001)
+  die('Không thể định dạng tab tổng hợp không hợp lệ.');
+ const green={red:0.88,green:0.94,blue:0.90};
+ const pale={red:0.85,green:0.88,blue:0.85};
+ const money='#,##0;-#,##0;;@';
+ const widths=[115,190,260,390,115,135];
+ const requests=[
+  {updateSheetProperties:{properties:{sheetId:viewId,
+   gridProperties:{frozenRowCount:1}},fields:'gridProperties.frozenRowCount'}},
+  {repeatCell:{range:{sheetId:viewId,startRowIndex:0,endRowIndex:1,
+    startColumnIndex:0,endColumnIndex:18},
+   cell:{userEnteredFormat:{backgroundColor:green,
+    textFormat:{bold:true,fontFamily:'Arial',fontSize:11},
+    horizontalAlignment:'CENTER',verticalAlignment:'MIDDLE',
+    wrapStrategy:'WRAP'}},
+   fields:'userEnteredFormat'}},
+  {repeatCell:{range:{sheetId:viewId,startRowIndex:1,endRowIndex:rowCount,
+    startColumnIndex:6,endColumnIndex:15},
+   cell:{userEnteredFormat:{numberFormat:{type:'NUMBER',pattern:money}}},
+   fields:'userEnteredFormat.numberFormat'}},
+  {updateDimensionProperties:{range:{sheetId:viewId,dimension:'COLUMNS',
+    startIndex:15,endIndex:18},
+   properties:{hiddenByUser:true},fields:'hiddenByUser'}},
+  {updateDimensionProperties:{range:{sheetId:viewId,dimension:'COLUMNS',
+    startIndex:6,endIndex:15},
+   properties:{pixelSize:145},fields:'pixelSize'}}
+ ];
+ for(let i=0;i<widths.length;i++)
+  requests.push({updateDimensionProperties:{range:{sheetId:viewId,
+   dimension:'COLUMNS',startIndex:i,endIndex:i+1},
+   properties:{pixelSize:widths[i]},fields:'pixelSize'}});
+ return requests;
+}
 function compileBatch({plan,metadata,historySheetId,openingBalance=0}){
  if(plan?.status!=='CANDIDATES_ONLY'||plan.canWrite!==false||
     !Array.isArray(plan.viewRows)||!Array.isArray(plan.mirrorNext))
@@ -127,6 +166,7 @@ function compileBatch({plan,metadata,historySheetId,openingBalance=0}){
  requests.push({updateCells:{range:{sheetId:viewId,startRowIndex:0,startColumnIndex:0,
    endRowIndex:viewMatrix.length,endColumnIndex:18},
    rows:gridRows(viewMatrix,14),fields:'userEnteredValue'}});
+ requests.push(...presentationRequests(viewId,viewMatrix.length));
  return {requests,mirrorId,viewId,historySheetId,
    historyPreserved:true,
    expectedMirror:mirrorMatrix,expectedView:viewMatrix,
@@ -135,4 +175,4 @@ function compileBatch({plan,metadata,historySheetId,openingBalance=0}){
    canWrite:false,approvedWrites:0};
 }
 module.exports={MIRROR,VIEW,MIRROR_HEADER,VIEW_HEADER,parseStoredMirror,
- normalizeMirror,normalizeView,verifyExistingView,compileBatch};
+ normalizeMirror,normalizeView,verifyExistingView,presentationRequests,compileBatch};
