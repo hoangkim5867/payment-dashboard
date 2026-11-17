@@ -269,20 +269,12 @@ test('ELYSIAN one-project compare replaces misleading second planner totals with
  assert.match(build,/Sổ gốc giữ nguyên; chưa cấp phép đồng bộ/);
 });
 
-test('main-only Excel export uses one readonly Google VIEW and never exposes hidden internal workbook',()=>{
+test('unified 35-project batch uses existing one-click readonly scan, no misplaced Excel button',()=>{
  const build=fs.readFileSync(path.join(__dirname,'../deployment/build-site.cjs'),'utf8');
- const a=build.indexOf('async function ccSyncDownloadMainOnly(){');
- const b=build.indexOf("document.getElementById('ccSyncDownloadMainOnly')",a);
- assert.ok(a>0&&b>a,'main-only download function included');
- const block=build.slice(a,b);
- assert.match(build,/ccSyncDownloadMainOnly/);
- assert.match(build,/cash-sync-main-only-export\.mjs/);
- assert.match(block,/spreadsheets\.readonly/);
- assert.match(block,/includeGrantedScopes:false/);
- assert.match(block,/title=project==='PHU HUNG'\?'PHU HUNG':'CASHCONTROL_VIEW'/);
- assert.match(block,/const range=.*A1:/);
- assert.match(block,/buildMainOnlyWorkbook\(window\.XLSX,exported\)/);
- assert.match(block,/workbook\.SheetNames\.length!==1/);
- assert.match(block,/KHÔNG chia sẻ link Google nội bộ/);
- assert.doesNotMatch(block,/\/api\/cash-sync-multi-project|:batchUpdate|action:'commit'|setDoc\(|updateDoc\(/);
+ assert.doesNotMatch(build,/id="ccSyncDownloadMainOnly"|async function ccSyncDownloadMainOnly/);
+ assert.match(build,/buildBatchReleasePlan/);
+ assert.match(build,/cash-sync-batch-release\\.mjs/);
+ assert.match(build,/batchRelease\\.readyToCommit!==0/);
+ assert.match(build,/CHUẨN BỊ ĐỒNG BỘ CHUNG/);
+ assert.match(build,/batchRelease:\\{schema:batchRelease\\.schema/);
 });
