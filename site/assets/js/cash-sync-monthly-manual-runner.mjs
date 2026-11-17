@@ -136,6 +136,7 @@ export async function runManualMonthlySync({
    rows[pos]=entry(item.project,'SKIPPED','ADMIN_SESSION_EXPIRED');
    onProject?.(rows[pos]);continue;
   }
+  let attemptedCommit=false;
   try{
    const fresh=await preview(cleanInput({month,item,action:'preview'}));
    const proof=verifyReply(fresh,{...item,month});
@@ -146,6 +147,9 @@ export async function runManualMonthlySync({
     rows[pos]=entry(item.project,'SKIPPED','SERVER_WRITE_GATE_CLOSED',
       proof.changes,proof.monthClosingBalance);
    }else{
+    // Once a Google write request is issued, an error may be an ambiguous
+    // success. Stop the remaining batch and require a fresh Google readback.
+    attemptedCommit=true;
     const written=await commit(cleanInput({
      month,item,action:'commit',signature:fresh.signature
     }));
@@ -162,7 +166,19 @@ export async function runManualMonthlySync({
   }catch(e){
    rows[pos]=entry(item.project,'FAILED',errorCode(e));
    onProject?.(rows[pos]);
-   // Never automatically retry any Google write: readback may be uncertain.
+   // Preview-only failures are isolated. After ANY attempted write, a failure
+   // is potentially ambiguous; do not continue to other projects or retry.
+   if(attemptedCommit){
+    for(const pending of candidates.slice(candidates.indexOf(item)+1)){
+     const next=rows.findIndex(r=>r.project===pending.project);
+     if(next>=0&&rows[next].status==='READY'){
+      rows[next]=entry(pending.project,'SKIPPED',
+       'PREVIOUS_WRITE_UNCERTAIN_REQUIRE_GOOGLE_READBACK');
+      onProject?.(rows[next]);
+     }
+    }
+    break;
+   }
   }
  }
  return Object.freeze({
