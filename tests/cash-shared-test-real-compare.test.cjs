@@ -41,7 +41,7 @@ test('real-format source comparing baseline history produces review and zero wri
  assert.equal(out.exactHistoryMatched,1);
  assert.equal(out.newAfterHistoryCandidates,1);
  assert.equal(out.olderUnmatched,1);
- assert.equal(out.coreStatus,'REVIEW_REQUIRED');
+ assert.equal(out.coreStatus,'CANDIDATES_ONLY'); // technical VIEW may backfill only after real source proof, no TEST writes
  assert.equal(out.canSync,false);
  assert.equal(out.canWrite,false);
  assert.equal(out.sourceComplete,false);
