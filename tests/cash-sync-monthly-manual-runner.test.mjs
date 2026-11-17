@@ -100,7 +100,7 @@ test('after approval, fresh preview blocks changed balance or closed write gate;
  assert.equal(result.summary.skipped,1);
  assert.equal(result.summary.unchanged,1);
 });
-test('write result uncertainty is an isolated failure, never auto-retried',async()=>{
+test('uncertain Google write stops all later projects pending readback, no retry',async()=>{
  let commits=0;
  const result=await runManualMonthlySync({
   month:MONTH,projects:[make('A'),make('B')],
@@ -110,9 +110,12 @@ test('write result uncertainty is an isolated failure, never auto-retried',async
    return {...ok(b),mode:'verified',writes:1}
   }
  });
- assert.equal(commits,2);
+ assert.equal(commits,1);
  assert.equal(result.summary.failed,1);
- assert.equal(result.summary.verified,1);
+ assert.equal(result.summary.skipped,1);
+ assert.equal(result.summary.verified,0);
+ assert.equal(result.rows.find(x=>x.project==='B').reason,
+  'PREVIOUS_WRITE_UNCERTAIN_REQUIRE_GOOGLE_READBACK');
 });
 test('source validation rejects forged placeholders and wrong periods before network calls',async()=>{
  const list=[make('A',{source:[{id:'excel-row:6',project:'A',month:MONTH,
