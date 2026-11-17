@@ -140,7 +140,12 @@ function buildCashSyncPanel(html) {
     "            'Admin đã hủy xác nhận riêng PHU HUNG', {status:pilot?.mode==='verified'?'VERIFIED':\n"+
     "              pilot?.mode==='unchanged'?'UNCHANGED':'SKIPPED',closingBalance:pilot?.summary?.balance});");
   swap('output.replaceChildren(summaryArea,table,copy);output.hidden=false;',
-    'renderCashSyncAudit(output,summaryArea,table,copy,actionQueue.counts);');
+    'renderCashSyncAudit(output,summaryArea,table,copy,actionQueue.counts,actionQueue.dateOrderOnly.length);');
+  const auditStatus = cut("      status.textContent='ĐỐI CHIẾU THÁNG '+month", '\n    });\n  }catch(e){');
+  const auditRender = '      renderCashSyncAudit(output,summaryArea,table,copy,actionQueue.counts,actionQueue.dateOrderOnly.length);';
+  swap(auditRender, auditRender+
+    "\n      status.textContent='Tháng '+month.slice(5)+'/'+month.slice(0,4)+' · Chỉ đọc';");
+  if(!auditStatus.includes('Google reads'))throw Error('Unexpected audit status block');
   const register="  $('ccSyncExportVisibleOnly')?.addEventListener('click',ccSyncExportVisibleOnly);";
   swap(register,register+'\n  setupCashSyncPanel();');
   return html;

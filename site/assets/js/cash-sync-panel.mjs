@@ -112,12 +112,13 @@ export function renderCashSyncSummary(month, result, pilotMode, list) {
   summary.hidden = false;
 }
 
-export function renderCashSyncAudit(output, diagnostics, table, copy, counts) {
+export function renderCashSyncAudit(output, diagnostics, table, copy, counts, dateWarnings) {
   const title = element('strong','','Kết quả đối chiếu');
   const line = [
-    [counts.noDifference,'đã khớp'],
+    [counts.noDifference+dateWarnings,'đã khớp giao dịch'],
+    [dateWarnings,'chỉ cảnh báo thứ tự ngày'],
     [counts.newCandidateReview,'có khoản ứng viên'],
-    [counts.historyReview,'có cảnh báo đối chiếu'],
+    [counts.historyReview-dateWarnings,'cần đối chiếu thêm'],
     [counts.needsSetup,'thiếu nguồn hoặc link'],
   ].filter(([n])=>n>0).map(([n,label])=>n+' '+label).join(' · ');
   const intro = element('p','',line || 'Không có giao dịch trong phạm vi đã kiểm tra.');
