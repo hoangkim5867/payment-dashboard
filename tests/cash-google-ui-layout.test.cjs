@@ -265,6 +265,6 @@ test('ELYSIAN one-project compare replaces misleading second planner totals with
  assert.match(build,/14\/62 là bộ thuật toán khác/);
  assert.match(build,/Nhân sự: khác metadata, không yêu cầu HĐ\/IPC/);
  assert.match(build,/Hoàn vay FOXCONN: ứng viên đối ứng Google, chưa xác minh ID/);
- assert.match(build,/KHÔNG tự thêm khoản đó/);
- assert.match(build,/Không chỉnh sổ gốc, không mở ghi Production/);
+ assert.match(build,/KHÔNG TỰ GHI \/ GHÉP TRÙNG/);
+ assert.match(build,/Sổ gốc giữ nguyên; chưa cấp phép đồng bộ/);
 });
