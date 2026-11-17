@@ -29,7 +29,7 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    // hidden "PHU_HUNG_HISTORY_BACKUP". Do not drive that workbook through
    // the new "CASHCONTROL_VIEW" writer: it misdiagnoses a healthy pilot
    // as a half-created technical-tab pair. Other projects use shared sync.
-   const pilotStandalone="const sourceComplete=project!=='PHU HUNG'&&\\n          group.state==='HISTORY_COMPARISON_CANDIDATE'&&";
+   const pilotStandalone="const sourceComplete=project!=='PHU HUNG'&&\n          group.state==='HISTORY_COMPARISON_CANDIDATE'&&";
    const pilotShared="const sourceComplete=group.state==='HISTORY_COMPARISON_CANDIDATE'&&";
    if(!text.includes(pilotStandalone)&&!text.includes(pilotShared))
      throw Error('PHU HUNG monthly source branch anchor moved');
