@@ -268,8 +268,19 @@ export async function scanMonthlyGoogleReadOnly({
      const metadata=await get('?fields=spreadsheetId,sheets(properties(sheetId,title,hidden,gridProperties(rowCount)))');
      if(metadata.spreadsheetId!==spreadsheetId||
        !Array.isArray(metadata.sheets))throw Error('GOOGLE_FILE_MISMATCH');
-     const selected=metadata.sheets.map(s=>s?.properties).find(s=>s?.sheetId===gid);
-     if(!selected||selected.hidden===true||!selected.title||
+     const tabs=metadata.sheets.map(s=>s?.properties);
+     const selected=tabs.find(s=>s?.sheetId===gid);
+     // PHU HUNG is already activated: its immutable original was renamed
+     // PHU_HUNG_HISTORY_BACKUP and deliberately hidden, while the live
+     // public-facing PHU HUNG view remains visible and the mirror hidden.
+     // Reading this ONE verified legacy backup is safe; never accept arbitrary
+     // hidden tabs, even if the user supplies a hidden gid manually.
+     const phuArchive=group.project==='PHU HUNG'&&
+       selected?.title==='PHU_HUNG_HISTORY_BACKUP'&&selected.hidden===true&&
+       tabs.some(s=>s?.title==='PHU HUNG'&&s.hidden!==true)&&
+       tabs.some(s=>s?.title==='DATA_CASHCONTROL'&&s.hidden===true);
+     if(!selected||!selected.title||
+       (selected.hidden===true&&!phuArchive)||
        /^(?:DATA_CASHCONTROL|CASHCONTROL_VIEW|DATA_CASHCONTROL_TEST_)/i.test(selected.title)||
        selected.gridProperties?.rowCount>20000)
        throw Error('ORIGINAL_HISTORY_TAB_NOT_VERIFIED');
