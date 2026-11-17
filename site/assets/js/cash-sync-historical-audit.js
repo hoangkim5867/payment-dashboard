@@ -457,15 +457,39 @@
     const moneyGoogle=row=>Array.isArray(row)?row.slice(6,13).map(v=>amount(v,true)):[];
     const equalMoney=(a,b)=>a.length===7&&b.length===7&&
       a.every((v,i)=>Number.isFinite(v)&&Number.isFinite(b[i])&&rounded(v)===rounded(b[i]));
+    const categories=['Thu','Thầu phụ','Vật tư','Chi trực tiếp khác','Chi gián tiếp','Tài chính','Phải trả khác'];
+    const signedNet=values=>values.length===7&&values.every(Number.isFinite)?
+      rounded(values[0]-values.slice(1).reduce((sum,n)=>sum+n,0)):null;
+    const oneSidedByMonth=new Map();
+    for(const [kind,numbers] of [['cash',onlyCash],['google',onlyGoogle]]){
+      for(const position of numbers){
+        const row=kind==='cash'?sourceRows[position-1]:historyRows[position-1];
+        const date=dateValue(kind==='cash'?row?.date:row?.[0]);
+        if(!date)continue;
+        const month=date.slice(0,7);
+        if(!oneSidedByMonth.has(month))oneSidedByMonth.set(month,{month,cash:0,google:0});
+        oneSidedByMonth.get(month)[kind]++;
+      }
+    }
     const possibleTransferCounterparts=[];
     for(const sourcePosition of transferSource){
       const source=sourceRows[sourcePosition-1],srcMoney=moneySource(source);
       for(const googleRow of transferGoogle){
         const google=historyRows[googleRow-1],googleMoney=moneyGoogle(google);
         if(dateValue(source?.date)!==dateValue(google?.[0]))continue;
+        const sourceNet=signedNet(srcMoney),googleNet=signedNet(googleMoney);
+        const differingCategories=categories.flatMap((category,index)=>
+          Number.isFinite(srcMoney[index])&&Number.isFinite(googleMoney[index])&&
+          rounded(srcMoney[index])!==rounded(googleMoney[index])?
+          [Object.freeze({category,source:srcMoney[index],google:googleMoney[index]})]:[]);
         possibleTransferCounterparts.push(Object.freeze({
           sourcePosition,googleRow,sameDay:true,
           exactSignedCategoryAmounts:equalMoney(srcMoney,googleMoney),
+          sourceNet,googleNet,
+          sameAbsoluteNet:sourceNet!==null&&googleNet!==null&&
+            Math.abs(sourceNet)===Math.abs(googleNet),
+          oppositeNet:sourceNet!==null&&googleNet!==null&&sourceNet===-googleNet,
+          differingCategories:Object.freeze(differingCategories),
           reviewOnly:true,matched:false,canWrite:false
         }));
       }
@@ -479,6 +503,9 @@
       transferGooglePositions:Object.freeze(transferGoogle),
       possibleTransferCounterparts:Object.freeze(possibleTransferCounterparts),
       otherSourceOnlyPositions:Object.freeze(otherSourceOnlyPositions),
+      oneSidedByMonth:Object.freeze([...oneSidedByMonth.values()]
+        .sort((a,b)=>a.month.localeCompare(b.month))
+        .map(row=>Object.freeze(row))),
       numericMatches:Number(comparison.matched||0),
       // No change to original comparator's 6/1 or eight identity flags.
       sourceComplete:false,canWrite:false,googleWrites:0
