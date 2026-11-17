@@ -7,7 +7,7 @@ const ORIGINAL=[
  ['2026-10-01','供应商','LAB-01','保函手续费','IPC001','间接费',0,0,0,0,100,0,0,-100],
  ['2026-10-20','供应商','LAB-02','10月材料款','IPC002','材料款',0,0,200,0,0,0,0,-300]
 ];
-const v=(date,amount,company='Nhân công')=>[date,'Lương Việt Nam','',`Lương Việt Nam · Tháng 11/2026`,'',company,0,0,0,0,amount,0,0,0];
+const v=(date,amount,company='Chi phí nhân sự')=>[date,'Lương Việt Nam','',`Lương Việt Nam · Tháng 11/2026`,'',company,0,0,0,0,amount,0,0,0];
 const paid=v('2026-11-13',1234);
 const future=v('2026-11-18',4321);
 const record=(id,values)=>({id,project:'ELYSIAN',month:'2026-11',values,hash:core.sha(values),status:'synced'});
