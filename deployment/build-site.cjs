@@ -667,6 +667,64 @@ document.getElementById("ccSyncNextProjectReadOnly")
    if(!text.includes(sumOld4))throw Error('PHU HUNG summary integration 4 moved');
    text=text.replace(sumOld4,"' đã khớp · '+t.previewOnly+' chỉ xem trước (chưa cấp phép) · '+\n        Math.max(0,t.skipped-(pilotDone?1:0))+' bỏ qua · '+t.failed+' cần kiểm tra · '+");
 
+
+   // Visible admin status, and one-sheet-only XLSX for circulation to staff.
+   const exportImport='import {buildOneSheetXlsx} from "./assets/js/cash-sync-report-export.mjs";';
+   const coreImport='import {runManualMonthlySync} from "./assets/js/cash-sync-monthly-manual-runner.mjs";';
+   if(!text.includes(coreImport))throw Error('Report-only XLSX import anchor moved');
+   text=text.replace(coreImport,coreImport+'\n'+exportImport);
+   const jsMarker='async function ccSyncMultiProjectManual(){';
+   if(!text.includes(jsMarker))throw Error('Shared sync JS insertion marker moved');
+   text=text.replace(jsMarker,"\nfunction ccSyncRefreshReportProjectOptions(){\n  const menu=$('ccSyncReportProject');\n  if(!menu||!isCashControlOwner())return;\n  const current=menu.value;\n  const projects=ccSyncProjectCatalogNames().filter(p=>\n    ccSyncProjectLinkValid(ccSyncProjectLinkDraft[p]||''));\n  menu.replaceChildren();\n  menu.add(new Option('Chọn dự án có link Google…',''));\n  for(const p of projects)menu.add(new Option(p,p));\n  if(projects.includes(current))menu.value=current;\n}\nasync function ccSyncExportVisibleOnly(){\n  const button=$('ccSyncExportVisibleOnly'),status=$('ccSyncReportExportStatus');\n  if(!button||!status||button.disabled)return;\n  button.disabled=true;\n  try{\n    if(!currentAuthUser||!isCashControlOwner()||firebaseConfig.projectId!=='cscecmep-payment')\n      throw Error('Chỉ Admin Cash Control chính được xuất file.');\n    if(!ccGoogleSyncToken)throw Error('Bấm Kết nối Google trước khi tải báo cáo.');\n    if(!window.XLSX)throw Error('Thư viện Excel chưa tải được.');\n    const project=$('ccSyncReportProject')?.value;\n    const rawLink=ccSyncProjectLinkDraft[project]||'';\n    if(!project||!ccSyncProjectLinkValid(rawLink))\n      throw Error('Chọn dự án đã có link Google Sheets.');\n    const url=new URL(rawLink),fileId=\n      /^\\/spreadsheets\\/d\\/([A-Za-z0-9_-]{20,100})(?:\\/|$)/.exec(url.pathname)?.[1];\n    if(url.hostname!=='docs.google.com'||url.protocol!=='https:'||!fileId)\n      throw Error('Link Google Sheets chưa hợp lệ.');\n    status.textContent='Đang tải CHỈ tab báo cáo '+project+' từ Google…';\n    const range=\"'\"+project.replace(/'/g,\"''\")+\"'!A1:O20000\";\n    const endpoint='https://sheets.googleapis.com/v4/spreadsheets/'+\n      encodeURIComponent(fileId)+'/values/'+encodeURIComponent(range)+\n      '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING';\n    const token=ccGoogleSyncToken;\n    const res=await fetch(endpoint,{headers:{Authorization:'Bearer '+token}});\n    const payload=await res.json().catch(()=>({}));\n    if(!res.ok)throw Error('Google Sheets '+res.status+': '+\n       String(payload?.error?.message||'Không có quyền đọc tab').slice(0,110));\n    if(!isCashControlOwner()||ccGoogleSyncToken!==token)\n      throw Error('Phiên Admin/Google đã thay đổi, dừng xuất file.');\n    const {workbook,rows}=buildOneSheetXlsx({\n      project,values:payload.values,XLSX:window.XLSX});\n    const month=String($('ccSyncBatchMonth')?.value||'').replace(/[^0-9-]/g,'');\n    window.XLSX.writeFile(workbook,project.replace(/[\\\\/:?*[\\]]/g,'_')+\n      '_BAO_CAO_'+(month||'CURRENT')+'_1_SHEET.xlsx');\n    status.textContent='ĐÃ XUẤT '+project+' · '+rows+\n       ' dòng · CHỈ 1 SHEET, không có tab lịch sử hoặc DATA_CASHCONTROL. '+\n       'Hãy gửi file này, KHÔNG chia sẻ file Google gốc nếu cần bảo mật tab ẩn.';\n  }catch(error){\n    status.textContent='KHÔNG XUẤT: '+String(error?.message||error).slice(0,200);\n  }finally{button.disabled=false}\n}\nfunction ccSyncUpdateOwnerSummary(month,result,pilotMode){\n  const area=$('ccSyncOwnerSummary');\n  if(!area||!result)return;\n  const x=result.summary||{};\n  const verified=(x.verified||0)+(pilotMode==='verified'?1:0);\n  const unchanged=(x.unchanged||0)+(pilotMode==='unchanged'?1:0);\n  const handledPilot=pilotMode==='verified'||pilotMode==='unchanged';\n  const skipped=Math.max(0,(x.skipped||0)-(handledPilot?1:0));\n  const failed=x.failed||0,waiting=x.ready||0;\n  const done=result.mode!=='NOT_APPROVED';\n  area.replaceChildren();\n  const strong=document.createElement('strong');\n  strong.textContent=done?'Kết quả đồng bộ '+month:\n    'CHƯA GHI · Bạn đã hủy hộp xác nhận';\n  strong.style.cssText='font-size:14px;color:#263446';\n  area.append(strong);\n  const row=document.createElement('div');\n  row.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:9px';\n  const data=[\n    ['✓ Đã ghi và đọc lại',verified,'#136e43','#e7f6ec'],\n    ['✓ Đã khớp, không ghi lại',unchanged,'#165a88','#eaf3fb'],\n    ['! Cần kiểm tra',failed,'#9e3e12','#fff2e7'],\n    ['○ Bỏ qua / chưa có link',skipped,'#566274','#f2f4f7'],\n    ['… Chưa ghi / chờ xác nhận',waiting,'#6e5e09','#fff8df']\n  ];\n  for(const [label,count,color,bg] of data){\n    const chip=document.createElement('span');\n    chip.style.cssText='padding:7px 10px;border-radius:8px;font-size:12px;'+\n      'font-weight:700;color:'+color+';background:'+bg;\n    chip.textContent=label+' · '+count;\n    row.append(chip);\n  }\n  area.append(row);\n  const caption=document.createElement('div');\n  caption.style.cssText='font-size:12px;color:#58677a;margin-top:8px';\n  caption.textContent='Chi tiết từng dự án nằm ngay bên dưới. '+\n    'Màu xanh là đã xác nhận trên Google; màu cam là chờ kiểm tra. '+\n    'Dự án chưa có link sẽ được bỏ qua.';\n  area.append(caption);\n}\n"+'\n'+jsMarker);
+   const catalog='<details id="ccGoogleSyncProjectLinkCatalog" hidden open ';
+   if(!text.includes(catalog))throw Error('Owner tab/accordion marker moved');
+   text=text.replace(catalog,
+     '<div id="ccSyncOwnerSummary" role="status" aria-live="polite" '+
+     'style="border:1px solid #d7e5db;background:#f8fbf8;border-radius:10px;padding:12px;'+
+     'margin:10px 0;font-size:13px;color:#3f4a59">CHƯA CHẠY ĐỒNG BỘ · Chọn tháng và bấm nút bên dưới.</div>'+catalog);
+   const exportPanel='<p id="ccSyncBatchStatus"';
+   if(!text.includes(exportPanel))throw Error('Google owner status marker moved');
+   const reportHtml='<div id="ccSyncReportExportPanel" '+
+    'style="padding:10px;border:1px solid #dbe4f0;border-radius:9px;margin:10px 0;background:#fff">'+
+    '<strong style="font-size:13px">Tải Excel gửi người khác · CHỈ 1 SHEET</strong>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">'+
+    '<select id="ccSyncReportProject" aria-label="Dự án cần xuất báo cáo" '+
+    'style="min-width:200px;max-width:300px;padding:8px;border:1px solid #cad4e3;border-radius:7px">'+
+    '<option value="">Chọn dự án có link Google…</option></select>'+
+    '<button type="button" class="btn" id="ccSyncExportVisibleOnly">Tải Excel báo cáo (1 tab)</button></div>'+
+    '<p style="font-size:12px;color:#56647a;margin:8px 0 0">'+
+    'Chỉ tải tab báo cáo, không kèm bản sao lịch sử và DATA_CASHCONTROL. '+
+    'Nếu chia sẻ link Google gốc, người nhận vẫn có thể tải các tab ẩn.</p>'+
+    '<p role="status" id="ccSyncReportExportStatus" style="font-size:12px;color:#41566e;margin:6px 0 0"></p>'+
+    '</div>';
+   text=text.replace(exportPanel,reportHtml+exportPanel);
+   const catalogInit="  ccSyncProjectCatalogLoadDraft();";
+   if(!text.includes(catalogInit))throw Error('Admin catalog init marker moved');
+   text=text.replace(catalogInit,catalogInit+
+     '\n  wrap.open=true;\n  ccSyncRefreshReportProjectOptions();\n'+
+     "  $('ccSyncReportProject')?.addEventListener('focus',ccSyncRefreshReportProjectOptions);"+
+     "\n  $('ccSyncExportVisibleOnly')?.addEventListener('click',ccSyncExportVisibleOnly);");
+   const finalStatus="        indexedCount+' hồ sơ Payment đọc theo tháng.';";
+   if(!text.includes(finalStatus))throw Error('Live sync final summary marker moved');
+   text=text.replace(finalStatus,finalStatus+
+     '\n      ccSyncUpdateOwnerSummary(month,result,pilotMode);');
+   const listMarker="      const list=document.createElement('ul');";
+   if(!text.includes(listMarker))throw Error('Result list styling marker moved');
+   text=text.replace(listMarker,listMarker+
+     '\n      list.style.cssText="list-style:none;padding:0;margin:0;display:grid;gap:7px";');
+   const liMarker="        li.textContent=project+' · '+message;";
+   if(!text.includes(liMarker))throw Error('Project result row marker moved');
+   text=text.replace(liMarker,liMarker+
+     "\n        const ok=/Đã ghi|Đã khớp|THẬT ĐÃ KHỚP/i.test(message);"+
+     "\n        const warn=/Cần kiểm tra|CHƯA|Chưa ghi|Bỏ qua|Sẵn sàng/i.test(message);"+
+     "\n        li.style.cssText='list-style:none;padding:9px 11px;border-radius:8px;'+
+       'border:1px solid '+(ok?'#bfddc9':warn?'#f1ddbf':'#d7e2ee')+';'+
+       'background:'+(ok?'#eff9f1':warn?'#fff9ed':'#f5f8fc')+';'+
+       'font-size:12px;line-height:1.55';");
+   const readyLabel="READY:'Sẵn sàng ghi TEST/production theo quyền server',";
+   if(!text.includes(readyLabel))throw Error('READY badge semantics marker moved');
+   text=text.replace(readyLabel,"READY:'CHƯA GHI · chờ xác nhận',");
+
    // and a single Cash Control month JSON. Legacy technical tools remain
    // present but de-emphasized; never represent unsupported direct write as ready.
    const uiBefore0="title=\"Chỉ Admin; bản thử PHU HUNG, ghi được vào file Google Sheets TEST sau khi xác nhận\">↗ Đồng bộ Google Sheets (thử)";
