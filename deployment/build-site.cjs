@@ -57,9 +57,6 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    const independentSummaryAnchor="      summaryArea.append(releaseLine);";
    if(!text.includes(independentSummaryAnchor))throw Error('Batch release summary element moved');
    text=text.replace(independentSummaryAnchor,independentSummaryAnchor+"\n      const proofLine=document.createElement('p');\n      proofLine.style.cssText='font-size:12px;color:#374151;margin:3px 0 6px';\n      proofLine.textContent='NGUỒN MÁY CHỦ: '+(independentSource?.error?('CHƯA XÁC MINH: '+independentSource.error):\n       ((independentSource?.eligibleForFurtherReview||0)+'/'+(independentSource?.checkedProjects||0)+\n        ' dự án qua bước kiểm tra Payment tháng theo ID; nguồn lương/thuế/điều chuyển vẫn phải xử lý riêng.'))+\n        ' · Cấp phép ghi: 0.';\n      summaryArea.append(proofLine);");
-   const summaryCopyAnchor="        batchRelease:{schema:batchRelease.schema,counts:batchRelease.counts,";
-   if(!text.includes(summaryCopyAnchor))throw Error('Source proof share summary moved');
-   text=text.replace(summaryCopyAnchor,"        independentSource:{checkedProjects:independentSource?.checkedProjects||0,\n          narrowlyMatched:independentSource?.eligibleForFurtherReview||0,\n          writeApproved:false},\n"+summaryCopyAnchor);
    const oldOutput="output.replaceChildren(table,copy);output.hidden=false;";
    if(!text.includes(oldOutput))throw Error('Monthly audit output moved');
    text=text.replace(oldOutput,"output.replaceChildren(summaryArea,table,copy);output.hidden=false;");
