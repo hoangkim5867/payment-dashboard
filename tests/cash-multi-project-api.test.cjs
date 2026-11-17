@@ -27,7 +27,9 @@ sourceRoute.inspect=async({input})=>{
  kind:'INDEPENDENT_MONTHLY_SOURCE_BATCH_READONLY_V1',
  month:input.month,revision:input.revision,canWrite:false,googleWrites:0,
  newlyAppendedOnly:true,
- projects:input.projects.map(g=>({project:g.project,verified:true}))
+ projects:input.projects.map(g=>g.project==='SOURCE-DIAGNOSTIC'?
+   {project:g.project,verified:false,blockers:['PAYMENT_CATEGORY_UNVERIFIED',
+     'PAYMENT_SOURCE_DOC_NOT_FOUND']}: {project:g.project,verified:true})
  });
 };
 const handler=require('../api/cash-sync-multi-project.js');
@@ -416,4 +418,20 @@ test('missing original member identity rejects BEFORE Google write, reports no-w
  assert.equal(blocked.writeAttempted,false);
  assert.equal(blocked.writes,0);
  assert.equal(f.state.writes,0);
+});
+
+test('independent source rejection reports only safe reason codes and zero Google writes',async()=>{
+ const f=fixture('SOURCE-DIAGNOSTIC');
+ const preview=await f.call('preview',{enabled:true});
+ assert.equal(preview.status,200);
+ const result=await f.call('commit',{enabled:true,signature:preview.signature,
+  confirm:'SYNC_THIS_PROJECT'});
+ assert.equal(result.status,409);
+ assert.equal(result.writeAttempted,false);
+ assert.equal(result.writes,0);
+ assert.equal(result.sourceRowsChecked,1);
+ assert.deepEqual(result.sourceBlockers,[
+  'PAYMENT_CATEGORY_UNVERIFIED','PAYMENT_SOURCE_DOC_NOT_FOUND']);
+ assert.equal(f.state.writes,0);
+ assert.equal(JSON.stringify(result).includes('Vendor'),false);
 });
