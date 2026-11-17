@@ -620,22 +620,6 @@ document.getElementById("ccSyncNextProjectReadOnly")
    text=text.replace(loadDraft,restoredLinkCode);
    // Live Production owner workflow: direct Cash Control -> Google Sheets on one Admin click
    // A dedicated PHU HUNG writer is invoked by this SAME one-click action.
-   const sumOld0="      if(result.mode!=='NOT_APPROVED'&&\n         !result.rows.some(r=>r.reason==='PREVIOUS_WRITE_UNCERTAIN_REQUIRE_GOOGLE_READBACK')";
-   if(!text.includes(sumOld0))throw Error('PHU HUNG summary integration 0 moved');
-   text=text.replace(sumOld0,"      let pilotMode='not-run';\n      if(result.mode!=='NOT_APPROVED'&&\n         !result.rows.some(r=>r.reason==='PREVIOUS_WRITE_UNCERTAIN_REQUIRE_GOOGLE_READBACK')");
-   const sumOld1="          const pilot=await ccGoogleSyncRunOriginalManually();\n          mark('PHU HUNG',pilot?.mode==='verified'?";
-   if(!text.includes(sumOld1))throw Error('PHU HUNG summary integration 1 moved');
-   text=text.replace(sumOld1,"          const pilot=await ccGoogleSyncRunOriginalManually();\n          pilotMode=pilot?.mode||'unknown';\n          mark('PHU HUNG',pilot?.mode==='verified'?");
-   const sumOld2="      const t=result.summary;\n      status.textContent=";
-   if(!text.includes(sumOld2))throw Error('PHU HUNG summary integration 2 moved');
-   text=text.replace(sumOld2,"      const t=result.summary;\n      const pilotDone=pilotMode==='verified'||pilotMode==='unchanged';\n      status.textContent=");
-   const sumOld3="' dự án có nguồn · '+t.verified+' đã ghi và đọc lại · '+t.unchanged+";
-   if(!text.includes(sumOld3))throw Error('PHU HUNG summary integration 3 moved');
-   text=text.replace(sumOld3,"' dự án có nguồn · '+(t.verified+(pilotMode==='verified'?1:0))+' đã ghi và đọc lại · '+(t.unchanged+(pilotMode==='unchanged'?1:0))+");
-   const sumOld4="' đã khớp · '+t.previewOnly+' chỉ xem trước (chưa cấp phép) · '+\n        t.skipped+' bỏ qua · '+t.failed+' cần kiểm tra · '+";
-   if(!text.includes(sumOld4))throw Error('PHU HUNG summary integration 4 moved');
-   text=text.replace(sumOld4,"' đã khớp · '+t.previewOnly+' chỉ xem trước (chưa cấp phép) · '+\n        Math.max(0,t.skipped-(pilotDone?1:0))+' bỏ qua · '+t.failed+' cần kiểm tra · '+");
-
    // Never display SOURCE_NOT_VERIFIED for a workbook already activated.
    const pilotStatusBefore="          mark(row.project,(note[row.status]||row.status)+";
    if(!text.includes(pilotStatusBefore))throw Error('PHU HUNG one-click status callback moved');
@@ -665,6 +649,23 @@ document.getElementById("ccSyncNextProjectReadOnly")
    const directPilotHook="      const t=result.summary;";
    if(!text.includes(directPilotHook))throw Error('Multi-project live PHU HUNG bridge anchor moved');
    text=text.replace(directPilotHook,"      // PHU HUNG's established live original-sync engine uses a different\n      // mirror schema. One Admin click can invoke it AFTER the other project\n      // commits, never before or after an ambiguous Google write. This keeps\n      // the already-activated PHU HUNG workbook entirely unchanged in structure.\n      if(result.mode!=='NOT_APPROVED'&&\n         !result.rows.some(r=>r.reason==='PREVIOUS_WRITE_UNCERTAIN_REQUIRE_GOOGLE_READBACK')&&\n         manifest.groups.some(g=>g.project==='PHU HUNG'&&g.groupedExcelRows)){\n        try{\n          const pilot=await ccGoogleSyncRunOriginalManually();\n          mark('PHU HUNG',pilot?.mode==='verified'?\n            'Đã ghi và đọc lại Google theo mẫu PHU HUNG':\n            pilot?.mode==='unchanged'?'Đã khớp Google, không ghi thêm':\n            'Admin đã hủy xác nhận riêng PHU HUNG');\n        }catch(error){\n          mark('PHU HUNG','Chưa ghi · '+String(error?.message||error).slice(0,140));\n        }\n      }\n      const t=result.summary;");
+
+   // Apply PHU HUNG status counting AFTER installing its one-click bridge.
+   const sumOld0="      if(result.mode!=='NOT_APPROVED'&&\n         !result.rows.some(r=>r.reason==='PREVIOUS_WRITE_UNCERTAIN_REQUIRE_GOOGLE_READBACK')";
+   if(!text.includes(sumOld0))throw Error('PHU HUNG summary integration 0 moved');
+   text=text.replace(sumOld0,"      let pilotMode='not-run';\n      if(result.mode!=='NOT_APPROVED'&&\n         !result.rows.some(r=>r.reason==='PREVIOUS_WRITE_UNCERTAIN_REQUIRE_GOOGLE_READBACK')");
+   const sumOld1="          const pilot=await ccGoogleSyncRunOriginalManually();\n          mark('PHU HUNG',pilot?.mode==='verified'?";
+   if(!text.includes(sumOld1))throw Error('PHU HUNG summary integration 1 moved');
+   text=text.replace(sumOld1,"          const pilot=await ccGoogleSyncRunOriginalManually();\n          pilotMode=pilot?.mode||'unknown';\n          mark('PHU HUNG',pilot?.mode==='verified'?");
+   const sumOld2="      const t=result.summary;\n      status.textContent=";
+   if(!text.includes(sumOld2))throw Error('PHU HUNG summary integration 2 moved');
+   text=text.replace(sumOld2,"      const t=result.summary;\n      const pilotDone=pilotMode==='verified'||pilotMode==='unchanged';\n      status.textContent=");
+   const sumOld3="' dự án có nguồn · '+t.verified+' đã ghi và đọc lại · '+t.unchanged+";
+   if(!text.includes(sumOld3))throw Error('PHU HUNG summary integration 3 moved');
+   text=text.replace(sumOld3,"' dự án có nguồn · '+(t.verified+(pilotMode==='verified'?1:0))+' đã ghi và đọc lại · '+(t.unchanged+(pilotMode==='unchanged'?1:0))+");
+   const sumOld4="' đã khớp · '+t.previewOnly+' chỉ xem trước (chưa cấp phép) · '+\n        t.skipped+' bỏ qua · '+t.failed+' cần kiểm tra · '+";
+   if(!text.includes(sumOld4))throw Error('PHU HUNG summary integration 4 moved');
+   text=text.replace(sumOld4,"' đã khớp · '+t.previewOnly+' chỉ xem trước (chưa cấp phép) · '+\n        Math.max(0,t.skipped-(pilotDone?1:0))+' bỏ qua · '+t.failed+' cần kiểm tra · '+");
 
    // and a single Cash Control month JSON. Legacy technical tools remain
    // present but de-emphasized; never represent unsupported direct write as ready.
