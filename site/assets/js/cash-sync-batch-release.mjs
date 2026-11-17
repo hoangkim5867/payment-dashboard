@@ -149,7 +149,7 @@ export async function executeCertifiedBatch({
   project:x.project,month:x.month,newRows:x.newRows
  }))));
  if(!yes)return frozen({status:'cancelled',written:[],skipped:[],googleWrites:0});
- const written=[],skipped=[];
+ const written=[],skipped=[],blocked=[];
  for(const item of selected){
   if(!sessionCurrent())return frozen({
    status:'stopped_session_changed',written,skipped,requiresReadback:true
@@ -165,16 +165,24 @@ export async function executeCertifiedBatch({
       signed.summary?.originalUntouched!==true)
     throw Error('BATCH_SIGNED_PREVIEW_INVALID');
   }catch(error){
-   return frozen({status:'stopped_preview',project:item.project,
-    error:String(error.message||error).slice(0,160),written,skipped,requiresReadback:false});
+   if(!sessionCurrent())return frozen({
+    status:'stopped_session_changed',written,skipped,blocked,requiresReadback:false
+   });
+   // Preview is READ-ONLY: a project-specific rejection must not block other
+   // independently certified projects. No commit was attempted for this item.
+   blocked.push(frozen({project:item.project,stage:'preview',
+    reason:String(error.message||error).slice(0,160)}));
+   continue;
   }
   if(signed.summary.newRows===0&&signed.summary.changes===0){
    skipped.push(item.project);continue;
   }
   if(signed.summary.newRows!==item.newRows||
-     signed.summary.changes<item.newRows)
-   return frozen({status:'stopped_changed_rows',project:item.project,
-    written,skipped,requiresReadback:false});
+     signed.summary.changes<item.newRows){
+   blocked.push(frozen({project:item.project,stage:'changed_rows',
+    reason:'Signed Google preview row count no longer matches certified source'}));
+   continue;
+  }
   if(!sessionCurrent())return frozen({
    status:'stopped_session_changed',written,skipped,requiresReadback:false
   });
@@ -196,5 +204,6 @@ export async function executeCertifiedBatch({
   }
   written.push(item.project);
  }
- return frozen({status:'verified',written,skipped,googleWrites:written.length});
+ return frozen({status:blocked.length?'verified_partial':'verified',
+  written,skipped,blocked,googleWrites:written.length});
 }
