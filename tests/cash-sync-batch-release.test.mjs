@@ -122,15 +122,44 @@ test('one uncertain Google response stops batch; never retries and never starts 
  assert.equal(result.requiresReadback,true);
  assert.deepEqual(calls,['preview:EATON','commit:EATON']);
 });
-test('failed signed preview never commits and does not continue later projects',async()=>{
- let commits=0;
+test('blocked read-only preview skips just that project and still commits the next certified one',async()=>{
+ const calls=[];
  const r=await executeCertifiedBatch({month,revision:341,
   items:[candidate('EATON'),candidate('SSIS')],sessionCurrent:()=>true,
   confirm:async()=>true,
-  preview:async x=>({...signed(x.project),signature:'INVALID'}),
+  preview:async x=>{calls.push('preview:'+x.project);
+   return x.project==='EATON'?{...signed(x.project),signature:'INVALID'}:signed(x.project)},
+  commit:async x=>{calls.push('commit:'+x.project);return{
+   mode:'verified',writes:1,summary:{project:x.project,month,
+    changes:1,newRows:1,originalUntouched:true}}}
+ });
+ assert.equal(r.status,'verified_partial');
+ assert.deepEqual(r.written,['SSIS']);
+ assert.deepEqual(r.blocked.map(x=>x.project),['EATON']);
+ assert.deepEqual(calls,['preview:EATON','preview:SSIS','commit:SSIS']);
+ assert.equal(r.googleWrites,1);
+});
+test('changed signed row count blocks only its own project before any commit',async()=>{
+ const r=await executeCertifiedBatch({month,revision:341,
+  items:[candidate('EATON'),candidate('SSIS')],sessionCurrent:()=>true,
+  confirm:async()=>true,
+  preview:async x=>x.project==='EATON'?signed(x.project,2):signed(x.project),
+  commit:async x=>({mode:'verified',writes:1,summary:{project:x.project,month,
+    changes:1,newRows:1,originalUntouched:true}})
+ });
+ assert.equal(r.status,'verified_partial');
+ assert.deepEqual(r.written,['SSIS']);
+ assert.deepEqual(r.blocked.map(x=>x.stage),['changed_rows']);
+});
+test('changed Admin session during preview failure stops the whole batch',async()=>{
+ let live=true,commits=0;
+ const r=await executeCertifiedBatch({month,revision:341,
+  items:[candidate('EATON'),candidate('SSIS')],sessionCurrent:()=>live,
+  confirm:async()=>true,
+  preview:async()=>{live=false;throw Error('read-only error')},
   commit:async()=>{commits++}
  });
- assert.equal(r.status,'stopped_preview');
+ assert.equal(r.status,'stopped_session_changed');
  assert.equal(commits,0);
 });
 
