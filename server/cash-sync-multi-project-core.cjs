@@ -177,8 +177,8 @@ function planMonth({project,month,source,history,mirror=[],foxconn=false,opening
       // Cash Control export language may change between Vietnamese and Chinese.
       // The original posted transaction is already mirrored by IMMUTABLE ID.
       // Translation or description-only changes must NOT create another Google
-      // write or rewrite a posted value. Real date/amount edits remain handled
-      // by the existing explicit update path below.
+      // write or rewrite a posted value. Date/amount changes to an existing ID
+      // are corrections, not missing postings: require explicit reconciliation.
       const financiallyIdentical=
         before.values.length===current.values.length&&
         before.values[0]===current.values[0]&&
@@ -188,12 +188,11 @@ function planMonth({project,month,source,history,mirror=[],foxconn=false,opening
         combinedMirror.push({...before,project:projectKey});
         continue;
       }
-      const status=before.status.startsWith('history:')&&before.hash!==current.hash?
-        'historyUpdated:'+before.status.slice(8):before.status;
-      const item={...current,project:projectKey,status};
-      combinedMirror.push(item);
-      if(before.hash!==item.hash||before.status!==item.status)
-        changes.push({id:item.id,action:'update',status:item.status});
+      // Append-only accounting rule. Never silently change a previously
+      // posted date or financial bucket. Preserve prior Google values and
+      // fail closed for this project; unrelated projects can still proceed.
+      reviews.push({id:current.id,reason:'EXISTING_SOURCE_ID_FINANCIAL_CHANGE'});
+      combinedMirror.push({...before,project:projectKey});
       continue;
     }
     const found=(historySignatures.get(idSignature(current.values))||[])
