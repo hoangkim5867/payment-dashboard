@@ -171,7 +171,7 @@ test('new month candidates are never labeled date-only when history has inverted
   records:[later],history:[['2026-09-26',...raw().slice(1)]],audit:()=>({
    ...audit([raw()]),status:'review-date-order',nonMonotonicDates:2})});
  assert.equal(x.newerCandidates,1);
- assert.equal(x.reviewCategory,'NEWER_CANDIDATES_ONLY');
+ assert.equal(x.reviewCategory,'NEWER_OR_BACKFILL_CANDIDATES_ONLY');
  assert.equal(x.result,'REVIEW_REQUIRED');
  assert.equal(x.canWrite,false);
 });
@@ -245,4 +245,27 @@ test('an arbitrary hidden original remains blocked even if the project resembles
    {values:[raw()]}})});
  assert.equal(result.results[0].reason,'ORIGINAL_HISTORY_TAB_NOT_VERIFIED');
  assert.equal(result.googleWrites,0);
+});
+
+test('missing October posting before the last Google date is a BACKFILL candidate only if identity and money do not collide',()=>{
+ const earlier={...source('expense:backfill'),values:[
+  '2026-10-13','Vendor B','SUBP-OTHER','New invoice','IPC008','Material',
+  0,0,150,0,0,0,0]};
+ const result=compareHistoryToExport({project:'ELYSIAN',month:'2026-10',
+  records:[source('expense:historical'),earlier],history:[raw()],audit});
+ assert.equal(result.exactMatches,1);
+ assert.equal(result.newerCandidates,0);
+ assert.equal(result.backfillCandidates,1);
+ assert.equal(result.unsafeBackfill,0);
+ assert.equal(result.result,'NEWER_THAN_HISTORY_CANDIDATE');
+ assert.equal(result.canWrite,false);
+ assert.equal(result.googleWrites,0);
+ const suspicious={...earlier,id:'expense:conflict',
+  values:[date,'Someone else','different-contract','New label','IPC003','Material',
+   0,0,100,0,0,0,0]};
+ const bad=compareHistoryToExport({project:'ELYSIAN',month:'2026-10',
+  records:[suspicious],history:[raw()],audit});
+ assert.equal(bad.backfillCandidates,0);
+ assert.equal(bad.unsafeBackfill,1);
+ assert.equal(bad.result,'REVIEW_REQUIRED');
 });
