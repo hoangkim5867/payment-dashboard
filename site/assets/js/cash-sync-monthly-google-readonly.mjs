@@ -81,7 +81,7 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
  let exactMatches=0,unmatchedBeforeHistoryEnd=0,newerCandidates=0,
    backfillCandidates=0,unsafeBackfill=0,
    duplicateHistory=0,duplicateSource=0,invalidSource=0,likelyLabelDifferences=0;
- const consumed=new Set(),sourceCounts=new Map(),unmatched=[];
+ const consumed=new Set(),sourceCounts=new Map(),unmatched=[],candidateSourceRows=[];
  for(const [sourceIndex,record] of records.entries()){
    if(record?.project!==project||record?.month!==month||
      typeof record.id!=='string'||!record.id||consumed.has(record.id)||
@@ -97,7 +97,7 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    sourceRows.push({values:record.values,sig,sourceRow:sourceIndex+1});
    sourceCounts.set(sig,(sourceCounts.get(sig)||0)+1);
  }
- for(const {values,sig} of sourceRows){
+ for(const {values,sig,sourceRow} of sourceRows){
    const candidates=signatures.get(sig)||[];
    if(sourceCounts.get(sig)>1)duplicateSource++;
    else if(candidates.length>1)duplicateHistory++;
@@ -126,10 +126,11 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
              Math.abs(balanceDelta(other)))<0.000001);
      });
      if(similar)unsafeBackfill++;
-     else if(['2026-10','2026-11'].includes(month))backfillCandidates++;
-     else unsafeBackfill++;
+     else if(['2026-10','2026-11'].includes(month)){
+       backfillCandidates++;candidateSourceRows.push(sourceRow);
+     }else unsafeBackfill++;
    }
-   else newerCandidates++;
+   else {newerCandidates++;candidateSourceRows.push(sourceRow); }
  }
  // Detailed diagnostics stay inside the signed Admin browser session.
  // Never include amounts, descriptions, raw IDs, or Google file identifiers
@@ -241,6 +242,7 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
  return Object.freeze({
    project,month,sourceRows:records.length,historyRows:historicalAudit.transactionRows,
    historyInMonth,exactMatches,newerCandidates,backfillCandidates,unsafeBackfill,
+   candidateSourceRows:Object.freeze(candidateSourceRows),
    unmatchedBeforeHistoryEnd,
    historyUnmatched,duplicateHistory,duplicateSource,invalidHistoryRows,invalidSource,
    likelyLabelDifferences,financialReview,dateReview,reviewCategory,
