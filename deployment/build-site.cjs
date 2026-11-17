@@ -714,13 +714,7 @@ document.getElementById("ccSyncNextProjectReadOnly")
      '\n      list.style.cssText="list-style:none;padding:0;margin:0;display:grid;gap:7px";');
    const liMarker="        li.textContent=project+' · '+message;";
    if(!text.includes(liMarker))throw Error('Project result row marker moved');
-   text=text.replace(liMarker,liMarker+
-     "\n        const ok=/Đã ghi|Đã khớp|THẬT ĐÃ KHỚP/i.test(message);"+
-     "\n        const warn=/Cần kiểm tra|CHƯA|Chưa ghi|Bỏ qua|Sẵn sàng/i.test(message);"+
-     "\n        li.style.cssText='list-style:none;padding:9px 11px;border-radius:8px;'+
-       'border:1px solid '+(ok?'#bfddc9':warn?'#f1ddbf':'#d7e2ee')+';'+
-       'background:'+(ok?'#eff9f1':warn?'#fff9ed':'#f5f8fc')+';'+
-       'font-size:12px;line-height:1.55';");
+   text=text.replace(liMarker,liMarker+"\n        const ok=/Đã ghi|Đã khớp|THẬT ĐÃ KHỚP/i.test(message);\n        const warn=/Cần kiểm tra|CHƯA|Chưa ghi|Bỏ qua|Sẵn sàng/i.test(message);\n        li.style.cssText='list-style:none;padding:9px 11px;border-radius:8px;'+\n          'border:1px solid '+(ok?'#bfddc9':warn?'#f1ddbf':'#d7e2ee')+';'+\n          'background:'+(ok?'#eff9f1':warn?'#fff9ed':'#f5f8fc')+';'+\n          'font-size:12px;line-height:1.55';");
    const readyLabel="READY:'Sẵn sàng ghi TEST/production theo quyền server',";
    if(!text.includes(readyLabel))throw Error('READY badge semantics marker moved');
    text=text.replace(readyLabel,"READY:'CHƯA GHI · chờ xác nhận',");
