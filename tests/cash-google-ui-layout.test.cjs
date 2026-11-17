@@ -257,3 +257,14 @@ test('next project ELYSIAN uses only the existing one-project readonly comparato
  assert.match(handoff,/await ccSyncCompareProjectGoogleReadOnly\(\)/);
  assert.doesNotMatch(handoff,/writeBatch\(|setDoc\(|updateDoc\(|:batchUpdate|action:"commit"|action:'commit'/);
 });
+
+test('ELYSIAN one-project compare replaces misleading second planner totals without changing Google writes',()=>{
+ const build=fs.readFileSync(path.join(__dirname,'../deployment/build-site.cjs'),'utf8');
+ assert.match(build,/reviewElysianExceptions\(payload\.values,source,matched\)/);
+ assert.match(build,/project!=='FOXCONN'&&project!=='ELYSIAN'/);
+ assert.match(build,/14\/62 là bộ thuật toán khác/);
+ assert.match(build,/Nhân sự: khác metadata, không yêu cầu HĐ\/IPC/);
+ assert.match(build,/Hoàn vay FOXCONN: ứng viên đối ứng Google, chưa xác minh ID/);
+ assert.match(build,/KHÔNG tự thêm khoản đó/);
+ assert.match(build,/Không chỉnh sổ gốc, không mở ghi Production/);
+});
