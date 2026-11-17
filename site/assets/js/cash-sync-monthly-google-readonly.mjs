@@ -79,6 +79,7 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    signatures.get(sig).push(entry);
  }
  let exactMatches=0,unmatchedBeforeHistoryEnd=0,newerCandidates=0,
+   backfillCandidates=0,unsafeBackfill=0,
    duplicateHistory=0,duplicateSource=0,invalidSource=0,likelyLabelDifferences=0;
  const consumed=new Set(),sourceCounts=new Map(),unmatched=[];
  for(const [sourceIndex,record] of records.entries()){
@@ -101,7 +102,33 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    if(sourceCounts.get(sig)>1)duplicateSource++;
    else if(candidates.length>1)duplicateHistory++;
    else if(candidates.length===1){exactMatches++;candidates[0].matched=true;}
-   else if(values[0]<=latest){unmatchedBeforeHistoryEnd++;unmatched.push(values);}
+   else if(values[0]<=latest){
+     unmatchedBeforeHistoryEnd++;unmatched.push(values);
+     // Safe BACKFILL HINT only, never permission to write:
+     // same-day same amount columns, contract/IPC, or suspected transfer
+     // counterpart must remain in review, even when label text differs.
+     const dayRows=historyRows.filter(h=>h.values[0]===values[0]);
+     const amountCols=v=>JSON.stringify(v.slice(6));
+     const identity=v=>canonical(v[2])&&canonical(v[4])?
+       canonical(v[2])+'|'+canonical(v[4]):'';
+     const transfer=v=>/归还|借款|还款|hoàn vay|hoan vay|điều chuyển|dieu chuyen|repay|transfer/i
+       .test(v.slice(1,6).join(' '));
+     const balanceDelta=v=>v[6]-v.slice(7).reduce((n,x)=>n+x,0);
+     const similar=dayRows.some(h=>{
+       const other=h.values;
+       return amountCols(other)===amountCols(values)||
+         (identity(values)&&identity(values)===identity(other))||
+         (canonical(values[1])===canonical(other[1])&&
+           canonical(values[3])===canonical(other[3])&&
+           canonical(values[3]))||
+         ((transfer(values)||transfer(other))&&
+           Math.abs(Math.abs(balanceDelta(values))-
+             Math.abs(balanceDelta(other)))<0.000001);
+     });
+     if(similar)unsafeBackfill++;
+     else if(['2026-10','2026-11'].includes(month))backfillCandidates++;
+     else unsafeBackfill++;
+   }
    else newerCandidates++;
  }
  // Detailed diagnostics stay inside the signed Admin browser session.
@@ -204,23 +231,24 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
  const dateReview=historicalAudit.nonMonotonicDates>0;
  const historyUnmatched=historyRows.filter(entry=>!entry.matched).length;
  const reviewCount=invalidHistoryRows+duplicateHistory+duplicateSource+invalidSource+
-   unmatchedBeforeHistoryEnd+historyUnmatched;
+   unsafeBackfill+historyUnmatched;
  // Reporting category only: a date-order warning must not masquerade as a
  // financial mismatch, and categorization NEVER permits a write.
  const reviewCategory=financialReview?'FINANCIAL_HISTORY_REVIEW':
    reviewCount?'TRANSACTION_REVIEW':
-   newerCandidates?'NEWER_CANDIDATES_ONLY':
+   newerCandidates||backfillCandidates?'NEWER_OR_BACKFILL_CANDIDATES_ONLY':
    dateReview?'DATE_ORDER_ONLY':'EXACT_HISTORY';
  return Object.freeze({
    project,month,sourceRows:records.length,historyRows:historicalAudit.transactionRows,
-   historyInMonth,exactMatches,newerCandidates,unmatchedBeforeHistoryEnd,
+   historyInMonth,exactMatches,newerCandidates,backfillCandidates,unsafeBackfill,
+   unmatchedBeforeHistoryEnd,
    historyUnmatched,duplicateHistory,duplicateSource,invalidHistoryRows,invalidSource,
    likelyLabelDifferences,financialReview,dateReview,reviewCategory,
    reviewRows:Object.freeze(reviewRows),detailsTruncated,
    historyStatus:historicalAudit.status,closingBalance:historicalAudit.closingBalance,
    nonMonotonicDates:historicalAudit.nonMonotonicDates,
    result:financialReview||dateReview||reviewCount?'REVIEW_REQUIRED':
-     newerCandidates?'NEWER_THAN_HISTORY_CANDIDATE':'EXACT_HISTORY_ONLY',
+     newerCandidates||backfillCandidates?'NEWER_THAN_HISTORY_CANDIDATE':'EXACT_HISTORY_ONLY',
    // Source identity and a snapshot audit alone NEVER authorize writes.
    googleCompared:true,sourceComplete:false,canWrite:false,googleWrites:0
  });
