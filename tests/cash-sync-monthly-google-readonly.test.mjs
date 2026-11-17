@@ -172,7 +172,8 @@ test('new month candidates are never labeled date-only when history has inverted
    ...audit([raw()]),status:'review-date-order',nonMonotonicDates:2})});
  assert.equal(x.newerCandidates,1);
  assert.equal(x.reviewCategory,'NEWER_OR_BACKFILL_CANDIDATES_ONLY');
- assert.equal(x.result,'REVIEW_REQUIRED');
+ assert.equal(x.result,'NEWER_THAN_HISTORY_CANDIDATE');
+ // Date order is preserved; no original Google row is changed.
  assert.equal(x.canWrite,false);
 });
 
