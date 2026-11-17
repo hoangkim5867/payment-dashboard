@@ -174,6 +174,20 @@ function planMonth({project,month,source,history,mirror=[],foxconn=false,opening
   for(const current of sourceById.values()){
     const before=stored.index.get(current.id);
     if(before){
+      // Cash Control export language may change between Vietnamese and Chinese.
+      // The original posted transaction is already mirrored by IMMUTABLE ID.
+      // Translation or description-only changes must NOT create another Google
+      // write or rewrite a posted value. Real date/amount edits remain handled
+      // by the existing explicit update path below.
+      const financiallyIdentical=
+        before.values.length===current.values.length&&
+        before.values[0]===current.values[0]&&
+        before.values.slice(6).every((n,i)=>
+          Math.abs(n-current.values[i+6])<0.000001);
+      if(financiallyIdentical){
+        combinedMirror.push({...before,project:projectKey});
+        continue;
+      }
       const status=before.status.startsWith('history:')&&before.hash!==current.hash?
         'historyUpdated:'+before.status.slice(8):before.status;
       const item={...current,project:projectKey,status};
