@@ -28,7 +28,7 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    // checks as other projects. This does NOT authorize its already-posted rows:
    // independent server attestation, exact original gid, signed Google preview,
    // duplicate detection and closing balance gates remain mandatory.
-   const legacyPilotExclusion="const sourceComplete=project!=='PHU HUNG'&&\\n          group.state==='HISTORY_COMPARISON_CANDIDATE'&&";
+   const legacyPilotExclusion="const sourceComplete=project!=='PHU HUNG'&&\n          group.state==='HISTORY_COMPARISON_CANDIDATE'&&";
    if(!text.includes(legacyPilotExclusion))
      throw Error('PHU HUNG monthly source eligibility anchor moved');
    text=text.replace(legacyPilotExclusion,
