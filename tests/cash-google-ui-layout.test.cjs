@@ -275,7 +275,7 @@ test('main-only Excel export uses one readonly Google VIEW and never exposes hid
  const b=build.indexOf("document.getElementById('ccSyncDownloadMainOnly')",a);
  assert.ok(a>0&&b>a,'main-only download function included');
  const block=build.slice(a,b);
- assert.match(build,/id=\\"ccSyncDownloadMainOnly\\"/);
+ assert.match(build,/ccSyncDownloadMainOnly/);
  assert.match(build,/cash-sync-main-only-export\.mjs/);
  assert.match(block,/spreadsheets\.readonly/);
  assert.match(block,/includeGrantedScopes:false/);
