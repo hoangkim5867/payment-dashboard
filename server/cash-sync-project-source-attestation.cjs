@@ -43,7 +43,7 @@ function unpackSeed(seed,{expectedSeedHash=SEED_HASH}={}){
  const raw=readFields(seed);
  if(raw.schemaVersion!==1||raw.sha256!==expectedSeedHash||
   typeof raw.payload!=='string'||
-  createHash('sha256').update(raw.payload).digest('hex')!==SEED_HASH)
+  createHash('sha256').update(raw.payload).digest('hex')!==expectedSeedHash)
   problem('LEGACY_ARCHIVE_FINGERPRINT_CHANGED');
  let json;
  try{json=JSON.parse(raw.payload)}catch{problem('LEGACY_ARCHIVE_INVALID')}
