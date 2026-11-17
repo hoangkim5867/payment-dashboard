@@ -42,6 +42,21 @@ function parseValues(row,{history=false,foxconn=false}={}){
   }
   return values;
 }
+/**
+ * Owner's standing policy: an existing October 2026 ledger starts syncing
+ * from November; a project without October starts from October. Consider
+ * both original history and already-posted technical mirror, without ever
+ * modifying either. Invalid historic dates cannot claim a completed month.
+ */
+function startMonthFromGoogle({history=[],mirror=[]}={}){
+ if(!Array.isArray(history)||!Array.isArray(mirror))fail('Invalid Google history');
+ const oct='2026-10';
+ const originalHasOctober=history.some(row=>Array.isArray(row)&&
+  date(row[0])?.slice(0,7)===oct);
+ const mirrorHasOctober=mirror.some(row=>
+  date(row?.values?.[0])?.slice(0,7)===oct);
+ return originalHasOctober||mirrorHasOctober?'2026-11':'2026-10';
+}
 const net=v=>round(v[6]-v.slice(7,14).reduce((n,m)=>n+m,0));
 const idSignature=v=>JSON.stringify([v[0],...v.slice(1,6).map(name),...v.slice(6)]);
 // A backdated Oct/Nov posting may be missing from the ORIGINAL Google ledger.
@@ -237,4 +252,4 @@ function planMonth({project,month,source,history,mirror=[],foxconn=false,opening
     mirrorFingerprint:stored.fingerprint,
     requiresOtherProjects:false,canWrite:false,approvedWrites:0});
 }
-module.exports={planMonth,auditHistory,parseValues,net,idSignature,sha};
+module.exports={startMonthFromGoogle,planMonth,auditHistory,parseValues,net,idSignature,sha};
