@@ -609,7 +609,7 @@ document.getElementById("ccSyncNextProjectReadOnly")
    // Verified via authenticated Google Drive metadata, 2026-11-17.
    // Recovery hints ONLY: local draft links take precedence. No sheet API
    // requests are made on page load and these links never authorize writes.
-   // Exclude TEST, S19-3 outside the 35-project catalog, and ambiguous S6-1.
+   // Exclude TEST and S19-3 outside catalog. S6-1 requires a separate tab schema review.
    const knownOriginalSheets={
   "PHU HUNG": [
     "1gOEvJmOCW9EV5zfBNyJZ35a8EtMZihI2yZyuKj93dVg",
@@ -666,6 +666,14 @@ document.getElementById("ccSyncNextProjectReadOnly")
   "C13B": [
     "1G-vQhvfwAMdHSVzLzF6yctPdLVfb_URbMmemArUH07Q",
     1707755070
+  ],
+  "CLUB HOUSE": [
+    "1Bm0BIx028BjkgPfx6vqonPNrq6c_Byl80NkmijQAPLU",
+    1680466359
+  ],
+  "S6-1": [
+    "1whbLb_ce9y4s78u4lMknP9Qp5YxEQeAZOD6t20dDeoA",
+    0
   ],
   "OCEAN LINK": [
     "1cq539R49hyE4rxhAb4_5zovvDIOLE1bxqRAuCmiRc5Q",
