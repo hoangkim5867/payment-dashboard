@@ -619,6 +619,12 @@ document.getElementById("ccSyncNextProjectReadOnly")
    ].join(String.fromCharCode(10));
    text=text.replace(loadDraft,restoredLinkCode);
    // Live Production owner workflow: direct Cash Control -> Google Sheets on one Admin click
+   // A dedicated PHU HUNG writer is invoked by this SAME one-click action.
+   // Never display SOURCE_NOT_VERIFIED for a workbook already activated.
+   const pilotStatusBefore="          mark(row.project,(note[row.status]||row.status)+";
+   if(!text.includes(pilotStatusBefore))throw Error('PHU HUNG one-click status callback moved');
+   text=text.replace(pilotStatusBefore,"          if(row.project==='PHU HUNG'&&row.reason==='SOURCE_NOT_VERIFIED'){\n            mark(row.project,'Dùng đồng bộ PHU HUNG đã kích hoạt trong cùng nút; không ghi lặp qua luồng mới.');\n            return;\n          }\n          mark(row.project,(note[row.status]||row.status)+");
+
    // The fallback JSON source is optional troubleshooting, not normal sync.
    const rawBridgeOpen="<div id=\"ccSyncMonthSourceBridge\" style=\"display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:9px 0 4px\">";
    const rawBridgeTail="</span>\n          </div>\n          <p id=\"ccSyncBatchStatus\"";
