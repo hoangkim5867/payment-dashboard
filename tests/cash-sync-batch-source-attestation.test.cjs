@@ -155,3 +155,19 @@ test('wrong environment and unauthorized Admin cause ZERO Firebase calls',async(
   verifyAdmin:async()=>{throw Error('DENIED')}}),/DENIED/);
  assert.equal(requests,0);
 });
+
+test('FOXCONN tax column does not invalidate another project in a candidate batch',()=>{
+ const record=rec(),fox={...record,id:'FOXCONN:expense:pay_test1',project:'FOXCONN',
+  values:[...record.values,0]};
+ fox.hash=sha(parseValues(fox.values,{foxconn:true}));
+ const input={action:'verify_monthly_projects',candidateOnly:true,
+  month:record.month,revision:341,projects:[
+   {project:record.project,records:[record]},{project:fox.project,records:[fox]}
+  ]};
+ assert.equal(validate(input),input);
+ const result=attestMonth({project:'FOXCONN',month:fox.month,revision:341,
+  records:[fox],payments:[{...p(),project:'FOXCONN'}],...archives(),appendOnly:true});
+ assert.equal(result.verified,false);
+ assert.ok(result.blockers.includes('FOXCONN_IMPORT_TAX_LAYOUT_REQUIRES_RULES'));
+ assert.equal(result.canWrite,false);
+});

@@ -39,6 +39,7 @@ function validate(payload){
    fail('MONTHLY_SOURCE_GROUP_INVALID',400);
   names.add(g.project);total+=g.records.length;
   if(total>3000)fail('MONTHLY_SOURCE_TOO_MANY_ROWS',413);
+  const valueCount=g.project==='FOXCONN'?14:13;
   const seen=new Set();
   for(const r of g.records){
    if(!r||Object.keys(r).sort().join(',')!=='hash,id,members,month,project,sourceClass,values'||
@@ -47,7 +48,7 @@ function validate(payload){
      !/^[0-9a-f]{64}$/.test(r.hash)||
      !Array.isArray(r.members)||r.members.length<1||r.members.length>100||
      r.members.some(v=>typeof v!=='string'||v.length>250)||
-     !Array.isArray(r.values)||r.values.length!==13||
+     !Array.isArray(r.values)||r.values.length!==valueCount||
      r.values.slice(0,6).some(v=>typeof v!=='string'||v.length>3000)||
      r.values.slice(6).some(v=>typeof v!=='number'||!Number.isFinite(v)))
     fail('MONTHLY_SOURCE_ROW_INVALID',400);
