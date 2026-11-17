@@ -182,3 +182,22 @@ test('S13-2 October scoped report preserves 258 historical rows with two date in
  assert.equal(second.canWrite,false);
  assert.equal(JSON.stringify(history),frozenHistory);
 });
+
+
+test('already posted immutable source ID ignores Vietnamese-to-Chinese text-only changes',()=>{
+ const history=[old('2026-10-01',100,900)];
+ const original=source('CN8-2','2026-11','expense:nov-salary',
+  ['2026-11-16','Lương Việt Nam','','Lương tháng 11','','Chi phí nhân sự',
+   0,0,0,0,127094000,0,0]);
+ const initial=planMonth({project:'CN8-2',month:'2026-11',
+  source:[original],history});
+ const translated=source('CN8-2','2026-11','expense:nov-salary',
+  ['2026-11-16','越籍员工工资','','2026年11月越籍员工工资','','职工薪酬',
+   0,0,0,0,127094000,0,0]);
+ const again=planMonth({project:'CN8-2',month:'2026-11',
+  source:[translated],history,mirror:initial.mirrorNext});
+ assert.equal(again.status,'CANDIDATES_ONLY');
+ assert.equal(again.changes.length,0);
+ assert.equal(again.closingBalance,initial.closingBalance);
+ assert.equal(again.mirrorNext[0].hash,initial.mirrorNext[0].hash);
+});
