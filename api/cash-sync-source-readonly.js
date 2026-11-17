@@ -189,9 +189,18 @@ async function handler(req,res){
   if(!req.headers?.host||req.headers?.origin!=='https://'+req.headers.host)
     return res.status(403).json({error:'CROSS_ORIGIN'});
   try{
-    const input=validateRequest(typeof req.body==='string'?
-      JSON.parse(req.body):req.body);
+    const payload=typeof req.body==='string'?JSON.parse(req.body):req.body;
     const jwt=String(req.headers['x-firebase-id-token']||'');
+    if(payload?.action==='verify_monthly_projects'){
+      // Reuse this existing Admin-only serverless route. Separate operation
+      // validates at most 35 projects and 3000 records; it performs exactly
+      // one indexed paid-month Payment query, two private doc GETs, 0 writes.
+      const reader=require('../server/cash-sync-batch-source-reader.cjs');
+      const input=reader.validate(payload);
+      const verified=await reader.inspect({env:process.env,input,jwt});
+      return res.status(200).json(verified);
+    }
+    const input=validateRequest(payload);
     const data=await inspect({env:process.env,...input,firebaseJwt:jwt});
     return res.status(200).json(data);
   }catch(err){
