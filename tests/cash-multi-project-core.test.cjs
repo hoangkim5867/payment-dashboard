@@ -78,17 +78,20 @@ test('same-date but changed amount never silently becomes a new Google row',()=>
  assert.equal(plan.status,'REVIEW_REQUIRED');
  assert.equal(plan.viewRows,undefined);
 });
-test('source edit after first append changes one mirror ID, never inserts a duplicate',()=>{
+test('source financial edit after first append is blocked, preserving existing source ID',()=>{
  const history=[];
  const one=source('SSIS','2026-11','expense:1',v('2026-11-01',100));
  const first=planMonth({project:'SSIS',month:'2026-11',source:[one],history,openingBalance:1000});
  const edited=source('SSIS','2026-11','expense:1',v('2026-11-01',150));
  const second=planMonth({project:'SSIS',month:'2026-11',
    source:[edited],history,mirror:first.mirrorNext,openingBalance:1000});
- assert.equal(second.changes.length,1);
- assert.equal(second.changes[0].action,'update');
- assert.equal(second.mirrorNext.length,1);
- assert.equal(second.closingBalance,850);
+ assert.equal(second.status,'REVIEW_REQUIRED');
+ assert.equal(second.changes.length,0);
+ assert.equal(second.reviews.length,1);
+ assert.equal(second.reviews[0].reason,'EXISTING_SOURCE_ID_FINANCIAL_CHANGE');
+ assert.equal(second.viewRows,undefined);
+ assert.equal(first.mirrorNext.length,1);
+ assert.equal(first.mirrorNext[0].values[7],100);
 });
 test('FOXCONN import-tax column N and balance O reconcile without mixing expense buckets',()=>{
  const historical=[['2026-10-02','Vendor','SUPL-001','Import tax','IPC001','材料款',
