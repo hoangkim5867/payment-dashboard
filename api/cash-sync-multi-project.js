@@ -52,7 +52,7 @@ const tabByTitle=(meta,title)=>meta.sheets?.find(x=>x.properties?.title===title)
 const range=(title,cols)=>'/values/'+encodeURIComponent(
  "'"+title.replace(/'/g,"''")+"'!"+cols)+
  '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER';
-async function state(bearer,id,historySheetId){
+async function state(bearer,id,historySheetId,project=''){
  const meta=await google(bearer,id,
   '?fields=spreadsheetId,properties(title),sheets(properties(sheetId,title,hidden,gridProperties(rowCount,columnCount)))');
  if(meta.spreadsheetId!==id)die('Google file ID không khớp.');
@@ -60,6 +60,10 @@ async function state(bearer,id,historySheetId){
  if(!historic||[MIRROR,VIEW].includes(historic.title))
   die('Chưa xác minh được tab lịch sử theo gid.');
  const mirrored=tabByTitle(meta,MIRROR),view=tabByTitle(meta,VIEW);
+ if(project==='PHU HUNG'&&mirrored&&!view&&
+    tabByTitle(meta,'PHU HUNG')&&
+    tabByTitle(meta,'PHU_HUNG_HISTORY_BACKUP'))
+  die('PHU HUNG đã có tab tổng hợp PHU HUNG và mirror kỹ thuật từ đợt triển khai trước. Dùng chức năng đồng bộ PHU HUNG hiện có, không tạo CASHCONTROL_VIEW thứ hai.');
  if(Boolean(mirrored)!==Boolean(view))
   die('Google có tab kỹ thuật dở dang, không tự sửa.');
  if(mirrored&&mirrored.hidden!==true)die('Tab dữ liệu kỹ thuật không còn được ẩn.');
@@ -83,7 +87,7 @@ const equalCells=(a,b)=>a.length===b.length&&a.every((row,i)=>
  row.every((value,j)=>typeof value==='number'&&typeof b[i][j]==='number'?
   Math.abs(value-b[i][j])<0.000001:String(value??'')===String(b[i][j]??'')));
 async function prepare(bearer,input){
- const snapshot=await state(bearer,input.spreadsheetId,input.historySheetId);
+ const snapshot=await state(bearer,input.spreadsheetId,input.historySheetId,input.project);
  const foxconn=input.project.normalize('NFKC').trim().toUpperCase()==='FOXCONN';
  const opening=input.openingBalance===null||input.openingBalance===undefined?
   null:Number(input.openingBalance);
@@ -274,7 +278,7 @@ async function handler(req,res,testOnly=false){
   await google(authorization,input.spreadsheetId,':batchUpdate','POST',
    {requests:batch.requests,includeSpreadsheetInResponse:false});
   // Verify exact mirror data, spreadsheet formula layout and closing balance.
-  const after=await state(authorization,input.spreadsheetId,input.historySheetId);
+  const after=await state(authorization,input.spreadsheetId,input.historySheetId,input.project);
   if(JSON.stringify(after.history)!==JSON.stringify(snapshot.history))
    die('Google đã nhận lệnh nhưng tab lịch sử đã thay đổi; KHÔNG thử ghi lại.');
   const expected=adapter.normalizeMirror(plan);
