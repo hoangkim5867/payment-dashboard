@@ -719,6 +719,20 @@ document.getElementById("ccSyncNextProjectReadOnly")
    if(!text.includes(readyLabel))throw Error('READY badge semantics marker moved');
    text=text.replace(readyLabel,"READY:'CHƯA GHI · chờ xác nhận',");
 
+   // Include PHU HUNG in the same explicit batch approval; no duplicate popup.
+   const oneApprovalBefore0="async function ccGoogleSyncRunOriginalManually(){";
+   if(!text.includes(oneApprovalBefore0))throw Error('Single Admin confirmation anchor 0 moved');
+   text=text.replace(oneApprovalBefore0,"async function ccGoogleSyncRunOriginalManually({preApprovedByBatch=false}={}){");
+   const oneApprovalBefore1="    if(!confirm(confirmation)){\n      ccGoogleSyncStatus('ĐÃ HỦY: chỉ kiểm tra và làm mới nguồn, không ghi file Google Sheets gốc.');";
+   if(!text.includes(oneApprovalBefore1))throw Error('Single Admin confirmation anchor 1 moved');
+   text=text.replace(oneApprovalBefore1,"    if(!preApprovedByBatch&&!confirm(confirmation)){\n      ccGoogleSyncStatus('ĐÃ HỦY: chỉ kiểm tra và làm mới nguồn, không ghi file Google Sheets gốc.');");
+   const oneApprovalBefore2="          const pilot=await ccGoogleSyncRunOriginalManually();";
+   if(!text.includes(oneApprovalBefore2))throw Error('Single Admin confirmation anchor 2 moved');
+   text=text.replace(oneApprovalBefore2,"          const pilot=await ccGoogleSyncRunOriginalManually({preApprovedByBatch:\n            result.mode==='BATCH_ATTEMPTED'&&result.approved===true});");
+   const oneApprovalBefore3="          return confirm('Đồng bộ '+review.readyProjects.length+\n            ' dự án đã được máy chủ cấp phép tháng '+month+";
+   if(!text.includes(oneApprovalBefore3))throw Error('Single Admin confirmation anchor 3 moved');
+   text=text.replace(oneApprovalBefore3,"          const includesPhuHung=manifest.groups.some(g=>\n            g.project==='PHU HUNG'&&g.groupedExcelRows);\n          return confirm('Đồng bộ '+review.readyProjects.length+\n            ' dự án đã được máy chủ cấp phép'+\n            (includesPhuHung?' + PHU HUNG':'')+' tháng '+month+");
+
    // and a single Cash Control month JSON. Legacy technical tools remain
    // present but de-emphasized; never represent unsupported direct write as ready.
    const uiBefore0="title=\"Chỉ Admin; bản thử PHU HUNG, ghi được vào file Google Sheets TEST sau khi xác nhận\">↗ Đồng bộ Google Sheets (thử)";
