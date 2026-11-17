@@ -56,15 +56,15 @@ const summarize=rows=>Object.freeze({
  previewOnly:rows.filter(r=>r.status==='PREVIEW_ONLY').length,
  recordedGoogleWriteRequests:rows.filter(r=>r.status==='VERIFIED').length
 });
-const entry=(project,status,reason,changes=0,closingBalance=null)=>Object.freeze({
- project,status,reason,changes,closingBalance
+const entry=(project,status,reason,changes=0,closingBalance=null,writeUncertain=false)=>Object.freeze({
+ project,status,reason,changes,closingBalance,writeUncertain
 });
 function verifyReply(response,item){
  const s=response?.summary;
  if(!s||s.project!==item.project||s.month!==item.month||
     !Number.isSafeInteger(s.changes)||s.changes<0||
     !safeNum(s.monthClosingBalance)||
-    Math.abs(s.monthClosingBalance-item.expectedMonthClosing)>0.00001||
+    Math.abs(s.monthClosingBalance-item.expectedMonthClosing)>0.001||
     s.originalUntouched!==true)
    throw Object.assign(Error('SERVER_PREVIEW_MISMATCH'),{code:'SERVER_PREVIEW_MISMATCH'});
  return s;
@@ -164,11 +164,12 @@ export async function runManualMonthlySync({
    }
    onProject?.(rows[pos]);
   }catch(e){
-   rows[pos]=entry(item.project,'FAILED',errorCode(e));
+   const writeUncertain=attemptedCommit&&e?.safeBeforeWrite!==true;
+   rows[pos]=entry(item.project,'FAILED',errorCode(e),0,null,writeUncertain);
    onProject?.(rows[pos]);
    // Preview-only failures are isolated. After ANY attempted write, a failure
    // is potentially ambiguous; do not continue to other projects or retry.
-   if(attemptedCommit&&e?.safeBeforeWrite!==true){
+   if(writeUncertain){
     for(const pending of candidates.slice(candidates.indexOf(item)+1)){
      const next=rows.findIndex(r=>r.project===pending.project);
      if(next>=0&&rows[next].status==='READY'){

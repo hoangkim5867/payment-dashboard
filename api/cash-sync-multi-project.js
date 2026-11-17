@@ -39,20 +39,33 @@ function validBody(payload){
  return payload;
 }
 async function google(bearer,id,extra,method='GET',body=null){
- const result=await fetch(prefix+encodeURIComponent(id)+extra,{
-  method,headers:{Authorization:bearer,...(body?{'Content-Type':'application/json'}:{})},
-  ...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(28000)
- });
- const json=await result.json().catch(()=>({}));
- if(!result.ok)die('Google Sheets '+result.status+': '+
-  String(json?.error?.message||'Yêu cầu bị từ chối.').slice(0,130),502);
- return json;
+ const read=method==='GET';
+ for(let attempt=0;attempt<(read?2:1);attempt++){
+  let result;
+  try{
+   result=await fetch(prefix+encodeURIComponent(id)+extra,{
+    method,headers:{Authorization:bearer,...(body?{'Content-Type':'application/json'}:{})},
+    ...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(read?12000:28000)
+   });
+  }catch{
+   if(!read||attempt)die('Kết nối Google Sheets bị gián đoạn.',502);
+  }
+  if(result?.ok){
+   try{return await result.json();}
+   catch{die('Google Sheets trả về dữ liệu không đọc được.',502);}
+  }
+  if(result&&(!read||attempt||![429,500,502,503,504].includes(result.status))){
+   const reason=result.status===429?'vượt giới hạn lượt đọc':
+     result.status===401||result.status===403?'phiên Google hoặc quyền truy cập cần kiểm tra':
+     'yêu cầu không thành công';
+   die('Google Sheets HTTP '+result.status+' · '+reason+'.',502);
+  }
+  await new Promise(resolve=>setTimeout(resolve,500));
+ }
 }
 const tabById=(meta,id)=>meta.sheets?.find(x=>x.properties?.sheetId===id)?.properties;
 const tabByTitle=(meta,title)=>meta.sheets?.find(x=>x.properties?.title===title)?.properties;
-const range=(title,cols)=>'/values/'+encodeURIComponent(
- "'"+title.replace(/'/g,"''")+"'!"+cols)+
- '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER';
+const range=(title,cols)=>"'"+title.replace(/'/g,"''")+"'!"+cols;
 async function state(bearer,id,historySheetId,project=''){
  const meta=await google(bearer,id,
   '?fields=spreadsheetId,properties(title),sheets(properties(sheetId,title,hidden,gridProperties(rowCount,columnCount)))');
@@ -78,16 +91,24 @@ async function state(bearer,id,historySheetId,project=''){
  if(view&&view.hidden===true)die('Tab tổng hợp đã bị ẩn bất thường.');
  if([historic,mirrored,view].some(x=>x&&x.gridProperties?.rowCount>20000))
   die('Tab Google quá 20.000 dòng.');
- const [raw,oldMirror,oldView,formulas]=await Promise.all([
-  google(bearer,id,range(historic.title,'A1:O20000')),
-  mirrored?google(bearer,id,range(MIRROR,'A1:S20000')):Promise.resolve(null),
-  view?google(bearer,id,range(view.title,humanView?'A1:O20000':'A1:R20000')):Promise.resolve(null),
+ const ranges=[range(historic.title,'A1:O20000')];
+ if(mirrored)ranges.push(range(MIRROR,'A1:S20000'));
+ if(view)ranges.push(range(view.title,humanView?'A1:O20000':'A1:R20000'));
+ const params=new URLSearchParams({
+  valueRenderOption:'UNFORMATTED_VALUE',dateTimeRenderOption:'SERIAL_NUMBER'
+ });
+ for(const item of ranges)params.append('ranges',item);
+ const [values,formulas]=await Promise.all([
+  google(bearer,id,'/values:batchGet?'+params),
   view?google(bearer,id,'/values/'+encodeURIComponent(
-    "'"+view.title.replace(/'/g,"''")+"'!"+
+    range(view.title,
      (humanView&&project!=='FOXCONN'?'N':'O')+'1:'+
-     (humanView&&project!=='FOXCONN'?'N':'O')+'20000')+
+     (humanView&&project!=='FOXCONN'?'N':'O')+'20000'))+
     '?valueRenderOption=FORMULA'):Promise.resolve(null)
  ]);
+ if(values.spreadsheetId!==id||values.valueRanges?.length!==ranges.length)
+  die('Google Sheets trả thiếu vùng dữ liệu đối chiếu.',502);
+ const [raw,oldMirror,oldView]=values.valueRanges;
  const mirror=mirrored?parseStoredMirror(oldMirror.values||[]):[];
  if(mirrored&&!mirror)die('Mirror trống hoặc sai header; không ghi.');
  return {meta,history:raw.values||[],mirror,view:oldView?.values||[],
@@ -226,9 +247,14 @@ async function handler(req,res,testOnly=false){
   const {plan,snapshot,batch}=current;
   const monthClosingBalance=plan.viewRows.reduce((balance,row)=>
    row.values[0].slice(0,7)<=input.month?balance+net(row.values):balance,plan.historicalOpening);
+  // A long VND ledger and Cash Control's monthly totals sum in different
+  // orders. Allow sub-cent floating-point noise, not monetary differences.
   if(input.expectedMonthClosing!==undefined&&
-     Math.abs(monthClosingBalance-input.expectedMonthClosing)>0.00001)
-   die('Số dư cuối tháng trên Google lệch Cash Control.');
+     Math.abs(monthClosingBalance-input.expectedMonthClosing)>0.001){
+   const format=n=>n.toLocaleString('vi-VN',{maximumFractionDigits:6});
+   die('Số dư cuối tháng lệch · Google '+format(monthClosingBalance)+
+     ' đ · Cash Control '+format(input.expectedMonthClosing)+' đ.');
+  }
   const summary={project:plan.project,month:plan.month,
    historical:plan.viewRows.filter(x=>x.origin==='HISTORY').length,
    generated:plan.viewRows.length,changes:plan.changes.length,
@@ -317,11 +343,11 @@ async function handler(req,res,testOnly=false){
   else verifyExistingView(after.view,after.formulas,plan);
   return res.status(200).json({mode:'verified',summary,writes:1});
  }catch(error){
-  const code=[400,401,403,409,413,503].includes(error?.statusCode)?
+  const code=[400,401,403,409,413,502,503].includes(error?.statusCode)?
    error.statusCode:500;
-  return res.status(code).json({error:code===500?
-   'Không xác minh được Google Sheets; KHÔNG tự ghi lại.':
-   String(error.message||'Chặn đồng bộ.'),
+  const message=code===500?'Không xác minh được Google Sheets.':String(error.message||'Chặn đồng bộ.');
+  return res.status(code).json({error:message+(googleWriteAttempted?
+   ' Đã gửi yêu cầu ghi. Đọc lại Google trước khi thử tiếp.':' Chưa gửi yêu cầu ghi.'),
    writeAttempted:googleWriteAttempted,
    ...(googleWriteAttempted?{}:{writes:0}),
    ...(!googleWriteAttempted&&Array.isArray(error?.sourceBlockers)?

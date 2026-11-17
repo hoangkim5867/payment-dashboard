@@ -85,7 +85,20 @@ function fixture(project='ELYSIAN',spreadsheetId=ID){
    return ok({replies:[]});
   }
   state.reads=(state.reads||0)+1;
+  if(state.readFailures?.length){
+   const status=state.readFailures.shift();
+   return {ok:false,status,json:async()=>({error:{message:'mock Google failure'}})};
+  }
   if(url.includes('fields=spreadsheetId'))return ok(state.meta);
+  if(url.includes('/values:batchGet?')){
+   const ranges=new URL(url).searchParams.getAll('ranges');
+   return ok({spreadsheetId,valueRanges:ranges.map(range=>{
+    if(range.startsWith("'SỔ GỐC'"))return {values:structuredClone(state.history)};
+    if(range.startsWith("'DATA_CASHCONTROL'"))return {values:state.mirror||[]};
+    if(range.startsWith("'CASHCONTROL_VIEW'"))return {values:state.view||[]};
+    throw Error('Unexpected Google mock range '+range);
+   })});
+  }
   const decoded=decodeURIComponent(url.slice(url.indexOf('/values/')+8,url.indexOf('?')));
   if(decoded.includes("'SỔ GỐC'"))return ok({values:structuredClone(state.history)});
   if(decoded.includes("'DATA_CASHCONTROL'"))return ok({values:state.mirror||[]});
@@ -305,11 +318,29 @@ test('monthly batch compares the selected closing balance independently of futur
  const h=fixture();
  const plan=await h.call('preview',{enabled:true,expectedMonthClosing:700});
  assert.equal(plan.summary.monthClosingBalance,700);
+ assert.equal((await h.call('preview',{expectedMonthClosing:700.0002})).status,200);
+ assert.equal((await h.call('preview',{expectedMonthClosing:700.01})).status,409);
  const rejected=await h.call('commit',{enabled:true,expectedMonthClosing:701,
    signature:plan.signature,confirm:'SYNC_THIS_PROJECT'});
  assert.equal(rejected.status,409);
  assert.match(rejected.error,/Số dư cuối tháng/);
  assert.equal(h.state.writes,0);
+});
+
+test('Google read retries a temporary limit once and reports blocked access before writes',async()=>{
+ const f=fixture();
+ f.state.readFailures=[429];
+ assert.equal((await f.call('preview')).status,200);
+ assert.equal(f.state.reads,3);
+ assert.equal(f.state.writes,0);
+ const g=fixture();
+ g.state.readFailures=[403];
+ const denied=await g.call('preview');
+ assert.equal(denied.status,502);
+ assert.equal(denied.writeAttempted,false);
+ assert.match(denied.error,/HTTP 403.*Chưa gửi yêu cầu ghi/);
+ assert.equal(g.state.reads,1);
+ assert.equal(g.state.writes,0);
 });
 
 test('S13-2 verified October sources use TEST route: write, readback, repeat with 0 new writes',async()=>{

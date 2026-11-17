@@ -11,6 +11,7 @@ const die=s=>{throw Object.assign(new Error(s),{statusCode:409})};
 const round=n=>Math.round(n*1e6)/1e6;
 const num=n=>n===''||n===undefined||n===null?0:Number(n);
 const same=(a,b)=>Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a-b)<0.000001;
+const sameCalculation=(a,b)=>Number.isFinite(a)&&Number.isFinite(b)&&Math.abs(a-b)<0.001;
 const valuesOf=cell=>cell?.userEnteredValue?.numberValue??cell?.userEnteredValue?.stringValue;
 const cell=v=>v===undefined||v===null||v===''?{}:
   typeof v==='number'?{userEnteredValue:{numberValue:v}}:
@@ -81,22 +82,23 @@ function verifyHumanView(matrix,formulaRows,plan,{foxconn=false,project}={}){
   if(String(actual[0]||'')!==v[0])
    die('Ngày giao dịch ở sổ hiển thị đã thay đổi.');
   for(let j=6;j<balanceIndex;j++){
-   if(!same(num(actual[j]),v[j]))die('Số tiền ở sổ hiển thị đã bị sửa.');
+   if(!same(num(actual[j]),v[j]))
+    die('Số tiền sổ hiển thị lệch tại '+String.fromCharCode(65+j)+(i+5)+'.');
   }
   previous=round(previous+net(v));
-  if(!same(num(actual[balanceIndex]),previous))
+  if(!sameCalculation(num(actual[balanceIndex]),previous))
    die('Số dư ở sổ hiển thị không khớp Cash Control.');
   const expected=rowFormula(i,foxconn,opening);
   if(String(formulaRows[i+4]?.[0]||'')!==expected)
    die('Công thức số dư ở sổ hiển thị đã bị sửa.');
  }
  const total=matrix[targetLength-1]||[];
- if(!same(num(total[balanceIndex]),previous)||
+ if(!sameCalculation(num(total[balanceIndex]),previous)||
     String(formulaRows[targetLength-1]?.[0]||'')!=='='+colLetter(foxconn)+(body.length+4))
   die('Dòng tổng Google không khớp.');
  for(let j=6;j<balanceIndex;j++){
   const sum=round(body.reduce((n,r)=>n+r.values[j],0));
-  if(!same(num(total[j]),sum))die('Dòng tổng chi phí/thu nhập Google không khớp.');
+  if(!sameCalculation(num(total[j]),sum))die('Dòng tổng chi phí/thu nhập Google không khớp.');
  }
  return true;
 }

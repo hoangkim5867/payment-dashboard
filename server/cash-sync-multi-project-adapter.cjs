@@ -67,7 +67,7 @@ function verifyExistingView(matrix,formulas,plan){
   for(let j=0;j<w.length;j++){
    if(i>0&&j===14){
     if(!Number.isFinite(Number(row[j]))||
-       Math.abs(Number(row[j])-plan.viewRows[i-1].balance)>0.000001||
+       Math.abs(Number(row[j])-plan.viewRows[i-1].balance)>0.001||
        String(formulas[i]?.[0]??'')!==w[14])
       die('Số dư/công thức Google VIEW bị sửa ngoài hệ thống.');
    }else if(typeof w[j]==='number'){

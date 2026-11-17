@@ -68,6 +68,7 @@ test('a failing project never interrupts others, write authorization is server-o
  assert.equal(result.summary.verified,1);
  assert.equal(result.summary.failed,1);
  assert.equal(result.summary.previewOnly,1);
+ assert.equal(result.rows.find(x=>x.project==='B').writeUncertain,false);
  assert.deepEqual(calls,['p:A','p:B','p:C','p:A','c:A']);
 });
 test('Admin cancellation results in zero commit requests',async()=>{
@@ -114,6 +115,7 @@ test('uncertain Google write stops all later projects pending readback, no retry
  assert.equal(result.summary.failed,1);
  assert.equal(result.summary.skipped,1);
  assert.equal(result.summary.verified,0);
+ assert.equal(result.rows.find(x=>x.project==='A').writeUncertain,true);
  assert.equal(result.rows.find(x=>x.project==='B').reason,
   'PREVIOUS_WRITE_UNCERTAIN_REQUIRE_GOOGLE_READBACK');
 });
