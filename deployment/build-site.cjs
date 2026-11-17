@@ -857,6 +857,8 @@ document.getElementById("ccSyncNextProjectReadOnly")
    if(!text.includes(uiBefore11))throw Error('Cash Control owner UI anchor 11 moved');
    text=text.replace(uiBefore11,"<summary style=\"cursor:pointer;font-weight:700;color:#45566c\">Công cụ PHU HUNG đã triển khai · Nâng cao</summary>");
 
+   text=require('./cash-sync-panel.cjs').buildCashSyncPanel(text);
+
 
 
 

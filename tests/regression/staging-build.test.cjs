@@ -20,6 +20,12 @@ test('production Cash Control inline scripts remain parseable after PHU HUNG lin
  assert.match(html,/if\(recovered\)ccSyncProjectCatalogSaveDraft\(\);/);
  assert.doesNotMatch(html,/FOXCONN_GOOGLE_TEST/);
  assert.doesNotMatch(html,/S19-3项目现金流表/);
+ const panel=html.slice(html.indexOf('<div class="modal" id="ccGoogleSyncPreviewModal">'),
+   html.indexOf('<div class="modal" id="exportRangeModal">'));
+ assert.match(panel,/class="cc-sync-actions"[\s\S]*Đồng bộ sang Google[\s\S]*Chỉ đối chiếu[\s\S]*id="ccSyncBatchResults"/);
+ assert.match(panel,/id="ccSyncSecondaryTools" hidden[\s\S]*Quản lý link dự án[\s\S]*Tải báo cáo Excel[\s\S]*Công cụ kỹ thuật/);
+ assert.doesNotMatch(panel,/Chưa bật ghi đồng bộ chung/);
+ assert.ok(fs.existsSync(path.join(out,'assets/js/cash-sync-panel.mjs')));
 });
 test('production refuses indexed V1 even when all environment approvals are present',()=>{
  const out=path.join(fs.mkdtempSync(path.join(os.tmpdir(),'payment-index-release-')),'site');
