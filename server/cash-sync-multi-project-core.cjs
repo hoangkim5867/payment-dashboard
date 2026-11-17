@@ -44,6 +44,36 @@ function parseValues(row,{history=false,foxconn=false}={}){
 }
 const net=v=>round(v[6]-v.slice(7,14).reduce((n,m)=>n+m,0));
 const idSignature=v=>JSON.stringify([v[0],...v.slice(1,6).map(name),...v.slice(6)]);
+// A backdated Oct/Nov posting may be missing from the ORIGINAL Google ledger.
+// Append it ONLY to machine-owned VIEW/MIRROR if there is no plausible
+// duplicate in original history or an earlier mirrored posting.
+// Balance proof is separately enforced against the independent monthly
+// Cash Control balance by the Production API. This check cannot authorize a
+// write by itself.
+const postingKey=v=>JSON.stringify([v[0],...v.slice(6,14)]);
+const contractIpcKey=v=>{
+ const contract=name(v[2]),ipc=name(v[4]);
+ return contract&&ipc?JSON.stringify([v[0],contract,ipc]):'';
+};
+const looksTransfer=v=>/归还|借款|还款|hoàn vay|hoan vay|điều chuyển|dieu chuyen|repay|transfer/i
+ .test(v.slice(1,6).map(name).join(' '));
+const possibleDuplicate=(current,historyRows,mirrorRows)=>{
+ const cp=contractIpcKey(current),money=postingKey(current);
+ const netAmount=Math.abs(net(current));
+ for(const row of [...historyRows,...mirrorRows]){
+  const original=row.values;
+  if(original[0]!==current[0])continue;
+  if(postingKey(original)===money)return 'SAME_DAY_AMOUNT_COLUMNS_DIFFERENT_LABEL';
+  if(cp&&contractIpcKey(original)===cp)return 'SAME_CONTRACT_IPC_DIFFERENT_PAYMENT';
+  if(name(original[1])===name(current[1])&&
+     name(original[3])===name(current[3])&&name(current[3]))
+   return 'SAME_DAY_COMPANY_DESCRIPTION_CHANGED_AMOUNT';
+  if((looksTransfer(original)||looksTransfer(current))&&
+     netAmount>0&&Math.abs(Math.abs(net(original))-netAmount)<0.000001)
+   return 'POSSIBLE_ALREADY_POSTED_TRANSFER';
+ }
+ return '';
+};
 function auditHistory(raw,{foxconn=false,openingBalance=null}={}){
   if(!Array.isArray(raw)||raw.length>20000)fail('Sổ Google vượt giới hạn kiểm tra.');
   const entries=[];let firstOpening=null,prev=null,maxDate='';
@@ -147,14 +177,25 @@ function planMonth({project,month,source,history,mirror=[],foxconn=false,opening
       changes.push({id:item.id,action:'bind-history',status:item.status});
       continue;
     }
-    if(current.values[0]<=historical.maxDate){
-      reviews.push({id:current.id,reason:'MISSING_FROM_OLDER_GOOGLE_HISTORY'});
-      continue;
+    const backdated=current.values[0]<=historical.maxDate;
+    // Only the requested October/November 2026 rollout is eligible for
+    // backfill. Older-period adjustments must remain manually reviewed.
+    if(backdated){
+      if(!['2026-10','2026-11'].includes(month)){
+        reviews.push({id:current.id,reason:'BACKFILL_OUTSIDE_APPROVED_PERIOD'});
+        continue;
+      }
+      const collision=possibleDuplicate(current.values,historical.entries,
+        combinedMirror.filter(x=>x.status==='synced'));
+      if(collision){
+        reviews.push({id:current.id,reason:collision});
+        continue;
+      }
     }
-    // Only a strictly later new transaction may be appended automatically;
-    // earlier events must be reviewed, but other projects remain independent.
     const item={...current,project:projectKey,status:'synced'};
-    combinedMirror.push(item);changes.push({id:item.id,action:'append',status:'synced'});
+    combinedMirror.push(item);
+    changes.push({id:item.id,
+      action:backdated?'append-backfill':'append',status:'synced'});
   }
   if(reviews.length)
     return Object.freeze({project:projectKey,month,status:'REVIEW_REQUIRED',
