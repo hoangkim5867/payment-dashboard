@@ -188,3 +188,25 @@ test('batch differentiates brand new Google entries from ID bindings of already 
  assert.equal(commits,1);
  assert.deepEqual(result.written,['EATON']);
 });
+
+
+test('October present on Google is skipped by owner policy; no history rewrite',()=>{
+ const plan=make([group('ELYSIAN',1)],[record('ELYSIAN',
+  'NEWER_THAN_HISTORY_CANDIDATE',{
+   syncStartMonth:'2026-11',originalOctoberPresent:true,
+   sourceRows:1,exactMatches:0,newerCandidates:1,historyUnmatched:0
+  })]);
+ assert.equal(plan.counts.alreadyComplete,1);
+ assert.equal(plan.counts.needsSourceProof,0);
+ assert.equal(plan.groups.alreadyComplete[0].canCommit,false);
+ assert.equal(plan.googleWrites,0);
+});
+test('October absent on Google remains eligible for new source proof',()=>{
+ const plan=make([group('CR5-1B',1)],[record('CR5-1B',
+  'NEWER_THAN_HISTORY_CANDIDATE',{
+   syncStartMonth:'2026-10',originalOctoberPresent:false,
+   sourceRows:1,exactMatches:0,newerCandidates:1,historyUnmatched:0
+  })]);
+ assert.equal(plan.counts.needsSourceProof,1);
+ assert.equal(plan.counts.alreadyComplete,0);
+});
