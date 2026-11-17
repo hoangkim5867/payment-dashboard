@@ -40,7 +40,6 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    const decisionImport="import {scanMonthlyGoogleReadOnly} from \"./assets/js/cash-sync-monthly-google-readonly.mjs\";";
    if(!text.includes(decisionImport))throw Error('Monthly audit import moved');
    text=text.replace(decisionImport,decisionImport+'\n'+"import {classifyMonthlyAudit} from \"./assets/js/cash-sync-batch-decisions.mjs\";");
-   const releaseImport="import {classifyMonthlyAudit} from \\"./assets/js/cash-sync-batch-decisions.mjs\\";";
    const releaseFunction='import {buildBatchReleasePlan} from "./assets/js/cash-sync-batch-release.mjs";';
    // Keep one user click: release planning consumes the very same grouped
    // Export Excel snapshot & Google readonly scan, no extra browser actions.
