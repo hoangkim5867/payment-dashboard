@@ -173,6 +173,13 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    if(!text.includes(oldDetailAnchor))throw Error('Monthly audit table moved; refuse unsafe build');
    text=text.replace(oldDetailAnchor,newDetailAnchor);
 
+   // Include source attestation blockers in the owner's copied read-only summary.
+   // No amounts, Firestore IDs, signed fingerprints, links, or secrets.
+   const reportOriginalScope="        googleReads:scan.googleReads,googleWrites:0,\\n        sourceComplete:false,writeApproved:false,";
+   const reportWithProof="        googleReads:scan.googleReads,googleWrites:0,\\n        // Read-only scan covers original history, not existing machine tabs.\\n        comparisonScope:'ORIGINAL_HISTORY_ONLY',technicalMirrorChecked:false,\\n        sourceProof:{checkedProjects:independentSource?.checkedProjects??0,\\n          eligibleForFurtherReview:independentSource?.eligibleForFurtherReview??0,\\n          error:String(independentSource?.error||'').slice(0,130)||null,\\n          projects:(independentSource?.projects||[]).map(p=>({\\n            project:p.project,verified:p.verified===true,\\n            blockers:Array.isArray(p.blockers)?p.blockers.filter(code=>\\n              typeof code==='string'&&/^[A-Z0-9_]{3,96}$/.test(code)).slice(0,12):[],\\n            sourceRowsChecked:Number.isSafeInteger(p.sourceRowsChecked)?p.sourceRowsChecked:null\\n          }))},\\n        sourceComplete:false,writeApproved:false,";
+   if(!text.includes(reportOriginalScope))throw Error('Read-only report scope anchor moved');
+   text=text.replace(reportOriginalScope,reportWithProof);
+   // Existing H14-3/SSIS technical mirrors were not part of this original-only read.
    // Include only safe row location/code diagnostics in the owner's copied
    // report: no amounts, transaction IDs, descriptions or Google sheet IDs.
    const oldSummaryTail="          dateReview:row.dateReview===true\n        }))";
