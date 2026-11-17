@@ -12,7 +12,14 @@ test('production Cash Control inline scripts remain parseable after PHU HUNG lin
  buildSite({source:path.resolve(__dirname,'../../site'),output:out,target:'production'});
  const html=fs.readFileSync(path.join(out,'cash-control.html'),'utf8');
  assert.ok(verifyInlineScripts(html,'cash-control.html')>0);
- assert.match(html,/ccSyncProjectLinkDraft\['PHU HUNG'\]/);
+ assert.match(html,/const knownOriginalSheets=/);
+ assert.match(html,/PHU HUNG/);
+ assert.match(html,/ELYSIAN/);
+ assert.match(html,/FOXCONN/);
+ assert.match(html,/if\(!available\.has\(project\)\|\|ccSyncProjectLinkDraft\[project\]\)continue;/);
+ assert.match(html,/if\(recovered\)ccSyncProjectCatalogSaveDraft\(\);/);
+ assert.doesNotMatch(html,/FOXCONN_GOOGLE_TEST/);
+ assert.doesNotMatch(html,/S19-3项目现金流表/);
 });
 test('production refuses indexed V1 even when all environment approvals are present',()=>{
  const out=path.join(fs.mkdtempSync(path.join(os.tmpdir(),'payment-index-release-')),'site');
