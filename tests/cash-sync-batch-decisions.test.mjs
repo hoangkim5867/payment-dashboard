@@ -57,3 +57,19 @@ test('financial/date/duplicate flags block no-change and new-candidate shortcuts
  assert.equal(plan.groups.newCandidateReview.length,0);
  assert.equal(plan.canWrite,false);
 });
+
+test('matching dates out of order remain non-writing date-only subset of history review',()=>{
+ const plan=classifyMonthlyAudit({month:'2026-10',results:[
+  row('H14-3','REVIEW_REQUIRED',{sourceRows:12,exactMatches:12,
+   dateReview:true,reviewCategory:'DATE_ORDER_ONLY'}),
+  row('中健厂房','REVIEW_REQUIRED',{sourceRows:2,exactMatches:2,
+   dateReview:true,reviewCategory:'DATE_ORDER_ONLY'}),
+  row('ELYSIAN','REVIEW_REQUIRED',{sourceRows:70,exactMatches:68,
+   historyUnmatched:1,dateReview:true,reviewCategory:'TRANSACTION_REVIEW'})
+ ]});
+ assert.deepEqual(plan.dateOrderOnly,['H14-3','中健厂房']);
+ assert.equal(plan.counts.historyReview,3);
+ assert.match(plan.groups.historyReview[0].reason,/khớp toàn bộ dòng tháng/);
+ assert.equal(plan.writeReadyProjects,0);
+ assert.equal(plan.canWrite,false);
+});
