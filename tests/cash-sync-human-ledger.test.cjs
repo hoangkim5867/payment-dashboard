@@ -4,8 +4,8 @@ const core=require('../server/cash-sync-multi-project-core.cjs');
 const human=require('../server/cash-sync-human-ledger.cjs');
 const adapt=require('../server/cash-sync-multi-project-adapter.cjs');
 const ORIGINAL=[
- ['2026-10-01','供应商','LAB-01','保函手续费','IPC001','间接费',0,0,0,0,100,0,0,0, -100],
- ['2026-10-20','供应商','LAB-02','10月材料款','IPC002','材料款',0,0,200,0,0,0,0,0,-300]
+ ['2026-10-01','供应商','LAB-01','保函手续费','IPC001','间接费',0,0,0,0,100,0,0,-100],
+ ['2026-10-20','供应商','LAB-02','10月材料款','IPC002','材料款',0,0,200,0,0,0,0,-300]
 ];
 const v=(date,amount,company='Nhân công')=>[date,'Lương Việt Nam','',`Lương Việt Nam · Tháng 11/2026`,'',company,0,0,0,0,amount,0,0,0];
 const paid=v('2026-11-13',1234);
@@ -30,7 +30,7 @@ function render(plan){
   rows.push([...r.slice(0,13),sum]);
   formulas.push([fmt]);
  }
- const tot=['合计','','','','','',0,0,200,0,1234,0,0,sum];
+ const tot=['合计','','','','','',0,0,200,0,1334,0,0,sum];
  rows.push(tot);formulas.push(['=N'+(plan.viewRows.length+4)]);
  return {rows,formulas};
 }
