@@ -24,6 +24,23 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
  for(const name of fs.readdirSync(out).filter(n=>n.endsWith('.html'))){const file=path.join(out,name);let text=fs.readFileSync(file,'utf8');const pattern=/const firebaseConfig\s*=\s*\{[\s\S]*?\};/g;
  text=text.replace(pattern,original=>{configs++;return target==='staging'?'const firebaseConfig='+JSON.stringify(stagingConfig)+';':original});
  if(target==='production'&&name==='cash-control.html'){
+   // Allow the finished PHU HUNG pilot to follow the same monthly candidate
+   // checks as other projects. This does NOT authorize its already-posted rows:
+   // independent server attestation, exact original gid, signed Google preview,
+   // duplicate detection and closing balance gates remain mandatory.
+   const legacyPilotExclusion="const sourceComplete=project!=='PHU HUNG'&&\\n          group.state==='HISTORY_COMPARISON_CANDIDATE'&&";
+   if(!text.includes(legacyPilotExclusion))
+     throw Error('PHU HUNG monthly source eligibility anchor moved');
+   text=text.replace(legacyPilotExclusion,
+     "const sourceComplete=group.state==='HISTORY_COMPARISON_CANDIDATE'&&");
+   // Distinguish PREVIEW READY from a user-approved real Google commit.
+   const batchStatusBase="      status.textContent=month+' · '+manifest.activeProjects+'/'+manifest.catalogProjects+";
+   if(!text.includes(batchStatusBase))
+     throw Error('Monthly Google commit status anchor moved');
+   text=text.replace(batchStatusBase,
+     "      status.textContent=(result.mode==='NOT_APPROVED'?" +
+     "'CHƯA GHI: đã hủy hộp xác nhận; bấm Đồng bộ và chọn OK nếu muốn ghi các dự án READY. · ':'' )+"+
+     "month+' · '+manifest.activeProjects+'/'+manifest.catalogProjects+");
    // The catalog may include a legacy/external project without activity.
    // Limit the actual monthly audit to 35 ACTIVE projects, not 35 names.
    const oldGuard='manifest.month!==month||manifest.catalogProjects>35||';
