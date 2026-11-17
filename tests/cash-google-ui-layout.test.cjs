@@ -302,3 +302,13 @@ test('35-project Admin batch button is gated by independent source proof, signed
  assert.match(build,/KHÔNG BẤM GHI LẦN HAI/);
  assert.doesNotMatch(build,/CASH_SYNC_MULTI_PRODUCTION_WRITES=['"]YES['"]/);
 });
+
+test('copied month report carries source-proof blocker codes and labels original-history-only scope',()=>{
+ const build=fs.readFileSync(path.join(__dirname,'../deployment/build-site.cjs'),'utf8');
+ assert.match(build,/comparisonScope:'ORIGINAL_HISTORY_ONLY'/);
+ assert.match(build,/technicalMirrorChecked:false/);
+ assert.match(build,/sourceProof:/);
+ assert.match(build,/sourceRowsChecked/);
+ assert.match(build,/Array\.isArray\(p\.blockers\)/);
+ assert.doesNotMatch(build,/sourceProof:\{[^\n]*spreadsheetId/);
+});
