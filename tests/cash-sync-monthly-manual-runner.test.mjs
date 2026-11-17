@@ -4,7 +4,7 @@ import {runManualMonthlySync} from '../site/assets/js/cash-sync-monthly-manual-r
 const MONTH='2026-10',sha='a'.repeat(64);
 function make(project,opts={}){
  const values=['2026-10-03','公司','合同','内容','IPC','劳务款',0,200,0,0,0,0,0];
- return {project,month:MONTH,activityConfirmed:true,sourceComplete:true,
+ return {project,month:MONTH,revision:341,activityConfirmed:true,sourceComplete:true,
   spreadsheetId:'testSpreadsheet_'+project.padEnd(24,'X').replace(/[^A-Za-z0-9_-]/g,'X'),
   historySheetId:42,expectedMonthClosing:800,
   source:[{id:project+':source:1',project,month:MONTH,values,hash:sha}],...opts};
@@ -162,4 +162,40 @@ test('all 35 unapproved destinations consume zero Google previews, zero writes',
  assert.equal(result.summary.skipped,35);
  assert.equal(result.summary.recordedGoogleWriteRequests,0);
  assert.equal(result.approved,false);
+});
+
+test('real monthly source revision is passed to signed Google preview and commit',async()=>{
+ const observed=[];
+ const result=await runManualMonthlySync({
+  month:MONTH,projects:[make('CN8-2')],write:true,
+  checkAdmin:async()=>true,confirmBatch:async()=>true,
+  preview:async body=>{observed.push(['preview',body.revision]);return ok(body)},
+  commit:async body=>{observed.push(['commit',body.revision]);return{
+   ...ok(body),mode:'verified',writes:1
+  }}
+ });
+ assert.deepEqual(observed,[['preview',341],['preview',341],['commit',341]]);
+ assert.equal(result.summary.verified,1);
+});
+test('certified refusal before any Google write skips only rejected project',async()=>{
+ const calls=[];
+ const result=await runManualMonthlySync({
+  month:MONTH,projects:[make('CN8-2'),make('CR5-1B'),make('ELYSIAN')],
+  write:true,checkAdmin:async()=>true,confirmBatch:async()=>true,
+  preview:async body=>{calls.push('preview:'+body.project);return ok(body)},
+  commit:async body=>{
+   calls.push('commit:'+body.project);
+   if(body.project==='CN8-2'){
+    const rejected=Error('PAYMENT_SOURCE_DOC_NOT_FOUND');
+    rejected.safeBeforeWrite=true;
+    throw rejected;
+   }
+   return {...ok(body),mode:'verified',writes:1};
+  }
+ });
+ assert.equal(result.summary.failed,1);
+ assert.equal(result.summary.verified,2);
+ assert.equal(result.rows.find(r=>r.project==='CN8-2').reason,'PAYMENT_SOURCE_DOC_NOT_FOUND');
+ assert.deepEqual(calls.filter(x=>x.startsWith('commit:')),
+  ['commit:CN8-2','commit:CR5-1B','commit:ELYSIAN']);
 });
