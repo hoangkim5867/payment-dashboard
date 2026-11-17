@@ -40,14 +40,36 @@ test('manual mirror cell changes and deleted source ID are blocked',()=>{
  assert.throws(()=>planMonth({project:'SSIS',month:'2026-11',
    source:[],history,mirror:first.mirrorNext,openingBalance:0}),/không còn trong nguồn/);
 });
-test('normal project older unverified source is held back without touching another project',()=>{
+test('October-November missing earlier posting appends only to technical mirror and keeps original ledger immutable',()=>{
  const history=[old('2026-11-09',100,900)];
+ const unchanged=structuredClone(history);
+ const posting=source('SSIS','2026-11','expense:1',
+   v('2026-11-08',250,'SUBP-002'));
  const plan=planMonth({project:'SSIS',month:'2026-11',
-   source:[source('SSIS','2026-11','expense:1',v('2026-11-08',250))],history});
+   source:[posting],history});
+ assert.equal(plan.status,'CANDIDATES_ONLY');
+ assert.deepEqual(plan.changes.map(x=>x.action),['append-backfill']);
+ assert.equal(plan.mirrorNext.length,1);
+ assert.equal(plan.closingBalance,650);
+ assert.deepEqual(history,unchanged);
+ assert.equal(plan.viewRows[0].origin,'HISTORY');
+ assert.equal(plan.viewRows[1].origin,'CASH_CONTROL');
+ const repeated=planMonth({project:'SSIS',month:'2026-11',
+   source:[posting],history,mirror:plan.mirrorNext});
+ assert.equal(repeated.changes.length,0);
+ assert.equal(repeated.closingBalance,650);
+ assert.deepEqual(history,unchanged);
+});
+test('possible same-day different-label duplicate stays review-only',()=>{
+ const history=[old('2026-11-09',100,900,'SUBP-001')];
+ const suspicious=source('SSIS','2026-11','expense:other',
+   ['2026-11-09','Other vendor','SUBP-010','Other label','IPC003',
+    '分包款',0,100,0,0,0,0,0]);
+ const plan=planMonth({project:'SSIS',month:'2026-11',
+   source:[suspicious],history});
  assert.equal(plan.status,'REVIEW_REQUIRED');
- assert.equal(plan.reviews[0].reason,'MISSING_FROM_OLDER_GOOGLE_HISTORY');
+ assert.equal(plan.reviews[0].reason,'SAME_DAY_AMOUNT_COLUMNS_DIFFERENT_LABEL');
  assert.equal(plan.changes.length,0);
- assert.equal(plan.canWrite,false);
 });
 test('same-date but changed amount never silently becomes a new Google row',()=>{
  const history=[old('2026-11-09',100,900)];
