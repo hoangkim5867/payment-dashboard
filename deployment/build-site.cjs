@@ -41,6 +41,14 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    text=text.replace("        targets.push({project,month,source,activityConfirmed:true,","        targets.push({project,month,revision,source,activityConfirmed:true,");
    if(!text.includes("        if(!response.ok)throw Error(String(result.error||'Máy chủ chặn đồng bộ')+\n          (result.blocked?.length?' · '+result.blocked.length+' khoản cần kiểm tra':''));"))throw Error('Monthly Google runner contract 2 moved');
    text=text.replace("        if(!response.ok)throw Error(String(result.error||'Máy chủ chặn đồng bộ')+\n          (result.blocked?.length?' · '+result.blocked.length+' khoản cần kiểm tra':''));","        if(!response.ok){\n          const blocked=Error(String(result.error||'Máy chủ chặn đồng bộ')+\n            (result.blocked?.length?' · '+result.blocked.length+' khoản cần kiểm tra':'')+\n            (Array.isArray(result.sourceBlockers)&&result.sourceBlockers.length?\n              ' · MÃ NGUỒN: '+result.sourceBlockers.join(', '):''));\n          // A signed, same-origin pre-write refusal is safe to skip. Network\n          // failures or missing evidence still halt remaining Google writes.\n          blocked.safeBeforeWrite=input.action==='commit'&&\n            result.writeAttempted===false&&result.writes===0;\n          throw blocked;\n        }");
+   const oldWrongPayment="        const wrongPayment=records.some(r=>r.sourceClass==='PAYMENT'&&\n          (!r.values[2].trim()||!r.values[4].trim()));\n        const sourceComplete=project!=='PHU HUNG'&&\n          !sourceIssues.length&&!ready?.needsReview&&\n          !ready?.transferCounterpartsUnverified&&!wrongPayment;";
+   const newerPaymentEligibility="        // Not every paid Payment is a contract/IPC item (e.g. bank fees).\n        // The server checks immutable Payment IDs, paid dates and money types.\n        const sourceComplete=project!=='PHU HUNG'&&\n          !sourceIssues.length&&!ready?.needsReview&&\n          !ready?.transferCounterpartsUnverified;";
+   if(!text.includes(oldWrongPayment))throw Error('Shared Payment eligibility anchor moved');
+   text=text.replace(oldWrongPayment,newerPaymentEligibility);
+   const oldPilotMessage="        if(!sourceComplete)mark(project,'Nguồn chưa đủ điều kiện, sẽ bỏ qua.');";
+   const newPilotMessage="        if(!sourceComplete)mark(project,project==='PHU HUNG'?\n          'Đã kích hoạt Google bằng luồng PHU HUNG riêng; không ghi lặp qua luồng chung.':\n          'Nguồn chưa đủ điều kiện, sẽ bỏ qua.');";
+   if(!text.includes(oldPilotMessage))throw Error('PHU HUNG pilot status anchor moved');
+   text=text.replace(oldPilotMessage,newPilotMessage);
    // Distinguish PREVIEW READY from a user-approved real Google commit.
    const batchStatusBase="      status.textContent=month+' · '+manifest.activeProjects+'/'+manifest.catalogProjects+";
    if(!text.includes(batchStatusBase))
