@@ -154,7 +154,7 @@ export function buildMainOnlyWorkbook(xlsx,model){
   ...[0,1,2,3,4,5,6,balIndex].map(c=>merge(2,3,c,c))];
  ws['!cols']=[
   {wch:14},{wch:22},{wch:31},{wch:51},{wch:14},{wch:16},
-  ...Array(colCount-7).fill({wch:17})
+  ...Array(colCount-6).fill({wch:17})
  ];
  ws['!rows']=rows.map((_,i)=>({hpt:i===0?32:i===1?24:i===2||i===3?27:i===last?25:21}));
  // Freeze panes are viewer-dependent in SheetJS but no hidden data can be
