@@ -41,4 +41,12 @@ function canWriteTarget(env,project,spreadsheetId,historySheetId){
     env.CASH_SYNC_MULTI_PRODUCTION_WRITES==='YES'&&
     isAllowlisted(env,project,spreadsheetId,historySheetId);
 }
-module.exports={parseAllowlist,isAllowlisted,canWriteTarget};
+function canWriteMonthlyTarget(env,project,spreadsheetId,historySheetId,month){
+ // The one-project S13 October release used a pinned server-side proof.
+ // Future generic Payment-only releases need a SEPARATE explicitly approved
+ // month, not just an allowlisted project/workbook destination.
+ return /^20\\d{2}-(?:0[1-9]|1[0-2])$/.test(month||'')&&
+   env.CASH_SYNC_MULTI_APPROVED_MONTH===month&&
+   canWriteTarget(env,project,spreadsheetId,historySheetId);
+}
+module.exports={parseAllowlist,isAllowlisted,canWriteTarget,canWriteMonthlyTarget};
