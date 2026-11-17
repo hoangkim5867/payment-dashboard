@@ -619,6 +619,15 @@ document.getElementById("ccSyncNextProjectReadOnly")
    ].join(String.fromCharCode(10));
    text=text.replace(loadDraft,restoredLinkCode);
    // Live Production owner workflow: direct Cash Control -> Google Sheets on one Admin click
+   // The fallback JSON source is optional troubleshooting, not normal sync.
+   const rawBridgeOpen="<div id=\"ccSyncMonthSourceBridge\" style=\"display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:9px 0 4px\">";
+   const rawBridgeTail="</span>\n          </div>\n          <p id=\"ccSyncBatchStatus\"";
+   if(!text.includes(rawBridgeOpen)||!text.includes(rawBridgeTail))
+     throw Error('Advanced fallback source panel anchor moved');
+   text=text.replace(rawBridgeOpen,
+     '<details id="ccSyncMonthSourceAdvanced" style="margin-top:8px;border:1px solid #dbe4f0;border-radius:8px;padding:8px 12px;background:#fff"><summary style="cursor:pointer;font-size:12px;color:#596478">Tải gói nguồn JSON · chỉ khi cần xử lý kỹ thuật</summary>'+rawBridgeOpen);
+   text=text.replace(rawBridgeTail,"</span>\n          </div>\n          </details>\n          <p id=\"ccSyncBatchStatus\"");
+
    const directOld0="            '? Chỉ cập nhật tab kỹ thuật, không sửa sổ gốc.');";
    if(!text.includes(directOld0))throw Error('Direct Google sync/pilot anchor 0 moved');
    text=text.replace(directOld0,"            '? Chỉ thêm giao dịch mới vào tab dự án; bảo toàn sổ lịch sử gốc.');");
