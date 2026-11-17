@@ -273,7 +273,7 @@ test('unified 35-project batch uses existing one-click readonly scan, no misplac
  const build=fs.readFileSync(path.join(__dirname,'../deployment/build-site.cjs'),'utf8');
  assert.doesNotMatch(build,/id="ccSyncDownloadMainOnly"|async function ccSyncDownloadMainOnly/);
  assert.match(build,/buildBatchReleasePlan/);
- assert.match(build,/cash-sync-batch-release\\.mjs/);
+ assert.ok(build.includes('cash-sync-batch-release.mjs'));
  assert.match(build,/batchRelease\\.readyToCommit!==0/);
  assert.match(build,/CHUẨN BỊ ĐỒNG BỘ CHUNG/);
  assert.match(build,/batchRelease:\\{schema:batchRelease\\.schema/);
