@@ -40,6 +40,8 @@ on:
       - 'tests/cash-sync-monthly-google-readonly.test.mjs'
       - 'site/assets/js/cash-sync-batch-decisions.mjs'
       - 'tests/cash-sync-batch-decisions.test.mjs'
+      - 'site/assets/js/cash-sync-batch-release.mjs'
+      - 'tests/cash-sync-batch-release.test.mjs'
       - 'site/assets/js/cash-sync-main-only-export.mjs'
       - 'tests/cash-sync-main-only-export.test.mjs'
       - 'site/assets/js/cash-sync-month-review-package.mjs'
