@@ -7,6 +7,7 @@
 const {readConfig,verifyFirebaseAdminToken}=require('../server/cash-sync-guard.cjs');
 const core=require('../server/cash-sync-multi-project-core.cjs');
 const adapter=require('../server/cash-sync-multi-project-adapter.cjs');
+const human=require('../server/cash-sync-human-ledger.cjs');
 const {canWriteTarget,canWriteMonthlyTarget}=require('../server/cash-sync-multi-targets.cjs');
 const {inspect:inspectBatchSource}=require('../server/cash-sync-batch-source-reader.cjs');
 const {canWriteS13Test,testGateChecks}=require('../server/cash-sync-s13-test-target.cjs');
@@ -59,7 +60,14 @@ async function state(bearer,id,historySheetId,project=''){
  const historic=tabById(meta,historySheetId);
  if(!historic||[MIRROR,VIEW].includes(historic.title))
   die('Chưa xác minh được tab lịch sử theo gid.');
- const mirrored=tabByTitle(meta,MIRROR),view=tabByTitle(meta,VIEW);
+ const mirrored=tabByTitle(meta,MIRROR);
+ const legacy=tabByTitle(meta,VIEW);
+ const main=project&&tabByTitle(meta,project);
+ const modern=!!(mirrored&&!legacy&&main&&
+  historic.title===project+'_HISTORY_BACKUP'&&
+  historic.hidden===true&&main.sheetId!==historic.sheetId);
+ const view=legacy||(modern?main:null);
+ const humanView=modern;
  if(project==='PHU HUNG'&&mirrored&&!view&&
     tabByTitle(meta,'PHU HUNG')&&
     tabByTitle(meta,'PHU_HUNG_HISTORY_BACKUP'))
@@ -73,14 +81,17 @@ async function state(bearer,id,historySheetId,project=''){
  const [raw,oldMirror,oldView,formulas]=await Promise.all([
   google(bearer,id,range(historic.title,'A1:O20000')),
   mirrored?google(bearer,id,range(MIRROR,'A1:S20000')):Promise.resolve(null),
-  view?google(bearer,id,range(VIEW,'A1:R20000')):Promise.resolve(null),
-  view?google(bearer,id,'/values/'+encodeURIComponent("'"+VIEW+"'!O1:O20000")+
+  view?google(bearer,id,range(view.title,humanView?'A1:O20000':'A1:R20000')):Promise.resolve(null),
+  view?google(bearer,id,'/values/'+encodeURIComponent(
+    "'"+view.title.replace(/'/g,"''")+"'!"+
+     (humanView&&project!=='FOXCONN'?'N':'O')+'1:'+
+     (humanView&&project!=='FOXCONN'?'N':'O')+'20000')+
     '?valueRenderOption=FORMULA'):Promise.resolve(null)
  ]);
  const mirror=mirrored?parseStoredMirror(oldMirror.values||[]):[];
  if(mirrored&&!mirror)die('Mirror trống hoặc sai header; không ghi.');
  return {meta,history:raw.values||[],mirror,view:oldView?.values||[],
-  formulas:formulas?.values||[],hasTabs:!!mirrored};
+  formulas:formulas?.values||[],hasTabs:!!mirrored,humanView};
 }
 const equalCells=(a,b)=>a.length===b.length&&a.every((row,i)=>
  Array.isArray(row)&&Array.isArray(b[i])&&row.length===b[i].length&&
@@ -108,14 +119,28 @@ async function prepare(bearer,input){
    foxconn,openingBalance:opening});
   if(existing.status!=='CANDIDATES_ONLY')
    die('VIEW kỹ thuật hiện tại có giao dịch chưa xác minh.');
-  verifyExistingView(snapshot.view,snapshot.formulas,existing);
+  if(snapshot.humanView)
+   human.verifyHumanView(snapshot.view,snapshot.formulas,existing,
+    {project:input.project,foxconn});
+  else verifyExistingView(snapshot.view,snapshot.formulas,existing);
  }
  const plan=planMonth({project:input.project,month:input.month,
   source:normalized,history:snapshot.history,mirror:snapshot.mirror,
   foxconn,openingBalance:opening});
  if(plan.status!=='CANDIDATES_ONLY')
   return {blocked:plan.reviews,plan,snapshot};
- const batch=compileBatch({plan,metadata:snapshot.meta,
+ let batch;
+ if(snapshot.humanView){
+   const monthRows=snapshot.mirror.filter(r=>
+     String(r.values?.[0]||'').slice(0,7)===input.month).map(r=>({
+     id:r.id,project:r.project,month:input.month,values:r.values
+   }));
+   const previousPlan=planMonth({project:input.project,month:input.month,
+     source:monthRows,history:snapshot.history,mirror:snapshot.mirror,
+     foxconn,openingBalance:opening});
+   batch=human.compileHumanBatch({plan,previousPlan,snapshot,
+     historySheetId:input.historySheetId,foxconn});
+ }else batch=compileBatch({plan,metadata:snapshot.meta,
   historySheetId:input.historySheetId});
  return {plan,snapshot,batch,blocked:[]};
 }
@@ -286,7 +311,10 @@ async function handler(req,res,testOnly=false){
    r.id,r.project,String(r.values[0]).slice(0,7),...r.values,r.hash,r.status])];
   if(!equalCells(expected,afterMatrix))
    die('Google đã nhận lệnh nhưng đọc lại mirror chưa khớp; KHÔNG thử ghi lại.');
-  verifyExistingView(after.view,after.formulas,plan);
+  if(after.humanView)
+   human.verifyHumanView(after.view,after.formulas,plan,{
+     project:input.project,foxconn:input.project==='FOXCONN'});
+  else verifyExistingView(after.view,after.formulas,plan);
   return res.status(200).json({mode:'verified',summary,writes:1});
  }catch(error){
   const code=[400,401,403,409,413,503].includes(error?.statusCode)?
