@@ -249,8 +249,9 @@ export function compareHistoryToExport({project,month,records,history,audit,exce
    reviewRows:Object.freeze(reviewRows),detailsTruncated,
    historyStatus:historicalAudit.status,closingBalance:historicalAudit.closingBalance,
    nonMonotonicDates:historicalAudit.nonMonotonicDates,
-   result:financialReview||dateReview||reviewCount?'REVIEW_REQUIRED':
-     newerCandidates||backfillCandidates?'NEWER_THAN_HISTORY_CANDIDATE':'EXACT_HISTORY_ONLY',
+   result:financialReview||reviewCount?'REVIEW_REQUIRED':
+     newerCandidates||backfillCandidates?'NEWER_THAN_HISTORY_CANDIDATE':
+     dateReview?'REVIEW_REQUIRED':'EXACT_HISTORY_ONLY',
    // Source identity and a snapshot audit alone NEVER authorize writes.
    googleCompared:true,sourceComplete:false,canWrite:false,googleWrites:0
  });
