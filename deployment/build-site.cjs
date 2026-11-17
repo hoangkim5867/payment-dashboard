@@ -33,6 +33,14 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
      throw Error('PHU HUNG monthly source eligibility anchor moved');
    text=text.replace(legacyPilotExclusion,
      "const sourceComplete=group.state==='HISTORY_COMPARISON_CANDIDATE'&&");
+   if(!text.includes("          return {id:row.id,project,month,values,hash:await ccGoogleSyncSha(values)};"))throw Error('Monthly Google runner contract 0 moved');
+   text=text.replace("          return {id:row.id,project,month,values,hash:await ccGoogleSyncSha(values)};","          return {id:row.id,project,month,values,hash:await ccGoogleSyncSha(values),\n            sourceClass:row.sourceClass,members:row.members};");
+   if(!text.includes("        targets.push({project,month,source,activityConfirmed:true,"))throw Error('Monthly Google runner contract 1 moved');
+   text=text.replace("        targets.push({project,month,source,activityConfirmed:true,","        targets.push({project,month,revision,source,activityConfirmed:true,");
+   if(!text.includes("        if(!response.ok)throw Error(String(result.error||'Máy chủ chặn đồng bộ')+\n          (result.blocked?.length?' · '+result.blocked.length+' khoản cần kiểm tra':''));"))throw Error('Monthly Google runner contract 2 moved');
+   text=text.replace("        if(!response.ok)throw Error(String(result.error||'Máy chủ chặn đồng bộ')+\n          (result.blocked?.length?' · '+result.blocked.length+' khoản cần kiểm tra':''));","        if(!response.ok){\n          const blocked=Error(String(result.error||'Máy chủ chặn đồng bộ')+\n            (result.blocked?.length?' · '+result.blocked.length+' khoản cần kiểm tra':''));\n          // A signed, same-origin pre-write refusal is safe to skip. Network\n          // failures or missing evidence still halt remaining Google writes.\n          blocked.safeBeforeWrite=input.action==='commit'&&\n            result.writeAttempted===false&&result.writes===0;\n          throw blocked;\n        }");
+   if(!text.includes("Production: chỉ kiểm tra nguồn Cash Control theo tháng đã xác thực; chưa cấp phép ghi Google."))throw Error('Monthly Google runner contract 3 moved');
+   text=text.replace("Production: chỉ kiểm tra nguồn Cash Control theo tháng đã xác thực; chưa cấp phép ghi Google.","Production: dùng nguồn Cash Control đã xác thực; ghi khi vượt kiểm tra mã chứng từ, số dư và quyền file Google.");
    // Distinguish PREVIEW READY from a user-approved real Google commit.
    const batchStatusBase="      status.textContent=month+' · '+manifest.activeProjects+'/'+manifest.catalogProjects+";
    if(!text.includes(batchStatusBase))
