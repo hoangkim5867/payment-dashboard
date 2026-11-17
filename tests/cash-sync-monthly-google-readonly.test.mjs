@@ -270,3 +270,18 @@ test('missing October posting before the last Google date is a BACKFILL candidat
  assert.equal(bad.unsafeBackfill,1);
  assert.equal(bad.result,'REVIEW_REQUIRED');
 });
+
+
+test('start-month proposal depends only on presence of October 2026 original rows',()=>{
+ const present=compareHistoryToExport({project:'ELYSIAN',month:'2026-10',
+  records:[source('expense:oct')],history:[raw()],audit});
+ assert.equal(present.syncStartMonth,'2026-11');
+ assert.equal(present.originalOctoberPresent,true);
+ const prior=['2026-09-30','Vendor','LAB-001','Invoice','IPC001',
+  'Material',0,0,100,0,0,0,0,900];
+ const missing=compareHistoryToExport({project:'ELYSIAN',month:'2026-10',
+  records:[source('expense:oct')],history:[prior],audit});
+ assert.equal(missing.syncStartMonth,'2026-10');
+ assert.equal(missing.originalOctoberPresent,false);
+ assert.equal(missing.canWrite,false);
+});
