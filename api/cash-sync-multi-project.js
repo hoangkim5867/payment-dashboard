@@ -176,6 +176,16 @@ async function handler(req,res,testOnly=false){
     die('Nguồn S13-2 chưa được chứng thực độc lập; KHÔNG ghi.',409);
   }
   const current=await prepare(authorization,input);
+  // A pre-existing October in original Google or in our immutable mirrored
+  // postings means this project starts from November. Otherwise backfill
+  // begins October. Never touch the old historical tab or re-post that month.
+  const projectStartMonth=core.startMonthFromGoogle({
+    history:current.snapshot.history,mirror:current.snapshot.mirror
+  });
+  if(!testOnly&&input.action==='commit'&&input.project!=='S13-2'&&
+     input.month<projectStartMonth)
+   die('PROJECT_MONTH_ALREADY_IN_GOOGLE_START_FROM_'+
+      projectStartMonth.replace('-','_'),409);
   if(testOnly&&(!/S13[-_ ]?2/i.test(String(current.snapshot.meta.properties?.title||''))||
      !/TEST/i.test(String(current.snapshot.meta.properties?.title||''))))
    die('Chỉ được ghi vào bản sao S13-2 TEST có tên xác minh qua Google metadata.');
