@@ -243,8 +243,19 @@ async function handler(req,res,testOnly=false){
        verified.projects?.length!==1||
        verified.projects[0]?.project!==input.project||
        verified.projects[0]?.verified!==true||
-       verified.googleWrites!==0||verified.canWrite!==false)
-     die('ID nguồn Payment/Cash Control của dòng MỚI chưa đạt; KHÔNG ghi.',409);
+       verified.googleWrites!==0||verified.canWrite!==false){
+      // Expose only finite, machine-defined blocker CODES to the signed
+      // Admin. Never return source rows, financial values, member IDs or
+      // Firestore document paths. A refusal is BEFORE any Google batchUpdate.
+      const diagnostic=Array.isArray(verified.projects?.[0]?.blockers)?
+        verified.projects[0].blockers.filter(code=>
+          typeof code==='string'&&/^[A-Z0-9_]{3,96}$/.test(code)).slice(0,12):[];
+      const error=Error('ID nguồn Payment/Cash Control của dòng MỚI chưa đạt; KHÔNG ghi.');
+      error.statusCode=409;error.sourceBlockers=diagnostic.length?
+        diagnostic:['SOURCE_ATTESTATION_CONTRACT_MISMATCH'];
+      error.sourceRowsChecked=missingRows.length;
+      throw error;
+    }
    }
   }
   // Atomic Google batchUpdate only touches machine-owned grid IDs.
@@ -270,7 +281,9 @@ async function handler(req,res,testOnly=false){
    'Không xác minh được Google Sheets; KHÔNG tự ghi lại.':
    String(error.message||'Chặn đồng bộ.'),
    writeAttempted:googleWriteAttempted,
-   ...(googleWriteAttempted?{}:{writes:0})});
+   ...(googleWriteAttempted?{}:{writes:0}),
+   ...(!googleWriteAttempted&&Array.isArray(error?.sourceBlockers)?
+      {sourceBlockers:error.sourceBlockers,sourceRowsChecked:error.sourceRowsChecked}:{})});
  }
 };
 
