@@ -39,9 +39,9 @@ function category(raw,project){
  // by its original import-tax rule; refuse generic proof here.
  return null;
 }
-function unpackSeed(seed){
+function unpackSeed(seed,{expectedSeedHash=SEED_HASH}={}){
  const raw=readFields(seed);
- if(raw.schemaVersion!==1||raw.sha256!==SEED_HASH||
+ if(raw.schemaVersion!==1||raw.sha256!==expectedSeedHash||
   typeof raw.payload!=='string'||
   createHash('sha256').update(raw.payload).digest('hex')!==SEED_HASH)
   problem('LEGACY_ARCHIVE_FINGERPRINT_CHANGED');
@@ -58,14 +58,14 @@ function activeCashRecord(x,project,month){
  return norm(x.project)===project||norm(x.fromProject)===project||
   norm(x.toProject)===project;
 }
-function attestMonth({project,month,revision,records,payments,cashDocument,seedDocument}={}){
+function attestMonth({project,month,revision,records,payments,cashDocument,seedDocument,expectedSeedHash=SEED_HASH}={}){
  if(typeof project!=='string'||!project||norm(project)!==project||
    !/^20\d{2}-(0[1-9]|1[0-2])$/.test(month)||month<'2026-10'||
    !Number.isSafeInteger(revision)||revision<0||
    !bounded(records,1000)||!bounded(payments,1000)||
    !cashDocument||!seedDocument)
   problem('SOURCE_CERTIFICATION_SCOPE_INVALID');
- const state=readFields(cashDocument),legacy=unpackSeed(seedDocument);
+ const state=readFields(cashDocument),legacy=unpackSeed(seedDocument,{expectedSeedHash});
  if(state.revision!==revision||!bounded(state.manualRecords,20000)||
    !bounded(state.deletedLegacy,20000)||
    typeof state.legacyOverrides!=='object'||!state.legacyOverrides)
