@@ -21,7 +21,10 @@ const validProject=p=>typeof p==='string'&&p===p.normalize('NFKC').trim()&&
 function validate(payload){
  if(!payload||Array.isArray(payload)||typeof payload!=='object'||
   JSON.stringify(payload).length>820000||
-  Object.keys(payload).sort().join(',')!=='action,month,projects,revision'||
+  !['action,month,projects,revision',
+    'action,candidateOnly,month,projects,revision'].includes(
+      Object.keys(payload).sort().join(','))||
+  (Object.hasOwn(payload,'candidateOnly')&&payload.candidateOnly!==true)||
   payload.action!=='verify_monthly_projects'||
   !/^20\d{2}-(?:0[1-9]|1[0-2])$/.test(payload.month)||
   payload.month<'2026-10'||!Number.isSafeInteger(payload.revision)||
@@ -108,7 +111,8 @@ async function inspect({env,input,jwt,verifyAdmin=verifyFirebaseAdminToken,
   try{
    checked=attestMonth({project:group.project,month:valid.month,
     revision:valid.revision,records:group.records,payments,
-    cashDocument:cloud,seedDocument:seed});
+    cashDocument:cloud,seedDocument:seed,
+    appendOnly:valid.candidateOnly===true});
   }catch(error){
    checked={kind:'INDEPENDENT_PROJECT_MONTH_SOURCE_CHECK_V1',
     project:group.project,month:valid.month,revision:valid.revision,
@@ -121,6 +125,7 @@ async function inspect({env,input,jwt,verifyAdmin=verifyFirebaseAdminToken,
   kind:'INDEPENDENT_MONTHLY_SOURCE_BATCH_READONLY_V1',
   month:valid.month,revision:valid.revision,
   checkedProjects:results.length,
+  newlyAppendedOnly:valid.candidateOnly===true,
   eligibleForFurtherReview:results.filter(r=>r.verified===true).length,
   paymentDocumentsReturned:payments.length,
   firestoreRequests:3,paymentDocumentReads:payments.length,
