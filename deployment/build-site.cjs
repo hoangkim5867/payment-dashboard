@@ -24,15 +24,17 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
  for(const name of fs.readdirSync(out).filter(n=>n.endsWith('.html'))){const file=path.join(out,name);let text=fs.readFileSync(file,'utf8');const pattern=/const firebaseConfig\s*=\s*\{[\s\S]*?\};/g;
  text=text.replace(pattern,original=>{configs++;return target==='staging'?'const firebaseConfig='+JSON.stringify(stagingConfig)+';':original});
  if(target==='production'&&name==='cash-control.html'){
-   // Allow the finished PHU HUNG pilot to follow the same monthly candidate
-   // checks as other projects. This does NOT authorize its already-posted rows:
-   // independent server attestation, exact original gid, signed Google preview,
-   // duplicate detection and closing balance gates remain mandatory.
-   const legacyPilotExclusion="const sourceComplete=project!=='PHU HUNG'&&\n          group.state==='HISTORY_COMPARISON_CANDIDATE'&&";
-   if(!text.includes(legacyPilotExclusion))
-     throw Error('PHU HUNG monthly source eligibility anchor moved');
-   text=text.replace(legacyPilotExclusion,
-     "const sourceComplete=group.state==='HISTORY_COMPARISON_CANDIDATE'&&");
+   // PHU HUNG uses its ALREADY ACTIVATED original-live pipeline:
+   // visible "PHU HUNG" + hidden "DATA_CASHCONTROL" +
+   // hidden "PHU_HUNG_HISTORY_BACKUP". Do not drive that workbook through
+   // the new "CASHCONTROL_VIEW" writer: it misdiagnoses a healthy pilot
+   // as a half-created technical-tab pair. Other projects use shared sync.
+   const pilotStandalone="const sourceComplete=project!=='PHU HUNG'&&\\n          group.state==='HISTORY_COMPARISON_CANDIDATE'&&";
+   const pilotShared="const sourceComplete=group.state==='HISTORY_COMPARISON_CANDIDATE'&&";
+   if(!text.includes(pilotStandalone)&&!text.includes(pilotShared))
+     throw Error('PHU HUNG monthly source branch anchor moved');
+   text=text.replace(pilotShared,pilotStandalone);
+
    if(!text.includes("          return {id:row.id,project,month,values,hash:await ccGoogleSyncSha(values)};"))throw Error('Monthly Google runner contract 0 moved');
    text=text.replace("          return {id:row.id,project,month,values,hash:await ccGoogleSyncSha(values)};","          return {id:row.id,project,month,values,hash:await ccGoogleSyncSha(values),\n            sourceClass:row.sourceClass,members:row.members};");
    if(!text.includes("        targets.push({project,month,source,activityConfirmed:true,"))throw Error('Monthly Google runner contract 1 moved');
