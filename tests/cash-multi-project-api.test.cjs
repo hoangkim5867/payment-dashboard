@@ -9,7 +9,18 @@ require.cache[guard]={id:guard,filename:guard,loaded:true,exports:{
  readConfig:()=>({project:'cscecmep-payment',uid:'synthetic-admin'}),
  verifyFirebaseAdminToken:async()=>({project:'cscecmep-payment',uid:'synthetic-admin'})
 }};
+// Offline source proof fixture: generic API production paths in real
+// deployments require 3 protected Firebase reads. Separate source verifier
+// tests inspect those reads and archive signature; this fake has NO network.
+const sourceRoute=require('../api/cash-sync-batch-source-readonly.js');
+const savedSourceInspect=sourceRoute._internals.inspect;
+sourceRoute._internals.inspect=async({input})=>({
+ kind:'INDEPENDENT_MONTHLY_SOURCE_BATCH_READONLY_V1',
+ month:input.month,revision:input.revision,canWrite:false,googleWrites:0,
+ projects:input.projects.map(g=>({project:g.project,verified:true}))
+});
 const handler=require('../api/cash-sync-multi-project.js');
+sourceRoute._internals.inspect=savedSourceInspect;
 const testHandler=require('../api/cash-sync-s13-test.js');
 if(saved)require.cache[guard]=saved;else delete require.cache[guard];
 const ID='12345678901234567890ABCDEFGHIJKLMNOPQRST';
@@ -17,7 +28,8 @@ const orig=[['2026-10-01','Vendor','SUBP-1','Invoice','IPC01','分包款',
   0,100,0,0,0,0,0,900]];
 const newValues=['2026-11-03','Vendor','SUBP-2','Another invoice','IPC02','分包款',
   0,200,0,0,0,0,0,0];
-const source=[{id:'ELYSIAN:expense:new',project:'ELYSIAN',month:'2026-11',
+const source=[{id:'ELYSIAN:expense:pay_new',project:'ELYSIAN',month:'2026-11',
+ sourceClass:'PAYMENT',members:['expense:pay_new'],
  values:newValues,hash:sha(newValues)}];
 function fixture(project='ELYSIAN',spreadsheetId=ID){
  const state={meta:{spreadsheetId,properties:{title:project==='S13-2'?'S13-2 TEST':'Normal project ledger'},sheets:[
@@ -73,6 +85,7 @@ function fixture(project='ELYSIAN',spreadsheetId=ID){
  async function call(action,extra={}){
   const prev=global.fetch;global.fetch=fakeFetch;
   const prevFlag=process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES;
+  const prevApprovedMonth=process.env.CASH_SYNC_MULTI_APPROVED_MONTH;
   const prevTargets=process.env.CASH_SYNC_MULTI_ALLOWED_TARGETS;
   const prevEnv=process.env.VERCEL_ENV;
   const prevProject=process.env.CASH_SYNC_FIREBASE_PROJECT_ID;
@@ -91,13 +104,14 @@ function fixture(project='ELYSIAN',spreadsheetId=ID){
   process.env.CASH_SYNC_FIREBASE_PROJECT_ID=
     extra.simulateStaging?'cash-control-staging':'cscecmep-payment';
   if(extra.enabled){
+   process.env.CASH_SYNC_MULTI_APPROVED_MONTH='2026-11';
    process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES='YES';
    process.env.CASH_SYNC_MULTI_ALLOWED_TARGETS=JSON.stringify({
     [project]:{spreadsheetId,historySheetId:42}
    });
   }
   else delete process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES;
-  const body={action,project,month:'2026-11',spreadsheetId,
+  const body={action,project,month:'2026-11',revision:42,spreadsheetId,
    historySheetId:42,source:source.map(record=>({...record,
     id:record.id.replace(/^ELYSIAN:/,project+':'),project})),openingBalance:null,...extra};
   const response={statusCode:200,headers:{},
@@ -118,6 +132,8 @@ function fixture(project='ELYSIAN',spreadsheetId=ID){
    global.fetch=prev;
    if(prevFlag===undefined)delete process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES;
    else process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES=prevFlag;
+   if(prevApprovedMonth===undefined)delete process.env.CASH_SYNC_MULTI_APPROVED_MONTH;
+   else process.env.CASH_SYNC_MULTI_APPROVED_MONTH=prevApprovedMonth;
    if(prevTargets===undefined)delete process.env.CASH_SYNC_MULTI_ALLOWED_TARGETS;
    else process.env.CASH_SYNC_MULTI_ALLOWED_TARGETS=prevTargets;
    if(prevEnv===undefined)delete process.env.VERCEL_ENV;
