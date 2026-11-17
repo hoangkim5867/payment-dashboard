@@ -48,7 +48,10 @@ export function buildBatchReleasePlan({month,revision,manifest,scan}={}){
     typeof r.id==='string'&&!/^excel-row:/i.test(r.id)&&
     Array.isArray(r.values)&&r.values.length>=13);
   let category,reason;
-  if(month==='2026-10'&&name==='S13-2'){
+  if(month==='2026-10'&&result.syncStartMonth==='2026-11'){
+   category='alreadyComplete';
+   reason='Tháng 10 đã có giao dịch trên Google; theo quy tắc Admin chỉ thêm từ tháng 11. Không ghi lại tháng 10.';
+  }else   if(month==='2026-10'&&name==='S13-2'){
    category='alreadyComplete';
    reason='Đã ghi 3 giao dịch và đọc lại theo xác nhận Admin; KHÔNG ghi lại.';
   }else if(['GOOGLE_REVIEW_REQUIRED','SOURCE_NOT_READY'].includes(result.result)||
