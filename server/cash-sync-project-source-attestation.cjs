@@ -15,7 +15,13 @@ const {sha,parseValues}=require('./cash-sync-multi-project-core.cjs');
 const {readFields,SEED_HASH}=require('./cash-sync-s13-source-integrity.cjs');
 const {createHash}=require('node:crypto');
 const norm=v=>String(v??'').normalize('NFKC').trim();
-const validDate=v=>typeof v==='string'&&/^20\d{2}-(0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/.test(v);
+const validDate=v=>{
+ if(typeof v!=='string'||!/^20\d{2}-(0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/.test(v))return false;
+ const [year,month,day]=v.split('-').map(Number);
+ const exact=new Date(Date.UTC(year,month-1,day));
+ return exact.getUTCFullYear()===year&&exact.getUTCMonth()===month-1&&
+   exact.getUTCDate()===day;
+};
 const money=v=>(typeof v==='number'||typeof v==='string'&&v.trim()!=='')?
  Number(v):NaN;
 const eq=(a,b)=>Math.abs(a-b)<0.000001;
