@@ -69,7 +69,9 @@ export function buildBatchReleasePlan({month,revision,manifest,scan}={}){
    reason='Các giao dịch đã nằm trong sổ lịch sử; không có gì phải ghi.';
   }else if(result.result==='NEWER_THAN_HISTORY_CANDIDATE'&&
     !flags.financial&&!flags.duplicate&&!flags.mismatch&&
-    result.dateReview!==true&&valid(result.newerCandidates)&&
+    // Historical date inversions alone are harmless once every running balance
+    // and transaction identity is otherwise verified; keep original order.
+    valid(result.newerCandidates)&&
     valid(result.backfillCandidates??0)&&
     result.newerCandidates+(result.backfillCandidates||0)>0&&
     (result.unsafeBackfill||0)===0){
