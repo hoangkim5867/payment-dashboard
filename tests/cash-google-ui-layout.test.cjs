@@ -286,9 +286,13 @@ test('35-project Admin batch button is gated by independent source proof, signed
  assert.match(build,/independentSource\?\.projects/);
  assert.match(build,/x\?\.verified===true/);
  assert.match(build,/batchRelease.groups.needsSourceProof/);
+ assert.match(build,/candidateOnly:true/);
+ assert.match(build,/candidateSourceRows/);
+ assert.match(build,/newRows:signed.summary.newRows/);
+
  assert.match(build,/ccSyncProjectLinkValid\(raw\)/);
  assert.match(build,/signed.writeConfigured!==true/);
- assert.match(build,/signed.summary\?\.changes!==candidate.newerCandidates/);
+ assert.ok(build.includes('signed.summary?.newRows!==expectedNew'));
  assert.match(build,/signed.summary\?\.originalUntouched!==true/);
  assert.match(build,/CASH_CONTROL_PRIVATE_METADATA_ONLY|verify_monthly_projects/);
  assert.match(build,/window.confirm/);
