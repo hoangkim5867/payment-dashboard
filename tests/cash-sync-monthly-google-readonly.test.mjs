@@ -205,3 +205,44 @@ test('unique contract and IPC posting with a label difference stays review-only'
  assert.equal(x.canWrite,false);
  assert.equal(compareHistoryToExport({...args,history:[old,old]}).likelyLabelDifferences,0);
 });
+
+test('PHU HUNG archived original may be hidden only with real visible main and hidden mirror',async()=>{
+ const items=[{project:'PHU HUNG',month:'2026-10',groupedExcelRows:1,
+  records:[{...source('expense:PHU'),project:'PHU HUNG'}],
+  state:'HISTORY_COMPARISON_CANDIDATE'}];
+ const makeMeta=(mainVisible,mirrorHidden)=>({spreadsheetId:sheetId,sheets:[
+  {properties:{sheetId:17,title:'PHU_HUNG_HISTORY_BACKUP',hidden:true,
+   gridProperties:{rowCount:500}}},
+  {properties:{sheetId:18,title:'PHU HUNG',hidden:!mainVisible}},
+  {properties:{sheetId:19,title:'DATA_CASHCONTROL',hidden:mirrorHidden}}
+ ]});
+ for(const [mainVisible,mirrorHidden,pass] of [
+  [true,true,true],[false,true,false],[true,false,false]]){
+  let reads=0;
+  const result=await scanMonthlyGoogleReadOnly({month:'2026-10',groups:items,
+   links:{'PHU HUNG':link},accessToken:'T'.repeat(60),audit,
+   expectedOwner:()=>true,fetcher:async url=>{
+    reads++;
+    return {ok:true,json:async()=>url.includes('?fields=')?
+     makeMeta(mainVisible,mirrorHidden):{values:[raw()]}};
+   }});
+  assert.equal(result.googleWrites,0);
+  assert.equal(result.canWrite,false);
+  assert.equal(result.checkedGoogleProjects,pass?1:0);
+  assert.equal(reads,pass?2:1);
+  if(pass)assert.equal(result.results[0].exactMatches,1);
+  else assert.equal(result.results[0].reason,'ORIGINAL_HISTORY_TAB_NOT_VERIFIED');
+ }
+});
+test('an arbitrary hidden original remains blocked even if the project resembles PHU HUNG',async()=>{
+ const row={project:'ELYSIAN',month:'2026-10',groupedExcelRows:1,
+  records:[source('expense:1')],state:'HISTORY_COMPARISON_CANDIDATE'};
+ const result=await scanMonthlyGoogleReadOnly({month:'2026-10',
+  groups:[row],links:{ELYSIAN:link},accessToken:'T'.repeat(60),
+  expectedOwner:()=>true,audit,fetcher:async url=>({ok:true,json:async()=>url.includes('?fields=')?
+   {spreadsheetId:sheetId,sheets:[{properties:{
+    sheetId:17,title:'HIDDEN_PRIVATE_LEDGER',hidden:true}}]}:
+   {values:[raw()]}})});
+ assert.equal(result.results[0].reason,'ORIGINAL_HISTORY_TAB_NOT_VERIFIED');
+ assert.equal(result.googleWrites,0);
+});
