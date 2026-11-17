@@ -651,9 +651,9 @@ document.getElementById("ccSyncNextProjectReadOnly")
    text=text.replace(directPilotHook,"      // PHU HUNG's established live original-sync engine uses a different\n      // mirror schema. One Admin click can invoke it AFTER the other project\n      // commits, never before or after an ambiguous Google write. This keeps\n      // the already-activated PHU HUNG workbook entirely unchanged in structure.\n      if(result.mode!=='NOT_APPROVED'&&\n         !result.rows.some(r=>r.status==='FAILED'||r.reason==='PREVIOUS_WRITE_UNCERTAIN_REQUIRE_GOOGLE_READBACK')&&\n         manifest.groups.some(g=>g.project==='PHU HUNG'&&g.groupedExcelRows)){\n        try{\n          const pilot=await ccGoogleSyncRunOriginalManually();\n          mark('PHU HUNG',pilot?.mode==='verified'?\n            'Đã ghi và đọc lại Google theo mẫu PHU HUNG':\n            pilot?.mode==='unchanged'?'Đã khớp Google, không ghi thêm':\n            'Admin đã hủy xác nhận riêng PHU HUNG');\n        }catch(error){\n          mark('PHU HUNG','Chưa ghi · '+String(error?.message||error).slice(0,140));\n        }\n      }\n      const t=result.summary;");
 
    // Apply PHU HUNG status counting AFTER installing its one-click bridge.
-   const sumOld0="      if(result.mode!=='NOT_APPROVED'&&\n         !result.rows.some(r=>r.reason==='PREVIOUS_WRITE_UNCERTAIN_REQUIRE_GOOGLE_READBACK')";
+   const sumOld0="      if(result.mode!=='NOT_APPROVED'&&\\n         !result.rows.some(r=>r.status==='FAILED'||r.reason==='PREVIOUS_WRITE_UNCERTAIN_REQUIRE_GOOGLE_READBACK')";
    if(!text.includes(sumOld0))throw Error('PHU HUNG summary integration 0 moved');
-   text=text.replace(sumOld0,"      let pilotMode='not-run';\n      if(result.mode!=='NOT_APPROVED'&&\n         !result.rows.some(r=>r.reason==='PREVIOUS_WRITE_UNCERTAIN_REQUIRE_GOOGLE_READBACK')");
+   text=text.replace(sumOld0,"      let pilotMode='not-run';\\n"+sumOld0);
    const sumOld1="          const pilot=await ccGoogleSyncRunOriginalManually();\n          mark('PHU HUNG',pilot?.mode==='verified'?";
    if(!text.includes(sumOld1))throw Error('PHU HUNG summary integration 1 moved');
    text=text.replace(sumOld1,"          const pilot=await ccGoogleSyncRunOriginalManually();\n          pilotMode=pilot?.mode||'unknown';\n          mark('PHU HUNG',pilot?.mode==='verified'?");
