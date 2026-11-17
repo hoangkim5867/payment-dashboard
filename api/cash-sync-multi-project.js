@@ -129,6 +129,13 @@ async function handler(req,res,testOnly=false){
   if(!/^Bearer [A-Za-z0-9._~-]{20,4096}$/.test(authorization))
    die('Google OAuth token missing.',401);
   const input=validBody(typeof req.body==='string'?JSON.parse(req.body):req.body);
+  // Never route a mixed-case/whitespace/fullwidth S13-2 alias through the
+  // generic Payment-only gate. Its three-posting release was scoped to the
+  // EXACT canonical project name and pinned original four IDs.
+  if(!testOnly&&input.action==='commit'&&
+     String(input.project).normalize('NFKC').trim().toUpperCase()==='S13-2'&&
+     input.project!=='S13-2')
+    die('S13-2 Production yêu cầu tên dự án chuẩn; KHÔNG ghi.',409);
   const writeConfigured=testOnly?
    canWriteS13Test(process.env,input):
    input.project==='S13-2'?
