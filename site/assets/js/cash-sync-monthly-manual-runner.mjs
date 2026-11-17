@@ -40,7 +40,7 @@ function checkProject(month,item){
  return null;
 }
 const cleanInput=({month,item,action,signature})=>({
- action,project:item.project,month,
+ action,project:item.project,month,revision:item.revision,
  spreadsheetId:item.spreadsheetId,historySheetId:item.historySheetId,
  source:item.source,expectedMonthClosing:item.expectedMonthClosing,
  openingBalance:item.openingBalance??null,
@@ -168,7 +168,7 @@ export async function runManualMonthlySync({
    onProject?.(rows[pos]);
    // Preview-only failures are isolated. After ANY attempted write, a failure
    // is potentially ambiguous; do not continue to other projects or retry.
-   if(attemptedCommit){
+   if(attemptedCommit&&e?.safeBeforeWrite!==true){
     for(const pending of candidates.slice(candidates.indexOf(item)+1)){
      const next=rows.findIndex(r=>r.project===pending.project);
      if(next>=0&&rows[next].status==='READY'){
