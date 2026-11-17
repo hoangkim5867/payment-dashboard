@@ -50,7 +50,12 @@ export function classifyMonthlyAudit({month,results}={}){
    reason='Có ứng viên mới, nhưng chưa xác minh ID nguồn/nhật ký kỹ thuật và chưa cho phép ghi.';
   }else{
    stage='historyReview';
-   reason='Có chênh lệch lịch sử, thứ tự ngày, định danh hoặc số dư; giữ chế độ chỉ đọc.';
+   reason=row.reviewCategory==='DATE_ORDER_ONLY'&&row.dateReview===true&&
+    row.financialReview!==true&&
+    bounded(row.exactMatches)===bounded(row.sourceRows)&&
+    bounded(row.historyUnmatched)===0?
+    'Đã khớp toàn bộ dòng tháng trong phạm vi đọc; chỉ còn thứ tự ngày lịch sử. Không sắp xếp hay sửa sổ gốc.':
+    'Có chênh lệch lịch sử, thứ tự ngày, định danh hoặc số dư; giữ chế độ chỉ đọc.';
   }
   groups[stage].push(Object.freeze({
    project,stage,reason,originalStatus:row.result,
@@ -65,9 +70,11 @@ export function classifyMonthlyAudit({month,results}={}){
  const ordered=['completed','noDifference','newCandidateReview',
   'historyReview','needsSetup'];
  const counts=Object.freeze(Object.fromEntries(ordered.map(k=>[k,groups[k].length])));
+ const dateOrderOnly=Object.freeze(groups.historyReview.filter(x=>
+   x.reason.startsWith('Đã khớp toàn bộ dòng tháng')).map(x=>x.project));
  return Object.freeze({
   schema:'CASH_SYNC_BATCH_ACTION_QUEUE_V1',month,
-  projects:results.length,counts,
+  projects:results.length,counts,dateOrderOnly,
   groups:Object.freeze(Object.fromEntries(ordered.map(k=>[k,Object.freeze(groups[k])]))),
   selectedProjects:0,writeReadyProjects:0,
   ...readonly,
