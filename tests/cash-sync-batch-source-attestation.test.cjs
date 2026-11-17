@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const {createHash}=require('node:crypto');
 const {attestMonth}=require('../server/cash-sync-project-source-attestation.cjs');
 const {sha,parseValues}=require('../server/cash-sync-multi-project-core.cjs');
-const {validate,inspect}=require('../api/cash-sync-batch-source-readonly.js')._internals;
+const {validate,inspect}=require('../server/cash-sync-batch-source-reader.cjs');
 function encode(v){
  if(v===null)return {nullValue:'NULL_VALUE'};
  if(Array.isArray(v))return {arrayValue:{values:v.map(encode)}};
