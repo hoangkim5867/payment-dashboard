@@ -171,3 +171,46 @@ test('FOXCONN tax column does not invalidate another project in a candidate batc
  assert.ok(result.blockers.includes('FOXCONN_IMPORT_TAX_LAYOUT_REQUIRES_RULES'));
  assert.equal(result.canWrite,false);
 });
+
+test('a linked client receipt is certified only from its protected inflow and cash records',()=>{
+ const date='2026-11-10',project='H14-3',cashId='manual_inflow_i1_r1';
+ const cash={id:cashId,project,kind:'normal',source:'manual',direction:'in',
+  status:'paid',actualDate:date,amount:1300,actualAmount:1300,
+  category:'Tiền thu chủ đầu tư',counterparty:'Client',subCode:'IPC008',
+  linkedModule:'inflow',linkedRecordId:'i1',linkedReceiptId:'r1'};
+ const inflow={id:'i1',project,number:'IPC008',cashTxnIds:[cashId],
+  receipts:[{id:'r1',date,amount:1300}]};
+ const values=[date,'Client','','内部结算IPC008','IPC008','业主收款',1300,0,0,0,0,0,0];
+ const record={id:project+':expense:'+cashId,project,month:'2026-11',
+  sourceClass:'CASH',members:['expense:'+cashId],values,hash:sha(parseValues(values))};
+ const run=(r,entries,receipts)=>attestMonth({project,month:record.month,revision:341,
+  records:[r],payments:[],...archives(),appendOnly:true,
+  cashDocument:doc({...cloud(),manualRecords:entries,inflowRecords:receipts})});
+ assert.equal(run(record,[cash],[inflow]).verified,true);
+ assert.equal(run(record,[cash],[inflow]).canWrite,false);
+ assert.equal(run(record,[cash,cash],[inflow]).verified,false);
+ assert.equal(run(record,[cash],[{...inflow,receipts:[{...inflow.receipts[0],amount:1}]}]).verified,false);
+ const changed=[...values];changed[6]=2;
+ assert.equal(run({...record,values:changed,hash:sha(parseValues(changed))},[cash],[inflow]).verified,false);
+});
+
+test('a canonical manual transfer binds the dated and signed amount to each exact project',()=>{
+ const date='2026-11-16',cashId='manual_transfer_123';
+ const cash={id:cashId,kind:'transfer',source:'manual',direction:'transfer',
+  status:'paid',actualDate:date,amount:1300,actualAmount:1300,
+  transferType:'loan',fromProject:'CN8-2',toProject:'H14-3',lender:'CN8-2',borrower:'H14-3'};
+ const run=(project,leg,label,amount,entry=cash)=>{
+  const member='transfer:'+cashId+':'+leg;
+  const values=[date,'内部调剂','','H14-3向CN8-2借款','',label,amount,0,0,0,0,0,0];
+  const record={id:project+':'+member,project,month:'2026-11',sourceClass:'TRANSFER',
+   members:[member],values,hash:sha(parseValues(values))};
+  return attestMonth({project,month:record.month,revision:341,
+   records:[record],payments:[],...archives(),appendOnly:true,
+   cashDocument:doc({...cloud(),manualRecords:[entry]})});
+ };
+ assert.equal(run('H14-3','in','借入',1300).verified,true);
+ assert.equal(run('CN8-2','out','借出',-1300).verified,true);
+ assert.equal(run('H14-3','out','借出',-1300).verified,false);
+ assert.equal(run('CN8-2','out','借出',1300).verified,false);
+ assert.equal(run('H14-3','in','借入',1300,{...cash,borrower:'OTHER'}).verified,false);
+});

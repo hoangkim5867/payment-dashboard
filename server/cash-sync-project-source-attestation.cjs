@@ -3,10 +3,10 @@
  * Source certification from REAL server documents, one bounded paid-month
  * Payment query and two protected Cash Control/legacy archive documents.
  *
- * Gate intentionally supports ONLY unambiguous, 1:1 paid Payment expenses
- * in the first phase. Legacy cash, payroll, grouped quarterly PIT, internal
- * transfers, linked inflows, older aliases, unknown buckets or changed
- * archive -> REVIEW_REQUIRED, never auto-approve.
+ * Supports unambiguous, 1:1 paid Payment expenses and, for new rows,
+ * linked client receipts and signed manual transfer legs from Cash Control.
+ * Legacy cash, payroll, grouped quarterly PIT, older aliases and unknown
+ * buckets still require separate source rules.
  *
  * This deliberately does NOT infer all 35 projects are certified from
  * a 187-document monthly Payment query or from a cached spreadsheet.
@@ -57,6 +57,68 @@ function activeCashRecord(x,project,month){
   x.isAllocation===true||x.direction==='adjustment')return false;
  return norm(x.project)===project||norm(x.fromProject)===project||
   norm(x.toProject)===project;
+}
+function linkedClientReceiptValues(state,project,month,member){
+ const cashId=member.slice('expense:'.length);
+ const records=state.manualRecords.filter(item=>item?.id===cashId);
+ if(records.length!==1)return null;
+ const [cash]=records;
+ if(cash.kind!=='normal'||cash.source!=='manual'||cash.direction!=='in'||
+    cash.category!=='Tiền thu chủ đầu tư'||cash.linkedModule!=='inflow'||
+    cash.needsReview===true||cash.project!==project||
+    !activeCashRecord(cash,project,month)||
+    typeof cash.linkedRecordId!=='string'||!cash.linkedRecordId||
+    typeof cash.linkedReceiptId!=='string'||!cash.linkedReceiptId||
+    cashId!=='manual_inflow_'+cash.linkedRecordId+'_'+cash.linkedReceiptId)
+  return null;
+ const inflows=(state.inflowRecords||[]).filter(item=>item?.id===cash.linkedRecordId);
+ if(inflows.length!==1)return null;
+ const [inflow]=inflows;
+ if(inflow.project!==project||!bounded(inflow.receipts,1000)||
+    norm(inflow.number)!==norm(cash.subCode)||
+    (inflow.cashTxnId!==cashId&&!(Array.isArray(inflow.cashTxnIds)&&inflow.cashTxnIds.includes(cashId))))
+  return null;
+ const linkedReceipts=inflow.receipts.filter(item=>item?.id===cash.linkedReceiptId);
+ if(linkedReceipts.length!==1)return null;
+ const [receipt]=linkedReceipts;
+ const amount=money(receipt.amount);
+ if(receipt.date!==cash.actualDate||!Number.isSafeInteger(amount)||amount<=0||
+    amount!==money(cash.actualAmount)||amount!==money(cash.amount))
+  return null;
+ const number=String(inflow.number||cash.subCode||'').trim();
+ const ipc=number.match(/IPC[\s._-]*([0-9]+)/i);
+ const content=ipc?'内部结算IPC'+ipc[1]:number?'业主收款 · '+number:'业主收款';
+ return parseValues([cash.actualDate,cash.company||cash.counterparty||'',
+  cash.contractNo||'',content,cash.ipcNo||cash.subCode||'','业主收款',
+  amount,0,0,0,0,0,0],{foxconn:false});
+}
+function manualTransferValues(state,project,month,member){
+ const parsed=/^transfer:(manual_transfer_[0-9]+):(in|out)$/.exec(member);
+ if(!parsed)return null;
+ const [,cashId,leg]=parsed;
+ const records=state.manualRecords.filter(item=>item?.id===cashId);
+ if(records.length!==1)return null;
+ const [cash]=records;
+ if(cash.kind!=='transfer'||cash.source!=='manual'||cash.direction!=='transfer'||
+    !activeCashRecord(cash,project,month))
+  return null;
+ const {fromProject:from,toProject:to,transferType:type,lender,borrower}=cash;
+ if(typeof from!=='string'||!from||typeof to!=='string'||!to||
+    norm(from)!==from||norm(to)!==to||from===to||
+    (leg==='out'?from:to)!==project)
+  return null;
+ const amount=money(cash.actualAmount);
+ if(!Number.isSafeInteger(amount)||amount<=0||amount!==money(cash.amount))return null;
+ let content,label;
+ if(type==='loan'&&lender===from&&borrower===to){
+  content=to+'向'+from+'借款';label=leg==='out'?'借出':'借入';
+ }else if(type==='repayment'&&lender===to&&borrower===from){
+  content=from+'归还'+to+'借款';label=leg==='out'?'还款':'收回借款';
+ }else if(type==='transfer'&&!lender&&!borrower){
+  content=from+'调拨至'+to;label=leg==='out'?'内部转出':'内部转入';
+ }else return null;
+ return parseValues([cash.actualDate,'内部调剂','',content,'',label,
+  leg==='out'?-amount:amount,0,0,0,0,0,0],{foxconn:false});
 }
 function attestMonth({project,month,revision,records,payments,cashDocument,seedDocument,expectedSeedHash=SEED_HASH,
  appendOnly=false}={}){
@@ -109,6 +171,26 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
  }
  const seen=new Set();
  for(const r of records){
+  const member=Array.isArray(r?.members)&&r.members.length===1?r.members[0]:null;
+  if(appendOnly&&project!=='FOXCONN'&&typeof member==='string'){
+   const clientReceipt=r.sourceClass==='CASH'&&
+     /^expense:manual_inflow_[A-Za-z0-9_-]{1,190}$/.test(member);
+   const manualTransfer=r.sourceClass==='TRANSFER'&&
+     /^transfer:manual_transfer_[0-9]+:(in|out)$/.test(member);
+   if(clientReceipt||manualTransfer){
+    const values=clientReceipt?
+      linkedClientReceiptValues(state,project,month,member):
+      manualTransferValues(state,project,month,member);
+    if(r.project!==project||r.month!==month||r.id!==project+':'+member||seen.has(member)||
+       !values||!Array.isArray(r.values)||r.values.length!==13||
+       sha(values)!==r.hash||sha(parseValues(r.values,{foxconn:false}))!==r.hash){
+     blockers.push(clientReceipt?'LINKED_CLIENT_RECEIPT_MISMATCH':'MANUAL_TRANSFER_LEG_MISMATCH');
+     continue;
+    }
+    seen.add(member);
+    continue;
+   }
+  }
   if(!r||r.project!==project||r.month!==month||
     typeof r.id!=='string'||r.id.length>500||
     !Array.isArray(r.members)||r.members.length!==1||
