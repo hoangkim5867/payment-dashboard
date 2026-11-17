@@ -606,18 +606,95 @@ document.getElementById("ccSyncNextProjectReadOnly")
    // grant production writer permission. The read-only scan checks gid/title.
    const loadDraft='  ccSyncProjectCatalogLoadDraft();';
    if(!text.includes(loadDraft))throw Error('Link draft bootstrap changed');
-   const phuHungLink='https://docs.google.com/spreadsheets/d/1gOEvJmOCW9EV5zfBNyJZ35a8EtMZihI2yZyuKj93dVg/edit?gid=1049774332#gid=1049774332';
-   // Join using an actual line feed. An escaped backslash-n in output would
-   // become invalid JavaScript and blank the entire Cash Control page.
-   const restoredLinkCode=[
+   // Verified via authenticated Google Drive metadata, 2026-11-17.
+   // Recovery hints ONLY: local draft links take precedence. No sheet API
+   // requests are made on page load and these links never authorize writes.
+   // Exclude TEST, S19-3 outside the 35-project catalog, and ambiguous S6-1.
+   const knownOriginalSheets={
+  "PHU HUNG": [
+    "1gOEvJmOCW9EV5zfBNyJZ35a8EtMZihI2yZyuKj93dVg",
+    1049774332
+  ],
+  "ELYSIAN": [
+    "1psyGxQsHf7CbGqVSgQdiwHonN3UztxAthKa6iHkAR4Y",
+    1134656568
+  ],
+  "C17-2": [
+    "1mNzUzyQxtxMRrTJuSSAqF4oosrTUlMpYwx44SbICa3A",
+    1886200752
+  ],
+  "EATON": [
+    "1zg5hMATwf6QVWlXUMiFzFcMW0qRgNd-aD4cL_U8PUUs",
+    1214250390
+  ],
+  "FOXCONN": [
+    "1Rfn7C3jbJKA8KMwjKIbeEqpeMElE4pSfTKowS1cfIO4",
+    16501839
+  ],
+  "CR5-1B": [
+    "12H48FWl7PvQzLLs6UphWcB7_JpML4ueK42ZszNDgODc",
+    1180514225
+  ],
+  "CN8-2": [
+    "1RBKsCWN3k6aOsx0427BmiuGslDWRx8CgDv0AQhXE50A",
+    83839595
+  ],
+  "SSIS": [
+    "1obX_1Gq8_UYNZMFbZSo6mbIQ9DdCMn6j9JoRQDIMENM",
+    1478736993
+  ],
+  "H14-3": [
+    "1UOcsvgB9VFj_Q4xUZK2TiZVGMb_sQiumguOUIzUUOTM",
+    485113919
+  ],
+  "S13-2": [
+    "1s7-EZqTfS_6raZDxpK74m5gxDoAbRwBIJptCkG2lyUg",
+    1543850344
+  ],
+  "ADVANCE": [
+    "1cOCMgFupF7jahnR62i5zIBKw7Bn5XaZS4s9DvijXsTQ",
+    1494600789
+  ],
+  "DELASOL": [
+    "1qCr5PDonMuu86Fc_iI1dm58qu_oim8GY7BKSb7_tEto",
+    1052496463
+  ],
+  "中健厂房": [
+    "1KIrsFSLkT02OKSNFCZttwyMh2-zQayYC-IBPILtG8Ds",
+    1441516508
+  ],
+  "C13B": [
+    "1G-vQhvfwAMdHSVzLzF6yctPdLVfb_URbMmemArUH07Q",
+    1707755070
+  ],
+  "OCEAN LINK": [
+    "1cq539R49hyE4rxhAb4_5zovvDIOLE1bxqRAuCmiRc5Q",
+    1702482780
+  ],
+  "CHAOMED": [
+    "1DLdvNzzi0F3Co53GDlYkJljPnQUJ0a4rp_0ZQ5tssXE",
+    54521986
+  ],
+  "红鹤别墅1.1区": [
+    "1C2s60lg79LyytVZa9Ok5zMR8l2kzUbdo3saoiXZjkeA",
+    194889516
+  ]
+};
+   const recoveredLinkCode=[
      loadDraft,
-     "  if(firebaseConfig.projectId==='cscecmep-payment'&&",
-     "     !ccSyncProjectLinkDraft['PHU HUNG']&&ccSyncProjectLinkValid("+JSON.stringify(phuHungLink)+")){",
-     "    ccSyncProjectLinkDraft['PHU HUNG']="+JSON.stringify(phuHungLink)+";",
-     "    ccSyncProjectCatalogSaveDraft();",
+     "  if(firebaseConfig.projectId==='cscecmep-payment'){",
+     "    const knownOriginalSheets="+JSON.stringify(knownOriginalSheets)+";",
+     "    const available=new Set(ccSyncProjectCatalogNames());",
+     "    let recovered=0;",
+     "    for(const [project,[fileId,gid]] of Object.entries(knownOriginalSheets)){",
+     "      if(!available.has(project)||ccSyncProjectLinkDraft[project])continue;",
+     "      const link='https://docs.google.com/spreadsheets/d/'+fileId+'/edit?gid='+gid+'#gid='+gid;",
+     "      if(ccSyncProjectLinkValid(link)){ccSyncProjectLinkDraft[project]=link;recovered++;}",
+     "    }",
+     "    if(recovered)ccSyncProjectCatalogSaveDraft();",
      "  }"
    ].join(String.fromCharCode(10));
-   text=text.replace(loadDraft,restoredLinkCode);
+   text=text.replace(loadDraft,recoveredLinkCode);
    // Live Production owner workflow: direct Cash Control -> Google Sheets on one Admin click
    // A dedicated PHU HUNG writer is invoked by this SAME one-click action.
    // Never display SOURCE_NOT_VERIFIED for a workbook already activated.
