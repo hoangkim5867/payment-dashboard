@@ -78,6 +78,16 @@ test('missing or extra Payment, changed amounts/companies/IPC/categories and bad
   assert.equal(result.canWrite,false);
  }
 });
+test('impossible Payment calendar dates cannot be independently certified for Google posting',()=>{
+ for(const impossible of ['2026-11-31','2026-02-29','2026-04-31']){
+  assert.throws(()=>check({payments:[{...p(),processPaymentDate:impossible}]}),
+   /MONTH_PAYMENT_QUERY_UNVERIFIED/);
+ }
+ const validLeap='2028-02-29';
+ const good={...p(),processPaymentDate:validLeap};
+ // The leap day is valid, but the selected source month must still match.
+ assert.throws(()=>check({payments:[good]}),/MONTH_PAYMENT_QUERY_UNVERIFIED/);
+});
 test('legacy salary, transfer and staff source blocks generic Payment-only certification',()=>{
  const pair=archives();
  const changed=cloud();changed.manualRecords.push({
