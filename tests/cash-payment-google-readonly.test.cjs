@@ -970,11 +970,26 @@ test('ELYSIAN triage separates payroll and leave metadata from HĐ/IPC, pairs tr
  assert.equal(result.possibleTransferCounterparts[0].sameDay,true);
  assert.equal(result.possibleTransferCounterparts[0].exactSignedCategoryAmounts,true);
  assert.equal(result.possibleTransferCounterparts[0].matched,false);
+ assert.deepEqual(result.oneSidedByMonth,[
+  {month:'2026-10',cash:1,google:1},
+  {month:'2026-11',cash:1,google:0}
+ ]);
+ assert.equal(result.possibleTransferCounterparts[0].sourceNet,-5700000000);
+ assert.equal(result.possibleTransferCounterparts[0].googleNet,-5700000000);
+ assert.equal(result.possibleTransferCounterparts[0].differingCategories.length,0);
+
  assert.equal(result.canWrite,false);assert.equal(result.googleWrites,0);
  assert.equal(result.sourceComplete,false);
  const wrong=history.map(r=>r.slice());wrong[0][6]=5700000000;
  const blocked=auditor.reviewElysianExceptions(wrong,src,cmp);
  assert.equal(blocked.possibleTransferCounterparts[0].exactSignedCategoryAmounts,false);
+ assert.equal(blocked.possibleTransferCounterparts[0].oppositeNet,true);
+ assert.equal(blocked.possibleTransferCounterparts[0].sameAbsoluteNet,true);
+ assert.deepEqual(blocked.possibleTransferCounterparts[0].differingCategories,[
+  {category:'Thu',source:-5700000000,google:5700000000}
+ ]);
+ assert.equal(blocked.possibleTransferCounterparts[0].canWrite,false);
+
  assert.equal(blocked.canWrite,false);
 });
 test('ELYSIAN triage never pairs repayment by text alone or forces staff rows into contract matches',()=>{
