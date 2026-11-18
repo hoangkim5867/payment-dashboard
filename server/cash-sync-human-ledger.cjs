@@ -157,6 +157,23 @@ function compileHumanBatch({plan,previousPlan,snapshot,historySheetId,foxconn=fa
     pattern:foxconn?'#,##0;-#,##0;;@':'#,##0;-#,##0;;@'}}},
   fields:'userEnteredFormat.numberFormat'}}
  ];
+ // Match the PHU HUNG visual standard on each manual sync; never touch
+ // formulas, number formats, data columns, or immutable history.
+ const lightBlue={red:0.91764706,green:0.9490196,blue:0.9882353};
+ if(n>5)requests.push({repeatCell:{
+   range:{sheetId:viewId,startRowIndex:4,endRowIndex:n-1,
+     startColumnIndex:0,endColumnIndex:c},
+   cell:{userEnteredFormat:{backgroundColor:{red:1,green:1,blue:1},
+     textFormat:{fontFamily:'Calibri',fontSize:11,bold:false}}},
+   fields:'userEnteredFormat.backgroundColor,userEnteredFormat.textFormat.fontFamily,userEnteredFormat.textFormat.fontSize,userEnteredFormat.textFormat.bold'
+ }});
+ requests.push({repeatCell:{
+   range:{sheetId:viewId,startRowIndex:n-1,endRowIndex:n,
+     startColumnIndex:0,endColumnIndex:c},
+   cell:{userEnteredFormat:{backgroundColor:lightBlue,
+     textFormat:{fontFamily:'Calibri',fontSize:11,bold:true}}},
+   fields:'userEnteredFormat.backgroundColor,userEnteredFormat.textFormat.fontFamily,userEnteredFormat.textFormat.fontSize,userEnteredFormat.textFormat.bold'
+ }});
  return {requests,historySheetId,viewId,mirrorId,human:true,
    fingerprint:require('./cash-sync-multi-project-core.cjs').sha({
      project,month:plan.month,source:plan.mirrorNext.map(r=>r.id),
