@@ -2055,7 +2055,7 @@ import {buildBatchReadiness} from "./assets/js/cash-sync-batch-readiness.mjs";
 import {runManualMonthlySync} from "./assets/js/cash-sync-monthly-manual-runner.mjs";
 import {buildMonthlyExportManifest} from "./assets/js/cash-sync-monthly-export-manifest.mjs";
 import {buildPendingInitializationReport,PENDING_INIT_MONTHS} from "./assets/js/cash-sync-pending-init-report.mjs";
-import {scanMonthlyGoogleReadOnly} from "./assets/js/cash-sync-monthly-google-readonly.mjs";
+import {scanMonthlyGoogleReadOnly,isDateOrderOnlyHistoryWarning,summarizeMatchedHistoryReadOnly} from "./assets/js/cash-sync-monthly-google-readonly.mjs";
 import {buildLegacyExcelReviewPackage,buildMonthReviewPackage,inspectMonthReviewPackage} from "./assets/js/cash-sync-month-review-package.mjs";
 import {assessProjectSourceCoverage} from "./assets/js/cash-sync-project-source-coverage.mjs";
 const firebaseConfig={apiKey:"AIzaSyCApKWORskui_858na0gqnxh3UPzg0mvgE",authDomain:"cscecmep-payment.firebaseapp.com",projectId:"cscecmep-payment",storageBucket:"cscecmep-payment.firebasestorage.app",messagingSenderId:"217279768663",appId:"1:217279768663:web:ad6b423078aee5ca925b12"};
@@ -6813,10 +6813,13 @@ async function ccSyncAuditFreshMonthGoogleReadOnly(){
       }
       table.append(header);
       const byProject=new Map(manifest.groups.map(x=>[x.project,x]));
+      const matchedSummary=summarizeMatchedHistoryReadOnly(scan.results);
       for(const item of scan.results){
         const tr=document.createElement('tr');
         const issues=manifest.groups.find(x=>x.project===item.project)?.issues||[];
-        const message=item.result==='EXACT_HISTORY_ONLY'?'Khớp lịch sử':
+        const dateOnly=isDateOrderOnlyHistoryWarning(item);
+        const message=dateOnly?'Đã khớp giao dịch · chỉ cảnh báo thứ tự ngày':
+          item.result==='EXACT_HISTORY_ONLY'?'Khớp lịch sử':
           item.result==='NEWER_THAN_HISTORY_CANDIDATE'?'Có ứng viên mới; chưa cấp phép ghi':
           item.result==='REVIEW_REQUIRED'?'Cần đối chiếu lịch sử / giao dịch':
           item.reason==='GOOGLE_LINK_MISSING'?'Thiếu link Google':
@@ -6826,7 +6829,7 @@ async function ccSyncAuditFreshMonthGoogleReadOnly(){
           item.exactMatches??'—',item.newerCandidates??'—',
           item.historyUnmatched??'—',
           message+(item.financialReview?' · số dư/bố cục cần rà soát':'')+
-          (item.dateReview?' · ngày đảo thứ tự':'')+
+          (item.dateReview&&!dateOnly?' · ngày đảo thứ tự':'')+
           (issues.length?' · '+issues.length+' vấn đề nguồn':'')]){
           const td=document.createElement('td');
           td.textContent=String(val);
@@ -6846,6 +6849,10 @@ async function ccSyncAuditFreshMonthGoogleReadOnly(){
         cashRevision:revision,
         googleCheckedProjects:scan.checkedGoogleProjects,
         googleReviewProjects:scan.blockedProjects,
+        dateOrderOnlyProjects:matchedSummary.dateOrderOnly,
+        otherReviewProjects:matchedSummary.otherReview,
+        historyMatchesWithoutDateWarning:matchedSummary.withoutDate,
+        noNewRowsInOriginalHistory:matchedSummary.noNewRows,
         googleReads:scan.googleReads,googleWrites:0,
         sourceComplete:false,writeApproved:false,
         projects:scan.results.map(row=>({
@@ -6876,12 +6883,13 @@ async function ccSyncAuditFreshMonthGoogleReadOnly(){
       });
       output.replaceChildren(table,copy);output.hidden=false;
       status.textContent='ĐỐI CHIẾU THÁNG '+month+' · '+manifest.activeProjects+
-        ' dự án có dòng / '+manifest.groupedRows+' dòng Xuất Excel đang tải · '+
-        indexedCount+' hồ sơ Payment đã thực trả trong tháng được truy vấn · '+
-        scan.checkedGoogleProjects+' dự án đã đọc Google · '+
-        scan.blockedProjects+' dự án cần rà soát/chưa đủ điều kiện · '+
+        ' dự án / '+manifest.groupedRows+' dòng Xuất Excel · '+
+        matchedSummary.withoutDate+' dự án khớp hoàn toàn · '+
+        matchedSummary.dateOrderOnly+' dự án khớp giao dịch, chỉ cảnh báo thứ tự ngày · '+
+        matchedSummary.otherReview+' dự án có vấn đề khác · '+
+        (matchedSummary.noNewRows?'0 dòng mới cần ghi theo sổ gốc · ':'')+
         scan.googleReads+' Google reads · 0 Google writes · '+
-        'CHƯA xác nhận đầy đủ nguồn lịch sử hoặc cấp phép ghi.';
+        'ĐÂY LÀ ĐỐI CHIẾU CHỈ ĐỌC; chưa cấp phép ghi hoặc xác minh đủ ID nguồn.';
     });
   }catch(e){
     status.textContent='DỪNG đối chiếu nguồn tháng: '+
@@ -8096,7 +8104,13 @@ function ccGoogleSheetsAccessToken(scope,{includeGrantedScopes,prompt,rememberCl
           return reject(Error('Google không trả về quyền chỉ đọc đã yêu cầu.'));
         resolve(response.access_token);
       },
-      error_callback:error=>reject(Error(error?.message||'Không thể đăng nhập Google'))
+      error_callback:error=>{
+        const detail=String(error?.type||error?.message||'');
+        const closed=/popup.*clos/i.test(detail);
+        reject(Error(closed?
+          'Cửa sổ Google đã đóng, chưa cấp quyền GHI. Đối chiếu chỉ đọc vẫn có thể chạy; nếu cần ghi hãy nhấn Kết nối Google và hoàn tất cấp quyền.':
+          (error?.message||'Không thể đăng nhập Google')));
+      }
     });
     client.requestAccessToken({prompt});
   });
