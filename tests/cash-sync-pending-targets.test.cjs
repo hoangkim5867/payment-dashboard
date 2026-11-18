@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {inspect}=require('../api/cash-sync-pending-targets.js')._internals;
+const {releaseInfo}=require('../api/cash-sync-release-status.js')._internals;
 const base={VERCEL_ENV:'production',CASH_SYNC_FIREBASE_PROJECT_ID:'cscecmep-payment',
  CASH_SYNC_ADMIN_UID:'test_admin_123',CASH_SYNC_MULTI_PRODUCTION_WRITES:'YES',
  CASH_SYNC_MULTI_ALLOWED_TARGETS:JSON.stringify({S6_OLD:{
@@ -15,7 +15,7 @@ const trust=async(token,config)=>{
  assert.deepEqual(config,{project:'cscecmep-payment',uid:'test_admin_123'});
 };
 test('only pending Google destinations return, never enable writes',async()=>{
- const result=await inspect({env:base,token:'signed-admin-token',verifyAdmin:trust});
+ const result=await releaseInfo({env:base,token:'signed-admin-token',verifyProduction:trust,body:{action:'pending_links'}});
  assert.equal(result.configured,2);
  assert.deepEqual(result.projects.map(x=>x.project),['289','S19-3']);
  assert.ok(result.projects[0].link.endsWith('#gid=1136232883'));
@@ -28,21 +28,21 @@ test('only pending Google destinations return, never enable writes',async()=>{
  assert.ok(result.projects.every(x=>x.project!=='S6_OLD'));
 });
 test('fail closed in preview or wrong Firebase',async()=>{
- await assert.rejects(inspect({env:{...base,VERCEL_ENV:'preview'},
-  token:'signed-admin-token',verifyAdmin:trust}),/PRODUCTION_ADMIN_REQUIRED/);
- await assert.rejects(inspect({env:{...base,CASH_SYNC_FIREBASE_PROJECT_ID:'staging'},
-  token:'signed-admin-token',verifyAdmin:trust}),/PRODUCTION_ADMIN_REQUIRED/);
+ await assert.rejects(releaseInfo({env:{...base,VERCEL_ENV:'preview'},
+  token:'signed-admin-token',verifyProduction:trust,body:{action:'pending_links'}}),/PRODUCTION_ADMIN_REQUIRED/);
+ await assert.rejects(releaseInfo({env:{...base,CASH_SYNC_FIREBASE_PROJECT_ID:'staging'},
+  token:'signed-admin-token',verifyProduction:trust,body:{action:'pending_links'}}),/PRODUCTION_ADMIN_REQUIRED/);
 });
 test('invalid, missing and duplicate pending mapping cannot leak through',async()=>{
- await assert.rejects(inspect({env:{...base,CASH_SYNC_MULTI_PENDING_TARGETS:'{'},token:'signed-admin-token',verifyAdmin:trust}),
+ await assert.rejects(releaseInfo({env:{...base,CASH_SYNC_MULTI_PENDING_TARGETS:'{'},token:'signed-admin-token',verifyProduction:trust,body:{action:'pending_links'}}),
   /PENDING_TARGET_MAPPING_INVALID/);
- await assert.rejects(inspect({env:{...base,CASH_SYNC_MULTI_PENDING_TARGETS:''},token:'signed-admin-token',verifyAdmin:trust}),
+ await assert.rejects(releaseInfo({env:{...base,CASH_SYNC_MULTI_PENDING_TARGETS:''},token:'signed-admin-token',verifyProduction:trust,body:{action:'pending_links'}}),
   /PENDING_TARGET_MAPPING_MISSING/);
- await assert.rejects(inspect({env:{...base,CASH_SYNC_MULTI_PENDING_TARGETS:JSON.stringify({
+ await assert.rejects(releaseInfo({env:{...base,CASH_SYNC_MULTI_PENDING_TARGETS:JSON.stringify({
   A:{spreadsheetId:'1abcdefghijklmnopqrstuvwxyz0123456789',historySheetId:1},
   B:{spreadsheetId:'1abcdefghijklmnopqrstuvwxyz0123456789',historySheetId:2}
- })},token:'signed-admin-token',verifyAdmin:trust}),/PENDING_TARGET_MAPPING_INVALID/);
+ })},token:'signed-admin-token',verifyProduction:trust,body:{action:'pending_links'}}),/PENDING_TARGET_MAPPING_INVALID/);
 });
 test('Admin Firebase signature check is required',async()=>{
- await assert.rejects(inspect({env:base,token:'bad',verifyAdmin:async()=>{throw Error('DENIED');}}),/DENIED/);
+ await assert.rejects(releaseInfo({env:base,token:'bad',verifyProduction:async()=>{throw Error('DENIED');},body:{action:'pending_links'}}),/DENIED/);
 });
