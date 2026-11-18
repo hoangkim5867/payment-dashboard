@@ -7,7 +7,7 @@
 const {verifyFirebaseAdminToken}=require('../server/cash-sync-guard.cjs');
 const {parseAllowlist}=require('../server/cash-sync-multi-targets.cjs');
 function fail(code,statusCode=409){throw Object.assign(Error(code),{statusCode});}
-function inspect({env,token,verifyAdmin=verifyFirebaseAdminToken}={}){
+async function inspect({env,token,verifyAdmin=verifyFirebaseAdminToken}={}){
  if(!env||env.VERCEL_ENV!=='production'||
     env.CASH_SYNC_FIREBASE_PROJECT_ID!=='cscecmep-payment'||
     !/^[A-Za-z0-9_-]{4,128}$/.test(env.CASH_SYNC_ADMIN_UID||''))
