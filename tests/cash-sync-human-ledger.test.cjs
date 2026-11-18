@@ -68,3 +68,40 @@ test('changed workbook layout or hidden-history gid rejects',()=>{
  const noMirror=structuredClone(meta);noMirror.sheets.splice(1,1);
  assert.throws(()=>human.requireHumanMetadata(noMirror,{project:'ELYSIAN',historySheetId:41}),/cấu trúc/);
 });
+
+test('empty new project sheet preserves positive/negative opening without fake transaction',()=>{
+  for(const opening of [22805265,-341996474,0]){
+    const project='289';
+    const plan=core.planMonth({project,month:'2026-11',source:[],
+      history:[],mirror:[],openingBalance:opening});
+    const totalFormula=human.emptyTotalFormula(opening);
+    const rows=[
+      [project+'项目现金流明细表'],
+      ['期间：2026-11 ~ 2026-11'],
+      ['日期','公司名称','合同编号','合同内容','IPC','类型','收入','支出','','','','','','余额'],
+      ['','','','','','','','分包款','材料款','其他直接费用','间接费','财务费用','其他应付款'],
+      ['合计','','','','','',0,0,0,0,0,0,0,opening]
+    ];
+    const formulas=[[],[],[],[],[totalFormula]];
+    assert.equal(human.verifyHumanView(rows,formulas,plan,{project}),true);
+    const posted=[...Array(13).fill(0)];posted[0]='2026-11-18';
+    posted[1]='公司';posted[3]='内部结算IPC1';posted[5]='收款';posted[6]=12;
+    const nextPlan=core.planMonth({project,month:'2026-11',
+      source:[{id:project+':expense:future',project,month:'2026-11',
+        values:posted,hash:core.sha([...posted,0])}],
+      history:[],mirror:[],openingBalance:opening});
+    assert.equal(nextPlan.status,'CANDIDATES_ONLY');
+    const meta={sheets:[
+      {properties:{sheetId:0,title:project+'_HISTORY_BACKUP',hidden:true}},
+      {properties:{sheetId:10000,title:'DATA_CASHCONTROL',hidden:true}},
+      {properties:{sheetId:10001,title:project}}
+    ]};
+    const prepared=human.compileHumanBatch({plan:nextPlan,
+      previousPlan:plan,snapshot:{meta,view:rows,formulas},
+      historySheetId:0});
+    assert.equal(prepared.requests.length,3);
+    assert.ok(prepared.requests.every(req=>
+      !req.updateCells||req.updateCells.range.sheetId!==0));
+    assert.equal(prepared.requests[1].updateCells.rows.length,6);
+  }
+});
