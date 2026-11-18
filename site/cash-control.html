@@ -1427,12 +1427,6 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
             <button class="btn primary" type="button" id="ccSyncMultiProjectManual" hidden>Đồng bộ các dự án đủ điều kiện</button>
             <button class="btn" type="button" id="ccSyncBatchAnalyze">Kiểm tra chung các dự án · chỉ đọc</button>
           </div>
-          <div id="ccSyncMonthSourceBridge" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:9px 0 4px">
-            <button id="ccSyncMonthSourceExport" class="btn" type="button" hidden>Xuất 1 gói nguồn tháng từ Cash Control chính</button>
-            <button id="ccSyncMonthSourceImport" class="btn" type="button" hidden>Nạp Excel hoặc JSON tháng</button>
-            <input id="ccSyncMonthSourceFile" type="file" accept=".json,.xlsx,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
-            <span id="ccSyncMonthSourceStatus" role="status" style="font-size:12px;color:#4d6076">TEST không tự có dữ liệu production; không được xem 0 dòng là không phát sinh.</span>
-          </div>
           <div id="ccSyncPendingInitPanel" style="margin:10px 0;padding:12px;background:#f9fbff;border:1px solid #b7cce6;border-radius:9px">
             <strong style="font-size:13px">Khởi tạo 17 file mới · 08–11/2026</strong>
             <p style="font-size:12px;color:#53657e;margin:6px 0">Một lượt đọc 4 tháng Payment thực trả và Cash Control đã đăng nhập; lập số dư chạy theo từng dự án. CHỈ ĐỌC · 0 Google writes · không sửa số dư gốc.</p>
@@ -1443,6 +1437,12 @@ html body .topright .global-tools-actions .btn{height:30px !important;min-height
             </div>
             <p id="ccSyncPendingInitStatus" role="status" style="font-size:12px;color:#45566c;margin:8px 0">Chưa lấy dữ liệu tháng 8–11/2026.</p>
             <div id="ccSyncPendingInitResult" hidden style="max-height:480px;overflow:auto"></div>
+          </div>
+          <div id="ccSyncMonthSourceBridge" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:9px 0 4px">
+            <button id="ccSyncMonthSourceExport" class="btn" type="button" hidden>Xuất 1 gói nguồn tháng từ Cash Control chính</button>
+            <button id="ccSyncMonthSourceImport" class="btn" type="button" hidden>Nạp Excel hoặc JSON tháng</button>
+            <input id="ccSyncMonthSourceFile" type="file" accept=".json,.xlsx,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+            <span id="ccSyncMonthSourceStatus" role="status" style="font-size:12px;color:#4d6076">TEST không tự có dữ liệu production; không được xem 0 dòng là không phát sinh.</span>
           </div>
           <p id="ccSyncBatchStatus" role="status" style="margin:9px 0 0;font-size:12px;color:#44546b">Chưa rà soát dữ liệu đang có trên trang.</p>
           <div id="ccSyncBatchResults" hidden style="margin-top:10px;max-height:290px;overflow:auto"></div>
@@ -7150,72 +7150,6 @@ async function ccSyncBatchAnalyzeInMemory(){
   }finally{button.disabled=false}
 }
 
-function ccSyncProjectCatalogRender(){
-  const wrap=$('ccSyncProjectCatalogEntries');
-  if(!wrap)return;
-  const term=String($('ccSyncProjectCatalogSearch')?.value||'').trim().toLocaleLowerCase('vi');
-  const catalog=ccSyncProjectCatalogNames();
-  const visible=catalog.filter(p=>p.toLocaleLowerCase('vi').includes(term));
-  const preflight=$('ccSyncPaymentPreflight');
-  const selector=$('ccSyncPaymentPreflightProject');
-  if(preflight){
-    const allowed=!!currentAuthUser&&isCashControlOwner()&&
-      firebaseConfig.projectId==='cscecmep-payment';
-    preflight.hidden=!allowed;
-    preflight.style.display=allowed?'flex':'none';
-  }
-  if(selector){
-    const previous=selector.value;
-    selector.replaceChildren();
-    for(const p of catalog){
-      const option=document.createElement('option');
-      option.value=p;option.textContent=p;selector.append(option);
-    }
-    if(catalog.includes(previous))selector.value=previous;
-  }
-  wrap.replaceChildren();
-  for(const p of visible){
-    const row=document.createElement('label');
-    row.style.cssText='display:grid;grid-template-columns:minmax(120px,1fr) minmax(190px,2fr);gap:8px;align-items:center';
-    const title=document.createElement('span');title.textContent=p;title.style.fontSize='12px';
-    const input=document.createElement('input');
-    input.type='url';input.placeholder='Link Google Sheets của '+p;
-    input.value=ccSyncProjectLinkDraft[p]||'';
-    input.style.cssText='width:100%;min-width:0;padding:7px;border:1px solid #cad4e3;border-radius:7px';
-    input.setAttribute('aria-label','Link Google Sheets dự án '+p);
-    input.addEventListener('change',()=>{
-      const value=input.value.trim();
-      if(value&&!ccSyncProjectLinkValid(value)){
-        input.setCustomValidity('Cần link Google Sheets hợp lệ dạng docs.google.com/spreadsheets/d/...');
-        input.reportValidity();
-        return;
-      }
-      input.setCustomValidity('');
-      if(value)ccSyncProjectLinkDraft[p]=value;else delete ccSyncProjectLinkDraft[p];
-      ccSyncProjectCatalogSaveDraft();
-      const batchStatus=$('ccSyncBatchStatus');
-      if(batchStatus)batchStatus.textContent='Đã đổi link. Bấm kiểm tra chung để cập nhật kết quả.';
-      const batchOutput=$('ccSyncBatchResults');
-      if(batchOutput)batchOutput.hidden=true;
-      ccSyncProjectCatalogStatus('Đã lưu nháp trên máy này: '+Object.keys(ccSyncProjectLinkDraft).length+
-        ' dự án có link. Chưa kết nối hay ghi Google Sheets.');
-    });
-    row.append(title,input);wrap.append(row);
-  }
-  const linkedNames=Object.keys(ccSyncProjectLinkDraft);
-  const linkedCount=linkedNames.length;
-  const outsideCatalog=linkedNames.filter(p=>!catalog.includes(p));
-  const linkedInCatalog=linkedCount-outsideCatalog.length;
-  ccSyncProjectCatalogStatus('Danh mục: '+catalog.length+' dự án · đang hiển thị '+visible.length+
-    ' · '+linkedCount+' link nháp ('+linkedInCatalog+' thuộc danh mục'+
-    (outsideCatalog.length?' · '+outsideCatalog.length+
-      ' ngoài danh mục: '+outsideCatalog.join(', '):'')+'). '+
-    (linkedCount===0?
-      'Nếu đã nhập link ở tên miền Preview khác: trình duyệt không tự chuyển dữ liệu giữa các tên miền. '+
-      'Mở Preview cũ → Xuất danh sách / link (JSON) → trở lại đây → Nhập lại danh sách đã xuất. '+
-      'Không cần nhập từng link, chưa đọc hoặc ghi Firebase/Google Sheets.':
-      'Link lưu riêng trong trình duyệt ở tên miền này. Nên Xuất JSON để sao lưu trước khi đổi Preview.'));
-}
 // Admin-run, in-memory ONLY initiation plan for the 17 pending Google files.
 // Reads exactly 4 date-scoped actual-Payment month queries; no all-Payment scan,
 // no Firebase writes, no Google API, no staging or Google destination mutations.
@@ -7392,6 +7326,72 @@ function ccSyncPendingInitCopy(full){
       'Đã sao chép bảng số dư. ')+
       'Dán vào cuộc trò chuyện để đối chiếu tiếp. Không ghi Google.'
   ).catch(()=>status.textContent='Không sao chép được; kiểm tra quyền clipboard.');
+}
+function ccSyncProjectCatalogRender(){
+  const wrap=$('ccSyncProjectCatalogEntries');
+  if(!wrap)return;
+  const term=String($('ccSyncProjectCatalogSearch')?.value||'').trim().toLocaleLowerCase('vi');
+  const catalog=ccSyncProjectCatalogNames();
+  const visible=catalog.filter(p=>p.toLocaleLowerCase('vi').includes(term));
+  const preflight=$('ccSyncPaymentPreflight');
+  const selector=$('ccSyncPaymentPreflightProject');
+  if(preflight){
+    const allowed=!!currentAuthUser&&isCashControlOwner()&&
+      firebaseConfig.projectId==='cscecmep-payment';
+    preflight.hidden=!allowed;
+    preflight.style.display=allowed?'flex':'none';
+  }
+  if(selector){
+    const previous=selector.value;
+    selector.replaceChildren();
+    for(const p of catalog){
+      const option=document.createElement('option');
+      option.value=p;option.textContent=p;selector.append(option);
+    }
+    if(catalog.includes(previous))selector.value=previous;
+  }
+  wrap.replaceChildren();
+  for(const p of visible){
+    const row=document.createElement('label');
+    row.style.cssText='display:grid;grid-template-columns:minmax(120px,1fr) minmax(190px,2fr);gap:8px;align-items:center';
+    const title=document.createElement('span');title.textContent=p;title.style.fontSize='12px';
+    const input=document.createElement('input');
+    input.type='url';input.placeholder='Link Google Sheets của '+p;
+    input.value=ccSyncProjectLinkDraft[p]||'';
+    input.style.cssText='width:100%;min-width:0;padding:7px;border:1px solid #cad4e3;border-radius:7px';
+    input.setAttribute('aria-label','Link Google Sheets dự án '+p);
+    input.addEventListener('change',()=>{
+      const value=input.value.trim();
+      if(value&&!ccSyncProjectLinkValid(value)){
+        input.setCustomValidity('Cần link Google Sheets hợp lệ dạng docs.google.com/spreadsheets/d/...');
+        input.reportValidity();
+        return;
+      }
+      input.setCustomValidity('');
+      if(value)ccSyncProjectLinkDraft[p]=value;else delete ccSyncProjectLinkDraft[p];
+      ccSyncProjectCatalogSaveDraft();
+      const batchStatus=$('ccSyncBatchStatus');
+      if(batchStatus)batchStatus.textContent='Đã đổi link. Bấm kiểm tra chung để cập nhật kết quả.';
+      const batchOutput=$('ccSyncBatchResults');
+      if(batchOutput)batchOutput.hidden=true;
+      ccSyncProjectCatalogStatus('Đã lưu nháp trên máy này: '+Object.keys(ccSyncProjectLinkDraft).length+
+        ' dự án có link. Chưa kết nối hay ghi Google Sheets.');
+    });
+    row.append(title,input);wrap.append(row);
+  }
+  const linkedNames=Object.keys(ccSyncProjectLinkDraft);
+  const linkedCount=linkedNames.length;
+  const outsideCatalog=linkedNames.filter(p=>!catalog.includes(p));
+  const linkedInCatalog=linkedCount-outsideCatalog.length;
+  ccSyncProjectCatalogStatus('Danh mục: '+catalog.length+' dự án · đang hiển thị '+visible.length+
+    ' · '+linkedCount+' link nháp ('+linkedInCatalog+' thuộc danh mục'+
+    (outsideCatalog.length?' · '+outsideCatalog.length+
+      ' ngoài danh mục: '+outsideCatalog.join(', '):'')+'). '+
+    (linkedCount===0?
+      'Nếu đã nhập link ở tên miền Preview khác: trình duyệt không tự chuyển dữ liệu giữa các tên miền. '+
+      'Mở Preview cũ → Xuất danh sách / link (JSON) → trở lại đây → Nhập lại danh sách đã xuất. '+
+      'Không cần nhập từng link, chưa đọc hoặc ghi Firebase/Google Sheets.':
+      'Link lưu riêng trong trình duyệt ở tên miền này. Nên Xuất JSON để sao lưu trước khi đổi Preview.'));
 }
 function ccSyncProjectCatalogInitialize(){
   const wrap=$('ccGoogleSyncProjectLinkCatalog');
