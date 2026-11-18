@@ -6964,6 +6964,12 @@ async function ccSyncPendingInitReadOnly(){
         window.cashExportLang='zh';
         invalidateCashCalculations();
         const openingStart={...openingStartMap()};
+        // S19-3 is a genuinely new project: its owner explicitly confirmed
+        // 0 VND at 01/08/2026 and no pre-existing transactions. This is
+        // read-only review context; NEVER persist/overwrite Cash Control.
+        // A future payment still uses the ordinary transaction-ID workflow.
+        if(!Object.prototype.hasOwnProperty.call(openingStart,'S19-3'))
+          openingStart['S19-3']=0;
         const monthRows={},cashClosings={},rawPaymentCounts={},
           rawMovementCounts={};
         for(const target of targets){
