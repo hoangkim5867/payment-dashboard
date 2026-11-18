@@ -5532,7 +5532,8 @@ async function ccSyncLoadPendingServerLinks(){
         !ccSyncProjectLinkValid(entry.link))
         throw Error('Mapping file/gid không hợp lệ.');
       const p=catalog.find(name=>name.normalize('NFKC').trim().
-        replace(/\\s+/g,' ').toUpperCase()===entry.project);
+        replace(/\s+/g,' ').toUpperCase()===entry.project)||
+        (entry.project==='S19-3'?'S19-3':'');
       if(!p||seen.has(p)||seenFiles.has(entry.spreadsheetId))
         throw Error('Mapping dự án/file trùng hoặc không thuộc danh mục.');
       seen.add(p);seenFiles.add(entry.spreadsheetId);
