@@ -1202,3 +1202,40 @@ body{
   .actual-out-summary{grid-template-columns:repeat(2,minmax(120px,1fr))}
 }
 
+
+
+/* Cash Control opening balance (35+ projects):
+   keep header/actions on-screen and give the project list its OWN visible scrollbar.
+   Visual-only; does not alter opening balances or saving behavior. */
+#openingModal .mbox{
+  display:flex;
+  flex-direction:column;
+  height:min(780px, calc(100dvh - 24px));
+  max-height:calc(100dvh - 24px);
+  overflow:hidden;
+}
+#openingModal .mhead,
+#openingModal .note,
+#openingModal .mfoot{
+  flex:0 0 auto;
+}
+#openingModal #openingFields{
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:scroll;
+  overscroll-behavior:contain;
+  scrollbar-width:auto;
+  scrollbar-color:#8599b5 #eef2f7;
+  padding:3px 12px 10px 2px;
+}
+#openingModal #openingFields::-webkit-scrollbar{width:12px}
+#openingModal #openingFields::-webkit-scrollbar-track{
+  background:#eef2f7;border-radius:9px;
+}
+#openingModal #openingFields::-webkit-scrollbar-thumb{
+  background:#8599b5;border:2px solid #eef2f7;border-radius:9px;
+}
+@media(max-width:620px){
+  #openingModal .mbox{height:calc(100dvh - 16px);max-height:calc(100dvh - 16px)}
+  #openingModal #openingFields{grid-template-columns:minmax(0,1fr)}
+}
