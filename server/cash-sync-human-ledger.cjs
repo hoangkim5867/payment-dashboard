@@ -23,6 +23,10 @@ const ledgerTab=project=>project;
 const balanceColumn=foxconn=>foxconn?14:13;
 const columns=foxconn=>foxconn?15:14;
 const colLetter=foxconn=>foxconn?'O':'N';
+// Empty project sheets retain the real opening balance without fabricating a
+// payment row. Once a real source ID arrives, humanRows replaces this total.
+const emptyTotalFormula=(opening,foxconn=false)=>
+  opening===0?'='+colLetter(foxconn)+'4':'='+Number(opening);
 function chinese(values,project){
  const v=[...values];
  const company={'Lương Việt Nam':'越籍员工工资',
@@ -94,7 +98,9 @@ function verifyHumanView(matrix,formulaRows,plan,{foxconn=false,project}={}){
  }
  const total=matrix[targetLength-1]||[];
  if(!sameCalculation(num(total[balanceIndex]),previous)||
-    String(formulaRows[targetLength-1]?.[0]||'')!=='='+colLetter(foxconn)+(body.length+4))
+    String(formulaRows[targetLength-1]?.[0]||'')!==
+       (body.length===0?emptyTotalFormula(opening,foxconn):
+         '='+colLetter(foxconn)+(body.length+4)))
   die('Dòng tổng Google không khớp.');
  for(let j=6;j<balanceIndex;j++){
   const sum=round(body.reduce((n,r)=>n+r.values[j],0));
@@ -159,4 +165,4 @@ function compileHumanBatch({plan,previousPlan,snapshot,historySheetId,foxconn=fa
    }),canWrite:false,approvedWrites:0};
 }
 module.exports={requireHumanMetadata,verifyHumanView,compileHumanBatch,
- humanRows,chinese,rowFormula};
+ humanRows,chinese,rowFormula,emptyTotalFormula};
