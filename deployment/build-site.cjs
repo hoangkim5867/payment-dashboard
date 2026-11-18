@@ -921,6 +921,7 @@ if(require.main===module){
    path.join(__dirname,'../tests/cash-google-ui-layout.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-batch-readiness.test.mjs'),
    path.join(__dirname,'../tests/cash-sync-monthly-export-manifest.test.mjs'),
+   path.join(__dirname,'../tests/cash-sync-pending-init-report.test.mjs'),
    path.join(__dirname,'../tests/cash-sync-monthly-manual-runner.test.mjs'),
    path.join(__dirname,'../tests/cash-sync-monthly-google-readonly.test.mjs'),
    path.join(__dirname,'../tests/cash-sync-batch-decisions.test.mjs'),
