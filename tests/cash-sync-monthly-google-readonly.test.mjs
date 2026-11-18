@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {scanMonthlyGoogleReadOnly,compareHistoryToExport,parseLedgerLink} from '../site/assets/js/cash-sync-monthly-google-readonly.mjs';
+import {scanMonthlyGoogleReadOnly,compareHistoryToExport,parseLedgerLink,isDateOrderOnlyHistoryWarning,summarizeMatchedHistoryReadOnly} from '../site/assets/js/cash-sync-monthly-google-readonly.mjs';
 const sheetId='ABCdefghIJ12345KLmnopQRS78901234';
 const link='https://docs.google.com/spreadsheets/d/'+sheetId+'/edit#gid=17';
 const date='2026-10-26';
@@ -338,4 +338,38 @@ test('S6-1 opening balance remains in the audit but is not an unmatched transact
  assert.equal(result.historyUnmatched,0);
  assert.equal(result.syncedMatches,1);
  assert.equal(result.result,'EXACT_HISTORY_ONLY');
+});
+
+test('date order only is not called a financial/source discrepancy in read-only presentation',()=>{
+ const dateOnly=compareHistoryToExport({
+   project:'ELYSIAN',month:'2026-10',records:[source('expense:matched')],
+   history:[raw()],audit:()=>({...audit([raw()]),
+     status:'review-date-order',nonMonotonicDates:2})
+ });
+ const clean=compareHistoryToExport({
+   project:'ELYSIAN',month:'2026-10',records:[source('expense:matched')],
+   history:[raw()],audit
+ });
+ assert.equal(isDateOrderOnlyHistoryWarning(dateOnly),true);
+ assert.equal(isDateOrderOnlyHistoryWarning(clean),false);
+ const summary=summarizeMatchedHistoryReadOnly([dateOnly,clean]);
+ assert.equal(summary.dateOrderOnly,1);
+ assert.equal(summary.withoutDate,1);
+ assert.equal(summary.otherReview,0);
+ assert.equal(summary.noNewRows,true);
+ assert.equal(summary.googleWrites,0);
+ assert.equal(summary.canWrite,false);
+ assert.equal(dateOnly.result,'REVIEW_REQUIRED'); // Server review gate is unchanged.
+});
+test('date warning with amount mismatch or unmatched records remains blocked',()=>{
+ const mismatch=compareHistoryToExport({
+   project:'ELYSIAN',month:'2026-10',records:[source('expense:changed',120)],
+   history:[raw()],audit:()=>({...audit([raw()]),
+     status:'review-date-order',nonMonotonicDates:1})
+ });
+ assert.equal(isDateOrderOnlyHistoryWarning(mismatch),false);
+ const summary=summarizeMatchedHistoryReadOnly([mismatch]);
+ assert.equal(summary.otherReview,1);
+ assert.equal(summary.allRowsMatched,false);
+ assert.equal(summary.canWrite,false);
 });
