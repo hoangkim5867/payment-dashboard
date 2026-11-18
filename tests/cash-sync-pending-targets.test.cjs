@@ -29,9 +29,9 @@ test('only pending Google destinations return, never enable writes',async()=>{
 });
 test('fail closed in preview or wrong Firebase',async()=>{
  await assert.rejects(releaseInfo({env:{...base,VERCEL_ENV:'preview'},
-  token:'signed-admin-token',verifyProduction:trust,body:{action:'pending_links'}}),/PRODUCTION_ADMIN_REQUIRED/);
+  token:'signed-admin-token',verifyProduction:trust,verifyPreview:async()=>{},body:{action:'pending_links'}}),/PRODUCTION_ADMIN_REQUIRED/);
  await assert.rejects(releaseInfo({env:{...base,CASH_SYNC_FIREBASE_PROJECT_ID:'staging'},
-  token:'signed-admin-token',verifyProduction:trust,body:{action:'pending_links'}}),/PRODUCTION_ADMIN_REQUIRED/);
+  token:'signed-admin-token',verifyProduction:trust,body:{action:'pending_links'}}),/TRUSTED_PRODUCTION_ADMIN_NOT_CONFIGURED/);
 });
 test('invalid, missing and duplicate pending mapping cannot leak through',async()=>{
  await assert.rejects(releaseInfo({env:{...base,CASH_SYNC_MULTI_PENDING_TARGETS:'{'},token:'signed-admin-token',verifyProduction:trust,body:{action:'pending_links'}}),
