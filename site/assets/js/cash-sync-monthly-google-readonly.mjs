@@ -321,6 +321,36 @@ export function compareHistoryToExport({project,month,records,history,mirror=[],
    googleCompared:true,sourceComplete:false,canWrite:false,googleWrites:0
  });
 }
+// Presentation-only distinction. Date inversion alone is not a financial
+// discrepancy or a reason to re-post an already matched transaction.
+// This NEVER changes reviewResult, source proof, canWrite, or Google writes.
+export function isDateOrderOnlyHistoryWarning(row){
+ return row?.reviewCategory==='DATE_ORDER_ONLY'&&
+   row.result==='REVIEW_REQUIRED'&&row.dateReview===true&&
+   row.financialReview===false&&
+   Number.isSafeInteger(row.sourceRows)&&
+   row.sourceRows>0&&row.exactMatches===row.sourceRows&&
+   row.newerCandidates===0&&row.backfillCandidates===0&&
+   row.historyUnmatched===0&&row.duplicateHistory===0&&
+   row.duplicateSource===0&&row.invalidSource===0&&
+   row.invalidHistoryRows===0&&row.mirrorConflicts===0&&
+   row.unmatchedMirrorRows===0;
+}
+export function summarizeMatchedHistoryReadOnly(results){
+ if(!Array.isArray(results))throw Error('INVALID_HISTORY_SUMMARY');
+ const dateOrderOnly=results.filter(isDateOrderOnlyHistoryWarning).length;
+ const withoutDate=results.filter(row=>row.result==='EXACT_HISTORY_ONLY').length;
+ const otherReview=results.length-dateOrderOnly-withoutDate;
+ const allRowsMatched=results.every(row=>
+   (row.result==='EXACT_HISTORY_ONLY'||isDateOrderOnlyHistoryWarning(row))&&
+   Number.isSafeInteger(row.sourceRows)&&
+   row.exactMatches===row.sourceRows&&row.newerCandidates===0&&
+   row.backfillCandidates===0);
+ return Object.freeze({
+   dateOrderOnly,withoutDate,otherReview,allRowsMatched,
+   noNewRows:allRowsMatched,canWrite:false,googleWrites:0
+ });
+}
 export async function scanMonthlyGoogleReadOnly({
  month,groups,links,accessToken,fetcher,audit,onProgress,expectedOwner
 }={}){
