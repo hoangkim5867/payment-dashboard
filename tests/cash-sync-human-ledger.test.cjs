@@ -44,7 +44,9 @@ test('new November payment appended to named Chinese main tab and hidden mirror,
  const snapshot={meta,view:old.rows,formulas:old.formulas};
  const out=human.compileHumanBatch({plan:nextPlan,previousPlan,snapshot,historySheetId:41});
  assert.equal(out.human,true);
- assert.equal(out.requests.length,3);
+ assert.equal(out.requests.length,5);
+ assert.equal(out.requests[3].repeatCell.cell.userEnteredFormat.textFormat.bold,false);
+ assert.equal(out.requests[4].repeatCell.cell.userEnteredFormat.textFormat.bold,true);
  assert.deepEqual(out.requests.filter(x=>x.updateCells).map(x=>x.updateCells.range.sheetId),[10000,10001]);
  assert.ok(out.requests.every(x=>!x.updateCells||x.updateCells.range.sheetId!==41));
  const ledger=out.requests[1].updateCells.rows;
@@ -99,7 +101,7 @@ test('empty new project sheet preserves positive/negative opening without fake t
     const prepared=human.compileHumanBatch({plan:nextPlan,
       previousPlan:plan,snapshot:{meta,view:rows,formulas},
       historySheetId:0});
-    assert.equal(prepared.requests.length,3);
+    assert.equal(prepared.requests.length,5);
     assert.ok(prepared.requests.every(req=>
       !req.updateCells||req.updateCells.range.sheetId!==0));
     assert.equal(prepared.requests[1].updateCells.rows.length,6);
