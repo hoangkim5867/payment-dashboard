@@ -6964,10 +6964,12 @@ async function ccSyncPendingInitReadOnly(){
         window.cashExportLang='zh';
         invalidateCashCalculations();
         const openingStart={...openingStartMap()};
-        const monthRows={},cashClosings={};
+        const monthRows={},cashClosings={},rawPaymentCounts={},
+          rawMovementCounts={};
         for(const target of targets){
           const p=target.project;
           monthRows[p]={};cashClosings[p]={};
+          rawPaymentCounts[p]={};rawMovementCounts[p]={};
           for(const month of PENDING_INIT_MONTHS){
             const projected=legacyCashExportRows(month,p);
             monthRows[p][month]=projected.map(r=>({
@@ -6982,13 +6984,18 @@ async function ccSyncPendingInitReadOnly(){
               sourceIds:Array.isArray(r._syncIds)?r._syncIds:[]
             }));
             const mv=movements(month,p);
+            rawMovementCounts[p][month]=mv.length;
+            rawPaymentCounts[p][month]=[...paymentAutoActualRowsByMonth.get(month).values()]
+              .filter(record=>record.deleted!==true&&
+                String(record.processPaymentDate||'').slice(0,7)===month&&
+                normProject(record.project)===p).length;
             cashClosings[p][month]=opening(p,month)+mv.reduce((sum,x)=>
               sum+Number(x.in||0)-Number(x.out||0),0);
           }
         }
         report=buildPendingInitializationReport({targets,openingStart,
           monthRows,monthsLoaded,monthPaymentCounts:monthlyCount,
-          cashClosings,revision});
+          cashClosings,rawPaymentCounts,rawMovementCounts,revision});
       }finally{
         payments=previous;window.cashExportLang=previousLang;
         invalidateCashCalculations();
@@ -7004,7 +7011,7 @@ async function ccSyncPendingInitReadOnly(){
       const header=document.createElement('thead');
       const labels=['Dự án','01/08','08: số dòng / dư cuối',
         '09: số dòng / dư cuối','10: số dòng / dư cuối',
-        '11: số dòng / dư cuối','Đối chiếu'];
+        '11: số dòng / dư cuối','Payment / biến động','Đối chiếu'];
       const tr=document.createElement('tr');
       for(const label of labels){
         const th=document.createElement('th');th.textContent=label;
@@ -7019,7 +7026,12 @@ async function ccSyncPendingInitReadOnly(){
           maximumFractionDigits:2});
         const values=[row.project,fmt(row.openingAt20260801),
           ...row.months.map(m=>m.rows+' / '+fmt(m.closing)),
-          row.issues.length?row.issues.join(', '):'Số dư khớp; chờ xác minh nguồn'];
+          row.rawPaidPaymentCount+' / '+row.rawCashMovementCount,
+          row.issues.includes('MISSING_OR_INVALID_2026_08_OPENING')?
+            'Thiếu mốc đầu kỳ trong dữ liệu nguồn (ô giao diện có thể hiện 0).':
+            row.issues.length?row.issues.join(', '):
+              row.rowCount===0?'Không thấy dòng gộp; chờ xác minh nguồn':
+                'Số dư tính toán khớp; chờ xác minh nguồn'];
         for(const [i,value] of values.entries()){
           const td=document.createElement('td');td.textContent=value;
           td.style.cssText='padding:6px;border-bottom:1px solid #e6ebf2;'+
@@ -7032,7 +7044,9 @@ async function ccSyncPendingInitReadOnly(){
       $('ccSyncPendingInitCopySummary').disabled=false;
       $('ccSyncPendingInitCopyJSON').disabled=false;
       status.textContent=report.projectsCount+' file · '+report.groupedRows+
-        ' dòng gộp · '+report.mismatches+' tháng lệch số dư · '+
+        ' dòng gộp · '+report.mismatches+' tháng thực sự lệch số dư · '+
+        report.unverifiableMonths+' tháng chưa đủ mốc đầu kỳ · '+
+        report.sourceActivityDiscrepancies+' tháng nghi thiếu dòng gộp · '+
         report.missingIdentities+' dòng thiếu/trùng ID nguồn · '+
         PENDING_INIT_MONTHS.map(m=>m+': '+monthlyCount[m]+' Payment').join(' · ')+
         '. CHƯA CẤP PHÉP GHI GOOGLE.';
@@ -7052,11 +7066,17 @@ function ccSyncPendingInitCopy(full){
   const data=full?report:{
     schema:report.schema,cashRevision:report.cashRevision,
     paymentDocumentsByMonth:report.paymentDocumentsByMonth,
-    projects:report.projects.map(({project,openingAt20260801,months,issues})=>({
-      project,openingAt20260801,
+    mismatches:report.mismatches,unverifiableMonths:report.unverifiableMonths,
+    sourceActivityDiscrepancies:report.sourceActivityDiscrepancies,
+    projects:report.projects.map(({project,openingAt20260801,months,issues,
+      rawPaidPaymentCount,rawCashMovementCount,reviewState})=>({
+      project,openingAt20260801,rawPaidPaymentCount,
+      rawCashMovementCount,reviewState,
       months:months.map(({month,opening,rows,net,closing,
-        cashControlClosing,difference})=>({month,opening,rows,net,closing,
-          cashControlClosing,difference})),issues
+        cashControlClosing,difference,rawPaidPaymentCount:paid,
+        rawCashMovementCount:movements,activityProjectionMismatch})=>
+        ({month,opening,rows,net,closing,cashControlClosing,difference,
+          paid,movements,activityProjectionMismatch})),issues
     })),
     sourceCertified:false,canWrite:false,googleWrites:0
   };
