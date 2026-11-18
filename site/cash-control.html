@@ -15224,8 +15224,8 @@ onAuthStateChanged(auth,async user=>{
         // Initial catalog render occurred before auth was known. Unhide the
         // manual Admin preflight after successful login (no new reads).
         ccSyncProjectCatalogRender();
-        void ccSyncLoadPendingServerLinks();
         // Render once after auth is known; cloud snapshot will refresh again.
+        void ccSyncLoadPendingServerLinks();
         requestAnimationFrame(()=>renderAll());
 
         if(!ledgerProject){
