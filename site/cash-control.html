@@ -5499,6 +5499,60 @@ function ccSyncProjectCatalogLoadDraft(){
     }
   }catch{/* ignore malformed local draft without ever overwriting cloud data */}
 }
+// Automatically bring independently verified pending file/gid mappings into
+// the current Admin browser. This is LINK DISCOVERY ONLY, never write authority.
+// A local conflicting URL is preserved and flagged for explicit review.
+async function ccSyncLoadPendingServerLinks(){
+  const user=currentAuthUser;
+  if(!user||!isCashControlOwner()||firebaseConfig.projectId!=='cscecmep-payment')
+    return;
+  try{
+    const response=await fetch('/api/cash-sync-pending-targets',{
+      method:'POST',headers:{'Content-Type':'application/json',
+        'X-Firebase-ID-Token':await user.getIdToken()},
+      body:JSON.stringify({action:'pending_links'})
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw Error(data.error||'Không đọc được mapping máy chủ.');
+    if(currentAuthUser?.uid!==user.uid||!isCashControlOwner()||
+      data.kind!=='CASH_SYNC_PENDING_TARGET_LINKS_READONLY_V1'||
+      data.canWrite!==false||data.googleWrites!==0||
+      !Array.isArray(data.projects)||data.projects.length!==data.configured||
+      data.projects.length>35)throw Error('Mapping chưa được chứng thực.');
+    const catalog=ccSyncProjectCatalogNames();
+    const seen=new Set(),seenFiles=new Set();
+    let added=0,conflicts=0;
+    for(const entry of data.projects){
+      if(typeof entry.project!=='string'||typeof entry.link!=='string'||
+        typeof entry.spreadsheetId!=='string'||
+        !Number.isSafeInteger(entry.historySheetId)||
+        entry.historySheetId<0||
+        entry.link!=='https://docs.google.com/spreadsheets/d/'+
+          entry.spreadsheetId+'/edit#gid='+entry.historySheetId||
+        !ccSyncProjectLinkValid(entry.link))
+        throw Error('Mapping file/gid không hợp lệ.');
+      const p=catalog.find(name=>name.normalize('NFKC').trim().
+        replace(/\\s+/g,' ').toUpperCase()===entry.project);
+      if(!p||seen.has(p)||seenFiles.has(entry.spreadsheetId))
+        throw Error('Mapping dự án/file trùng hoặc không thuộc danh mục.');
+      seen.add(p);seenFiles.add(entry.spreadsheetId);
+      const existing=ccSyncProjectLinkDraft[p];
+      if(existing&&existing!==entry.link){conflicts++;continue;}
+      if(!existing){ccSyncProjectLinkDraft[p]=entry.link;added++;}
+    }
+    if(added)ccSyncProjectCatalogSaveDraft();
+    ccSyncProjectCatalogRender();
+    if(added||conflicts)
+      ccSyncProjectCatalogStatus('Máy chủ xác minh '+data.configured+
+        ' đích CHỜ KHỞI TẠO · thêm '+added+' link ở trình duyệt · '+
+        conflicts+' link khác cần kiểm tra. Chưa cấp phép ghi Google.');
+  }catch(error){
+    if(currentAuthUser?.uid===user.uid)
+      ccSyncProjectCatalogStatus('Chưa nạp được link chờ từ máy chủ: '+
+        String(error?.message||error).slice(0,125)+
+        '. Link đang lưu trong trình duyệt vẫn giữ nguyên.');
+  }
+}
 // Read-only production preflight: ONE project-count aggregation per explicit
 // Admin click. This never downloads raw Payment documents or changes any cache.
 async function ccSyncCountOneProject(){
@@ -15169,6 +15223,7 @@ onAuthStateChanged(auth,async user=>{
         // Initial catalog render occurred before auth was known. Unhide the
         // manual Admin preflight after successful login (no new reads).
         ccSyncProjectCatalogRender();
+        void ccSyncLoadPendingServerLinks();
         // Render once after auth is known; cloud snapshot will refresh again.
         requestAnimationFrame(()=>renderAll());
 
