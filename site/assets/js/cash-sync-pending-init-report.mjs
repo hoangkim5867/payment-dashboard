@@ -13,7 +13,7 @@ const safe=n=>typeof n==='number'&&Number.isFinite(n);
 const bad=code=>{throw Error(code)};
 export function buildPendingInitializationReport({
   targets,openingStart,monthRows,monthsLoaded,monthPaymentCounts,
-  cashClosings,revision
+  cashClosings,rawPaymentCounts,rawMovementCounts,revision
 }={}){
   if(!Array.isArray(targets)||targets.length<1||targets.length>35||
      !openingStart||typeof openingStart!=='object'||!monthRows||
@@ -24,6 +24,7 @@ export function buildPendingInitializationReport({
   const known=new Set(),fileIds=new Set();
   const coverage=PENDING_INIT_MONTHS.every(m=>monthsLoaded[m]===true);
   let groupedRows=0,missingIdentities=0,mismatches=0;
+  let unverifiableMonths=0,sourceActivityDiscrepancies=0;
   const projects=targets.map(target=>{
     const project=target?.project,serverProject=target?.serverProject;
     if(typeof project!=='string'||!project.trim()||known.has(project)||
@@ -41,6 +42,8 @@ export function buildPendingInitializationReport({
     if(!openingValid)issues.push('MISSING_OR_INVALID_2026_08_OPENING');
     if(!coverage)issues.push('ACTUAL_PAYMENT_MONTH_COVERAGE_MISSING');
     let projectRows=0,projectMissingIds=0,projectMismatchCount=0;
+    let projectUnverifiableMonths=0,projectActivityDiscrepancies=0;
+    let projectPaymentMatched=0,projectRawMovements=0;
     const seenIds=new Set();
     const months=PENDING_INIT_MONTHS.map(month=>{
       const rows=monthRows[project]?.[month];
@@ -48,6 +51,16 @@ export function buildPendingInitializationReport({
       if(!Array.isArray(rows))bad('PENDING_INIT_ROWS_MISSING');
       if(!safe(expectedCash))bad('PENDING_INIT_CASH_CLOSING_MISSING');
       const start=running,details=[];
+      const paymentCount=rawPaymentCounts?.[project]?.[month];
+      const movementCount=rawMovementCounts?.[project]?.[month];
+      if(!Number.isSafeInteger(paymentCount)||paymentCount<0||
+         !Number.isSafeInteger(movementCount)||movementCount<0)
+        bad('PENDING_INIT_ACTIVITY_COUNTS_NOT_VERIFIED');
+      projectPaymentMatched+=paymentCount;
+      projectRawMovements+=movementCount;
+      const zeroProjectionMismatch=rows.length===0&&
+        (paymentCount>0||movementCount>0);
+      if(zeroProjectionMismatch)projectActivityDiscrepancies++;
       let net=0;
       for(const r of rows){
         if(!r||typeof r.date!=='string'||!r.date.startsWith(month+'-')||
@@ -78,34 +91,46 @@ export function buildPendingInitializationReport({
       if(running!==null)running+=net;
       const difference=running===null?null:running-expectedCash;
       const agrees=difference!==null&&Math.abs(difference)<=0.001;
-      if(!agrees)projectMismatchCount++;
+      if(difference===null)projectUnverifiableMonths++;
+      else if(!agrees)projectMismatchCount++;
       return {month,opening:start,rows:rows.length,net,
         closing:running,cashControlClosing:expectedCash,difference,
-        arithmeticMatchesCashControl:agrees,details};
+        rawPaidPaymentCount:paymentCount,rawCashMovementCount:movementCount,
+        activityProjectionMismatch:zeroProjectionMismatch,
+        arithmeticMatchesCashControl:difference===null?null:agrees,details};
     });
     groupedRows+=projectRows;
     missingIdentities+=projectMissingIds;
     mismatches+=projectMismatchCount;
+    unverifiableMonths+=projectUnverifiableMonths;
+    sourceActivityDiscrepancies+=projectActivityDiscrepancies;
     if(projectMissingIds)issues.push('GROUPED_SOURCE_ID_REVIEW_REQUIRED');
     if(projectMismatchCount)issues.push('CASH_CONTROL_BALANCE_DIFFERENCE');
+    if(projectActivityDiscrepancies)
+      issues.push('PROJECT_ACTIVITY_MISSING_FROM_GROUPED_EXPORT');
     // An independently signed Admin source proof + Google readback are still
     // required before release, regardless of whether these checks pass.
     return {project,serverProject,spreadsheetId:target.spreadsheetId,
       historySheetId:target.historySheetId,
       openingAt20260801:openingValid?opening:null,
       rowCount:projectRows,lastClosing:running,months,
-      issues,reviewState:issues.length?'NEEDS_REVIEW':'SOURCE_SUMMARY_ONLY',
+      rawPaidPaymentCount:projectPaymentMatched,
+      rawCashMovementCount:projectRawMovements,
+      unverifiableMonths:projectUnverifiableMonths,
+      issues,reviewState:issues.length?'NEEDS_REVIEW':
+        projectRows===0?'NO_ROWS_CANDIDATE':'SOURCE_SUMMARY_ONLY',
       sourceCertified:false,googleCompared:false,canWrite:false};
   });
   return {schema:'CASH_SYNC_PENDING_INIT_READONLY_V1',
     periodStart:'2026-08-01',periodEnd:'2026-11-30',
     cashRevision:revision,projectsCount:projects.length,
-    groupedRows,missingIdentities,mismatches,
+    groupedRows,missingIdentities,mismatches,unverifiableMonths,
+    sourceActivityDiscrepancies,
     paymentMonthCoverage:coverage,
     paymentDocumentsByMonth:Object.fromEntries(PENDING_INIT_MONTHS.map(month=>[
       month,Number.isSafeInteger(monthPaymentCounts?.[month])?
         monthPaymentCounts[month]:null])),
     projects,sourceCertified:false,googleCompared:false,
     canWrite:false,googleWrites:0,firestoreWrites:0,
-    note:'Dữ liệu Cash Control đọc tại phiên Admin. Chưa xác minh nguồn độc lập; chỉ dùng để đối chiếu, không cấp phép ghi.'};
+    note:'Báo cáo đối chiếu số dư tính toán từ Cash Control. Số liệu 0 dòng chỉ là ứng viên; chưa xác minh nguồn độc lập và chưa cấp phép ghi Google.'};
 }
