@@ -5507,7 +5507,7 @@ async function ccSyncLoadPendingServerLinks(){
   if(!user||!isCashControlOwner()||firebaseConfig.projectId!=='cscecmep-payment')
     return;
   try{
-    const response=await fetch('/api/cash-sync-pending-targets',{
+    const response=await fetch('/api/cash-sync-release-status',{
       method:'POST',headers:{'Content-Type':'application/json',
         'X-Firebase-ID-Token':await user.getIdToken()},
       body:JSON.stringify({action:'pending_links'})
