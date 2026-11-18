@@ -19,7 +19,7 @@ const closings=(a=22805265,b=0)=>({
   'S19-3':Object.fromEntries(PENDING_INIT_MONTHS.map(m=>[m,b]))
 });
 const valid=()=>({
-  targets,openingStart:{'289':22805265,'S19-3':0},
+  targets:targets.map(t=>({...t})),openingStart:{'289':22805265,'S19-3':0},
   monthRows:empty(),monthsLoaded:Object.fromEntries(
     PENDING_INIT_MONTHS.map(m=>[m,true])),
   monthPaymentCounts:Object.fromEntries(PENDING_INIT_MONTHS.map(m=>[m,8])),
