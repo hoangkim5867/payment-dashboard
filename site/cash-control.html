@@ -6889,6 +6889,183 @@ async function ccSyncAuditFreshMonthGoogleReadOnly(){
   }finally{button.disabled=false;}
 }
 
+// Admin-run, in-memory ONLY initiation plan for the 17 pending Google files.
+// Reads exactly 4 date-scoped actual-Payment month queries; no all-Payment scan,
+// no Firebase writes, no Google API, no staging or Google destination mutations.
+let ccSyncPendingInitLastReport=null;
+let ccSyncPendingInitOwnerUid=null;
+async function ccSyncPendingInitReadOnly(){
+  const button=$('ccSyncPendingInitRun'),status=$('ccSyncPendingInitStatus');
+  const view=$('ccSyncPendingInitResult');
+  if(!button||button.disabled||!status||!view)return;
+  const user=currentAuthUser,uid=user?.uid;
+  const isAdmin=()=>Boolean(uid&&currentAuthUser?.uid===uid&&
+    isCashControlOwner()&&firebaseConfig.projectId==='cscecmep-payment');
+  if(!isAdmin()||!cashCloudReady||!legacySeedReady){
+    status.textContent='Chỉ Admin Production khi Cash Control đã tải xong mới được đọc.';return;
+  }
+  if(!navigator.locks){status.textContent='Trình duyệt không hỗ trợ khóa đối chiếu.';return}
+  ccSyncPendingInitLastReport=null;
+  ccSyncPendingInitOwnerUid=null;
+  $('ccSyncPendingInitCopySummary').disabled=true;
+  $('ccSyncPendingInitCopyJSON').disabled=true;
+  view.hidden=true;view.replaceChildren();button.disabled=true;
+  const revision=Number(cashCloudState.revision||0);
+  try{
+    await navigator.locks.request('cash-control-google-sync',{ifAvailable:true},async lock=>{
+      if(!lock)throw Error('Đang có tác vụ đồng bộ/đối chiếu ở tab khác.');
+      const response=await fetch('/api/cash-sync-release-status',{
+        method:'POST',headers:{'Content-Type':'application/json',
+          'X-Firebase-ID-Token':await user.getIdToken()},
+        body:JSON.stringify({action:'pending_links'})
+      });
+      const targetsReply=await response.json().catch(()=>({}));
+      if(!response.ok)throw Error(targetsReply.error||'Không đọc được mapping 17 file.');
+      if(!isAdmin()||targetsReply.kind!=='CASH_SYNC_PENDING_TARGET_LINKS_READONLY_V1'||
+        targetsReply.canWrite!==false||targetsReply.googleWrites!==0||
+        targetsReply.configured!==17||targetsReply.projects?.length!==17)
+        throw Error('Danh sách 17 file máy chủ chưa đủ hoặc Admin đã thay đổi.');
+      const catalog=ccSyncProjectCatalogNames();
+      const targets=targetsReply.projects.map(t=>{
+        const project=catalog.find(p=>p.normalize('NFKC').trim().
+          replace(/\s+/g,' ').toUpperCase()===t.project)||
+          (t.project==='S19-3'?'S19-3':'');
+        if(!project||!ccSyncProjectLinkValid(t.link)||
+           typeof t.spreadsheetId!=='string'||
+           t.link!=='https://docs.google.com/spreadsheets/d/'+
+             t.spreadsheetId+'/edit#gid='+t.historySheetId)
+          throw Error('Tên hoặc file Google không khớp danh mục.');
+        return {project,serverProject:t.project,
+          spreadsheetId:t.spreadsheetId,historySheetId:t.historySheetId};
+      });
+      const monthlyCount={},monthsLoaded={};
+      for(const month of PENDING_INIT_MONTHS){
+        if(!isAdmin())throw Error('Phiên Admin đã thay đổi.');
+        status.textContent='Đọc Payment thực trả '+month+' (theo ngày, không quét toàn bộ)…';
+        const ok=await autoLoadPaymentActualMonth(month,{force:true});
+        monthsLoaded[month]=ok&&paymentAutoActualMonthsLoaded.has(month);
+        if(!monthsLoaded[month])
+          throw Error('Payment '+month+' chưa xác minh đủ; không kết luận 0 giao dịch.');
+        monthlyCount[month]=paymentAutoActualRowsByMonth.get(month)?.size??null;
+      }
+      if(!isAdmin()||Number(cashCloudState.revision||0)!==revision)
+        throw Error('Nguồn Cash Control hoặc phiên Admin đã thay đổi; đọc lại.');
+      const uniqueActual=new Map();
+      for(const month of PENDING_INIT_MONTHS){
+        for(const [id,record] of paymentAutoActualRowsByMonth.get(month)||[]){
+          if(String(record.processPaymentDate||'').slice(0,7)===month)
+            uniqueActual.set(String(id),record);
+        }
+      }
+      const previous=payments,previousLang=window.cashExportLang;
+      let report;
+      try{
+        payments=[...uniqueActual.values()];
+        window.cashExportLang='zh';
+        invalidateCashCalculations();
+        const openingStart={...openingStartMap()};
+        const monthRows={},cashClosings={};
+        for(const target of targets){
+          const p=target.project;
+          monthRows[p]={};cashClosings[p]={};
+          for(const month of PENDING_INIT_MONTHS){
+            const projected=legacyCashExportRows(month,p);
+            monthRows[p][month]=projected.map(r=>({
+              date:String(r.date||''),company:String(r.company||''),
+              contractNo:String(r.contractNo||''),
+              content:String(r.content||''),ipc:String(r.ipc||''),
+              type:String(r.type||''),
+              income:Number(r.income||0),subcontract:Number(r.subcontract||0),
+              material:Number(r.material||0),otherDirect:Number(r.otherDirect||0),
+              indirect:Number(r.indirect||0),financial:Number(r.financial||0),
+              otherPayable:Number(r.otherPayable||0),
+              sourceIds:Array.isArray(r._syncIds)?r._syncIds:[]
+            }));
+            const mv=movements(month,p);
+            cashClosings[p][month]=opening(p,month)+mv.reduce((sum,x)=>
+              sum+Number(x.in||0)-Number(x.out||0),0);
+          }
+        }
+        report=buildPendingInitializationReport({targets,openingStart,
+          monthRows,monthsLoaded,monthPaymentCounts:monthlyCount,
+          cashClosings,revision});
+      }finally{
+        payments=previous;window.cashExportLang=previousLang;
+        invalidateCashCalculations();
+      }
+      if(!isAdmin()||Number(cashCloudState.revision||0)!==revision)
+        throw Error('Nguồn Cash Control thay đổi khi đối chiếu; không dùng kết quả cũ.');
+      if(report.canWrite!==false||report.googleWrites!==0||
+         report.projectsCount!==17)throw Error('Bảng khởi tạo không an toàn.');
+      ccSyncPendingInitLastReport=report;
+      ccSyncPendingInitOwnerUid=uid;
+      const table=document.createElement('table');
+      table.style.cssText='width:100%;border-collapse:collapse;font-size:11px;white-space:nowrap';
+      const header=document.createElement('thead');
+      const labels=['Dự án','01/08','08: số dòng / dư cuối',
+        '09: số dòng / dư cuối','10: số dòng / dư cuối',
+        '11: số dòng / dư cuối','Đối chiếu'];
+      const tr=document.createElement('tr');
+      for(const label of labels){
+        const th=document.createElement('th');th.textContent=label;
+        th.style.cssText='padding:7px;border-bottom:1px solid #cdd8e6;text-align:left';
+        tr.append(th);
+      }
+      header.append(tr);table.append(header);
+      const body=document.createElement('tbody');
+      for(const row of report.projects){
+        const tr=document.createElement('tr');
+        const fmt=n=>n===null?'CHƯA CÓ':Number(n).toLocaleString('vi-VN',{
+          maximumFractionDigits:2});
+        const values=[row.project,fmt(row.openingAt20260801),
+          ...row.months.map(m=>m.rows+' / '+fmt(m.closing)),
+          row.issues.length?row.issues.join(', '):'Số dư khớp; chờ xác minh nguồn'];
+        for(const [i,value] of values.entries()){
+          const td=document.createElement('td');td.textContent=value;
+          td.style.cssText='padding:6px;border-bottom:1px solid #e6ebf2;'+
+            (i===values.length-1&&row.issues.length?'color:#ad4f00;font-weight:600':'');
+          tr.append(td);
+        }
+        body.append(tr);
+      }
+      table.append(body);view.replaceChildren(table);view.hidden=false;
+      $('ccSyncPendingInitCopySummary').disabled=false;
+      $('ccSyncPendingInitCopyJSON').disabled=false;
+      status.textContent=report.projectsCount+' file · '+report.groupedRows+
+        ' dòng gộp · '+report.mismatches+' tháng lệch số dư · '+
+        report.missingIdentities+' dòng thiếu/trùng ID nguồn · '+
+        PENDING_INIT_MONTHS.map(m=>m+': '+monthlyCount[m]+' Payment').join(' · ')+
+        '. CHƯA CẤP PHÉP GHI GOOGLE.';
+    });
+  }catch(error){
+    status.textContent='DỪNG AN TOÀN: '+String(error?.message||error).slice(0,190)+
+      '. 0 Google writes; không sửa Cash Control.';
+  }finally{button.disabled=false}
+}
+function ccSyncPendingInitCopy(full){
+  const status=$('ccSyncPendingInitStatus'),report=ccSyncPendingInitLastReport;
+  if(!report||!isCashControlOwner()||
+     currentAuthUser?.uid!==ccSyncPendingInitOwnerUid||
+     Number(cashCloudState.revision||0)!==report.cashRevision){
+    status.textContent='Báo cáo đã cũ hoặc đổi Admin; hãy lập bảng lại.';return;
+  }
+  const data=full?report:{
+    schema:report.schema,cashRevision:report.cashRevision,
+    paymentDocumentsByMonth:report.paymentDocumentsByMonth,
+    projects:report.projects.map(({project,openingAt20260801,months,issues})=>({
+      project,openingAt20260801,
+      months:months.map(({month,opening,rows,net,closing,
+        cashControlClosing,difference})=>({month,opening,rows,net,closing,
+          cashControlClosing,difference})),issues
+    })),
+    sourceCertified:false,canWrite:false,googleWrites:0
+  };
+  navigator.clipboard.writeText(JSON.stringify(data,null,2)).then(()=>
+    status.textContent=(full?'Đã sao chép JSON nguồn 17 dự án. ':
+      'Đã sao chép bảng số dư. ')+
+      'Dán vào cuộc trò chuyện để đối chiếu tiếp. Không ghi Google.'
+  ).catch(()=>status.textContent='Không sao chép được; kiểm tra quyền clipboard.');
+}
 async function ccSyncBatchAnalyzeInMemory(){
   const button=$('ccSyncBatchAnalyze');
   const status=$('ccSyncBatchStatus');
@@ -7150,183 +7327,6 @@ async function ccSyncBatchAnalyzeInMemory(){
   }finally{button.disabled=false}
 }
 
-// Admin-run, in-memory ONLY initiation plan for the 17 pending Google files.
-// Reads exactly 4 date-scoped actual-Payment month queries; no all-Payment scan,
-// no Firebase writes, no Google API, no staging or Google destination mutations.
-let ccSyncPendingInitLastReport=null;
-let ccSyncPendingInitOwnerUid=null;
-async function ccSyncPendingInitReadOnly(){
-  const button=$('ccSyncPendingInitRun'),status=$('ccSyncPendingInitStatus');
-  const view=$('ccSyncPendingInitResult');
-  if(!button||button.disabled||!status||!view)return;
-  const user=currentAuthUser,uid=user?.uid;
-  const isAdmin=()=>Boolean(uid&&currentAuthUser?.uid===uid&&
-    isCashControlOwner()&&firebaseConfig.projectId==='cscecmep-payment');
-  if(!isAdmin()||!cashCloudReady||!legacySeedReady){
-    status.textContent='Chỉ Admin Production khi Cash Control đã tải xong mới được đọc.';return;
-  }
-  if(!navigator.locks){status.textContent='Trình duyệt không hỗ trợ khóa đối chiếu.';return}
-  ccSyncPendingInitLastReport=null;
-  ccSyncPendingInitOwnerUid=null;
-  $('ccSyncPendingInitCopySummary').disabled=true;
-  $('ccSyncPendingInitCopyJSON').disabled=true;
-  view.hidden=true;view.replaceChildren();button.disabled=true;
-  const revision=Number(cashCloudState.revision||0);
-  try{
-    await navigator.locks.request('cash-control-google-sync',{ifAvailable:true},async lock=>{
-      if(!lock)throw Error('Đang có tác vụ đồng bộ/đối chiếu ở tab khác.');
-      const response=await fetch('/api/cash-sync-release-status',{
-        method:'POST',headers:{'Content-Type':'application/json',
-          'X-Firebase-ID-Token':await user.getIdToken()},
-        body:JSON.stringify({action:'pending_links'})
-      });
-      const targetsReply=await response.json().catch(()=>({}));
-      if(!response.ok)throw Error(targetsReply.error||'Không đọc được mapping 17 file.');
-      if(!isAdmin()||targetsReply.kind!=='CASH_SYNC_PENDING_TARGET_LINKS_READONLY_V1'||
-        targetsReply.canWrite!==false||targetsReply.googleWrites!==0||
-        targetsReply.configured!==17||targetsReply.projects?.length!==17)
-        throw Error('Danh sách 17 file máy chủ chưa đủ hoặc Admin đã thay đổi.');
-      const catalog=ccSyncProjectCatalogNames();
-      const targets=targetsReply.projects.map(t=>{
-        const project=catalog.find(p=>p.normalize('NFKC').trim().
-          replace(/\s+/g,' ').toUpperCase()===t.project)||
-          (t.project==='S19-3'?'S19-3':'');
-        if(!project||!ccSyncProjectLinkValid(t.link)||
-           typeof t.spreadsheetId!=='string'||
-           t.link!=='https://docs.google.com/spreadsheets/d/'+
-             t.spreadsheetId+'/edit#gid='+t.historySheetId)
-          throw Error('Tên hoặc file Google không khớp danh mục.');
-        return {project,serverProject:t.project,
-          spreadsheetId:t.spreadsheetId,historySheetId:t.historySheetId};
-      });
-      const monthlyCount={},monthsLoaded={};
-      for(const month of PENDING_INIT_MONTHS){
-        if(!isAdmin())throw Error('Phiên Admin đã thay đổi.');
-        status.textContent='Đọc Payment thực trả '+month+' (theo ngày, không quét toàn bộ)…';
-        const ok=await autoLoadPaymentActualMonth(month,{force:true});
-        monthsLoaded[month]=ok&&paymentAutoActualMonthsLoaded.has(month);
-        if(!monthsLoaded[month])
-          throw Error('Payment '+month+' chưa xác minh đủ; không kết luận 0 giao dịch.');
-        monthlyCount[month]=paymentAutoActualRowsByMonth.get(month)?.size??null;
-      }
-      if(!isAdmin()||Number(cashCloudState.revision||0)!==revision)
-        throw Error('Nguồn Cash Control hoặc phiên Admin đã thay đổi; đọc lại.');
-      const uniqueActual=new Map();
-      for(const month of PENDING_INIT_MONTHS){
-        for(const [id,record] of paymentAutoActualRowsByMonth.get(month)||[]){
-          if(String(record.processPaymentDate||'').slice(0,7)===month)
-            uniqueActual.set(String(id),record);
-        }
-      }
-      const previous=payments,previousLang=window.cashExportLang;
-      let report;
-      try{
-        payments=[...uniqueActual.values()];
-        window.cashExportLang='zh';
-        invalidateCashCalculations();
-        const openingStart={...openingStartMap()};
-        const monthRows={},cashClosings={};
-        for(const target of targets){
-          const p=target.project;
-          monthRows[p]={};cashClosings[p]={};
-          for(const month of PENDING_INIT_MONTHS){
-            const projected=legacyCashExportRows(month,p);
-            monthRows[p][month]=projected.map(r=>({
-              date:String(r.date||''),company:String(r.company||''),
-              contractNo:String(r.contractNo||''),
-              content:String(r.content||''),ipc:String(r.ipc||''),
-              type:String(r.type||''),
-              income:Number(r.income||0),subcontract:Number(r.subcontract||0),
-              material:Number(r.material||0),otherDirect:Number(r.otherDirect||0),
-              indirect:Number(r.indirect||0),financial:Number(r.financial||0),
-              otherPayable:Number(r.otherPayable||0),
-              sourceIds:Array.isArray(r._syncIds)?r._syncIds:[]
-            }));
-            const mv=movements(month,p);
-            cashClosings[p][month]=opening(p,month)+mv.reduce((sum,x)=>
-              sum+Number(x.in||0)-Number(x.out||0),0);
-          }
-        }
-        report=buildPendingInitializationReport({targets,openingStart,
-          monthRows,monthsLoaded,monthPaymentCounts:monthlyCount,
-          cashClosings,revision});
-      }finally{
-        payments=previous;window.cashExportLang=previousLang;
-        invalidateCashCalculations();
-      }
-      if(!isAdmin()||Number(cashCloudState.revision||0)!==revision)
-        throw Error('Nguồn Cash Control thay đổi khi đối chiếu; không dùng kết quả cũ.');
-      if(report.canWrite!==false||report.googleWrites!==0||
-         report.projectsCount!==17)throw Error('Bảng khởi tạo không an toàn.');
-      ccSyncPendingInitLastReport=report;
-      ccSyncPendingInitOwnerUid=uid;
-      const table=document.createElement('table');
-      table.style.cssText='width:100%;border-collapse:collapse;font-size:11px;white-space:nowrap';
-      const header=document.createElement('thead');
-      const labels=['Dự án','01/08','08: số dòng / dư cuối',
-        '09: số dòng / dư cuối','10: số dòng / dư cuối',
-        '11: số dòng / dư cuối','Đối chiếu'];
-      const tr=document.createElement('tr');
-      for(const label of labels){
-        const th=document.createElement('th');th.textContent=label;
-        th.style.cssText='padding:7px;border-bottom:1px solid #cdd8e6;text-align:left';
-        tr.append(th);
-      }
-      header.append(tr);table.append(header);
-      const body=document.createElement('tbody');
-      for(const row of report.projects){
-        const tr=document.createElement('tr');
-        const fmt=n=>n===null?'CHƯA CÓ':Number(n).toLocaleString('vi-VN',{
-          maximumFractionDigits:2});
-        const values=[row.project,fmt(row.openingAt20260801),
-          ...row.months.map(m=>m.rows+' / '+fmt(m.closing)),
-          row.issues.length?row.issues.join(', '):'Số dư khớp; chờ xác minh nguồn'];
-        for(const [i,value] of values.entries()){
-          const td=document.createElement('td');td.textContent=value;
-          td.style.cssText='padding:6px;border-bottom:1px solid #e6ebf2;'+
-            (i===values.length-1&&row.issues.length?'color:#ad4f00;font-weight:600':'');
-          tr.append(td);
-        }
-        body.append(tr);
-      }
-      table.append(body);view.replaceChildren(table);view.hidden=false;
-      $('ccSyncPendingInitCopySummary').disabled=false;
-      $('ccSyncPendingInitCopyJSON').disabled=false;
-      status.textContent=report.projectsCount+' file · '+report.groupedRows+
-        ' dòng gộp · '+report.mismatches+' tháng lệch số dư · '+
-        report.missingIdentities+' dòng thiếu/trùng ID nguồn · '+
-        PENDING_INIT_MONTHS.map(m=>m+': '+monthlyCount[m]+' Payment').join(' · ')+
-        '. CHƯA CẤP PHÉP GHI GOOGLE.';
-    });
-  }catch(error){
-    status.textContent='DỪNG AN TOÀN: '+String(error?.message||error).slice(0,190)+
-      '. 0 Google writes; không sửa Cash Control.';
-  }finally{button.disabled=false}
-}
-function ccSyncPendingInitCopy(full){
-  const status=$('ccSyncPendingInitStatus'),report=ccSyncPendingInitLastReport;
-  if(!report||!isCashControlOwner()||
-     currentAuthUser?.uid!==ccSyncPendingInitOwnerUid||
-     Number(cashCloudState.revision||0)!==report.cashRevision){
-    status.textContent='Báo cáo đã cũ hoặc đổi Admin; hãy lập bảng lại.';return;
-  }
-  const data=full?report:{
-    schema:report.schema,cashRevision:report.cashRevision,
-    paymentDocumentsByMonth:report.paymentDocumentsByMonth,
-    projects:report.projects.map(({project,openingAt20260801,months,issues})=>({
-      project,openingAt20260801,
-      months:months.map(({month,opening,rows,net,closing,
-        cashControlClosing,difference})=>({month,opening,rows,net,closing,
-          cashControlClosing,difference})),issues
-    })),
-    sourceCertified:false,canWrite:false,googleWrites:0
-  };
-  navigator.clipboard.writeText(JSON.stringify(data,null,2)).then(()=>
-    status.textContent=(full?'Đã sao chép JSON nguồn 17 dự án. ':
-      'Đã sao chép bảng số dư. ')+
-      'Dán vào cuộc trò chuyện để đối chiếu tiếp. Không ghi Google.'
-  ).catch(()=>status.textContent='Không sao chép được; kiểm tra quyền clipboard.');
-}
 function ccSyncProjectCatalogRender(){
   const wrap=$('ccSyncProjectCatalogEntries');
   if(!wrap)return;
