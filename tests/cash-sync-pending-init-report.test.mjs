@@ -23,7 +23,12 @@ const valid=()=>({
   monthRows:empty(),monthsLoaded:Object.fromEntries(
     PENDING_INIT_MONTHS.map(m=>[m,true])),
   monthPaymentCounts:Object.fromEntries(PENDING_INIT_MONTHS.map(m=>[m,8])),
-  cashClosings:closings(),revision:19
+  cashClosings:closings(),
+  rawPaymentCounts:Object.fromEntries(['289','S19-3'].map(p=>[p,
+    Object.fromEntries(PENDING_INIT_MONTHS.map(m=>[m,0]))])),
+  rawMovementCounts:Object.fromEntries(['289','S19-3'].map(p=>[p,
+    Object.fromEntries(PENDING_INIT_MONTHS.map(m=>[m,0]))])),
+  revision:19
 });
 const row=(month,income,id)=>({
   date:month+'-12',company:'内部结算',contractNo:'合同01',
@@ -35,7 +40,7 @@ test('zero S19-3 opening is valid, no activity is not write authorization',()=>{
   const out=buildPendingInitializationReport(valid());
   assert.equal(out.projectsCount,2);
   assert.equal(out.projects[1].openingAt20260801,0);
-  assert.equal(out.projects[1].reviewState,'SOURCE_SUMMARY_ONLY');
+  assert.equal(out.projects[1].reviewState,'NO_ROWS_CANDIDATE');
   assert.equal(out.projects[0].openingAt20260801,22805265);
   assert.equal(out.groupedRows,0);
   assert.equal(out.googleWrites,0);
@@ -81,7 +86,12 @@ test('missing opening balance is not silently interpreted as zero',()=>{
   const out=buildPendingInitializationReport(input);
   assert.equal(out.projects[1].openingAt20260801,null);
   assert.equal(out.projects[1].months[0].closing,null);
+  assert.equal(out.projects[1].months[0].difference,null);
+  assert.equal(out.projects[1].months[0].arithmeticMatchesCashControl,null);
+  assert.equal(out.mismatches,0); // Unknown opening is NOT a real balance error.
+  assert.equal(out.unverifiableMonths,4);
   assert.ok(out.projects[1].issues.includes('MISSING_OR_INVALID_2026_08_OPENING'));
+  assert.ok(!out.projects[1].issues.includes('CASH_CONTROL_BALANCE_DIFFERENCE'));
 });
 test('disallow duplicate Google file IDs and malformed source rows',()=>{
   const input=valid();input.targets[1].spreadsheetId=input.targets[0].spreadsheetId;
@@ -89,4 +99,23 @@ test('disallow duplicate Google file IDs and malformed source rows',()=>{
   const next=valid();
   next.monthRows['289']['2026-08']=[{...row('2026-08',5,'x'),income:Infinity}];
   assert.throws(()=>buildPendingInitializationReport(next),/PENDING_INIT_TRANSACTION_INVALID/);
+});
+
+test('raw Payment source activity with no grouped ledger must be flagged',()=>{
+  const input=valid();
+  input.rawPaymentCounts['289']['2026-10']=2;
+  input.rawMovementCounts['289']['2026-10']=2;
+  const out=buildPendingInitializationReport(input);
+  assert.equal(out.groupedRows,0);
+  assert.equal(out.sourceActivityDiscrepancies,1);
+  assert.equal(out.projects[0].rawPaidPaymentCount,2);
+  assert.equal(out.projects[0].rawCashMovementCount,2);
+  assert.ok(out.projects[0].issues.includes('PROJECT_ACTIVITY_MISSING_FROM_GROUPED_EXPORT'));
+  assert.equal(out.projects[0].months[2].activityProjectionMismatch,true);
+  assert.equal(out.canWrite,false);
+});
+test('refuse to classify zero when raw source activity counts are unavailable',()=>{
+  const input=valid();
+  delete input.rawPaymentCounts['289']['2026-09'];
+  assert.throws(()=>buildPendingInitializationReport(input),/PENDING_INIT_ACTIVITY_COUNTS_NOT_VERIFIED/);
 });
