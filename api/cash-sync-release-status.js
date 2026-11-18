@@ -4,6 +4,27 @@
 const {verifyFirebaseAdminToken}=require('../server/cash-sync-guard.cjs');
 const {verifyTestAdmin}=require('../server/cash-sync-s13-test-admin.cjs');
 const {inspectRelease}=require('../server/cash-sync-release-audit.cjs');
+const {parseAllowlist}=require('../server/cash-sync-multi-targets.cjs');
+function readPending(env){
+  if(env.VERCEL_ENV!=='production')stop('PRODUCTION_ADMIN_REQUIRED',403);
+  let entries;
+  try{entries=parseAllowlist(env.CASH_SYNC_MULTI_PENDING_TARGETS)}
+  catch{stop('PENDING_TARGET_MAPPING_INVALID',503)}
+  if(!entries.size||entries.size>35)stop('PENDING_TARGET_MAPPING_MISSING',503);
+  const projects=[...entries].map(([project,entry])=>({
+    project,spreadsheetId:entry.spreadsheetId,
+    historySheetId:entry.historySheetId,
+    link:'https://docs.google.com/spreadsheets/d/'+entry.spreadsheetId+
+      '/edit#gid='+entry.historySheetId
+  }));
+  return Object.freeze({
+    kind:'CASH_SYNC_PENDING_TARGET_LINKS_READONLY_V1',
+    projects,configured:projects.length,canWrite:false,
+    sourceComplete:false,openingBalancesVerified:false,
+    firestoreReads:0,googleReads:0,googleWrites:0
+  });
+}
+
 function stop(message,statusCode=400){throw Object.assign(Error(message),{statusCode})}
 async function releaseInfo({env,token,body,verifyProduction=verifyFirebaseAdminToken,
  verifyPreview=verifyTestAdmin}={}){
@@ -15,6 +36,9 @@ async function releaseInfo({env,token,body,verifyProduction=verifyFirebaseAdminT
    stop('TRUSTED_PRODUCTION_ADMIN_NOT_CONFIGURED',503);
   await verifyProduction(token,{project,uid});
  }else await verifyPreview(token,env);
+ if(body&&typeof body==='object'&&!Array.isArray(body)&&
+    Object.keys(body).join(',')==='action'&&body.action==='pending_links')
+    return readPending(env);
  if(!body||typeof body!=='object'||Array.isArray(body)||
     Object.keys(body).sort().join(',')!=='projects'||
     JSON.stringify(body).length>12000)stop('INVALID_RELEASE_REQUEST');
@@ -39,4 +63,4 @@ async function handler(req,res){
  }
 }
 module.exports=handler;
-module.exports._internals={releaseInfo};
+module.exports._internals={releaseInfo,readPending};
