@@ -28,7 +28,7 @@ function validBody(payload){
     !Number.isSafeInteger(historySheetId)||historySheetId<0||
     !Array.isArray(source)||source.length>3000||
     expectedMonthClosing!==undefined&&!Number.isFinite(expectedMonthClosing)||
-    action==='commit'&&(!/^[a-f0-9]{64}$/.test(signature)||payload.confirm!=='SYNC_THIS_PROJECT'))
+    action==='commit'&&(!/^[a-f0-9]{64}$/.test(signature)||!['SYNC_THIS_PROJECT','SYNC_CORRECTIONS_THIS_PROJECT'].includes(payload.confirm)))
   die('Thiếu ID dự án, tháng, file Google hoặc xác nhận ký số.',400);
  // Export Excel review packages carry row positions, NOT immutable source IDs.
  // Never let a signed preview or a release flag turn those positions into writes.
@@ -148,7 +148,8 @@ async function prepare(bearer,input){
  }
  const plan=planMonth({project:input.project,month:input.month,
   source:normalized,history:snapshot.history,mirror:snapshot.mirror,
-  foxconn,openingBalance:opening});
+  foxconn,openingBalance:opening,
+  allowCorrections:input.project!=='S13-2'});
  if(plan.status!=='CANDIDATES_ONLY')
   return {blocked:plan.reviews,plan,snapshot};
  let batch;
@@ -263,11 +264,19 @@ async function handler(req,res,testOnly=false){
    // Never tell Admin to approve 70 "new" rows when 68 already exist.
    newRows:plan.changes.filter(x=>x.action==='append'||x.action==='append-backfill').length,
    backfillRows:plan.changes.filter(x=>x.action==='append-backfill').length,
+   corrections:plan.corrections||[],
+   correctedRows:(plan.corrections||[]).length,
    boundExisting:plan.changes.filter(x=>x.action==='bind-history').length,
    closingBalance:plan.closingBalance,monthClosingBalance,originalUntouched:true};
   if(input.action==='preview')
    return res.status(200).json({mode:'preview',summary,signature:batch.fingerprint,
     writeConfigured,...(testOnly&&!writeConfigured?{testGateChecks:testGateChecks(process.env,input)}:{}),writes:0});
+  if(plan.corrections?.length&&input.action==='commit'&&
+     input.confirm!=='SYNC_CORRECTIONS_THIS_PROJECT')
+   die('Khoản đã đồng bộ có thay đổi số tiền/ngày; cần Admin duyệt riêng từng khoản.',409);
+  if(input.action==='commit'&&input.confirm==='SYNC_CORRECTIONS_THIS_PROJECT'&&
+     !plan.corrections?.length)
+   die('Không có khoản điều chỉnh để xác nhận riêng.',409);
   if(input.signature!==batch.fingerprint)
    die('Google hoặc nguồn Cash Control đã thay đổi sau bước xem trước.');
   if(!plan.changes.length&&snapshot.hasTabs)
@@ -277,7 +286,7 @@ async function handler(req,res,testOnly=false){
    // source proof is required only for BRAND-NEW machine appended postings,
    // not the 68 already-existing rows to which we merely bind source IDs.
    const missingIds=new Set(plan.changes.filter(change=>
-     change.action==='append'||change.action==='append-backfill')
+     change.action==='append'||change.action==='append-backfill'||change.action==='correct')
      .map(change=>change.id));
    const missingRows=input.source.filter(row=>missingIds.has(row.id));
    if(missingRows.length!==missingIds.size)
