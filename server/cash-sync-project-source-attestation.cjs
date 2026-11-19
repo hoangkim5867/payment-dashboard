@@ -197,6 +197,52 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
     continue;
    }
   }
+  // A grouped Excel row may represent multiple distinct, already-paid
+  // Payment documents. Certify each ORIGINAL member ID independently and
+  // compare the exact aggregate amount, date and expense column. No manual
+  // ID entry, positional Excel ID, or inferred document match is accepted.
+  if(appendOnly&&project!=='FOXCONN'&&r?.sourceClass==='PAYMENT'&&
+     Array.isArray(r.members)&&r.members.length>1){
+    const members=r.members;
+    const canonical=members.every(x=>typeof x==='string'&&
+      /^expense:pay_[A-Za-z0-9_-]{1,180}$/.test(x))&&
+      members.every((x,i)=>i===0||members[i-1]<x);
+    if(!canonical||r.id!==project+':'+members.join('+')||
+       members.some(x=>seen.has(x))||
+       !Array.isArray(r.values)||r.values.length!==13||
+       r.project!==project||r.month!==month){
+      blockers.push('GROUPED_PAYMENT_ID_INVALID');continue;
+    }
+    const values=parseValues(r.values,{foxconn:false});
+    if(sha(values)!==r.hash){
+      blockers.push('SOURCE_HASH_CHANGED');continue;
+    }
+    const sourceDocs=members.map(x=>paid.get(x.slice('expense:pay_'.length)));
+    if(sourceDocs.some(p=>!p)){
+      blockers.push('GROUPED_PAYMENT_DOC_NOT_FOUND');continue;
+    }
+    const categories=sourceDocs.map(p=>category(p,project));
+    if(categories.some(x=>x===null)||new Set(categories).size!==1){
+      blockers.push('GROUPED_PAYMENT_CATEGORY_MISMATCH');continue;
+    }
+    const sums=sourceDocs.map(p=>p.processActualAmount!==undefined&&
+      p.processActualAmount!==null&&p.processActualAmount!==''?
+      money(p.processActualAmount):money(p.amount));
+    const total=sums.reduce((n,x)=>n+x,0);
+    const col=categories[0];
+    if(sums.some(x=>!Number.isSafeInteger(x)||x<=0)||
+       !Number.isSafeInteger(total)||total<=0||
+       values[6]!==0||
+       values.slice(7,14).some((n,i)=>!eq(n,i+7===col?total:0))||
+       sourceDocs.some(p=>values[0]!==p.processPaymentDate||
+         norm(values[1])!==norm(p.company)||
+         norm(values[2])!==norm(p.contractNo)||
+         (norm(p.ipcNo)&&!norm(values[4]).includes(norm(p.ipcNo))))){
+      blockers.push('GROUPED_PAYMENT_DATE_AMOUNT_OR_CATEGORY_CHANGED');continue;
+    }
+    members.forEach(x=>seen.add(x));
+    continue;
+  }
   if(!r||r.project!==project||r.month!==month||
     typeof r.id!=='string'||r.id.length>500||
     !Array.isArray(r.members)||r.members.length!==1||
