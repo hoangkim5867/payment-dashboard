@@ -50,7 +50,7 @@ function category(raw,project){
 // inferred from a free-text cost description.
 function manualCashBucket(cash){
  const text=[cash.category,cash.description,cash.contractType].map(norm).join(' ').toLowerCase();
- if(/工资|奖金|lương|luong|thưởng|thuong|bảo hiểm|bao hiem|保险|社保|công đoàn|cong doan|工会|伙食|tiền ăn|tien an|个税|所得税|thuế\\s*tncn|thue\\s*tncn/.test(text))return null;
+ if(/工资|奖金|lương|luong|thưởng|thuong|bảo hiểm|bao hiem|保险|社保|công đoàn|cong doan|工会|伙食|tiền ăn|tien an|个税|所得税|thuế\s*tncn|thue\s*tncn/.test(text))return null;
  if(/材料|vật tư|vat tu/.test(text))return 8;
  if(/分包|thầu phụ|thau phu/.test(text))return 7;
  if(/劳务|nhân công|nhan cong|其他直接|chi trực tiếp|chi truc tiep/.test(text))return 9;
