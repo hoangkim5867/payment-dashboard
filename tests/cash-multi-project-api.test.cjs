@@ -44,7 +44,7 @@ const newValues=['2026-11-03','Vendor','SUBP-2','Another invoice','IPC02','分�
 const source=[{id:'ELYSIAN:expense:pay_new',project:'ELYSIAN',month:'2026-11',
  sourceClass:'PAYMENT',members:['expense:pay_new'],
  values:newValues,hash:sha(newValues)}];
-function fixture(project='ELYSIAN',spreadsheetId=ID){
+function fixture(project='ELYSIAN',spreadsheetId=ID,sourceRecords=source){
  const state={meta:{spreadsheetId,properties:{title:project==='S13-2'?'S13-2 TEST':'Normal project ledger'},sheets:[
   {properties:{sheetId:42,title:'SỔ GỐC',gridProperties:{rowCount:1000,columnCount:15}}}
  ]},history:structuredClone(orig),mirror:null,view:null,formulas:null,writes:0};
@@ -138,7 +138,7 @@ function fixture(project='ELYSIAN',spreadsheetId=ID){
   }
   else delete process.env.CASH_SYNC_MULTI_PRODUCTION_WRITES;
   const body={action,project,month:'2026-11',revision:42,spreadsheetId,
-   historySheetId:42,source:source.map(record=>({...record,
+   historySheetId:42,source:sourceRecords.map(record=>({...record,
     id:record.id.replace(/^ELYSIAN:/,project+':'),project})),openingBalance:null,...extra};
   const response={statusCode:200,headers:{},
    setHeader(k,v){this.headers[k]=v;return this},
@@ -174,7 +174,7 @@ function fixture(project='ELYSIAN',spreadsheetId=ID){
    ])if(value===undefined)delete process.env[name];else process.env[name]=value;
   }
  }
- return {state,call};
+ return {state,call,setSource(records){sourceRecords=records}};
 }
 test('Admin preview is read-only, commit remains gated and original sheet is immutable',async()=>{
  const f=fixture();
@@ -495,4 +495,44 @@ test('rolling project/month releases allow future new months without retroactive
   'CN8-2',spreadsheetId,historySheetId,'2026-10'),false);
  assert.equal(canWriteMonthlyTarget({...env,VERCEL_ENV:'preview'},
   'CN8-2',spreadsheetId,historySheetId,'2026-10'),false);
+});
+
+test('Admin correction preview reveals old/new amount, requires separate consent and is idempotent',async()=>{
+ const f=fixture();
+ const initial=await f.call('preview',{enabled:true});
+ assert.equal(initial.status,200);
+ const posted=await f.call('commit',{enabled:true,signature:initial.signature,
+  confirm:'SYNC_THIS_PROJECT'});
+ assert.equal(posted.mode,'verified');
+ assert.equal(f.state.writes,1);
+ const correctedValues=[...newValues];correctedValues[0]='2026-11-05';
+ correctedValues[7]=250;
+ f.setSource([{...source[0],values:correctedValues,
+  hash:sha(correctedValues)}]);
+ const candidate=await f.call('preview',{enabled:true});
+ assert.equal(candidate.status,200,JSON.stringify(candidate));
+ assert.equal(candidate.summary.correctedRows,1);
+ assert.equal(candidate.summary.corrections[0].before.date,'2026-11-03');
+ assert.equal(candidate.summary.corrections[0].after.date,'2026-11-05');
+ assert.equal(candidate.summary.corrections[0].before.amounts[1],200);
+ assert.equal(candidate.summary.corrections[0].after.amounts[1],250);
+ assert.equal(f.state.writes,1);
+ const noApproval=await f.call('commit',{enabled:true,signature:candidate.signature,
+  confirm:'SYNC_THIS_PROJECT'});
+ assert.equal(noApproval.status,409);
+ assert.equal(noApproval.writeAttempted,false);
+ assert.equal(f.state.writes,1);
+ const ok=await f.call('commit',{enabled:true,signature:candidate.signature,
+  confirm:'SYNC_CORRECTIONS_THIS_PROJECT'});
+ assert.equal(ok.mode,'verified',JSON.stringify(ok));
+ assert.equal(f.state.writes,2);
+ assert.equal(f.state.mirror.length,2);
+ assert.equal(f.state.view.at(-1)[0],'2026-11-05');
+ assert.equal(f.state.view.at(-1)[7],250);
+ assert.equal(f.state.view.at(-1)[14],650);
+ assert.deepEqual(f.state.history,orig);
+ const again=await f.call('preview',{enabled:true});
+ assert.equal(again.summary.changes,0);
+ assert.equal(again.summary.correctedRows,0);
+ assert.equal(f.state.writes,2);
 });
