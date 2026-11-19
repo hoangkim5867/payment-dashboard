@@ -204,3 +204,47 @@ test('already posted immutable source ID ignores Vietnamese-to-Chinese text-only
  assert.equal(again.closingBalance,initial.closingBalance);
  assert.equal(again.mirrorNext[0].hash,initial.mirrorNext[0].hash);
 });
+
+test('Admin-approved machine correction changes exact ID, date and running balance without touching history',()=>{
+ const history=[old('2026-10-03',100,900)];
+ const first=[source('ELYSIAN','2026-11','expense:pay_a',v('2026-11-02',200)),
+   source('ELYSIAN','2026-11','expense:pay_b',v('2026-11-05',50,'SUBP-002'))];
+ const saved=planMonth({project:'ELYSIAN',month:'2026-11',source:first,history});
+ const original=structuredClone(history);
+ const changed=[source('ELYSIAN','2026-11','expense:pay_a',v('2026-11-06',250)),
+   first[1]];
+ const pending=planMonth({project:'ELYSIAN',month:'2026-11',source:changed,
+   history,mirror:saved.mirrorNext,allowCorrections:true});
+ assert.equal(pending.status,'CANDIDATES_ONLY');
+ assert.deepEqual(pending.changes.map(x=>x.action),['correct']);
+ assert.equal(pending.corrections.length,1);
+ assert.equal(pending.corrections[0].before.date,'2026-11-02');
+ assert.equal(pending.corrections[0].after.date,'2026-11-06');
+ assert.equal(pending.corrections[0].before.amounts[1],200);
+ assert.equal(pending.corrections[0].after.amounts[1],250);
+ assert.equal(pending.closingBalance,600);
+ assert.deepEqual(history,original);
+ assert.equal(pending.mirrorNext.filter(x=>x.id==='expense:pay_a').length,1);
+ const second=planMonth({project:'ELYSIAN',month:'2026-11',source:changed,
+   history,mirror:pending.mirrorNext,allowCorrections:true});
+ assert.equal(second.changes.length,0);
+ assert.equal(second.corrections.length,0);
+ assert.equal(second.closingBalance,600);
+});
+test('corrections fail closed for historic-bound IDs or a move to another month',()=>{
+ const history=[old('2026-11-01',100,900)];
+ const bound=planMonth({project:'ELYSIAN',month:'2026-11',
+   source:[source('ELYSIAN','2026-11','expense:old',v('2026-11-01',100))],
+   history});
+ const edited=planMonth({project:'ELYSIAN',month:'2026-11',
+   source:[source('ELYSIAN','2026-11','expense:old',v('2026-11-01',110))],
+   history,mirror:bound.mirrorNext,allowCorrections:true});
+ assert.equal(edited.status,'REVIEW_REQUIRED');
+ const original=planMonth({project:'SSIS',month:'2026-11',history:[],
+   source:[source('SSIS','2026-11','expense:1',v('2026-11-09',100))],
+   openingBalance:0});
+ assert.throws(()=>planMonth({project:'SSIS',month:'2026-11',history:[],
+   source:[source('SSIS','2026-11','expense:1',v('2026-12-01',150))],
+   mirror:original.mirrorNext,openingBalance:0,allowCorrections:true}),
+   /ngoài kỳ nguồn/);
+});
