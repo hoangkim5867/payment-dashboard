@@ -1,0 +1,63 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {attestMonth}=require('../server/cash-sync-project-source-attestation.cjs');
+const {sha}=require('../server/cash-sync-multi-project-core.cjs');
+const encode=v=>v===null?{nullValue:null}:
+ typeof v==='string'?{stringValue:v}:
+ typeof v==='number'?{integerValue:String(v)}:
+ typeof v==='boolean'?{booleanValue:v}:
+ Array.isArray(v)?{arrayValue:{values:v.map(encode)}}:
+ {mapValue:{fields:Object.fromEntries(Object.entries(v).map(([k,x])=>[k,encode(x)]))}};
+const doc=obj=>({fields:Object.fromEntries(Object.entries(obj).map(([k,v])=>[k,encode(v)]))});
+const seedBody=JSON.stringify({LEGACY_SALARY:[],LEGACY_FINANCE:[],LEGACY_CASH_SPECIAL:[],LEGACY_VNB:[]});
+const seedHash=createHash('sha256').update(seedBody).digest('hex');
+const seed=doc({schemaVersion:1,sha256:seedHash,payload:seedBody});
+const cloud=doc({revision:347,manualRecords:[],deletedLegacy:[],legacyOverrides:{}});
+const payment=(id,amount)=>({id,project:'ELYSIAN',processPaymentDate:'2026-11-17',
+ company:'Vendor',contractNo:'C-1',ipcNo:'IPC01',costType:'材料款',
+ processActualAmount:amount});
+const values=['2026-11-17','Vendor','C-1','材料款','IPC01','材料款',
+ 0,0,300,0,0,0,0];
+const member1='expense:pay_a',member2='expense:pay_b';
+const record={id:'ELYSIAN:'+member1+'+'+member2,project:'ELYSIAN',
+ month:'2026-11',sourceClass:'PAYMENT',members:[member1,member2],
+ values,hash:sha(values)};
+const inspect=(records,payments=[payment('a',100),payment('b',200)])=>
+ attestMonth({project:'ELYSIAN',month:'2026-11',revision:347,
+ records,payments,cashDocument:cloud,seedDocument:seed,
+ expectedSeedHash:seedHash,appendOnly:true});
+test('a grouped paid Payment row attests two exact IDs and aggregate amount',()=>{
+ const out=inspect([record]);
+ assert.equal(out.verified,true);
+ assert.equal(out.sourceIdsMatched,true);
+ assert.deepEqual(out.blockers,[]);
+ assert.equal(out.canWrite,false);
+ assert.equal(out.googleWrites,0);
+});
+test('grouped IDs never authorize a changed monetary amount',()=>{
+ const out=inspect([record],[payment('a',100),payment('b',201)]);
+ assert.equal(out.verified,false);
+ assert.ok(out.blockers.includes('GROUPED_PAYMENT_DATE_AMOUNT_OR_CATEGORY_CHANGED'));
+});
+test('grouped row cannot cite missing, repeated or out-of-order members',()=>{
+ const missing=inspect([record],[payment('a',100)]);
+ assert.ok(missing.blockers.includes('GROUPED_PAYMENT_DOC_NOT_FOUND'));
+ const duplicate=inspect([{...record,members:[member1,member1]}]);
+ assert.ok(duplicate.blockers.includes('GROUPED_PAYMENT_ID_INVALID'));
+ const reversed=inspect([{...record,members:[member2,member1]}]);
+ assert.ok(reversed.blockers.includes('GROUPED_PAYMENT_ID_INVALID'));
+});
+test('grouped money cannot silently combine different categories or dates',()=>{
+ const category=inspect([record],[payment('a',100),{...payment('b',200),costType:'分包款'}]);
+ assert.ok(category.blockers.includes('GROUPED_PAYMENT_CATEGORY_MISMATCH'));
+ const date=inspect([record],[payment('a',100),{...payment('b',200),processPaymentDate:'2026-11-18'}]);
+ assert.ok(date.blockers.length>0);
+});
+test('grouped payroll remains blocked, not treated as verified Payment',()=>{
+ const out=inspect([{...record,sourceClass:'PAYROLL'}]);
+ assert.equal(out.verified,false);
+ assert.ok(out.blockers.includes('GROUPED_TAX_TRANSFER_OR_SOURCE_ID_UNSUPPORTED'));
+});
