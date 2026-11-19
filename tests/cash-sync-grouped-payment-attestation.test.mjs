@@ -148,3 +148,53 @@ test('quarterly PIT group certifies exact linked tax IDs and summed indirect cos
  const q=verify(taxRows,[{...salaryRecords[0],taxPeriod:'2026-Q3'},salaryRecords[1]]);
  assert.equal(q.verified,false);
 });
+
+test('FOXCONN normal 14-column paid Payment verifies with import VAT exactly zero',()=>{
+ const v=['2026-11-17','Vendor','C-1','Invoice','IPC01','材料款',
+  0,0,300,0,0,0,0,0];
+ const r={id:'FOXCONN:expense:pay_a',project:'FOXCONN',month:'2026-11',
+  sourceClass:'PAYMENT',members:['expense:pay_a'],
+  values:v,hash:sha(parseValues(v,{foxconn:true}))};
+ const p={id:'a',project:'FOXCONN',processPaymentDate:'2026-11-17',
+  company:'Vendor',contractNo:'C-1',ipcNo:'IPC01',costType:'材料款',
+  processActualAmount:300};
+ const verify=(row,amount=300)=>attestMonth({project:'FOXCONN',month:'2026-11',
+  revision:347,records:[row],payments:[{...p,processActualAmount:amount}],
+  cashDocument:cloud,seedDocument:seed,expectedSeedHash:seedHash,appendOnly:true});
+ const valid=verify(r);
+ assert.equal(valid.verified,true,JSON.stringify(valid.blockers));
+ assert.equal(valid.sourceIdsMatched,true);
+ assert.equal(valid.googleWrites,0);
+ assert.equal(verify(r,301).verified,false);
+ const withImport=[...v];withImport[13]=1;
+ const blocked=verify({...r,values:withImport,
+  hash:sha(parseValues(withImport,{foxconn:true}))});
+ assert.equal(blocked.verified,false);
+ assert.ok(blocked.blockers.includes('FOXCONN_IMPORT_TAX_LAYOUT_REQUIRES_RULES'));
+});
+test('FOXCONN linked payroll verifies 14th tax column absent and a mismatched label fails',()=>{
+ const member='expense:manual_salary_payroll_fox';
+ const cash={id:'manual_salary_payroll_fox',kind:'normal',
+  source:'payroll',linkedModule:'payroll',linkedRecordId:'salary_fox',
+  status:'paid',project:'FOXCONN',direction:'out',
+  actualDate:'2026-11-17',amount:300,actualAmount:300};
+ const salary={id:'salary_fox',project:'FOXCONN',type:'salary',
+  staffGroup:'cn',payrollMonth:'2026-11',actualDate:'2026-11-17',
+  actualAmount:300};
+ const values=['2026-11-17','中方员工工资','','2026年11月中方员工工资',
+  '','职工薪酬',0,0,0,0,300,0,0,0];
+ const row={id:'FOXCONN:'+member,project:'FOXCONN',month:'2026-11',
+  sourceClass:'PAYROLL',members:[member],values,
+  hash:sha(parseValues(values,{foxconn:true}))};
+ const run=(r)=>attestMonth({project:'FOXCONN',month:'2026-11',
+  revision:347,records:[r],payments:[],
+  cashDocument:doc({revision:347,manualRecords:[cash],
+   salaryRecords:[salary],deletedLegacy:[],legacyOverrides:{}}),
+  seedDocument:seed,expectedSeedHash:seedHash,appendOnly:true});
+ const ok=run(row);
+ assert.equal(ok.verified,true,JSON.stringify(ok.blockers));
+ assert.equal(ok.googleWrites,0);
+ const changed=[...values];changed[1]='错误';
+ assert.equal(run({...row,values:changed,
+  hash:sha(parseValues(changed,{foxconn:true}))}).verified,false);
+});
