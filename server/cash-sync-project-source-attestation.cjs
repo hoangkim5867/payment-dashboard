@@ -40,7 +40,8 @@ function category(raw,project){
  if(/劳务|nhân công|nhan cong/.test(c))return 9;
  if(/其他直接|trực tiếp|truc tiep/.test(c))return 9;
  if(/财务|tài chính|tai chinh/.test(c))return 11;
- if(/间接|gián tiếp|gian tiep/.test(c)&&project!=='FOXCONN')return 10;
+ if(/间接|gián tiếp|gian tiep/.test(c)&&
+    !(project==='FOXCONN'&&/进口税|进口增值税|外省增值税|thuế nhập khẩu|thue nhap khau|import (?:tax|vat)/i.test(details)))return 10;
  // FOXCONN import tax/VAT has a special column and must be classified
  // by its original import-tax rule; refuse generic proof here.
  return null;
@@ -231,8 +232,14 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
  const seen=new Set();
  let verifiedRows=0;
  for(const r of records){
+  if(project==='FOXCONN'&&(!Array.isArray(r?.values)||
+     r.values.length!==14||!Number.isFinite(Number(r.values[13]))||
+     Number(r.values[13])!==0)){
+    blockers.push('FOXCONN_IMPORT_TAX_LAYOUT_REQUIRES_RULES');
+    continue;
+  }
   const member=Array.isArray(r?.members)&&r.members.length===1?r.members[0]:null;
-  if(appendOnly&&project!=='FOXCONN'&&typeof member==='string'){
+  if(appendOnly&&typeof member==='string'){
    const clientReceipt=r.sourceClass==='CASH'&&
      /^expense:manual_inflow_[A-Za-z0-9_-]{1,190}$/.test(member);
    const manualTransfer=r.sourceClass==='TRANSFER'&&
@@ -242,8 +249,8 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
       linkedClientReceiptValues(state,project,month,member):
       manualTransferValues(state,project,month,member);
     if(r.project!==project||r.month!==month||r.id!==project+':'+member||seen.has(member)||
-       !values||!Array.isArray(r.values)||r.values.length!==13||
-       sha(values)!==r.hash||sha(parseValues(r.values,{foxconn:false}))!==r.hash){
+       !values||!Array.isArray(r.values)||r.values.length!==(project==='FOXCONN'?14:13)||
+       sha(values)!==r.hash||sha(parseValues(r.values,{foxconn:project==='FOXCONN'}))!==r.hash){
      blockers.push(clientReceipt?'LINKED_CLIENT_RECEIPT_MISMATCH':'MANUAL_TRANSFER_LEG_MISMATCH');
      continue;
     }
@@ -255,7 +262,7 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
   // Quarterly personal income tax is exported as ONE row whose identity is
   // date + quarter + all underlying linked payroll-tax IDs. Certify all
   // members and the exact sum; never infer a tax quarter from the payment day.
-  if(appendOnly&&project!=='FOXCONN'&&r?.sourceClass==='PAYROLL'&&
+  if(appendOnly&&r?.sourceClass==='PAYROLL'&&
      /^tax:[^:]+:20\d{2}-\d{2}-\d{2}:20\d{2}-Q[1-4]:out$/.test(r.id||'')){
     const idMatch=/^tax:(.+):(20\d{2}-\d{2}-\d{2}):(20\d{2}-Q[1-4]):out$/.exec(r.id);
     const members=r.members;
@@ -267,8 +274,8 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
        !validMembers){
       blockers.push('GROUPED_TAX_SOURCE_ID_INVALID');continue;
     }
-    const values=Array.isArray(r.values)&&r.values.length===13?
-      parseValues(r.values,{foxconn:false}):null;
+    const values=Array.isArray(r.values)&&r.values.length===(project==='FOXCONN'?14:13)?
+      parseValues(r.values,{foxconn:project==='FOXCONN'}):null;
     if(!values||sha(values)!==r.hash){
       blockers.push('GROUPED_TAX_ROW_HASH_CHANGED');continue;
     }
@@ -314,7 +321,7 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
   // PAYROLL has its own source class: a paid Cash Control transaction
   // must link to exactly one salary record, and the normalized Chinese
   // export row must match that source. Never certify grouped PIT here.
-  if(appendOnly&&project!=='FOXCONN'&&r?.sourceClass==='PAYROLL'&&
+  if(appendOnly&&r?.sourceClass==='PAYROLL'&&
      Array.isArray(r.members)&&r.members.length===1&&
      /^expense:manual_[A-Za-z0-9_-]{1,190}$/.test(r.members[0])){
     const memberId=r.members[0],id=memberId.slice('expense:'.length);
@@ -325,8 +332,8 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
     const salary=linked.length===1?linked[0]:null;
     const labels=salary?payrollZh(salary,cash):null;
     const amount=cash?money(cash.actualAmount??cash.amount):NaN;
-    const values=Array.isArray(r.values)&&r.values.length===13?
-      parseValues(r.values,{foxconn:false}):null;
+    const values=Array.isArray(r.values)&&r.values.length===(project==='FOXCONN'?14:13)?
+      parseValues(r.values,{foxconn:project==='FOXCONN'}):null;
     if(!cash||cash.kind!=='normal'||cash.project!==project||
        cash.direction!=='out'||!activeCashRecord(cash,project,month)||
        (cash.source!=='payroll'&&cash.linkedModule!=='payroll')||
@@ -355,7 +362,7 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
   // A non-payroll manual paid expense has a stable Cash Control ID, even
   // when no Payment document exists. Prove the exact original expense and
   // bucket independently; never use the Excel row number as an identity.
-  if(appendOnly&&project!=='FOXCONN'&&r?.sourceClass==='CASH'&&
+  if(appendOnly&&r?.sourceClass==='CASH'&&
      Array.isArray(r.members)&&r.members.length===1&&
      /^expense:manual_[A-Za-z0-9_-]{1,190}$/.test(r.members[0])&&
      !r.members[0].startsWith('expense:manual_inflow_')){
@@ -364,8 +371,8 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
     const cash=matches.length===1?matches[0]:null;
     const amount=cash?money(cash.actualAmount??cash.amount):NaN;
     const bucket=cash?manualCashBucket(cash):null;
-    const values=Array.isArray(r.values)&&r.values.length===13?
-      parseValues(r.values,{foxconn:false}):null;
+    const values=Array.isArray(r.values)&&r.values.length===(project==='FOXCONN'?14:13)?
+      parseValues(r.values,{foxconn:project==='FOXCONN'}):null;
     if(!cash||cash.kind!=='normal'||cash.source!=='manual'||
        cash.linkedModule||cash.needsReview===true||
        cash.direction!=='out'||!activeCashRecord(cash,project,month)||
@@ -393,7 +400,7 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
   // Payment documents. Certify each ORIGINAL member ID independently and
   // compare the exact aggregate amount, date and expense column. No manual
   // ID entry, positional Excel ID, or inferred document match is accepted.
-  if(appendOnly&&project!=='FOXCONN'&&r?.sourceClass==='PAYMENT'&&
+  if(appendOnly&&r?.sourceClass==='PAYMENT'&&
      Array.isArray(r.members)&&r.members.length>1){
     const members=r.members;
     const canonical=members.every(x=>typeof x==='string'&&
@@ -401,11 +408,11 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
       members.every((x,i)=>i===0||members[i-1]<x);
     if(!canonical||r.id!==project+':'+members.join('+')||
        members.some(x=>seen.has(x))||
-       !Array.isArray(r.values)||r.values.length!==13||
+       !Array.isArray(r.values)||r.values.length!==(project==='FOXCONN'?14:13)||
        r.project!==project||r.month!==month){
       blockers.push('GROUPED_PAYMENT_ID_INVALID');continue;
     }
-    const values=parseValues(r.values,{foxconn:false});
+    const values=parseValues(r.values,{foxconn:project==='FOXCONN'});
     if(sha(values)!==r.hash){
       blockers.push('SOURCE_HASH_CHANGED');continue;
     }
@@ -443,7 +450,7 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
     !/^expense:pay_[A-Za-z0-9_-]{1,180}$/.test(r.members[0])||
     r.id!==project+':'+r.members[0]||
     r.sourceClass!=='PAYMENT'||
-    !Array.isArray(r.values)||r.values.length!==13||
+    !Array.isArray(r.values)||r.values.length!==(project==='FOXCONN'?14:13)||
     seen.has(r.members[0])){
    blockers.push('GROUPED_TAX_TRANSFER_OR_SOURCE_ID_UNSUPPORTED');continue;
   }
@@ -451,7 +458,7 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
   const rawId=r.members[0].slice('expense:pay_'.length);
   const p=paid.get(rawId);
   if(!p){blockers.push('PAYMENT_SOURCE_DOC_NOT_FOUND');continue;}
-  const values=parseValues(r.values,{foxconn:false});
+  const values=parseValues(r.values,{foxconn:project==='FOXCONN'});
   if(sha(values)!==r.hash){blockers.push('SOURCE_HASH_CHANGED');continue;}
   const target=category(p,project);
   if(target===null){blockers.push('PAYMENT_CATEGORY_UNVERIFIED');continue;}
@@ -468,7 +475,7 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
  }
  if(!appendOnly&&seen.size!==paid.size)
   blockers.push('PAID_MONTH_PROJECT_COUNT_OR_ALIAS_MISMATCH');
- if(project==='FOXCONN')blockers.push('FOXCONN_IMPORT_TAX_LAYOUT_REQUIRES_RULES');
+
  if(!records.length&&(appendOnly||paid.size))blockers.push('PAYMENT_ROWS_NOT_IN_EXPORT');
  const unique=[...new Set(blockers)].sort();
  return Object.freeze({
