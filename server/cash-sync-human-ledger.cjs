@@ -59,7 +59,9 @@ function requireHumanMetadata(meta,{project,historySheetId}){
  const original=meta?.sheets?.find(s=>s.properties?.sheetId===historySheetId)?.properties;
  const mirror=meta?.sheets?.find(s=>s.properties?.title==='DATA_CASHCONTROL')?.properties;
  const visible=meta?.sheets?.find(s=>s.properties?.title===project)?.properties;
- if(!original||original.title!==project+'_HISTORY_BACKUP'||original.hidden!==true||
+ if(!original||!(original.title===project+'_HISTORY_BACKUP'||
+    (project==='PHU HUNG'&&original.title==='PHU_HUNG_HISTORY_BACKUP'))||
+    original.hidden!==true||
     !mirror||mirror.hidden!==true||!visible||visible.hidden===true||
     visible.sheetId===historySheetId||visible.sheetId===mirror.sheetId)
   die('Tab dự án không đúng cấu trúc đã phát hành theo mẫu PHU HUNG.');
