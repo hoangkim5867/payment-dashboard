@@ -103,3 +103,38 @@ test('Google technical mirror remains hidden; only MAIN VIEW gets PHU HUNG prese
  assert.ok(batch.requests.some(r=>r.repeatCell?.cell?.userEnteredFormat?.numberFormat?.pattern==='#,##0;-#,##0;;@'));
  assert.ok(batch.requests.every(r=>r.updateCells?.range?.sheetId!==42));
 });
+
+test('PHU HUNG real 13-value pilot mirror safely migrates 30 history-bound IDs',()=>{
+ const {sha,planMonth}=require('../server/cash-sync-multi-project-core.cjs');
+ const oldHeader=[...MIRROR_HEADER];oldHeader[16]='balance';
+ const original=['2026-10-02','中方员工工资','','2026年08月中方员工工资','','职工薪酬',
+   0,0,0,0,349248728,0,0,19893332108];
+ const thirteen=['2026-10-02','Lương Trung Quốc','','Lương Trung Quốc · Tháng 08/2026',
+  '','Chi phí nhân sự',0,0,0,0,349248728,0,0];
+ const sourceId='PHU HUNG:expense:manual_salary_payroll_1790835443830_91z2i';
+ const oldRecord=[sourceId,'PHU HUNG','2026-10',...thirteen,'',
+   sha(thirteen),'history:1'];
+ const converted=parseStoredMirror([oldHeader,oldRecord],{project:'PHU HUNG',
+  history:[original]});
+ assert.equal(converted.length,1);
+ assert.equal(converted[0].values[1],'中方员工工资');
+ assert.equal(converted[0].values[13],0);
+ assert.equal(converted[0].hash,sha(converted[0].values));
+ const rebuilt=planMonth({project:'PHU HUNG',month:'2026-11',
+  source:[],history:[original],mirror:converted});
+ assert.equal(rebuilt.status,'CANDIDATES_ONLY');
+ assert.deepEqual(normalizeMirror(rebuilt)[0],MIRROR_HEADER);
+ assert.equal(normalizeMirror(rebuilt)[1][17],converted[0].hash);
+ assert.equal(rebuilt.closingBalance,19893332108);
+ const wrongOld=[...oldRecord];wrongOld[13]=349248729;
+ assert.throws(()=>parseStoredMirror([oldHeader,wrongOld],{project:'PHU HUNG',
+  history:[original]}),/hash/);
+ const wrongHistorical=[...original];wrongHistorical[10]=349248729;
+ assert.throws(()=>parseStoredMirror([oldHeader,oldRecord],{project:'PHU HUNG',
+  history:[wrongHistorical]}),/khác ngày hoặc số tiền/);
+ assert.throws(()=>parseStoredMirror([oldHeader,oldRecord],{project:'ELYSIAN',
+  history:[original]}),/header khác/);
+ const badBalance=[...oldRecord];badBalance[16]=123;
+ assert.throws(()=>parseStoredMirror([oldHeader,badBalance],{project:'PHU HUNG',
+  history:[original]}),/balance/);
+});
