@@ -60,6 +60,44 @@ function manualCashBucket(cash){
  if(/^(khác|chi phí khác|khoản phải trả khác|其他应付款|其他费用)$/.test(norm(cash.category).toLowerCase()))return 12;
  return null;
 }
+// Replay the canonical Chinese labels used by the existing Xuất Excel
+// projection for linked, non-tax payroll. No free-text guess of a salary ID.
+function payrollGroup(record){
+ const g=norm(record.staffGroup).toLowerCase();
+ if(['vn','vietnam','viet nam','người việt','越籍','越南'].includes(g))return 'vn';
+ if(['cn','tq','china','trung quoc','中方','中国'].includes(g))return 'cn';
+ if(record.type==='insurance_vn'||record.sourceType==='vn_paste')return 'vn';
+ if(record.type==='insurance_cn'||record.sourceType==='cn_excel')return 'cn';
+ const sub=norm(record.subCode).toUpperCase();
+ if(['LVN','BHVN'].includes(sub))return 'vn';
+ if(['LTQ','BHTQ'].includes(sub))return 'cn';
+ const raw=[record.sourceSheet,record.sourceFile,record.description,
+  record.category,record.note].join(' ');
+ if(/越籍|越南|VIET\\s*NAM|LƯƠNG\\s*VN|LUONG\\s*VN/i.test(raw))return 'vn';
+ if(/中方|中国|中国籍|CHINA|LƯƠNG\\s*TQ|LUONG\\s*TQ/i.test(raw))return 'cn';
+ return 'unknown';
+}
+function payrollZh(record,cash){
+ const labels={salary:'实发工资',salary_vn:'越籍员工工资',
+  salary_cn:'中方员工工资',bonus:'奖金',insurance_vn:'越南社保',
+  insurance_cn:'中国社保',union:'工会经费',insurance:'社保',
+  meal:'伙食费'};
+ const type=norm(record.type),group=payrollGroup(record);
+ const key=type==='salary'&&group!=='unknown'?'salary_'+group:type;
+ const label=labels[key];
+ if(!label)return null; // PIT needs the separate quarter/group verifier
+ let content=label;
+ if(type==='bonus'){
+  const remark=norm(record.note);
+  if(remark)content=label+' · '+remark;
+  else if(record.bonusYear)content=String(record.bonusYear)+'年'+label;
+ }else{
+  const month=norm(record.payrollMonth||cash.period);
+  if(month&&!/^20\\d{2}-(0[1-9]|1[0-2])$/.test(month))return null;
+  if(month)content=month.slice(0,4)+'年'+month.slice(5)+'月'+label;
+ }
+ return {company:label,content};
+}
 function unpackSeed(seed,{expectedSeedHash=SEED_HASH}={}){
  const raw=readFields(seed);
  if(raw.schemaVersion!==1||raw.sha256!==expectedSeedHash||
@@ -213,6 +251,47 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
     verifiedRows++;
     continue;
    }
+  }
+  // PAYROLL has its own source class: a paid Cash Control transaction
+  // must link to exactly one salary record, and the normalized Chinese
+  // export row must match that source. Never certify grouped PIT here.
+  if(appendOnly&&project!=='FOXCONN'&&r?.sourceClass==='PAYROLL'&&
+     Array.isArray(r.members)&&r.members.length===1&&
+     /^expense:manual_[A-Za-z0-9_-]{1,190}$/.test(r.members[0])){
+    const memberId=r.members[0],id=memberId.slice('expense:'.length);
+    const found=state.manualRecords.filter(x=>x?.id===id);
+    const cash=found.length===1?found[0]:null;
+    const linked=cash&&typeof cash.linkedRecordId==='string'?
+      (state.salaryRecords||[]).filter(x=>x?.id===cash.linkedRecordId):[];
+    const salary=linked.length===1?linked[0]:null;
+    const labels=salary?payrollZh(salary,cash):null;
+    const amount=cash?money(cash.actualAmount??cash.amount):NaN;
+    const values=Array.isArray(r.values)&&r.values.length===13?
+      parseValues(r.values,{foxconn:false}):null;
+    if(!cash||cash.kind!=='normal'||cash.project!==project||
+       cash.direction!=='out'||!activeCashRecord(cash,project,month)||
+       (cash.source!=='payroll'&&cash.linkedModule!=='payroll')||
+       cash.needsReview===true||!salary||salary.project!==project||
+       !labels||!Number.isSafeInteger(amount)||amount<=0||
+       (cash.amount!==undefined&&money(cash.amount)!==amount)||
+       (salary.actualDate&&salary.actualDate!==cash.actualDate)||
+       (salary.actualAmount!==undefined&&salary.actualAmount!==null&&
+        money(salary.actualAmount)!==amount)||
+       r.project!==project||r.month!==month||
+       r.id!==project+':'+memberId||seen.has(memberId)||
+       !values||sha(values)!==r.hash||
+       values[0]!==cash.actualDate||
+       norm(values[1])!==labels.company||
+       norm(values[3])!==labels.content||
+       norm(values[2])!==norm(cash.contractNo||'')||
+       norm(values[4])!==''||norm(values[5])!=='职工薪酬'||
+       values[6]!==0||values.slice(7,13).some((n,i)=>!eq(n,i===3?amount:0))){
+      blockers.push('PAYROLL_LINKED_SOURCE_OR_AMOUNT_MISMATCH');
+      continue;
+    }
+    seen.add(memberId);
+    verifiedRows++;
+    continue;
   }
   // A non-payroll manual paid expense has a stable Cash Control ID, even
   // when no Payment document exists. Prove the exact original expense and
