@@ -298,8 +298,8 @@ async function handler(req,res,testOnly=false){
             id:row.id,project:row.project,month:row.month,
             sourceClass:row.sourceClass,members:row.members,
             // Google writer uses 14 normalized fields; source proof accepts
-            // the canonical 13 fields and independently re-normalizes them.
-            values:row.values.slice(0,13),hash:row.hash
+            // 13 fields for standard ledgers or 14 for FOXCONN and independently re-normalizes them.
+            values:row.values.slice(0,input.project==='FOXCONN'?14:13),hash:row.hash
           }))
         }]}
     });
