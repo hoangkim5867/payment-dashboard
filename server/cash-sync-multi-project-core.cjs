@@ -129,7 +129,7 @@ function validateMirror(raw,projectKey){
   }
   return {entries,index,fingerprint:sha(raw)};
 }
-function planMonth({project,month,source,history,mirror=[],foxconn=false,openingBalance=null}){
+function planMonth({project,month,source,history,mirror=[],foxconn=false,openingBalance=null,allowCorrections=false}){
   const projectKey=name(project);
   if(!projectKey||projectKey.length>180||!/^20\d\d-(0[1-9]|1[0-2])$/.test(month)||
      month<'2026-10'||!Array.isArray(source)||source.length>20000)
@@ -170,7 +170,7 @@ function planMonth({project,month,source,history,mirror=[],foxconn=false,opening
     usedHistorical.add(position);
   }
   const combinedMirror=stored.entries.filter(r=>!r.values[0].startsWith(month+'-'));
-  const changes=[],reviews=[],bindings=[];
+  const changes=[],reviews=[],bindings=[],corrections=[];
   for(const current of sourceById.values()){
     const before=stored.index.get(current.id);
     if(before){
@@ -188,11 +188,21 @@ function planMonth({project,month,source,history,mirror=[],foxconn=false,opening
         combinedMirror.push({...before,project:projectKey});
         continue;
       }
-      // Append-only accounting rule. Never silently change a previously
-      // posted date or financial bucket. Preserve prior Google values and
-      // fail closed for this project; unrelated projects can still proceed.
-      reviews.push({id:current.id,reason:'EXISTING_SOURCE_ID_FINANCIAL_CHANGE'});
-      combinedMirror.push({...before,project:projectKey});
+      // Corrections may only replace an ORIGINAL machine-posted ID inside
+      // this SAME accounting month. Never rewrite historic-bound transactions,
+      // backdated months or a missing ID, even with Admin confirmation.
+      if(allowCorrections&&before.status==='synced'&&
+         before.values[0].startsWith(month+'-')&&
+         current.values[0].startsWith(month+'-')){
+        corrections.push({id:current.id,previousHash:before.hash,
+          before:{date:before.values[0],amounts:before.values.slice(6,14)},
+          after:{date:current.values[0],amounts:current.values.slice(6,14)}});
+        combinedMirror.push({...current,project:projectKey,status:'synced'});
+        changes.push({id:current.id,action:'correct',status:'synced'});
+      }else{
+        reviews.push({id:current.id,reason:'EXISTING_SOURCE_ID_FINANCIAL_CHANGE'});
+        combinedMirror.push({...before,project:projectKey});
+      }
       continue;
     }
     const found=(historySignatures.get(idSignature(current.values))||[])
@@ -255,7 +265,7 @@ function planMonth({project,month,source,history,mirror=[],foxconn=false,opening
   // Source/history/rows are still READ-ONLY evidence: a later authorized
   // adapter must check original and mirror revisions before any write.
   return Object.freeze({project:projectKey,month,status:'CANDIDATES_ONLY',
-    changes,bindings,mirrorNext:combinedMirror,viewRows:calculated,
+    changes,bindings,corrections,mirrorNext:combinedMirror,viewRows:calculated,
     historicalOpening:historical.openingBalance,
     historicalClosing:historical.closingBalance,closingBalance:balance,
     historyFingerprint:historical.fingerprint,
