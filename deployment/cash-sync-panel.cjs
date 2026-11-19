@@ -65,10 +65,14 @@ function buildCashSyncPanel(html) {
   // Build-site already inserts member IDs and revision before this panel transform.
   // A single explicit approval lists each already-posted transaction's OLD
   // and NEW money/date. Never let a generic 'sync' confirmation change money.
-  const oldConfirm=`return confirm('Đồng bộ '+review.readyProjects.length+
-            ' dự án đã được máy chủ cấp phép tháng '+month+
-            '? Chỉ cập nhật tab kỹ thuật, không sửa sổ gốc.');`;
-  const newConfirm=`const types=['Thu','Thầu phụ','Vật tư','Chi phí trực tiếp','Gián tiếp','Tài chính','Phải trả khác','Thuế NK/VAT'];
+  // Replace the complete confirmation callback, after legacy build-site
+  // transforms, rather than matching an old prompt that may have changed.
+  const approvalStart=html.indexOf('        confirmBatch:async review=>{');
+  const approvalEnd=html.indexOf('        onProject:row=>{',approvalStart);
+  if(approvalStart<0||approvalEnd<0)throw Error('Missing Admin batch approval callback');
+  html=html.slice(0,approvalStart)+`        confirmBatch:async review=>{
+          requireFresh();
+          const types=['Thu','Thầu phụ','Vật tư','Chi phí trực tiếp','Gián tiếp','Tài chính','Phải trả khác','Thuế NK/VAT'];
           const money=n=>Number(n).toLocaleString('vi-VN',{maximumFractionDigits:6})+' đ';
           const changes=(review.corrections||[]).map(c=>{
             const diffs=types.flatMap((type,i)=>c.before.amounts[i]===c.after.amounts[i]?[]:
@@ -76,12 +80,12 @@ function buildCashSyncPanel(html) {
             return c.project+' · '+c.id.slice(0,90)+'\\n'+
               'Ngày: '+c.before.date+' → '+c.after.date+'\\n'+diffs.join(' · ');
           });
-          return confirm('Đồng bộ '+review.readyProjects.length+
-            ' dự án tháng '+month+'\\n'+
-            (changes.length?'ĐIỀU CHỈNH '+changes.length+' GIAO DỊCH ĐÃ GHI (duyệt số cũ → mới):\\n'+
+          return confirm('Đồng bộ '+review.readyProjects.length+' dự án tháng '+month+'\\n'+
+            (changes.length?'ĐIỀU CHỈNH '+changes.length+' GIAO DỊCH (số cũ → mới):\\n'+
               changes.join('\\n\\n')+'\\n\\n':'')+
-            'Chỉ cập nhật dòng do hệ thống tạo; KHÔNG sửa tab lịch sử gốc. Đồng ý?');`;
-  swap(oldConfirm,newConfirm);
+            'Chỉ cập nhật dòng hệ thống và số dư chạy; giữ nguyên sổ gốc. Đồng ý?');
+        },
+`+html.slice(approvalEnd);
   swap('<div class="modal" id="ccGoogleSyncPreviewModal">\n  <div class="mbox"',
     '<style>'+stylesheet+'</style>\n<div class="modal" id="ccGoogleSyncPreviewModal">\n  <div class="mbox cc-sync"');
   const summary = cut('<div id="ccSyncOwnerSummary"', '<details id="ccGoogleSyncProjectLinkCatalog"');
