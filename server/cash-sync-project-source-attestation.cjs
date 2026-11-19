@@ -252,6 +252,65 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
     continue;
    }
   }
+  // Quarterly personal income tax is exported as ONE row whose identity is
+  // date + quarter + all underlying linked payroll-tax IDs. Certify all
+  // members and the exact sum; never infer a tax quarter from the payment day.
+  if(appendOnly&&project!=='FOXCONN'&&r?.sourceClass==='PAYROLL'&&
+     /^tax:[^:]+:20\\d{2}-\\d{2}-\\d{2}:20\\d{2}-Q[1-4]:out$/.test(r.id||'')){
+    const idMatch=/^tax:(.+):(20\\d{2}-\\d{2}-\\d{2}):(20\\d{2}-Q[1-4]):out$/.exec(r.id);
+    const members=r.members;
+    const validMembers=Array.isArray(members)&&members.length>0&&members.length<=100&&
+      members.every((x,i)=>typeof x==='string'&&
+        /^expense:manual_[A-Za-z0-9_-]{1,190}$/.test(x)&&
+        (i===0||members[i-1]<x)&&!seen.has(x));
+    if(!idMatch||idMatch[1]!==project||r.project!==project||r.month!==month||
+       !validMembers){
+      blockers.push('GROUPED_TAX_SOURCE_ID_INVALID');continue;
+    }
+    const values=Array.isArray(r.values)&&r.values.length===13?
+      parseValues(r.values,{foxconn:false}):null;
+    if(!values||sha(values)!==r.hash){
+      blockers.push('GROUPED_TAX_ROW_HASH_CHANGED');continue;
+    }
+    let total=0;const expectedQuarter=idMatch[3],date=idMatch[2];
+    let valid=true;let meta=null;
+    for(const memberId of members){
+      const id=memberId.slice('expense:'.length);
+      const found=state.manualRecords.filter(x=>x?.id===id);
+      const cash=found.length===1?found[0]:null;
+      const linked=cash&&typeof cash.linkedRecordId==='string'?
+        (state.salaryRecords||[]).filter(x=>x?.id===cash.linkedRecordId):[];
+      const tax=linked.length===1?linked[0]:null;
+      const quarter=tax?norm(tax.taxPeriod).toUpperCase().replace('/','-'):'';
+      const amt=cash?money(cash.actualAmount??cash.amount):NaN;
+      if(!cash||cash.kind!=='normal'||cash.project!==project||
+         cash.direction!=='out'||!activeCashRecord(cash,project,month)||
+         (cash.source!=='payroll'&&cash.linkedModule!=='payroll')||
+         cash.needsReview===true||!tax||tax.type!=='tax'||tax.project!==project||
+         quarter!==expectedQuarter||cash.actualDate!==date||
+         (tax.actualDate&&tax.actualDate!==date)||
+         !Number.isSafeInteger(amt)||amt<=0||
+         (cash.amount!==undefined&&money(cash.amount)!==amt)||
+         (tax.actualAmount!==undefined&&tax.actualAmount!==null&&
+          money(tax.actualAmount)!==amt)){valid=false;break;}
+      const fields=[norm(cash.contractNo||''),norm(cash.company||'')];
+      if(meta&&JSON.stringify(meta)!==JSON.stringify(fields)){valid=false;break;}
+      meta=fields;total+=amt;
+    }
+    const quarterParts=expectedQuarter.match(/^(20\\d{2})-Q([1-4])$/);
+    const chinese=quarterParts[1]+'年第'+quarterParts[2]+'季度个人所得税';
+    if(!valid||!Number.isSafeInteger(total)||
+       values[0]!==date||values[1]!=='个人所得税'||
+       norm(values[2])!==meta?.[0]||values[3]!==chinese||
+       norm(values[4])!==''||values[5]!=='职工薪酬'||
+       values[6]!==0||
+       values.slice(7,13).some((n,i)=>!eq(n,i===3?total:0))){
+      blockers.push('GROUPED_TAX_SOURCE_OR_AMOUNT_MISMATCH');continue;
+    }
+    members.forEach(x=>seen.add(x));
+    verifiedRows++;
+    continue;
+  }
   // PAYROLL has its own source class: a paid Cash Control transaction
   // must link to exactly one salary record, and the normalized Chinese
   // export row must match that source. Never certify grouped PIT here.
