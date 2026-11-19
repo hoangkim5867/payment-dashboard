@@ -373,3 +373,34 @@ test('date warning with amount mismatch or unmatched records remains blocked',()
  assert.equal(summary.allRowsMatched,false);
  assert.equal(summary.canWrite,false);
 });
+
+
+test('empty read-only batch never claims all 35-project history verified',()=>{
+ const summary=summarizeMatchedHistoryReadOnly([]);
+ assert.equal(summary.dateOrderOnly,0);
+ assert.equal(summary.withoutDate,0);
+ assert.equal(summary.allRowsMatched,false);
+ assert.equal(summary.noNewRows,false);
+ assert.equal(summary.canWrite,false);
+ assert.equal(summary.googleWrites,0);
+});
+test('November checkpoint: seven date-order-only and four exact, zero extra posts',()=>{
+ const template={result:'REVIEW_REQUIRED',reviewCategory:'DATE_ORDER_ONLY',
+  dateReview:true,financialReview:false,sourceRows:2,exactMatches:2,
+  newerCandidates:0,backfillCandidates:0,historyUnmatched:0,
+  duplicateHistory:0,duplicateSource:0,invalidSource:0,
+  invalidHistoryRows:0,mirrorConflicts:0,unmatchedMirrorRows:0};
+ const results=[
+  ...Array.from({length:7},(_,i)=>({...template,project:'WARN_'+i})),
+  ...Array.from({length:4},(_,i)=>({...template,project:'CLEAN_'+i,
+    result:'EXACT_HISTORY_ONLY',reviewCategory:'EXACT_HISTORY',dateReview:false}))
+ ];
+ const summary=summarizeMatchedHistoryReadOnly(results);
+ assert.equal(summary.dateOrderOnly,7);
+ assert.equal(summary.withoutDate,4);
+ assert.equal(summary.otherReview,0);
+ assert.equal(summary.allRowsMatched,true);
+ assert.equal(summary.noNewRows,true);
+ assert.equal(summary.canWrite,false);
+ assert.equal(summary.googleWrites,0);
+});
