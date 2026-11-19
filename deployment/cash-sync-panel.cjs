@@ -146,6 +146,33 @@ function buildCashSyncPanel(html) {
   swap(auditRender, auditRender+
     "\n      status.textContent='Tháng '+month.slice(5)+'/'+month.slice(0,4)+' · Chỉ đọc';");
   if(!auditStatus.includes('Google reads'))throw Error('Unexpected audit status block');
+  // The shared Admin runner must carry the canonical ID members and source
+  // revision for server-side attestation (not just the Excel projection).
+  swap("const sourceComplete=project!=='PHU HUNG'&&",
+       "const sourceComplete=");
+  swap("return {id:row.id,project,month,values,hash:await ccGoogleSyncSha(values)};",
+       "return {id:row.id,project,month,sourceClass:row.sourceClass,members:row.members,values,hash:await ccGoogleSyncSha(values)};");
+  swap("targets.push({project,month,source,activityConfirmed:true,",
+       "targets.push({project,month,revision,source,activityConfirmed:true,");
+  // A single explicit approval lists each already-posted transaction's OLD
+  // and NEW money/date. Never let a generic 'sync' confirmation change money.
+  const oldConfirm=`return confirm('Đồng bộ '+review.readyProjects.length+
+            ' dự án đã được máy chủ cấp phép tháng '+month+
+            '? Chỉ cập nhật tab kỹ thuật, không sửa sổ gốc.');`;
+  const newConfirm=`const types=['Thu','Thầu phụ','Vật tư','Chi phí trực tiếp','Gián tiếp','Tài chính','Phải trả khác','Thuế NK/VAT'];
+          const money=n=>Number(n).toLocaleString('vi-VN',{maximumFractionDigits:6})+' đ';
+          const changes=(review.corrections||[]).map(c=>{
+            const diffs=types.flatMap((type,i)=>c.before.amounts[i]===c.after.amounts[i]?[]:
+              [type+': '+money(c.before.amounts[i])+' → '+money(c.after.amounts[i])]);
+            return c.project+' · '+c.id.slice(0,90)+'\\n'+
+              'Ngày: '+c.before.date+' → '+c.after.date+'\\n'+diffs.join(' · ');
+          });
+          return confirm('Đồng bộ '+review.readyProjects.length+
+            ' dự án tháng '+month+'\\n'+
+            (changes.length?'ĐIỀU CHỈNH '+changes.length+' GIAO DỊCH ĐÃ GHI (duyệt số cũ → mới):\\n'+
+              changes.join('\\n\\n')+'\\n\\n':'')+
+            'Chỉ cập nhật dòng do hệ thống tạo; KHÔNG sửa tab lịch sử gốc. Đồng ý?');`;
+  swap(oldConfirm,newConfirm);
   const register="  $('ccSyncExportVisibleOnly')?.addEventListener('click',ccSyncExportVisibleOnly);";
   swap(register,register+'\n  setupCashSyncPanel();');
   return html;
