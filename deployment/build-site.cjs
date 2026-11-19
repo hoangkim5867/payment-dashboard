@@ -33,7 +33,6 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    const pilotShared="const sourceComplete=group.state==='HISTORY_COMPARISON_CANDIDATE'&&";
    if(!text.includes(pilotStandalone)&&!text.includes(pilotShared))
      throw Error('PHU HUNG monthly source branch anchor moved');
-   text=text.replace(pilotStandalone,pilotShared);
 
    if(!text.includes("          return {id:row.id,project,month,values,hash:await ccGoogleSyncSha(values)};"))throw Error('Monthly Google runner contract 0 moved');
    text=text.replace("          return {id:row.id,project,month,values,hash:await ccGoogleSyncSha(values)};","          return {id:row.id,project,month,values,hash:await ccGoogleSyncSha(values),\n            sourceClass:row.sourceClass,members:row.members};");
@@ -45,10 +44,12 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    const newerPaymentEligibility="        // Not every paid Payment is a contract/IPC item (e.g. bank fees).\n        // The server checks immutable Payment IDs, paid dates and money types.\n        const sourceComplete=project!=='PHU HUNG'&&\n          group.state==='HISTORY_COMPARISON_CANDIDATE'&&\n          !sourceIssues.length&&!ready?.needsReview&&\n          !ready?.transferCounterpartsUnverified;";
    if(!text.includes(oldWrongPayment))throw Error('Shared Payment eligibility anchor moved');
    text=text.replace(oldWrongPayment,newerPaymentEligibility);
+   text=text.replace(pilotStandalone,pilotShared);
    const oldPilotMessage="        if(!sourceComplete)mark(project,'Nguồn chưa đủ điều kiện, sẽ bỏ qua.');";
    const newPilotMessage="        if(!sourceComplete)mark(project,project==='PHU HUNG'?\n          'Đã kích hoạt Google bằng luồng PHU HUNG riêng; không ghi lặp qua luồng chung.':\n          'Nguồn chưa đủ điều kiện, sẽ bỏ qua.');";
    if(!text.includes(oldPilotMessage))throw Error('PHU HUNG pilot status anchor moved');
-   text=text.replace(oldPilotMessage,newPilotMessage);
+   text=text.replace(oldPilotMessage,
+     "        if(!sourceComplete)mark(project,'Nguồn chưa đủ điều kiện, sẽ bỏ qua.');");
    // Distinguish PREVIEW READY from a user-approved real Google commit.
    const batchStatusBase="      status.textContent=month+' · '+manifest.activeProjects+'/'+manifest.catalogProjects+";
    if(!text.includes(batchStatusBase))
