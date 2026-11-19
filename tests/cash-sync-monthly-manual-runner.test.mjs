@@ -201,3 +201,46 @@ test('certified refusal before any Google write skips only rejected project',asy
  assert.deepEqual(calls.filter(x=>x.startsWith('commit:')),
   ['commit:CN8-2','commit:CR5-1B','commit:ELYSIAN']);
 });
+
+test('correction old/new detail is approved once, fresh preview must match and special consent is sent',async()=>{
+ const details=[{id:'CN8-2:expense:pay_a',previousHash:'z'.repeat(64),
+  before:{date:'2026-10-03',amounts:[0,100,0,0,0,0,0,0]},
+  after:{date:'2026-10-04',amounts:[0,150,0,0,0,0,0,0]}}];
+ let approved,commits=0;
+ const corrected=b=>({...ok(b),summary:{...ok(b).summary,
+  correctedRows:1,corrections:details}});
+ const result=await runManualMonthlySync({
+  month:MONTH,projects:[make('CN8-2')],write:true,checkAdmin:async()=>true,
+  preview:async b=>corrected(b),
+  confirmBatch:async info=>{approved=info;return true},
+  commit:async b=>{
+   commits++;
+   assert.equal(b.confirm,'SYNC_CORRECTIONS_THIS_PROJECT');
+   return {...corrected(b),mode:'verified',writes:1};
+  }
+ });
+ assert.equal(approved.corrections.length,1);
+ assert.deepEqual(approved.corrections[0].before.amounts[1],100);
+ assert.deepEqual(approved.corrections[0].after.amounts[1],150);
+ assert.equal(result.summary.verified,1);
+ assert.equal(commits,1);
+});
+test('changed correction amounts after approval stop before any Google write',async()=>{
+ const before={date:'2026-10-03',amounts:[0,100,0,0,0,0,0,0]};
+ let previews=0,commits=0;
+ const result=await runManualMonthlySync({
+  month:MONTH,projects:[make('ELYSIAN')],write:true,checkAdmin:async()=>true,
+  preview:async b=>{
+   previews++;
+   return {...ok(b),summary:{...ok(b).summary,correctedRows:1,
+    corrections:[{id:'ELYSIAN:expense:pay_a',before,
+      after:{date:'2026-10-03',amounts:[0,previews===1?150:160,0,0,0,0,0,0]}}]}};
+  },
+  confirmBatch:async()=>true,
+  commit:async()=>{commits++;throw Error('must never write')}
+ });
+ assert.equal(previews,2);
+ assert.equal(commits,0);
+ assert.equal(result.summary.failed,1);
+ assert.equal(result.rows[0].reason,'CORRECTION_DETAILS_CHANGED_REVIEW_AGAIN');
+});
