@@ -256,8 +256,8 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
   // date + quarter + all underlying linked payroll-tax IDs. Certify all
   // members and the exact sum; never infer a tax quarter from the payment day.
   if(appendOnly&&project!=='FOXCONN'&&r?.sourceClass==='PAYROLL'&&
-     /^tax:[^:]+:20\\d{2}-\\d{2}-\\d{2}:20\\d{2}-Q[1-4]:out$/.test(r.id||'')){
-    const idMatch=/^tax:(.+):(20\\d{2}-\\d{2}-\\d{2}):(20\\d{2}-Q[1-4]):out$/.exec(r.id);
+     /^tax:[^:]+:20\d{2}-\d{2}-\d{2}:20\d{2}-Q[1-4]:out$/.test(r.id||'')){
+    const idMatch=/^tax:(.+):(20\d{2}-\d{2}-\d{2}):(20\d{2}-Q[1-4]):out$/.exec(r.id);
     const members=r.members;
     const validMembers=Array.isArray(members)&&members.length>0&&members.length<=100&&
       members.every((x,i)=>typeof x==='string'&&
@@ -297,7 +297,7 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
       if(meta&&JSON.stringify(meta)!==JSON.stringify(fields)){valid=false;break;}
       meta=fields;total+=amt;
     }
-    const quarterParts=expectedQuarter.match(/^(20\\d{2})-Q([1-4])$/);
+    const quarterParts=expectedQuarter.match(/^(20\d{2})-Q([1-4])$/);
     const chinese=quarterParts[1]+'年第'+quarterParts[2]+'季度个人所得税';
     if(!valid||!Number.isSafeInteger(total)||
        values[0]!==date||values[1]!=='个人所得税'||
