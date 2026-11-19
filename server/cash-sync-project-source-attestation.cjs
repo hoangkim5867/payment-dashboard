@@ -73,8 +73,8 @@ function payrollGroup(record){
  if(['LTQ','BHTQ'].includes(sub))return 'cn';
  const raw=[record.sourceSheet,record.sourceFile,record.description,
   record.category,record.note].join(' ');
- if(/越籍|越南|VIET\\s*NAM|LƯƠNG\\s*VN|LUONG\\s*VN/i.test(raw))return 'vn';
- if(/中方|中国|中国籍|CHINA|LƯƠNG\\s*TQ|LUONG\\s*TQ/i.test(raw))return 'cn';
+ if(/越籍|越南|VIET\s*NAM|LƯƠNG\s*VN|LUONG\s*VN/i.test(raw))return 'vn';
+ if(/中方|中国|中国籍|CHINA|LƯƠNG\s*TQ|LUONG\s*TQ/i.test(raw))return 'cn';
  return 'unknown';
 }
 function payrollZh(record,cash){
@@ -93,7 +93,7 @@ function payrollZh(record,cash){
   else if(record.bonusYear)content=String(record.bonusYear)+'年'+label;
  }else{
   const month=norm(record.payrollMonth||cash.period);
-  if(month&&!/^20\\d{2}-(0[1-9]|1[0-2])$/.test(month))return null;
+  if(month&&!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month))return null;
   if(month)content=month.slice(0,4)+'年'+month.slice(5)+'月'+label;
  }
  return {company:label,content};
