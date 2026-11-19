@@ -88,3 +88,32 @@ test('a single paid manual Cash Control expense is checked against its original 
  const missing=verify({...manual,id:'manual_different'});
  assert.equal(missing.verified,false);
 });
+
+test('linked payroll is checked against salary record and Chinese export labels',()=>{
+ const member='expense:manual_salary_payroll_123';
+ const salary={id:'salary_123',project:'ELYSIAN',type:'salary',staffGroup:'vn',
+  payrollMonth:'2026-11',actualDate:'2026-11-17',actualAmount:500};
+ const cash={id:'manual_salary_payroll_123',kind:'normal',source:'payroll',
+  linkedModule:'payroll',linkedRecordId:'salary_123',status:'paid',project:'ELYSIAN',
+  direction:'out',actualDate:'2026-11-17',amount:500,actualAmount:500};
+ const v=['2026-11-17','越籍员工工资','','2026年11月越籍员工工资','','职工薪酬',
+  0,0,0,0,500,0,0];
+ const record={id:'ELYSIAN:'+member,project:'ELYSIAN',month:'2026-11',
+  sourceClass:'PAYROLL',members:[member],values:v,hash:sha(v)};
+ const verify=(s,c=cash)=>attestMonth({project:'ELYSIAN',month:'2026-11',
+  revision:347,records:[record],payments:[],
+  cashDocument:doc({revision:347,manualRecords:[c],salaryRecords:[s],
+   deletedLegacy:[],legacyOverrides:{}}),
+  seedDocument:seed,expectedSeedHash:seedHash,appendOnly:true});
+ const ok=verify(salary);
+ assert.equal(ok.verified,true);
+ assert.equal(ok.sourceIdsMatched,true);
+ assert.equal(ok.googleWrites,0);
+ const changed=verify({...salary,actualAmount:501});
+ assert.equal(changed.verified,false);
+ assert.ok(changed.blockers.includes('PAYROLL_LINKED_SOURCE_OR_AMOUNT_MISMATCH'));
+ const missing=verify({...salary,id:'other_salary'});
+ assert.equal(missing.verified,false);
+ const tax=verify({...salary,type:'tax'});
+ assert.equal(tax.verified,false);
+});
