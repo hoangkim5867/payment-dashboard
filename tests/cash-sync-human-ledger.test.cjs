@@ -107,3 +107,19 @@ test('empty new project sheet preserves positive/negative opening without fake t
     assert.equal(prepared.requests[1].updateCells.rows.length,6);
   }
 });
+
+test('PHU HUNG accepts its verified original underscored backup, never another project alias',()=>{
+ const ph={sheets:[
+  {properties:{sheetId:1049774332,title:'PHU_HUNG_HISTORY_BACKUP',hidden:true}},
+  {properties:{sheetId:1001,title:'DATA_CASHCONTROL',hidden:true}},
+  {properties:{sheetId:1000,title:'PHU HUNG',hidden:false}}
+ ]};
+ assert.deepEqual(human.requireHumanMetadata(ph,{project:'PHU HUNG',
+  historySheetId:1049774332}),{mirrorId:1001,viewId:1000});
+ assert.throws(()=>human.requireHumanMetadata(ph,{project:'EATON',
+  historySheetId:1049774332}),/cấu trúc/);
+ const visibleOriginal=structuredClone(ph);
+ visibleOriginal.sheets[0].properties.hidden=false;
+ assert.throws(()=>human.requireHumanMetadata(visibleOriginal,{project:'PHU HUNG',
+  historySheetId:1049774332}),/cấu trúc/);
+});
