@@ -61,3 +61,30 @@ test('grouped payroll remains blocked, not treated as verified Payment',()=>{
  assert.equal(out.verified,false);
  assert.ok(out.blockers.includes('GROUPED_TAX_TRANSFER_OR_SOURCE_ID_UNSUPPORTED'));
 });
+
+test('a single paid manual Cash Control expense is checked against its original record',()=>{
+ const member='expense:manual_123';
+ const v=['2026-11-17','Vendor','C-1','Materials','','材料款',
+  0,0,120,0,0,0,0];
+ const manual={id:'manual_123',kind:'normal',source:'manual',status:'paid',
+  project:'ELYSIAN',actualDate:'2026-11-17',direction:'out',
+  category:'Vật tư',contractName:'Materials',company:'Vendor',
+  contractNo:'C-1',actualAmount:120,amount:120};
+ const row={id:'ELYSIAN:'+member,project:'ELYSIAN',month:'2026-11',
+  sourceClass:'CASH',members:[member],values:v,hash:sha(v)};
+ const verify=(cash,record=row)=>attestMonth({project:'ELYSIAN',
+  month:'2026-11',revision:347,records:[record],payments:[],
+  cashDocument:doc({revision:347,manualRecords:[cash],deletedLegacy:[],legacyOverrides:{}}),
+  seedDocument:seed,expectedSeedHash:seedHash,appendOnly:true});
+ const valid=verify(manual);
+ assert.equal(valid.verified,true);
+ assert.equal(valid.sourceIdsMatched,true);
+ assert.equal(valid.googleWrites,0);
+ const changed=verify({...manual,actualAmount:121,amount:121});
+ assert.equal(changed.verified,false);
+ assert.ok(changed.blockers.includes('MANUAL_CASH_SOURCE_OR_AMOUNT_MISMATCH'));
+ const payroll=verify({...manual,source:'payroll'});
+ assert.equal(payroll.verified,false);
+ const missing=verify({...manual,id:'manual_different'});
+ assert.equal(missing.verified,false);
+});
