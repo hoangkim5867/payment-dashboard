@@ -62,12 +62,7 @@ function buildCashSyncPanel(html) {
   }
   // The shared Admin runner must carry the canonical ID members and source
   // revision for server-side attestation (not just the Excel projection).
-  swap("const sourceComplete=project!=='PHU HUNG'&&",
-       "const sourceComplete=");
-  swap("return {id:row.id,project,month,values,hash:await ccGoogleSyncSha(values)};",
-       "return {id:row.id,project,month,sourceClass:row.sourceClass,members:row.members,values,hash:await ccGoogleSyncSha(values)};");
-  swap("targets.push({project,month,source,activityConfirmed:true,",
-       "targets.push({project,month,revision,source,activityConfirmed:true,");
+  // Build-site already inserts member IDs and revision before this panel transform.
   // A single explicit approval lists each already-posted transaction's OLD
   // and NEW money/date. Never let a generic 'sync' confirmation change money.
   const oldConfirm=`return confirm('Đồng bộ '+review.readyProjects.length+
