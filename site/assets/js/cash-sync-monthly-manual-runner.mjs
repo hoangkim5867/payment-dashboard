@@ -39,12 +39,12 @@ function checkProject(month,item){
  }
  return null;
 }
-const cleanInput=({month,item,action,signature})=>({
+const cleanInput=({month,item,action,signature,corrections=false})=>({
  action,project:item.project,month,revision:item.revision,
  spreadsheetId:item.spreadsheetId,historySheetId:item.historySheetId,
  source:item.source,expectedMonthClosing:item.expectedMonthClosing,
  openingBalance:item.openingBalance??null,
- ...(action==='commit'?{signature,confirm:'SYNC_THIS_PROJECT'}:{})
+ ...(action==='commit'?{signature,confirm:corrections?'SYNC_CORRECTIONS_THIS_PROJECT':'SYNC_THIS_PROJECT'}:{})
 });
 const summarize=rows=>Object.freeze({
  projects:rows.length,
@@ -86,7 +86,7 @@ export async function runManualMonthlySync({
     checkRelease!==undefined&&typeof checkRelease!=='function'||write&&
     (typeof commit!=='function'||typeof confirmBatch!=='function'))
    throw Error('INVALID_BATCH_INPUT');
- const rows=[],candidates=[],names=new Set();
+ const rows=[],candidates=[],names=new Set(),reviewedCorrections=new Map();
  for(const item of projects){
   const name=text(item?.project);
   if(!name||names.has(name))throw Error('DUPLICATE_OR_INVALID_PROJECT');
@@ -111,6 +111,12 @@ export async function runManualMonthlySync({
    const s=verifyReply(response,{...item,month});
    if(!response?.signature||!/^[a-f0-9]{64}$/.test(response.signature))
     throw Error('SERVER_SIGNATURE_MISSING');
+   // Corrections are furnished by the authenticated server as explicit
+   // old/new payment date and all money columns, never inferred in browser.
+   if(!Array.isArray(s.corrections||[])||
+      (s.correctedRows||0)!==(s.corrections||[]).length)
+     throw Error('SERVER_CORRECTION_PREVIEW_INVALID');
+   reviewedCorrections.set(name,JSON.stringify(s.corrections||[]));
    const status=s.changes===0?'UNCHANGED':
      response.writeConfigured===true?'READY':'PREVIEW_ONLY';
    const row=entry(name,status,status==='PREVIEW_ONLY'?'SERVER_WRITE_GATE_CLOSED':'OK',
@@ -125,7 +131,9 @@ export async function runManualMonthlySync({
  if(!write||!candidates.length)return Object.freeze({
   month,approved:false,mode:'PREVIEW_ONLY',summary:summarize(rows),rows:Object.freeze(rows)});
  const authorized=await confirmBatch(Object.freeze({
-  month,readyProjects:candidates.map(x=>x.project),rows:rows.slice()
+  month,readyProjects:candidates.map(x=>x.project),rows:rows.slice(),
+  corrections:candidates.flatMap(x=>JSON.parse(reviewedCorrections.get(x.project)||'[]')
+    .map(c=>({project:x.project,id:c.id,before:c.before,after:c.after})))
  }));
  if(authorized!==true)return Object.freeze({
   month,approved:false,mode:'NOT_APPROVED',summary:summarize(rows),rows:Object.freeze(rows)});
@@ -140,6 +148,9 @@ export async function runManualMonthlySync({
   try{
    const fresh=await preview(cleanInput({month,item,action:'preview'}));
    const proof=verifyReply(fresh,{...item,month});
+   if(JSON.stringify(proof.corrections||[])!==
+      reviewedCorrections.get(item.project))
+     throw Error('CORRECTION_DETAILS_CHANGED_REVIEW_AGAIN');
    if(proof.changes===0){
     rows[pos]=entry(item.project,'UNCHANGED','ALREADY_SYNCED',0,proof.monthClosingBalance);
    }else if(fresh.writeConfigured!==true||
@@ -151,7 +162,8 @@ export async function runManualMonthlySync({
     // success. Stop the remaining batch and require a fresh Google readback.
     attemptedCommit=true;
     const written=await commit(cleanInput({
-     month,item,action:'commit',signature:fresh.signature
+     month,item,action:'commit',signature:fresh.signature,
+     corrections:(proof.corrections||[]).length>0
     }));
     const w=verifyReply(written,{...item,month});
     if(written.mode==='verified'&&written.writes===1&&
