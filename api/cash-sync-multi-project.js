@@ -110,7 +110,9 @@ async function state(bearer,id,historySheetId,project=''){
  if(values.spreadsheetId!==id||values.valueRanges?.length!==ranges.length)
   die('Google Sheets trả thiếu vùng dữ liệu đối chiếu.',502);
  const [raw,oldMirror,oldView]=values.valueRanges;
- const mirror=mirrored?parseStoredMirror(oldMirror.values||[]):[];
+ const mirror=mirrored?parseStoredMirror(oldMirror.values||[],{
+   project,history:raw.values||[]
+ }):[];
  if(mirrored&&!mirror)die('Mirror trống hoặc sai header; không ghi.');
  return {meta,history:raw.values||[],mirror,view:oldView?.values||[],
   formulas:formulas?.values||[],hasTabs:!!mirrored,humanView};
