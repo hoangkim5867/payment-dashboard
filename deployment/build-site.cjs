@@ -33,7 +33,7 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
    const pilotShared="const sourceComplete=group.state==='HISTORY_COMPARISON_CANDIDATE'&&";
    if(!text.includes(pilotStandalone)&&!text.includes(pilotShared))
      throw Error('PHU HUNG monthly source branch anchor moved');
-   text=text.replace(pilotShared,pilotStandalone);
+   text=text.replace(pilotStandalone,pilotShared);
 
    if(!text.includes("          return {id:row.id,project,month,values,hash:await ccGoogleSyncSha(values)};"))throw Error('Monthly Google runner contract 0 moved');
    text=text.replace("          return {id:row.id,project,month,values,hash:await ccGoogleSyncSha(values)};","          return {id:row.id,project,month,values,hash:await ccGoogleSyncSha(values),\n            sourceClass:row.sourceClass,members:row.members};");
