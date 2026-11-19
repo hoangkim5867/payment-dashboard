@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
 const {attestMonth}=require('../server/cash-sync-project-source-attestation.cjs');
-const {sha}=require('../server/cash-sync-multi-project-core.cjs');
+const {sha,parseValues}=require('../server/cash-sync-multi-project-core.cjs');
 const encode=v=>v===null?{nullValue:null}:
  typeof v==='string'?{stringValue:v}:
  typeof v==='number'?{integerValue:String(v)}:
@@ -24,7 +24,7 @@ const values=['2026-11-17','Vendor','C-1','材料款','IPC01','材料款',
 const member1='expense:pay_a',member2='expense:pay_b';
 const record={id:'ELYSIAN:'+member1+'+'+member2,project:'ELYSIAN',
  month:'2026-11',sourceClass:'PAYMENT',members:[member1,member2],
- values,hash:sha(values)};
+ values,hash:sha(parseValues(values))};
 const inspect=(records,payments=[payment('a',100),payment('b',200)])=>
  attestMonth({project:'ELYSIAN',month:'2026-11',revision:347,
  records,payments,cashDocument:cloud,seedDocument:seed,
@@ -71,7 +71,7 @@ test('a single paid manual Cash Control expense is checked against its original 
   category:'Vật tư',contractName:'Materials',company:'Vendor',
   contractNo:'C-1',actualAmount:120,amount:120};
  const row={id:'ELYSIAN:'+member,project:'ELYSIAN',month:'2026-11',
-  sourceClass:'CASH',members:[member],values:v,hash:sha(v)};
+  sourceClass:'CASH',members:[member],values:v,hash:sha(parseValues(v))};
  const verify=(cash,record=row)=>attestMonth({project:'ELYSIAN',
   month:'2026-11',revision:347,records:[record],payments:[],
   cashDocument:doc({revision:347,manualRecords:[cash],deletedLegacy:[],legacyOverrides:{}}),
@@ -99,7 +99,7 @@ test('linked payroll is checked against salary record and Chinese export labels'
  const v=['2026-11-17','越籍员工工资','','2026年11月越籍员工工资','','职工薪酬',
   0,0,0,0,500,0,0];
  const record={id:'ELYSIAN:'+member,project:'ELYSIAN',month:'2026-11',
-  sourceClass:'PAYROLL',members:[member],values:v,hash:sha(v)};
+  sourceClass:'PAYROLL',members:[member],values:v,hash:sha(parseValues(v))};
  const verify=(s,c=cash)=>attestMonth({project:'ELYSIAN',month:'2026-11',
   revision:347,records:[record],payments:[],
   cashDocument:doc({revision:347,manualRecords:[c],salaryRecords:[s],
@@ -132,7 +132,7 @@ test('quarterly PIT group certifies exact linked tax IDs and summed indirect cos
   0,0,0,0,100,0,0];
  const row={id:'tax:ELYSIAN:2026-11-17:2026-Q4:out',
   project:'ELYSIAN',month:'2026-11',sourceClass:'PAYROLL',members,
-  values:v,hash:sha(v)};
+  values:v,hash:sha(parseValues(v))};
  const verify=(taxes,salary=salaryRecords)=>attestMonth({
   project:'ELYSIAN',month:'2026-11',revision:347,records:[row],
   payments:[],cashDocument:doc({revision:347,manualRecords:taxes,
