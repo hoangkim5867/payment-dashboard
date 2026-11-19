@@ -77,7 +77,7 @@ test('a single paid manual Cash Control expense is checked against its original 
   cashDocument:doc({revision:347,manualRecords:[cash],deletedLegacy:[],legacyOverrides:{}}),
   seedDocument:seed,expectedSeedHash:seedHash,appendOnly:true});
  const valid=verify(manual);
- assert.equal(valid.verified,true);
+ assert.equal(valid.verified,true,JSON.stringify(valid.blockers));
  assert.equal(valid.sourceIdsMatched,true);
  assert.equal(valid.googleWrites,0);
  const changed=verify({...manual,actualAmount:121,amount:121});
@@ -106,7 +106,7 @@ test('linked payroll is checked against salary record and Chinese export labels'
    deletedLegacy:[],legacyOverrides:{}}),
   seedDocument:seed,expectedSeedHash:seedHash,appendOnly:true});
  const ok=verify(salary);
- assert.equal(ok.verified,true);
+ assert.equal(ok.verified,true,JSON.stringify(ok.blockers));
  assert.equal(ok.sourceIdsMatched,true);
  assert.equal(ok.googleWrites,0);
  const changed=verify({...salary,actualAmount:501});
@@ -139,7 +139,7 @@ test('quarterly PIT group certifies exact linked tax IDs and summed indirect cos
    salaryRecords:salary,deletedLegacy:[],legacyOverrides:{}}),
   seedDocument:seed,expectedSeedHash:seedHash,appendOnly:true});
  const valid=verify(taxRows);
- assert.equal(valid.verified,true);
+ assert.equal(valid.verified,true,JSON.stringify(valid.blockers));
  assert.equal(valid.sourceIdsMatched,true);
  assert.equal(valid.googleWrites,0);
  const bad=verify([{...taxRows[0],actualAmount:80,amount:80},taxRows[1]]);
