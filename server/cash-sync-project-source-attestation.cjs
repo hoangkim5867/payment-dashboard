@@ -45,6 +45,21 @@ function category(raw,project){
  // by its original import-tax rule; refuse generic proof here.
  return null;
 }
+// Match a narrow, real manual expense against the seven Cash Control Excel
+// amount buckets. Payroll, quarterly PIT, imports and linked modules are NOT
+// inferred from a free-text cost description.
+function manualCashBucket(cash){
+ const text=[cash.category,cash.description,cash.contractType].map(norm).join(' ').toLowerCase();
+ if(/工资|奖金|lương|luong|thưởng|thuong|bảo hiểm|bao hiem|保险|社保|công đoàn|cong doan|工会|伙食|tiền ăn|tien an|个税|所得税|thuế\\s*tncn|thue\\s*tncn/.test(text))return null;
+ if(/材料|vật tư|vat tu/.test(text))return 8;
+ if(/分包|thầu phụ|thau phu/.test(text))return 7;
+ if(/劳务|nhân công|nhan cong|其他直接|chi trực tiếp|chi truc tiep/.test(text))return 9;
+ if(/间接|gián tiếp|gian tiep/.test(text))return 10;
+ if(/财务|tài chính|tai chinh|bảo lãnh|bao lanh|授信|hạn mức|han muc/.test(text))return 11;
+ if(/清关|进口税|外省增值税|thuế nhập khẩu|thue nhap khau|ký quỹ|ky quy|保证金|deposit/.test(text))return null;
+ if(/^(khác|chi phí khác|khoản phải trả khác|其他应付款|其他费用)$/.test(norm(cash.category).toLowerCase()))return 12;
+ return null;
+}
 function unpackSeed(seed,{expectedSeedHash=SEED_HASH}={}){
  const raw=readFields(seed);
  if(raw.schemaVersion!==1||raw.sha256!==expectedSeedHash||
@@ -198,6 +213,43 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
     verifiedRows++;
     continue;
    }
+  }
+  // A non-payroll manual paid expense has a stable Cash Control ID, even
+  // when no Payment document exists. Prove the exact original expense and
+  // bucket independently; never use the Excel row number as an identity.
+  if(appendOnly&&project!=='FOXCONN'&&r?.sourceClass==='CASH'&&
+     Array.isArray(r.members)&&r.members.length===1&&
+     /^expense:manual_[A-Za-z0-9_-]{1,190}$/.test(r.members[0])&&
+     !r.members[0].startsWith('expense:manual_inflow_')){
+    const memberId=r.members[0],id=memberId.slice('expense:'.length);
+    const matches=state.manualRecords.filter(x=>x?.id===id);
+    const cash=matches.length===1?matches[0]:null;
+    const amount=cash?money(cash.actualAmount??cash.amount):NaN;
+    const bucket=cash?manualCashBucket(cash):null;
+    const values=Array.isArray(r.values)&&r.values.length===13?
+      parseValues(r.values,{foxconn:false}):null;
+    if(!cash||cash.kind!=='normal'||cash.source!=='manual'||
+       cash.linkedModule||cash.needsReview===true||
+       cash.direction!=='out'||!activeCashRecord(cash,project,month)||
+       cash.project!==project||cash.isAllocation===true||
+       !Number.isSafeInteger(amount)||amount<=0||
+       (cash.amount!==undefined&&money(cash.amount)!==amount)||
+       bucket===null||r.project!==project||r.month!==month||
+       r.id!==project+':'+memberId||seen.has(memberId)||
+       !values||sha(values)!==r.hash||
+       values[0]!==cash.actualDate||
+       norm(values[1])!==norm(cash.company||cash.counterparty||'')||
+       norm(values[2])!==norm(cash.contractNo||'')||
+       norm(values[3])!==norm(cash.contractName||cash.description||'')||
+       norm(values[4])!==norm(cash.ipcNo||cash.subCode||'')||
+       values[6]!==0||
+       values.slice(7,13).some((n,i)=>!eq(n,i+7===bucket?amount:0))){
+      blockers.push('MANUAL_CASH_SOURCE_OR_AMOUNT_MISMATCH');
+      continue;
+    }
+    seen.add(memberId);
+    verifiedRows++;
+    continue;
   }
   // A grouped Excel row may represent multiple distinct, already-paid
   // Payment documents. Certify each ORIGINAL member ID independently and
