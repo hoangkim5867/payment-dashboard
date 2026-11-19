@@ -176,6 +176,7 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
   paid.set(p.id,p);
  }
  const seen=new Set();
+ let verifiedRows=0;
  for(const r of records){
   const member=Array.isArray(r?.members)&&r.members.length===1?r.members[0]:null;
   if(appendOnly&&project!=='FOXCONN'&&typeof member==='string'){
@@ -194,6 +195,7 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
      continue;
     }
     seen.add(member);
+    verifiedRows++;
     continue;
    }
   }
@@ -241,6 +243,7 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
       blockers.push('GROUPED_PAYMENT_DATE_AMOUNT_OR_CATEGORY_CHANGED');continue;
     }
     members.forEach(x=>seen.add(x));
+    verifiedRows++;
     continue;
   }
   if(!r||r.project!==project||r.month!==month||
@@ -271,7 +274,7 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
     values[6]!==0||
     values.slice(7,14).some((n,i)=>!eq(n,i+7===target?actual:0))){
    blockers.push('PAYMENT_ROW_DATE_AMOUNT_OR_CATEGORY_CHANGED');
-  }
+  }else verifiedRows++;
  }
  if(!appendOnly&&seen.size!==paid.size)
   blockers.push('PAID_MONTH_PROJECT_COUNT_OR_ALIAS_MISMATCH');
@@ -282,7 +285,7 @@ function attestMonth({project,month,revision,records,payments,cashDocument,seedD
   kind:'INDEPENDENT_PROJECT_MONTH_SOURCE_CHECK_V1',project,month,revision,
   paymentRowsRead:payments.length,canonicalPaidRows:paid.size,
   sourceRowsChecked:records.length,
-  sourceIdsMatched:appendOnly?seen.size===records.length:seen.size===paid.size,
+  sourceIdsMatched:appendOnly?verifiedRows===records.length:seen.size===paid.size,
   blockers:Object.freeze(unique),verified:unique.length===0&&records.length>0,
   // This narrow certification is ONLY about the known canonical paid-month
   // payment stream, not aliases/old cash outside the stored archive.
