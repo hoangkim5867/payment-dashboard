@@ -123,6 +123,9 @@ function humanRows(plan,previousPlan,previousRows,{project,foxconn=false}={}){
   const b=body[i],oldRow=retained.get(b.sourceId);
   const fresh=oldRow?Array.from({length:6},(_,j)=>String(oldRow[j]??'')):
    chinese(b.values,project).slice(0,6);
+  // A correction keeps the human description but must update the displayed
+  // payment date. Amount columns and all subsequent balances are regenerated.
+  if((plan.corrections||[]).some(c=>c.id===b.sourceId))fresh[0]=b.values[0];
   const vals=[...fresh,...b.values.slice(6,balanceIndex)];
   if(vals.length!==balanceIndex)die('Sai số cột sổ dự án.');
   out.push({values:[...vals.map(cell),cashCell(rowFormula(i,foxconn,opening))]});
