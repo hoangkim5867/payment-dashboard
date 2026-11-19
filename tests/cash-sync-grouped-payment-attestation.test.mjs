@@ -117,3 +117,34 @@ test('linked payroll is checked against salary record and Chinese export labels'
  const tax=verify({...salary,type:'tax'});
  assert.equal(tax.verified,false);
 });
+
+test('quarterly PIT group certifies exact linked tax IDs and summed indirect cost',()=>{
+ const ids=['manual_salary_tax_1','manual_salary_tax_2'];
+ const members=ids.map(id=>'expense:'+id);
+ const taxRows=ids.map((id,i)=>({id,kind:'normal',source:'payroll',
+  linkedModule:'payroll',linkedRecordId:'tax_'+i,project:'ELYSIAN',
+  status:'paid',direction:'out',actualDate:'2026-11-17',
+  contractNo:'',actualAmount:i===0?70:30,amount:i===0?70:30}));
+ const salaryRecords=ids.map((id,i)=>({id:'tax_'+i,project:'ELYSIAN',
+  type:'tax',taxPeriod:'2026-Q4',actualDate:'2026-11-17',
+  actualAmount:i===0?70:30}));
+ const v=['2026-11-17','个人所得税','','2026年第4季度个人所得税','','职工薪酬',
+  0,0,0,0,100,0,0];
+ const row={id:'tax:ELYSIAN:2026-11-17:2026-Q4:out',
+  project:'ELYSIAN',month:'2026-11',sourceClass:'PAYROLL',members,
+  values:v,hash:sha(v)};
+ const verify=(taxes,salary=salaryRecords)=>attestMonth({
+  project:'ELYSIAN',month:'2026-11',revision:347,records:[row],
+  payments:[],cashDocument:doc({revision:347,manualRecords:taxes,
+   salaryRecords:salary,deletedLegacy:[],legacyOverrides:{}}),
+  seedDocument:seed,expectedSeedHash:seedHash,appendOnly:true});
+ const valid=verify(taxRows);
+ assert.equal(valid.verified,true);
+ assert.equal(valid.sourceIdsMatched,true);
+ assert.equal(valid.googleWrites,0);
+ const bad=verify([{...taxRows[0],actualAmount:80,amount:80},taxRows[1]]);
+ assert.equal(bad.verified,false);
+ assert.ok(bad.blockers.includes('GROUPED_TAX_SOURCE_OR_AMOUNT_MISMATCH'));
+ const q=verify(taxRows,[{...salaryRecords[0],taxPeriod:'2026-Q3'},salaryRecords[1]]);
+ assert.equal(q.verified,false);
+});
