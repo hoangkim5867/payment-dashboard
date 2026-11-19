@@ -177,9 +177,16 @@ test('FOXCONN tax column does not invalidate another project in a candidate batc
  assert.equal(validate(input),input);
  const result=attestMonth({project:'FOXCONN',month:fox.month,revision:341,
   records:[fox],payments:[{...p(),project:'FOXCONN'}],...archives(),appendOnly:true});
- assert.equal(result.verified,false);
- assert.ok(result.blockers.includes('FOXCONN_IMPORT_TAX_LAYOUT_REQUIRES_RULES'));
+ assert.equal(result.verified,true);
+ assert.deepEqual(result.blockers,[]);
  assert.equal(result.canWrite,false);
+ const withTax={...fox,values:[...record.values,10]};
+ withTax.hash=sha(parseValues(withTax.values,{foxconn:true}));
+ const rejected=attestMonth({project:'FOXCONN',month:fox.month,revision:341,
+  records:[withTax],payments:[{...p(),project:'FOXCONN'}],
+  ...archives(),appendOnly:true});
+ assert.equal(rejected.verified,false);
+ assert.ok(rejected.blockers.includes('FOXCONN_IMPORT_TAX_LAYOUT_REQUIRES_RULES'));
 });
 
 test('a linked client receipt is certified only from its protected inflow and cash records',()=>{
