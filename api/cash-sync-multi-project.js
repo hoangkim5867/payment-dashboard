@@ -77,7 +77,8 @@ async function state(bearer,id,historySheetId,project=''){
  const legacy=tabByTitle(meta,VIEW);
  const main=project&&tabByTitle(meta,project);
  const modern=!!(mirrored&&!legacy&&main&&
-  historic.title===project+'_HISTORY_BACKUP'&&
+  (historic.title===project+'_HISTORY_BACKUP'||
+   (project==='PHU HUNG'&&historic.title==='PHU_HUNG_HISTORY_BACKUP'))&&
   historic.hidden===true&&main.sheetId!==historic.sheetId);
  const view=legacy||(modern?main:null);
  const humanView=modern;
