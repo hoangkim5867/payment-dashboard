@@ -341,7 +341,7 @@ export function summarizeMatchedHistoryReadOnly(results){
  const dateOrderOnly=results.filter(isDateOrderOnlyHistoryWarning).length;
  const withoutDate=results.filter(row=>row.result==='EXACT_HISTORY_ONLY').length;
  const otherReview=results.length-dateOrderOnly-withoutDate;
- const allRowsMatched=results.every(row=>
+ const allRowsMatched=results.length>0&&results.every(row=>
    (row.result==='EXACT_HISTORY_ONLY'||isDateOrderOnlyHistoryWarning(row))&&
    Number.isSafeInteger(row.sourceRows)&&
    row.exactMatches===row.sourceRows&&row.newerCandidates===0&&
