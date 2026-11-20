@@ -59,9 +59,17 @@ function totalFormula(j,through){const C=String.fromCharCode(65+j);
 function requireHumanMetadata(meta,{project,historySheetId}){
  const original=meta?.sheets?.find(s=>s.properties?.sheetId===historySheetId)?.properties;
  const mirror=meta?.sheets?.find(s=>s.properties?.title==='DATA_CASHCONTROL')?.properties;
- const visible=meta?.sheets?.find(s=>s.properties?.title===project)?.properties;
- if(!original||!(original.title===project+'_HISTORY_BACKUP'||
-    (project==='PHU HUNG'&&original.title==='PHU_HUNG_HISTORY_BACKUP'))||
+ const legacyTitle={'OCEAN LINK':'Ocean Link','H14-3':'H14-3',
+   SSIS:'SSIS','红鹤别墅1.1区':'红鹤别墅'}[project];
+ const legacy=meta?.sheets?.find(s=>s.properties?.title==='CASHCONTROL_VIEW')?.properties;
+ const migrated=!!(legacyTitle&&original?.title===legacyTitle&&
+   original.hidden===true&&legacy&&legacy.hidden!==true);
+ const visible=meta?.sheets?.find(s=>s.properties?.title===project)?.properties||
+   (migrated?legacy:null);
+ const goodHistory=original?.title===project+'_HISTORY_BACKUP'||
+   (project==='PHU HUNG'&&original?.title==='PHU_HUNG_HISTORY_BACKUP')||
+   migrated;
+ if(!original||!goodHistory||
     original.hidden!==true||
     !mirror||mirror.hidden!==true||!visible||visible.hidden===true||
     visible.sheetId===historySheetId||visible.sheetId===mirror.sheetId)
