@@ -64,8 +64,8 @@ function requireHumanMetadata(meta,{project,historySheetId}){
  const legacy=meta?.sheets?.find(s=>s.properties?.title==='CASHCONTROL_VIEW')?.properties;
  const migrated=!!(legacyTitle&&original?.title===legacyTitle&&
    original.hidden===true&&legacy&&legacy.hidden!==true);
- const visible=meta?.sheets?.find(s=>s.properties?.title===project)?.properties||
-   (migrated?legacy:null);
+ const visible=migrated?legacy:
+   meta?.sheets?.find(s=>s.properties?.title===project)?.properties;
  const goodHistory=original?.title===project+'_HISTORY_BACKUP'||
    (project==='PHU HUNG'&&original?.title==='PHU_HUNG_HISTORY_BACKUP')||
    migrated;
