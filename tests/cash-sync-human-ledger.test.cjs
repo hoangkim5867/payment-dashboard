@@ -123,3 +123,22 @@ test('PHU HUNG accepts its verified original underscored backup, never another p
  assert.throws(()=>human.requireHumanMetadata(visibleOriginal,{project:'PHU HUNG',
   historySheetId:1049774332}),/cấu trúc/);
 });
+
+test('PHU HUNG live Q5 zero-opening formula is valid only for first row with intact balances',()=>{
+ const project='PHU HUNG',month='2026-11';
+ const src=[{id:'PHU HUNG:expense:manual_1',project,month,
+  values:['2026-11-16','越籍员工工资','','2026年10月越籍员工工资',
+   '','职工薪酬',0,0,0,0,548412000,0,0]}];
+ const plan=core.planMonth({project,month,source:src,history:[],openingBalance:0});
+ const data=[['PHU HUNG项目现金流明细表'],['期间：2026-11 ~ 2026-11'],
+  ['日期','','','','','','','','','','','','','余额'],
+  [],[...plan.viewRows[0].values.slice(0,13),-548412000],
+  ['合计','','','','','',0,0,0,0,548412000,0,0,-548412000]];
+ const formulas=[[],[],[],[],['=$Q$5+G5-SUM(H5:M5)'],['=N5']];
+ assert.equal(human.verifyHumanView(data,formulas,plan,{project}),true);
+ assert.throws(()=>human.verifyHumanView(data,formulas,plan,{project:'EATON'}),/Công thức/);
+ const tampered=structuredClone(data);tampered[4][13]=-548411999;
+ assert.throws(()=>human.verifyHumanView(tampered,formulas,plan,{project}),/Số dư/);
+ const arbitrary=structuredClone(formulas);arbitrary[4][0]='=$Q$6+G5-SUM(H5:M5)';
+ assert.throws(()=>human.verifyHumanView(data,arbitrary,plan,{project}),/Công thức/);
+});
