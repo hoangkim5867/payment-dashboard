@@ -930,6 +930,7 @@ if(require.main===module){
    path.join(__dirname,'../tests/cash-multi-project-core.test.cjs'),
    path.join(__dirname,'../tests/cash-multi-project-adapter.test.cjs'),
    path.join(__dirname,'../tests/cash-sync-human-ledger.test.cjs'),
+   path.join(__dirname,'../tests/cash-sync-design-fee.test.cjs'),
    path.join(__dirname,'../tests/cash-multi-project-api.test.cjs'),
    path.join(__dirname,'../tests/cash-shared-test-history-audit.test.cjs'),
    path.join(__dirname,'../tests/cash-shared-test-idempotency.test.cjs'),
