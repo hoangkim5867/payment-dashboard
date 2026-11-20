@@ -136,7 +136,8 @@ test('PHU HUNG live Q5 zero-opening formula is valid only for first row with int
   ['合计','','','','','',0,0,0,0,548412000,0,0,-548412000]];
  const formulas=[[],[],[],[],['=$Q$5+G5-SUM(H5:M5)'],['=N5']];
  assert.equal(human.verifyHumanView(data,formulas,plan,{project}),true);
- assert.throws(()=>human.verifyHumanView(data,formulas,plan,{project:'EATON'}),/Công thức/);
+ const otherTitle=structuredClone(data);otherTitle[0][0]='EATON项目现金流明细表';
+ assert.throws(()=>human.verifyHumanView(otherTitle,formulas,plan,{project:'EATON'}),/Công thức/);
  const tampered=structuredClone(data);tampered[4][13]=-548411999;
  assert.throws(()=>human.verifyHumanView(tampered,formulas,plan,{project}),/Số dư/);
  const arbitrary=structuredClone(formulas);arbitrary[4][0]='=$Q$6+G5-SUM(H5:M5)';
