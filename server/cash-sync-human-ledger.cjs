@@ -7,6 +7,7 @@
  */
 const {normalizeMirror,MIRROR_HEADER}=require('./cash-sync-multi-project-adapter.cjs');
 const {net}=require('./cash-sync-multi-project-core.cjs');
+const {presentationValues}=require('./cash-sync-design-fee.cjs');
 const die=s=>{throw Object.assign(new Error(s),{statusCode:409})};
 const round=n=>Math.round(n*1e6)/1e6;
 const num=n=>n===''||n===undefined||n===null?0:Number(n);
@@ -87,10 +88,15 @@ function verifyHumanView(matrix,formulaRows,plan,{foxconn=false,project}={}){
   const record=body[i],actual=matrix[i+4]||[],v=record.values;
   if(String(actual[0]||'')!==v[0])
    die('Ngày giao dịch ở sổ hiển thị đã thay đổi.');
-  for(let j=6;j<balanceIndex;j++){
-   if(!same(num(actual[j]),v[j]))
-    die('Số tiền sổ hiển thị lệch tại '+String.fromCharCode(65+j)+(i+5)+'.');
-  }
+  // Read-only original backups retain the source classification. For
+  // history-bound design fees only, allow their original (legacy) or corrected
+  // DISPLAY bucket; the monetary total of each row remains unchanged.
+  const shown=record.origin==='HISTORY'?presentationValues(v):v;
+  const allowed=[shown];
+  if(shown!==v)allowed.push(v);
+  if(!allowed.some(candidate=>candidate.slice(6,balanceIndex)
+       .every((n,j)=>same(num(actual[j+6]),n))))
+   die('Số tiền hoặc phân loại sổ hiển thị lệch tại dòng '+(i+5)+'.');
   previous=round(previous+net(v));
   if(!sameCalculation(num(actual[balanceIndex]),previous))
    die('Số dư ở sổ hiển thị không khớp Cash Control.');
@@ -113,7 +119,8 @@ function verifyHumanView(matrix,formulaRows,plan,{foxconn=false,project}={}){
          '='+colLetter(foxconn)+(body.length+4)))
   die('Dòng tổng Google không khớp.');
  for(let j=6;j<balanceIndex;j++){
-  const sum=round(body.reduce((n,r)=>n+r.values[j],0));
+  const sum=round(matrix.slice(4,targetLength-1)
+    .reduce((n,r)=>n+num(r[j]),0));
   if(!sameCalculation(num(total[j]),sum))die('Dòng tổng chi phí/thu nhập Google không khớp.');
  }
  return true;
@@ -134,7 +141,8 @@ function humanRows(plan,previousPlan,previousRows,{project,foxconn=false}={}){
   // A correction keeps the human description but must update the displayed
   // payment date. Amount columns and all subsequent balances are regenerated.
   if((plan.corrections||[]).some(c=>c.id===b.sourceId))fresh[0]=b.values[0];
-  const vals=[...fresh,...b.values.slice(6,balanceIndex)];
+  const financial=b.origin==='HISTORY'?presentationValues(b.values):b.values;
+  const vals=[...fresh,...financial.slice(6,balanceIndex)];
   if(vals.length!==balanceIndex)die('Sai số cột sổ dự án.');
   out.push({values:[...vals.map(cell),cashCell(rowFormula(i,foxconn,opening))]});
  }
