@@ -1,0 +1,39 @@
+
+/* Noel skin — deliberately scoped to the Index page. Existing functionality is unchanged. */
+.noel-mode-toggle{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:none;min-height:34px;margin-left:12px;padding:5px 9px 5px 10px;border:1px solid #d9e2e8;border-radius:999px;background:#fff;color:#506477;font-size:11px;font-weight:800;white-space:nowrap;cursor:pointer;transition:background .2s,border-color .2s,box-shadow .2s}
+.noel-mode-toggle:focus-visible{outline:3px solid #5696b9;outline-offset:3px}
+.noel-mode-tree{font-size:17px;line-height:1}.noel-mode-track{display:inline-flex;align-items:center;width:35px;height:21px;padding:2px;border-radius:999px;background:#b4c0ca;transition:background .22s}.noel-mode-thumb{width:17px;height:17px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #172b3b44;transition:transform .22s}
+.noel-intro,.noel-garland,.noel-snowfall{display:none}
+html.noel-on body{background:radial-gradient(circle at 50% 10%,#fffaf2 0,#fffdf9 45%,#f2f8f6 100%)}
+html.noel-on .topbar{position:relative;z-index:3;border-bottom-color:#eadaca;background:rgba(255,253,248,.96);box-shadow:0 3px 24px rgba(113,75,27,.08)}
+html.noel-on .noel-mode-toggle{border-color:#b6d0b5;background:#f2faf1;color:#1e6b37;box-shadow:0 3px 13px #376b2a17}
+html.noel-on .noel-mode-track{background:linear-gradient(90deg,#18854b,#32aa62)}
+html.noel-on .noel-mode-thumb{transform:translateX(14px)}
+html.noel-on .workspace{width:min(1020px,100%);transition:width .25s}
+html.noel-on main{position:relative;z-index:1;padding-top:38px;padding-bottom:48px}
+html.noel-on .heading{position:relative;min-height:192px;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;margin-bottom:21px;padding:39px 24px 28px;border:1px solid rgba(204,180,139,.62);border-radius:23px;text-align:center;background-image:linear-gradient(90deg,rgba(255,250,242,.93) 0%,rgba(255,252,248,.90) 45%,rgba(255,250,244,.75) 100%),url('https://images.unsplash.com/photo-1702253681728-47b1e23c3360?auto=format&fit=crop&w=1400&q=76');background-position:center,right center;background-size:cover;box-shadow:0 18px 50px rgba(111,81,33,.11)}
+html.noel-on .heading:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 6% 78%,rgba(234,192,91,.32),transparent 23%),radial-gradient(circle at 95% 17%,rgba(215,174,83,.20),transparent 28%)}
+html.noel-on .heading h1{position:relative;z-index:2;color:#941b25;font-size:clamp(32px,4vw,47px);letter-spacing:-.035em;text-shadow:0 1px 0 #fff9e9}
+html.noel-on .noel-intro{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:7px;order:-1;margin-bottom:12px}
+html.noel-on .noel-intro-kicker{font-size:11px;font-weight:900;letter-spacing:.17em;color:#266342}
+html.noel-on .noel-intro-subtitle{position:relative;z-index:2;display:block;order:3;margin-top:5px;color:#856d55;font-size:12px;font-weight:600}
+html.noel-on .noel-garland{display:block;position:absolute;inset:0;z-index:1;background:url('../img/index-noel-garland.svg') center top / 100% 100% no-repeat;pointer-events:none}
+html.noel-on .card{border-color:#e9e0d8;background:rgba(255,255,255,.94);box-shadow:0 9px 30px #6f4b2212}
+html.noel-on .card:not(.card-disabled):hover{border-color:#d5b77b;box-shadow:0 17px 38px #a97c3b25}
+html.noel-on .card-primary{position:relative;border-color:#2c6046;color:#fff;background:linear-gradient(134deg,rgba(17,68,44,.93),rgba(20,87,53,.94)),url('https://images.unsplash.com/photo-1512389142860-9c449e58a543?auto=format&fit=crop&w=700&q=70') center / cover;box-shadow:0 16px 38px #22563e33}
+html.noel-on .card-primary h2{color:#fff}html.noel-on .card-primary p{color:#e1f0e8}
+html.noel-on .card-primary .icon{background:#ffffff24;color:#ffe7aa}
+html.noel-on .card-primary:after{content:'✦';position:absolute;right:19px;top:13px;color:#e9cc79;font-size:24px;opacity:.7;pointer-events:none}
+html.noel-on .card .icon{background:#f0f6ee;color:#276d4d}
+html.noel-on .card-primary .icon{background:#ffffff24;color:#ffe7aa}
+html.noel-on .card:not(.card-primary) .arrow{color:#b68a4b}
+html.noel-on .private-badge{background:#ffefd1;color:#8f5a11}
+html.noel-on .auth-gate{background-image:linear-gradient(135deg,rgba(251,251,247,.86),rgba(244,249,247,.87)),url('https://images.unsplash.com/photo-1702253681728-47b1e23c3360?auto=format&fit=crop&w=1400&q=65');background-position:center;background-size:cover}
+html.noel-on .login-card{border-color:#d9c5a1;box-shadow:0 25px 75px #6a4d3026}
+html.noel-on .login-submit{background:linear-gradient(100deg,#1b6946,#225939)}
+html.noel-on .noel-snowfall{display:block;position:fixed;inset:0;z-index:4;overflow:hidden;pointer-events:none}
+html.noel-on .noel-snowfall i{position:absolute;top:-8px;left:var(--snow-x);width:var(--snow-size);height:var(--snow-size);border-radius:50%;background:#fff;opacity:.7;box-shadow:0 0 3px rgba(150,184,204,.25);animation:index-noel-fall var(--snow-time) linear var(--snow-delay) infinite}
+@keyframes index-noel-fall{0%{transform:translate3d(0,-15px,0);opacity:0}8%{opacity:.75}92%{opacity:.6}100%{transform:translate3d(var(--snow-drift),105vh,0);opacity:0}}
+@media(max-width:820px){.noel-mode-toggle{margin-left:7px;padding:5px 7px}.noel-mode-label{display:none}html.noel-on .heading{min-height:174px}}
+@media(max-width:620px){.topbar{gap:6px;padding-left:12px;padding-right:12px}.brand{min-width:0;gap:5px}.brand span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px}.brand-mark{width:30px;height:30px;flex-basis:30px}.lang-switch{margin-left:auto}.lang-switch button{min-width:23px;padding:0 4px}.noel-mode-toggle{margin-left:0}.account-bar{margin-left:0}.account-copy{display:none}.logout-btn{padding:0 7px;font-size:9px}html.noel-on main{padding-top:25px}html.noel-on .heading{min-height:180px;padding:35px 16px 24px}html.noel-on .noel-garland{background-size:auto 100%}html.noel-on .noel-intro-kicker{font-size:9px;letter-spacing:.11em}html.noel-on .noel-intro-subtitle{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.noel-mode-toggle,.noel-mode-track,.noel-mode-thumb,html.noel-on .workspace{transition:none!important}html.noel-on .noel-snowfall i{animation:none!important;display:none!important}}
