@@ -34,7 +34,7 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
      "    if(new RegExp("+JSON.stringify(design.source)+","+
      JSON.stringify(design.flags)+").test(["+
      "txn.category,txn.description,txn.contractName,txn.contractType,"+
-     "txn.costType].join(' ')))return 'otherDirect';\\n"+marker);
+     "txn.costType].join(' ')))return 'otherDirect';\n"+marker);
  }
  if(target==='production'&&name==='cash-control.html'){
    // PHU HUNG uses its ALREADY ACTIVATED original-live pipeline:
