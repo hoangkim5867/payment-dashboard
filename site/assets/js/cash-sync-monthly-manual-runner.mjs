@@ -81,7 +81,7 @@ export async function runManualMonthlySync({
  requestSpacingMs=0,onProject
 }={}){
  if(!MONTH.test(month)||month<'2026-10'||!Array.isArray(projects)||
-    projects.length>35||typeof preview!=='function'||
+    projects.length>150||typeof preview!=='function'||
     typeof checkAdmin!=='function'||
     checkRelease!==undefined&&typeof checkRelease!=='function'||write&&
     (typeof commit!=='function'||typeof confirmBatch!=='function')||
