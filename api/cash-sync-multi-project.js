@@ -38,9 +38,13 @@ function validBody(payload){
    die('Thiếu ID giao dịch Cash Control gốc; chỉ có vị trí dòng Excel, KHÔNG ghi.',409);
  return payload;
 }
+// The Sheets per-user minute quota can be exhausted by many project
+// preflights, even with zero writes. Back off ONLY idempotent GETs on 429
+// and transient 5xx, honoring Retry-After. Never repeat batchUpdate POST.
+const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function google(bearer,id,extra,method='GET',body=null){
- const read=method==='GET';
- for(let attempt=0;attempt<(read?2:1);attempt++){
+ const read=method==='GET',maxAttempts=read?5:1;
+ for(let attempt=0;attempt<maxAttempts;attempt++){
   let result;
   try{
    result=await fetch(prefix+encodeURIComponent(id)+extra,{
@@ -48,19 +52,25 @@ async function google(bearer,id,extra,method='GET',body=null){
     ...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(read?12000:28000)
    });
   }catch{
-   if(!read||attempt)die('Kết nối Google Sheets bị gián đoạn.',502);
+   if(!read||attempt===maxAttempts-1)die('Kết nối Google Sheets bị gián đoạn.',502);
+   await pause(Math.min(1000*2**attempt,8000));continue;
   }
   if(result?.ok){
-   try{return await result.json();}
-   catch{die('Google Sheets trả về dữ liệu không đọc được.',502);}
+   try{return await result.json()}
+   catch{die('Google Sheets trả về dữ liệu không đọc được.',502)}
   }
-  if(result&&(!read||attempt||![429,500,502,503,504].includes(result.status))){
-   const reason=result.status===429?'vượt giới hạn lượt đọc':
-     result.status===401||result.status===403?'phiên Google hoặc quyền truy cập cần kiểm tra':
-     'yêu cầu không thành công';
-   die('Google Sheets HTTP '+result.status+' · '+reason+'.',502);
+  const retryable=read&&[429,500,502,503,504].includes(result.status);
+  if(retryable&&attempt<maxAttempts-1){
+   const retryAfter=Number(result.headers?.get?.('retry-after'));
+   const recommended=Number.isFinite(retryAfter)&&retryAfter>0?
+     retryAfter*1000:2500*2**attempt;
+   await pause(Math.max(1250,Math.min(12000,recommended)));
+   continue;
   }
-  await new Promise(resolve=>setTimeout(resolve,500));
+  const reason=result.status===429?'vượt giới hạn lượt đọc; chưa gửi lệnh ghi': 
+    result.status===401||result.status===403?'phiên Google hoặc quyền truy cập cần kiểm tra':
+    'yêu cầu không thành công';
+  die('Google Sheets HTTP '+result.status+' · '+reason+'.',502);
  }
 }
 const tabById=(meta,id)=>meta.sheets?.find(x=>x.properties?.sheetId===id)?.properties;
