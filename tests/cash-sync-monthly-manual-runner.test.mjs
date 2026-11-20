@@ -244,3 +244,27 @@ test('changed correction amounts after approval stop before any Google write',as
  assert.equal(result.summary.failed,1);
  assert.equal(result.rows[0].reason,'CORRECTION_DETAILS_CHANGED_REVIEW_AGAIN');
 });
+
+test('36 catalog projects are accepted while no eligible data causes zero Sheets calls',async()=>{
+ const projects=Array.from({length:36},(_,i)=>make('CAT'+i,{activityConfirmed:false}));
+ let reads=0;
+ const result=await runManualMonthlySync({month:MONTH,projects,write:false,
+   checkAdmin:async()=>true,
+   preview:async()=>{reads++;throw Error('NO_GOOGLE_PREVIEW')}});
+ assert.equal(result.summary.projects,36);
+ assert.equal(result.summary.skipped,36);
+ assert.equal(reads,0);
+});
+test('paced monthly runner preserves per-project order with a small inter-request gap',async()=>{
+ const calls=[];
+ const result=await runManualMonthlySync({
+  month:MONTH,projects:[make('CN8-2'),make('CR5-1B')],
+  requestSpacingMs:3,write:true,checkAdmin:async()=>true,confirmBatch:async()=>true,
+  preview:async b=>{calls.push(['preview',b.project]);return ok(b)},
+  commit:async b=>{calls.push(['commit',b.project]);return {...ok(b),mode:'verified',writes:1}}
+ });
+ assert.deepEqual(calls,[['preview','CN8-2'],['preview','CR5-1B'],
+   ['preview','CN8-2'],['commit','CN8-2'],
+   ['preview','CR5-1B'],['commit','CR5-1B']]);
+ assert.equal(result.summary.verified,2);
+});
