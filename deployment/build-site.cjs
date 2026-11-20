@@ -23,6 +23,19 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
  let configs=0,indexReadGuards=0,v2PageGuards=0;
  for(const name of fs.readdirSync(out).filter(n=>n.endsWith('.html'))){const file=path.join(out,name);let text=fs.readFileSync(file,'utf8');const pattern=/const firebaseConfig\s*=\s*\{[\s\S]*?\};/g;
  text=text.replace(pattern,original=>{configs++;return target==='staging'?'const firebaseConfig='+JSON.stringify(stagingConfig)+';':original});
+ if(name==='cash-control.html'){
+   // Cash Control Excel (and its Google monthly source projection) use one
+   // classification. Design service fees are direct project costs, never
+   // 其他应付款. Do not alter the stored Payment or Cash Control document.
+   const design=require('../server/cash-sync-design-fee.cjs').DESIGN;
+   const marker="    if(source==='history_cash') return 'taxDeposit';";
+   if(!text.includes(marker))throw Error('Cash Control design-bucket anchor moved');
+   text=text.replace(marker,
+     "    if(new RegExp("+JSON.stringify(design.source)+","+
+     JSON.stringify(design.flags)+").test(["+
+     "txn.category,txn.description,txn.contractName,txn.contractType,"+
+     "txn.costType].join(' ')))return 'otherDirect';\\n"+marker);
+ }
  if(target==='production'&&name==='cash-control.html'){
    // PHU HUNG uses its ALREADY ACTIVATED original-live pipeline:
    // visible "PHU HUNG" + hidden "DATA_CASHCONTROL" +
