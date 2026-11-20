@@ -95,7 +95,15 @@ function verifyHumanView(matrix,formulaRows,plan,{foxconn=false,project}={}){
   if(!sameCalculation(num(actual[balanceIndex]),previous))
    die('Số dư ở sổ hiển thị không khớp Cash Control.');
   const expected=rowFormula(i,foxconn,opening);
-  if(String(formulaRows[i+4]?.[0]||'')!==expected)
+  const actualFormula=String(formulaRows[i+4]?.[0]||'');
+  // PHU HUNG's original February 2026 pilot uses a ZERO opening-balance
+  // anchor at Q5. Preserve it as a recognized legacy first-row formula,
+  // but ONLY if the independently recomputed balance of every row matches.
+  // On the next authorized update the machine regenerates the canonical
+  // first-row formula. Other projects/rows cannot use this exception.
+  const legacyPilotOpening=project==='PHU HUNG'&&!foxconn&&i===0&&
+    opening===0&&actualFormula==='=$Q$5+G5-SUM(H5:M5)';
+  if(actualFormula!==expected&&!legacyPilotOpening)
    die('Công thức số dư ở sổ hiển thị đã bị sửa.');
  }
  const total=matrix[targetLength-1]||[];
