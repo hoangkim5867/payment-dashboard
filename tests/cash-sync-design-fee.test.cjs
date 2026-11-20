@@ -65,3 +65,18 @@ test('migrated old-view workbooks accept only exact hidden originals and machine
    assert.throws(()=>human.requireHumanMetadata(meta,{project,historySheetId:42}),/cấu trúc/);
  }
 });
+
+test('historical design fee erroneously in indirect is projected into direct, preserving original',()=>{
+ for(const [label,amount] of [['设计费',231000000],['服务合同',209697660]]){
+  const v=['2025-01-23','PROMEC','-DC-001','图纸深化设计服务合同','IPC001',label,
+   0,0,0,0,amount,0,0,400000000];
+  const unchanged=structuredClone(v);
+  const corrected=presentationValues(v);
+  assert.equal(corrected[9],amount);
+  assert.equal(corrected[10],0);
+  assert.equal(corrected[12],0);
+  assert.deepEqual(v,unchanged);
+  assert.equal(corrected.slice(6,13).reduce((n,x)=>n+x,0),
+   v.slice(6,13).reduce((n,x)=>n+x,0));
+ }
+});
