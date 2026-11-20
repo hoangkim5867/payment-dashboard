@@ -150,6 +150,8 @@ function buildCashSyncPanel(html) {
   swap("      list.style.cssText=\"list-style:none;padding:0;margin:0;display:grid;gap:7px\";", "      list.className='cc-sync-list';");
   const marker = '      const mark=(project,message)=>{';
   cut(marker, '      for(const group of manifest.groups){');
+  swap('        month,projects:targets,write:true,',
+    '        month,projects:targets,write:true,requestSpacingMs:4500,');
   swap('      const listRows=new Map(),targets=[];', '      const listRows=new Map(),targets=[];\n      const mark=(project,message,row)=>markCashSyncProject(list,listRows,project,message,row);');
   const onProject = html.indexOf('          mark(row.project,(note[row.status]||row.status)+');
   const end = html.indexOf('\n        }\n      });', onProject);
