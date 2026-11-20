@@ -158,7 +158,16 @@ function buildCashSyncPanel(html) {
   const finalStart = "      status.textContent=(result.mode==='NOT_APPROVED'?";
   cut(finalStart, '      renderCashSyncSummary(month,result,pilotMode,list);');
   swap('      renderCashSyncSummary(month,result,pilotMode,list);',
-    "      status.textContent='';\n      renderCashSyncSummary(month,result,pilotMode,list);");
+    "      // The runner only sends active projects. Display the full 36-project\n"+
+    "      // catalog without treating missing loaded rows as verified inactivity.\n"+
+    "      for(const group of manifest.groups){\n"+
+    "        if(listRows.has(group.project))continue;\n"+
+    "        const missingLink=!group.hasGoogleLink;\n"+
+    "        mark(group.project,'',{status:missingLink?'MISSING_LINK':'NO_ACTIVITY',\n"+
+    "          reason:missingLink?'NO_ROWS_MISSING_GOOGLE_LINK':'NO_ROWS_IN_LOADED_MEMORY'});\n"+
+    "      }\n"+
+    "      status.textContent='';\n"+
+    "      renderCashSyncSummary(month,result,pilotMode,list);");
   const catalogPermission = '    if(projectLinkCatalog)projectLinkCatalog.hidden=!(currentAuthUser&&isCashControlOwner());';
   swap(catalogPermission, catalogPermission+
     "\n    $('ccSyncSecondaryTools').hidden=!(currentAuthUser&&isCashControlOwner());");
