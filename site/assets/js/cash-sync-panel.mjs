@@ -5,6 +5,8 @@ const statusInfo = {
   SKIPPED: ['Bỏ qua', 'neutral'],
   READY: ['Chờ xác nhận', 'warn'],
   PREVIEW_ONLY: ['Chỉ xem trước', 'neutral'],
+  NO_ACTIVITY: ['Chưa có dòng tháng này', 'neutral'],
+  MISSING_LINK: ['Chưa có link Google', 'neutral'],
 };
 
 const reasonText = {
@@ -16,6 +18,8 @@ const reasonText = {
   SOURCE_ROWS_MISSING: 'Chưa tải được giao dịch của tháng này.',
   ADMIN_SESSION_EXPIRED: 'Phiên Admin đã hết hạn.',
   PREVIOUS_WRITE_UNCERTAIN_REQUIRE_GOOGLE_READBACK: 'Cần đọc lại kết quả của dự án trước.',
+  NO_ROWS_IN_LOADED_MEMORY: 'Không có dòng trong nguồn tháng đang tải; chưa kết luận dự án không phát sinh.',
+  NO_ROWS_MISSING_GOOGLE_LINK: 'Không có dòng trong nguồn tháng đang tải và chưa có link Google; chưa kết luận không phát sinh.',
 };
 
 function element(tag, className, text) {
@@ -63,7 +67,8 @@ export function markCashSyncProject(list, entries, project, message, row) {
   const detail = row ?
     (status === 'FAILED' ? reasonText[row.reason] ?? row.reason :
      status === 'SKIPPED' ? reasonText[row.reason] ?? reasonText[row.releaseReason] ?? 'Chưa đủ điều kiện.' :
-     status === 'PREVIEW_ONLY' ? 'Máy chủ chưa mở quyền ghi cho file này.' : '') :
+     status === 'PREVIEW_ONLY' ? 'Máy chủ chưa mở quyền ghi cho file này.' :
+     status === 'NO_ACTIVITY' || status === 'MISSING_LINK' ? reasonText[row.reason] : '') :
     (status === 'FAILED' || status === 'SKIPPED' ? message : '');
   item.replaceChildren(element('strong', '', project),
     element('span', 'cc-sync-badge', label), element('span', 'cc-sync-balance', balance));
@@ -73,16 +78,16 @@ export function markCashSyncProject(list, entries, project, message, row) {
 export function renderCashSyncSummary(month, result, pilotMode, list) {
   const summary = document.getElementById('ccSyncOwnerSummary');
   const rows = [...list.children];
-  const priority = ['FAILED','READY','SKIPPED','PREVIEW_ONLY','VERIFIED','UNCHANGED'];
+  const priority = ['FAILED','READY','SKIPPED','PREVIEW_ONLY','VERIFIED','UNCHANGED','MISSING_LINK','NO_ACTIVITY'];
   rows.sort((a,b)=>priority.indexOf(a.dataset.status)-priority.indexOf(b.dataset.status));
   list.append(...rows);
   const title = result.mode==='NOT_APPROVED' ? 'Đã hủy xác nhận ghi' :
     'Kết quả tháng '+month.slice(5)+'/'+month.slice(0,4);
   summary.replaceChildren(element('strong','',title));
   const tiles = element('div','cc-sync-outcomes');
-  for (const status of ['VERIFIED','UNCHANGED','FAILED','SKIPPED','PREVIEW_ONLY','READY']) {
+  for (const status of ['VERIFIED','UNCHANGED','FAILED','SKIPPED','PREVIEW_ONLY','READY','MISSING_LINK','NO_ACTIVITY']) {
     const count = rows.filter(row=>row.dataset.status===status).length;
-    if (!count && ['SKIPPED','PREVIEW_ONLY','READY'].includes(status)) continue;
+    if (!count && ['SKIPPED','PREVIEW_ONLY','READY','MISSING_LINK','NO_ACTIVITY'].includes(status)) continue;
     const [label,tone] = statusInfo[status];
     const tile = element('div','cc-sync-outcome');
     tile.dataset.tone = tone;
@@ -90,6 +95,8 @@ export function renderCashSyncSummary(month, result, pilotMode, list) {
     tiles.append(tile);
   }
   summary.append(tiles);
+  summary.append(element('small','',
+    'Hiển thị đủ danh mục dự án; các mục chưa có dòng chỉ phản ánh nguồn tháng đang tải, không phải xác nhận không phát sinh.'));
   if (pilotMode==='not-run' && rows.some(row=>row.dataset.status==='FAILED'))
     summary.append(element('small','','Xem lý do ở từng dự án cần kiểm tra.'));
   if (rows.length) {
