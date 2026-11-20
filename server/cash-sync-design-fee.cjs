@@ -9,11 +9,12 @@ function isDesignFee(...values){
 function presentationValues(values){
  if(!Array.isArray(values)||values.length<13||
     !isDesignFee(values[5],values[3]))return values;
- const payable=Number(values[12]||0),direct=Number(values[9]||0);
- if(!Number.isFinite(payable)||payable<=0||!Number.isFinite(direct)||
-    direct!==0)return values;
- const out=values.slice();
- out[9]=payable;out[12]=0;
+ const direct=Number(values[9]||0);
+ const wrong=[10,12].filter(i=>Number(values[i]||0)>0);
+ if(!Number.isFinite(direct)||direct!==0||wrong.length!==1)return values;
+ const source=wrong[0],amount=Number(values[source]);
+ if(!Number.isFinite(amount)||amount<=0)return values;
+ const out=values.slice();out[9]=amount;out[source]=0;
  return out;
 }
 module.exports={DESIGN,isDesignFee,presentationValues};
