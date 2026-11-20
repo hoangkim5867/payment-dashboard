@@ -90,8 +90,17 @@ async function state(bearer,id,historySheetId,project=''){
   (historic.title===project+'_HISTORY_BACKUP'||
    (project==='PHU HUNG'&&historic.title==='PHU_HUNG_HISTORY_BACKUP'))&&
   historic.hidden===true&&main.sheetId!==historic.sheetId);
+ // Some established workbooks still expose the original history tab and
+ // a machine-readable CASHCONTROL_VIEW. After a verified one-time layout
+ // migration, the same original gid is hidden and CASHCONTROL_VIEW becomes
+ // the visible Chinese ledger, without changing any history, mirror or link.
+ const legacyHistoryNames={'OCEAN LINK':'Ocean Link','H14-3':'H14-3',
+   SSIS:'SSIS','红鹤别墅1.1区':'红鹤别墅'};
+ const migratedLegacy=!!(mirrored&&legacy&&historic.hidden===true&&
+   historic.title===legacyHistoryNames[project]&&
+   legacy.hidden!==true&&mirrored.hidden===true);
  const view=legacy||(modern?main:null);
- const humanView=modern;
+ const humanView=modern||migratedLegacy;
  if(project==='PHU HUNG'&&mirrored&&!view&&
     tabByTitle(meta,'PHU HUNG')&&
     tabByTitle(meta,'PHU_HUNG_HISTORY_BACKUP'))
