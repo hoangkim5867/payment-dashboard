@@ -78,15 +78,27 @@ function verifyReply(response,item){
  */
 export async function runManualMonthlySync({
  month,projects,preview,commit,confirmBatch,checkAdmin,checkRelease,write=false,
- onProject
+ requestSpacingMs=0,onProject
 }={}){
  if(!MONTH.test(month)||month<'2026-10'||!Array.isArray(projects)||
     projects.length>35||typeof preview!=='function'||
     typeof checkAdmin!=='function'||
     checkRelease!==undefined&&typeof checkRelease!=='function'||write&&
-    (typeof commit!=='function'||typeof confirmBatch!=='function'))
+    (typeof commit!=='function'||typeof confirmBatch!=='function')||
+    !Number.isSafeInteger(requestSpacingMs)||requestSpacingMs<0||requestSpacingMs>10000)
    throw Error('INVALID_BATCH_INPUT');
  const rows=[],candidates=[],names=new Set(),reviewedCorrections=new Map();
+ // Spread authenticated preflights across the Google Sheets per-user minute
+ // quota. Do not add background listeners or retries to ambiguous writes.
+ let lastRequestAt=0;
+ const paced=async(fn,body)=>{
+  if(requestSpacingMs&&lastRequestAt){
+   const delay=requestSpacingMs-(Date.now()-lastRequestAt);
+   if(delay>0)await new Promise(resolve=>setTimeout(resolve,delay));
+  }
+  lastRequestAt=Date.now();
+  return fn(body);
+ };
  for(const item of projects){
   const name=text(item?.project);
   if(!name||names.has(name))throw Error('DUPLICATE_OR_INVALID_PROJECT');
@@ -107,7 +119,7 @@ export async function runManualMonthlySync({
    rows.push(row);onProject?.(row);break;
   }
   try{
-   const response=await preview(cleanInput({month,item,action:'preview'}));
+   const response=await paced(preview,cleanInput({month,item,action:'preview'}));
    const s=verifyReply(response,{...item,month});
    if(!response?.signature||!/^[a-f0-9]{64}$/.test(response.signature))
     throw Error('SERVER_SIGNATURE_MISSING');
@@ -146,7 +158,7 @@ export async function runManualMonthlySync({
   }
   let attemptedCommit=false;
   try{
-   const fresh=await preview(cleanInput({month,item,action:'preview'}));
+   const fresh=await paced(preview,cleanInput({month,item,action:'preview'}));
    const proof=verifyReply(fresh,{...item,month});
    if(JSON.stringify(proof.corrections||[])!==
       reviewedCorrections.get(item.project))
@@ -161,7 +173,7 @@ export async function runManualMonthlySync({
     // Once a Google write request is issued, an error may be an ambiguous
     // success. Stop the remaining batch and require a fresh Google readback.
     attemptedCommit=true;
-    const written=await commit(cleanInput({
+    const written=await paced(commit,cleanInput({
      month,item,action:'commit',signature:fresh.signature,
      corrections:(proof.corrections||[]).length>0
     }));
