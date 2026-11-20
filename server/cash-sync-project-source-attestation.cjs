@@ -12,6 +12,7 @@
  * a 187-document monthly Payment query or from a cached spreadsheet.
  */
 const {sha,parseValues}=require('./cash-sync-multi-project-core.cjs');
+const {isDesignFee}=require('./cash-sync-design-fee.cjs');
 const {readFields,SEED_HASH}=require('./cash-sync-s13-source-integrity.cjs');
 const {createHash}=require('node:crypto');
 const norm=v=>String(v??'').normalize('NFKC').trim();
@@ -35,6 +36,7 @@ function category(raw,project){
  if(/(?:招标|投标)(?:文件|资料).*购买费|(?:购买|购置).*(?:招标|投标)(?:文件|资料)/.test(details))return 9;
  if(/(?:投标|履约|预付款)保函.*手续费/.test(details))return 11;
  if(/投标保证金|投标押金/.test(details))return 9;
+ if(isDesignFee(raw?.costType,...[raw?.contractName,raw?.note,raw?.remark,raw?.description,raw?.content]))return 9;
  if(/材料|vật tư|vat tu/.test(c))return 8;
  if(/分包|thầu phụ|thau phu/.test(c))return 7;
  if(/劳务|nhân công|nhan cong/.test(c))return 9;
@@ -52,6 +54,7 @@ function category(raw,project){
 function manualCashBucket(cash){
  const text=[cash.category,cash.description,cash.contractType].map(norm).join(' ').toLowerCase();
  if(/工资|奖金|lương|luong|thưởng|thuong|bảo hiểm|bao hiem|保险|社保|công đoàn|cong doan|工会|伙食|tiền ăn|tien an|个税|所得税|thuế\s*tncn|thue\s*tncn/.test(text))return null;
+ if(isDesignFee(cash.category,cash.description,cash.contractType,cash.contractName))return 9;
  if(/材料|vật tư|vat tu/.test(text))return 8;
  if(/分包|thầu phụ|thau phu/.test(text))return 7;
  if(/劳务|nhân công|nhan cong|其他直接|chi trực tiếp|chi truc tiep/.test(text))return 9;
