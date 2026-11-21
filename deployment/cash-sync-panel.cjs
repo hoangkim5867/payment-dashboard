@@ -86,6 +86,9 @@ function buildCashSyncPanel(html) {
             'Chỉ cập nhật dòng hệ thống và số dư chạy; giữ nguyên sổ gốc. Đồng ý?');
         },
 `+html.slice(approvalEnd);
+  swap('↗ Google Sheets · Cập nhật</button>', '↗ Đồng bộ Google Sheets · CHÍNH THỨC</button>');
+  swap('<div><h3>Đồng bộ Google Sheets</h3>',
+    '<div><h3>Đồng bộ Google Sheets · CHÍNH THỨC</h3><p style="margin:4px 0 0;font-size:12px;color:#506174">Dùng chung cho các dự án; đối chiếu và duyệt trước khi ghi. Không dùng màn hình TEST PHU HUNG.</p>');
   swap('<div class="modal" id="ccGoogleSyncPreviewModal">\n  <div class="mbox"',
     '<style>'+stylesheet+'</style>\n<div class="modal" id="ccGoogleSyncPreviewModal">\n  <div class="mbox cc-sync"');
   const summary = cut('<div id="ccSyncOwnerSummary"', '<details id="ccGoogleSyncProjectLinkCatalog"');
@@ -95,10 +98,14 @@ function buildCashSyncPanel(html) {
     '<details id="ccSyncFoxconnTestProbeArea"');
   const internal = cut('<details id="ccSyncFoxconnTestProbeArea"', '\n      </details>\n    </section>');
   const legacy = cut('<details id="ccGoogleSyncLegacyPilot"', '    <div class="mfoot">\n      <span style="color:#6d7890;font-size:12px">Chưa bật ghi đồng bộ chung.');
+  // Retain legacy elements for backwards-compatible OAuth initialization,
+  // but NEVER show the obsolete PHU HUNG TEST write screen to an Admin.
+  const hiddenLegacy=legacy.replace('<details id="ccGoogleSyncLegacyPilot"',
+    '<details id="ccGoogleSyncLegacyPilot" hidden');
   swap('    <div class="mfoot">\n      <span style="color:#6d7890;font-size:12px">Chưa bật ghi đồng bộ chung. Chỉ thao tác thủ công có xác nhận của Admin; giữ nguyên các tab lịch sử.</span>',
     '<div class="cc-sync-tools" id="ccSyncSecondaryTools" hidden>'+links+
     '<details><summary>Tải báo cáo Excel</summary><div class="cc-sync-tools-body">'+report+'</div></details>'+
-    '<details><summary>Công cụ kỹ thuật</summary><div class="cc-sync-tools-body">'+bridge+internal+legacy+'</div></details>'+
+    '<details><summary>Công cụ kỹ thuật</summary><div class="cc-sync-tools-body">'+bridge+internal+hiddenLegacy+'</div></details>'+
     '</div>\n    <div class="mfoot">');
   swap('<div class="csub">Dành cho Admin · Chỉ bổ sung giao dịch mới, giữ nguyên sổ lịch sử.</div>', '');
   swap('<section style="margin:14px 0;padding:16px;border:1px solid #dbe4f0;border-radius:12px;background:#f8fafc">',
