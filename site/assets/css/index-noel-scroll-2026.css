@@ -72,3 +72,26 @@ html.noel-motion-on .noel-functions-desc{display:none!important}
  html.noel-motion-on .topbar .brand-mark{width:35px;height:35px;flex-basis:35px}
  html.noel-motion-on .topbar .brand span{font-size:10px}
 }
+
+/* Closing scene: preserve the beloved dark-green section, give the headline a soft holiday shimmer. */
+html.noel-motion-on .noel-ending{
+  background:radial-gradient(ellipse at 50% 15%,rgba(221,177,100,.15),transparent 42%),
+    radial-gradient(circle at 10% 80%,rgba(233,193,115,.09),transparent 30%),
+    radial-gradient(circle at 91% 25%,rgba(232,192,114,.075),transparent 28%),
+    radial-gradient(circle at 16% 95%,#1c4b3c 0%,transparent 40%),
+    linear-gradient(130deg,#0d2721,#112a25 55%,#1b332c);
+}
+html.noel-motion-on .noel-ending-title{
+  text-shadow:0 3px 30px rgba(223,188,115,.15);
+}
+html.noel-motion-on .noel-ending-stars{
+  color:#efd5a0;font-size:27px;letter-spacing:.65em;line-height:1;
+  text-align:center;margin:0 auto 28px;padding-left:.65em;
+  text-shadow:0 0 9px rgba(255,211,125,.62),0 0 24px rgba(230,180,84,.38);
+  animation:noel-ending-glow 3.8s ease-in-out infinite alternate;
+}
+@keyframes noel-ending-glow{
+  from{opacity:.65;filter:brightness(.92)}
+  to{opacity:1;filter:brightness(1.22)}
+}
+@media(prefers-reduced-motion:reduce){html.noel-motion-on .noel-ending-stars{animation:none}}
