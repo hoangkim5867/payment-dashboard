@@ -16,36 +16,39 @@
     vi: {
       mode:'Chế độ Noel', turnOn:'Bật chế độ Noel', turnOff:'Tắt chế độ Noel',
       kicker:'WINTER EDITION · 2026', line1:'Merry',line2:'Christmas.',
+      intro:'Giữa bộn bề công việc, vẫn có những khoảnh khắc lung linh.',
       action:'Khám phá chức năng',hint:'Cuộn để khám phá',
       chapter:'01  /  KHÔNG GIAN LÀM VIỆC',
       functionsIntro:'Mọi công cụ, trong một không gian.',
       detail:'',
       finaleKicker:'CSCEC MEP · HOLIDAY SEASON',
-      finaleTitle:'',
+      finaleTitle:'Khi mùa lễ hội thắp sáng những ngày cuối năm.',
       finaleDesc:'',
       back:'Trở lại các chức năng',footer:'CSCEC MEP · CHÚC MỘT MÙA GIÁNG SINH AN LÀNH'
     },
     zh: {
       mode:'圣诞模式',turnOn:'开启圣诞模式',turnOff:'关闭圣诞模式',
       kicker:'冬季特别版 · 2026',line1:'Merry',line2:'Christmas.',
+      intro:'忙碌的工作中，也藏着闪闪发光的小美好。',
       action:'浏览功能',hint:'向下滚动',
       chapter:'01  /  工作空间',
       functionsIntro:'所有工具，尽在一处。',
       detail:'',
       finaleKicker:'CSCEC MEP · 圣诞季',
-      finaleTitle:'',
+      finaleTitle:'当节日的灯火点亮岁末时光。',
       finaleDesc:'',
       back:'返回功能区',footer:'CSCEC MEP · 圣诞快乐'
     },
     en: {
       mode:'Christmas mode',turnOn:'Turn Christmas mode on',turnOff:'Turn Christmas mode off',
       kicker:'WINTER EDITION · 2026',line1:'Merry',line2:'Christmas.',
+      intro:'Even in the midst of busy days, little moments still sparkle.',
       action:'Explore workspace',hint:'Scroll to explore',
       chapter:'01  /  YOUR WORKSPACE',
       functionsIntro:'Every tool, one workspace.',
       detail:'',
       finaleKicker:'CSCEC MEP · HOLIDAY SEASON',
-      finaleTitle:'',
+      finaleTitle:"When festive lights brighten the year's final days.",
       finaleDesc:'',
       back:'Back to functions',footer:'CSCEC MEP · WISHING YOU A MERRY CHRISTMAS'
     }
@@ -75,6 +78,7 @@
     <div class="noel-hero-content">
       <div class="noel-overline"><span class="noel-line"></span><span data-noel-text="kicker"></span></div>
       <h2 class="noel-headline"><span data-noel-text="line1"></span><span class="noel-accent" data-noel-text="line2"></span></h2>
+      <p class="noel-hero-lead" data-noel-text="intro"></p>
       <div class="noel-hero-actions"><button type="button" class="noel-hero-cta" id="noelExplore"><span data-noel-text="action"></span><span aria-hidden="true">↗</span></button><span class="noel-hero-caption">CSCEC MEP / 2026</span></div>
     </div><div class="noel-scroll-hint"><span data-noel-text="hint"></span></div>`;
   workspace.prepend(hero);
@@ -91,7 +95,11 @@
   });
   originalHeading.classList.add('noel-reveal');
 
-  // End after real cards; no extra slogans or duplicate CTAs.
+  // Keep the original evergreen closing section, with a fresh message and restrained festive shimmer.
+  const ending=document.createElement('section');ending.className='noel-ending noel-reveal';
+  ending.innerHTML='<div class="noel-ending-kicker" data-noel-text="finaleKicker"></div><h2 class="noel-ending-title" data-noel-text="finaleTitle"></h2><div class="noel-ending-stars" aria-hidden="true">✦ &nbsp; ✧ &nbsp; ✦</div><button class="noel-ending-btn" type="button" id="noelBack" data-noel-text="back"></button>';
+  workspace.append(ending);
+  const footer=document.createElement('div');footer.className='noel-bottom-cue';footer.setAttribute('data-noel-text','footer');workspace.append(footer);
 
   // Lightweight snowfall in the hero alone (never a screenshot overlay, never covers controls).
   if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
@@ -116,7 +124,7 @@
   }catch(_){enabled=true;}
 
   const motionReduce=matchMedia('(prefers-reduced-motion: reduce)');
-  const revealItems=[eyebrow,originalHeading,...grid.querySelectorAll('.card')];
+  const revealItems=[eyebrow,originalHeading,...grid.querySelectorAll('.card'),ending];
   let observer=null;
   const startReveals=()=>{
     if(motionReduce.matches||!('IntersectionObserver' in window)){
@@ -162,6 +170,7 @@
     window.scrollTo({top:0,behavior:'instant'});
   });
   document.getElementById('noelExplore')?.addEventListener('click',()=>sections.scrollIntoView({behavior:motionReduce.matches?'instant':'smooth',block:'start'}));
+  document.getElementById('noelBack')?.addEventListener('click',()=>sections.scrollIntoView({behavior:motionReduce.matches?'instant':'smooth',block:'start'}));
   // Original language handler runs in the existing script. Refresh this module afterward.
   langSwitcher.addEventListener('click',event=>{if(event.target.closest('[data-lang]'))setTimeout(translate,0);});
   const activeLangObserver=new MutationObserver(translate);
