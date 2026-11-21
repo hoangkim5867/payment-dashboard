@@ -425,6 +425,92 @@
     return Object.freeze({candidates:result,count:result.length,
       candidateOnly:true,canWrite:false,approvedWrites:0});
   }
+  // ELYSIAN: explanation layer for the existing independent October+ review.
+  // Do not reclassify monetary signatures as verified duplicates or grant writes.
+  // Payroll/leave have no contract/IPC by design; their identity is still
+  // subject to individual person/source verification. Inter-project transfers
+  // must match signed amounts AND date before being considered a counterpart.
+  function reviewElysianExceptions(historyRows,sourceRows,comparison){
+    if(!Array.isArray(historyRows)||!Array.isArray(sourceRows)||
+       historyRows.length>20000||sourceRows.length>20000||
+       !comparison||typeof comparison!=='object')
+      throw Error('INVALID_ELYSIAN_REVIEW_INPUT');
+    const clean=v=>String(v??'').normalize('NFKC').trim().replace(/\\s+/g,' ').toUpperCase();
+    const payroll=/(?:LƯƠNG|TIỀN ĂN|BẢO HIỂM|PHÍ CÔNG ĐOÀN|工资|伙食|保险|工会)/i;
+    const leave=/(?:探亲|年休假|NGHỈ PHÉP|THĂM THÂN)/i;
+    const transfer=/(?:FOXCONN)/i;
+    const isRepayment=v=>transfer.test(clean(v))&&
+      /(?:HOÀN TRẢ|HOAN TRA|归还|还款|VAY|借款)/i.test(clean(v));
+    const blankContract=row=>!clean(row?.contractNo)&&!clean(row?.ipc);
+    const positions=v=>Array.isArray(v)?v.filter(n=>
+      Number.isSafeInteger(n)&&n>0):[];
+    const employeeMetadataPositions=positions(comparison.identityConflictPositions).filter(
+      n=>{const row=sourceRows[n-1];return row&&blankContract(row)&&payroll.test(clean(row.content))});
+    const leaveIdentityPositions=positions(comparison.identityUnverifiedPositions).filter(
+      n=>{const row=sourceRows[n-1];return row&&blankContract(row)&&leave.test(clean(row.content))});
+    const onlyCash=positions(comparison.sourceOnlyPositions);
+    const onlyGoogle=positions(comparison.historyOnlyPositions);
+    const transferSource=onlyCash.filter(n=>isRepayment(sourceRows[n-1]?.content));
+    const transferGoogle=onlyGoogle.filter(n=>isRepayment(historyRows[n-1]?.[3]));
+    const moneySource=row=>['income','subcontract','material','otherDirect',
+      'indirect','financial','otherPayable'].map(key=>amount(row?.[key],true));
+    const moneyGoogle=row=>Array.isArray(row)?row.slice(6,13).map(v=>amount(v,true)):[];
+    const equalMoney=(a,b)=>a.length===7&&b.length===7&&
+      a.every((v,i)=>Number.isFinite(v)&&Number.isFinite(b[i])&&rounded(v)===rounded(b[i]));
+    const categories=['Thu','Thầu phụ','Vật tư','Chi trực tiếp khác','Chi gián tiếp','Tài chính','Phải trả khác'];
+    const signedNet=values=>values.length===7&&values.every(Number.isFinite)?
+      rounded(values[0]-values.slice(1).reduce((sum,n)=>sum+n,0)):null;
+    const oneSidedByMonth=new Map();
+    for(const [kind,numbers] of [['cash',onlyCash],['google',onlyGoogle]]){
+      for(const position of numbers){
+        const row=kind==='cash'?sourceRows[position-1]:historyRows[position-1];
+        const date=dateValue(kind==='cash'?row?.date:row?.[0]);
+        if(!date)continue;
+        const month=date.slice(0,7);
+        if(!oneSidedByMonth.has(month))oneSidedByMonth.set(month,{month,cash:0,google:0});
+        oneSidedByMonth.get(month)[kind]++;
+      }
+    }
+    const possibleTransferCounterparts=[];
+    for(const sourcePosition of transferSource){
+      const source=sourceRows[sourcePosition-1],srcMoney=moneySource(source);
+      for(const googleRow of transferGoogle){
+        const google=historyRows[googleRow-1],googleMoney=moneyGoogle(google);
+        if(dateValue(source?.date)!==dateValue(google?.[0]))continue;
+        const sourceNet=signedNet(srcMoney),googleNet=signedNet(googleMoney);
+        const differingCategories=categories.flatMap((category,index)=>
+          Number.isFinite(srcMoney[index])&&Number.isFinite(googleMoney[index])&&
+          rounded(srcMoney[index])!==rounded(googleMoney[index])?
+          [Object.freeze({category,source:srcMoney[index],google:googleMoney[index]})]:[]);
+        possibleTransferCounterparts.push(Object.freeze({
+          sourcePosition,googleRow,sameDay:true,
+          exactSignedCategoryAmounts:equalMoney(srcMoney,googleMoney),
+          sourceNet,googleNet,
+          sameAbsoluteNet:sourceNet!==null&&googleNet!==null&&
+            Math.abs(sourceNet)===Math.abs(googleNet),
+          oppositeNet:sourceNet!==null&&googleNet!==null&&sourceNet===-googleNet,
+          differingCategories:Object.freeze(differingCategories),
+          reviewOnly:true,matched:false,canWrite:false
+        }));
+      }
+    }
+    const otherSourceOnlyPositions=onlyCash.filter(n=>!transferSource.includes(n));
+    return Object.freeze({
+      project:'ELYSIAN',sourceOnly:onlyCash.length,googleOnly:onlyGoogle.length,
+      payrollMetadataPositions:Object.freeze(employeeMetadataPositions),
+      leaveIdentityPositions:Object.freeze(leaveIdentityPositions),
+      transferSourcePositions:Object.freeze(transferSource),
+      transferGooglePositions:Object.freeze(transferGoogle),
+      possibleTransferCounterparts:Object.freeze(possibleTransferCounterparts),
+      otherSourceOnlyPositions:Object.freeze(otherSourceOnlyPositions),
+      oneSidedByMonth:Object.freeze([...oneSidedByMonth.values()]
+        .sort((a,b)=>a.month.localeCompare(b.month))
+        .map(row=>Object.freeze(row))),
+      numericMatches:Number(comparison.matched||0),
+      // No change to original comparator's 6/1 or eight identity flags.
+      sourceComplete:false,canWrite:false,googleWrites:0
+    });
+  }
   // FOXCONN has a separate import-tax + VAT column N (index 13).
   // Exact numerical matches are candidates, NEVER authorization or proof of identity.
   // Do not assume that an ordinary Cash Control expense bucket is import tax.
@@ -1086,5 +1172,5 @@
         'CHẶN ĐỒNG BỘ: '+blockers.map(x=>x.message).join(' '):
         'Đã qua điều kiện kiểm tra sơ bộ. Vẫn cần kiểm tra ID, nối số dư và xác nhận Admin; chưa được ghi.'});
   }
-  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,reviewGenericDescriptionCandidates,compareFoxconnCandidates,resolvePaymentCollisionCandidates,resolveFoxconnNonPaymentCandidates,assessUnmatchedTransfers,verifyTransferSourceLegs,reviewTransferGoogleCounterparts,classifyCashSource,auditFoxconnIdentityGroups,buildReadOnlySyncPlan,buildIndependentProjectSyncPreview,assessProjectSyncReadiness});
+  return Object.freeze({audit,dateValue,amount,diagnoseHeaders,foxconnBalanceCandidates,balanceColumnCandidates,dateLayoutDiagnostic,compareLoadedCashControl,reviewGenericDescriptionCandidates,reviewElysianExceptions,compareFoxconnCandidates,resolvePaymentCollisionCandidates,resolveFoxconnNonPaymentCandidates,assessUnmatchedTransfers,verifyTransferSourceLegs,reviewTransferGoogleCounterparts,classifyCashSource,auditFoxconnIdentityGroups,buildReadOnlySyncPlan,buildIndependentProjectSyncPreview,assessProjectSyncReadiness});
 });

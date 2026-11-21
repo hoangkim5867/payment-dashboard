@@ -3,7 +3,7 @@
  * Pure and fail-closed; never writes or chooses a spreadsheet ID.
  * Only creates/updates machine-owned tabs, NEVER the original history tab.
  */
-const {sha}=require('./cash-sync-multi-project-core.cjs');
+const {sha,parseValues}=require('./cash-sync-multi-project-core.cjs');
 const MIRROR='DATA_CASHCONTROL';
 const VIEW='CASHCONTROL_VIEW';
 const MIRROR_HEADER=['sourceId','projectKey','month','date','company','contractNo',
@@ -45,15 +45,59 @@ function normalizeView(plan){
  });
  return [VIEW_HEADER,...body];
 }
-function parseStoredMirror(matrix){
+// PHU HUNG launched with a 13-value mirror (Q = unused balance,
+// not importTaxVat). Accept that exact original schema ONCE under independent
+// history/hash checks, then upgrade the machine-owned mirror atomically with
+// the visible ledger. No attempt is made to modify the original backup tab.
+const PHU_HUNG_OLD_MIRROR_HEADER=[
+ ...MIRROR_HEADER.slice(0,16),'balance','sourceHash','syncStatus'
+];
+function parseStoredMirror(matrix,{project='',history=null}={}){
  if(!Array.isArray(matrix)||!matrix.length)return null;
- if(JSON.stringify(matrix[0])!==JSON.stringify(MIRROR_HEADER))
-   die('Tab máy DATA_CASHCONTROL có header khác, không ghi.');
- const entries=[];
+ const header=JSON.stringify(matrix[0]);
+ const modern=header===JSON.stringify(MIRROR_HEADER);
+ const old=project==='PHU HUNG'&&
+  header===JSON.stringify(PHU_HUNG_OLD_MIRROR_HEADER);
+ if(!modern&&!old)die('Tab máy DATA_CASHCONTROL có header khác, không ghi.');
+ if(old&&!Array.isArray(history))
+   die('PHU HUNG cần lịch sử gốc độc lập để xác minh tab kỹ thuật cũ.');
+ const entries=[],boundRows=new Set();
  for(const row of matrix.slice(1)){
   if(!Array.isArray(row)||row.length<19)die('Mirror đã bị xóa ô.');
-  entries.push({id:String(row[0]??''),project:String(row[1]??''),
-   values:row.slice(3,17),hash:String(row[17]??''),status:String(row[18]??'')});
+  const id=String(row[0]??''),identity=String(row[1]??'');
+  const status=String(row[18]??''),oldHash=String(row[17]??'');
+  if(!old){
+   entries.push({id,project:identity,values:row.slice(3,17),
+     hash:oldHash,status});
+   continue;
+  }
+  if(identity!=='PHU HUNG'||!id.startsWith('PHU HUNG:')&&
+     !id.startsWith('tax:PHU HUNG:'))
+   die('PHU HUNG có ID hoặc dự án ngoài phạm vi lịch sử cũ.');
+  if(row[16]!==''&&row[16]!==null&&row[16]!==undefined)
+   die('Cột balance của mirror PHU HUNG cũ không được có số tiền.');
+  const thirteen=parseValues(row.slice(3,16),{foxconn:false}).slice(0,13);
+  if(sha(thirteen)!==oldHash)
+   die('PHU HUNG mirror cũ có chứng từ hoặc số tiền đã thay đổi hash.');
+  let values=[...thirteen,0];
+  const linked=/^history:(\d+)$/.exec(status);
+  if(linked){
+   const position=Number(linked[1]);
+   if(boundRows.has(position))die('PHU HUNG trùng vị trí chứng từ lịch sử.');
+   boundRows.add(position);
+   const original=history[position-1];
+   if(!original||!Array.isArray(original))
+    die('PHU HUNG mất dòng lịch sử gốc đã gắn ID.');
+   const historical=parseValues(original,{history:true,foxconn:false});
+   if(historical[0]!==values[0]||
+      historical.slice(6,14).some((n,i)=>Math.abs(n-values[i+6])>0.000001))
+    die('PHU HUNG lịch sử gốc khác ngày hoặc số tiền đã chứng nhận.');
+   // Old mirror labels were Vietnamese while original Google history is
+   // Chinese. Canonicalize ONLY the verified history-bound mirror labels.
+   values=historical;
+  }else if(status!=='synced')
+   die('PHU HUNG mirror cũ có trạng thái chứng từ không hợp lệ.');
+  entries.push({id,project:identity,values,hash:sha(values),status});
  }
  return entries;
 }
@@ -67,7 +111,7 @@ function verifyExistingView(matrix,formulas,plan){
   for(let j=0;j<w.length;j++){
    if(i>0&&j===14){
     if(!Number.isFinite(Number(row[j]))||
-       Math.abs(Number(row[j])-plan.viewRows[i-1].balance)>0.000001||
+       Math.abs(Number(row[j])-plan.viewRows[i-1].balance)>0.001||
        String(formulas[i]?.[0]??'')!==w[14])
       die('Số dư/công thức Google VIEW bị sửa ngoài hệ thống.');
    }else if(typeof w[j]==='number'){
@@ -85,6 +129,45 @@ function gridRows(rows,balanceIndex=null){
  return rows.map((row,i)=>({values:row.map((value,j)=>
    i>0&&balanceIndex!==null&&j===balanceIndex?
      {userEnteredValue:{formulaValue:value}}:cell(value))}));
+}
+// Match PHU HUNG's clean green finance style for the existing internal
+// CASHCONTROL_VIEW without shifting rows, changing formulas or the original
+// historical worksheet. Only DATA_CASHCONTROL remains a hidden machine tab.
+// Excel distributed to staff is separately built with ONE sheet only.
+function presentationRequests(viewId,rowCount){
+ if(!Number.isSafeInteger(viewId)||viewId<0||
+    !Number.isSafeInteger(rowCount)||rowCount<1||rowCount>10001)
+  die('Không thể định dạng tab tổng hợp không hợp lệ.');
+ const green={red:0.88,green:0.94,blue:0.90};
+ const pale={red:0.85,green:0.88,blue:0.85};
+ const money='#,##0;-#,##0;;@';
+ const widths=[115,190,260,390,115,135];
+ const requests=[
+  {updateSheetProperties:{properties:{sheetId:viewId,
+   gridProperties:{frozenRowCount:1}},fields:'gridProperties.frozenRowCount'}},
+  {repeatCell:{range:{sheetId:viewId,startRowIndex:0,endRowIndex:1,
+    startColumnIndex:0,endColumnIndex:18},
+   cell:{userEnteredFormat:{backgroundColor:green,
+    textFormat:{bold:true,fontFamily:'Arial',fontSize:11},
+    horizontalAlignment:'CENTER',verticalAlignment:'MIDDLE',
+    wrapStrategy:'WRAP'}},
+   fields:'userEnteredFormat'}},
+  {repeatCell:{range:{sheetId:viewId,startRowIndex:1,endRowIndex:rowCount,
+    startColumnIndex:6,endColumnIndex:15},
+   cell:{userEnteredFormat:{numberFormat:{type:'NUMBER',pattern:money}}},
+   fields:'userEnteredFormat.numberFormat'}},
+  {updateDimensionProperties:{range:{sheetId:viewId,dimension:'COLUMNS',
+    startIndex:15,endIndex:18},
+   properties:{hiddenByUser:true},fields:'hiddenByUser'}},
+  {updateDimensionProperties:{range:{sheetId:viewId,dimension:'COLUMNS',
+    startIndex:6,endIndex:15},
+   properties:{pixelSize:145},fields:'pixelSize'}}
+ ];
+ for(let i=0;i<widths.length;i++)
+  requests.push({updateDimensionProperties:{range:{sheetId:viewId,
+   dimension:'COLUMNS',startIndex:i,endIndex:i+1},
+   properties:{pixelSize:widths[i]},fields:'pixelSize'}});
+ return requests;
 }
 function compileBatch({plan,metadata,historySheetId,openingBalance=0}){
  if(plan?.status!=='CANDIDATES_ONLY'||plan.canWrite!==false||
@@ -127,6 +210,7 @@ function compileBatch({plan,metadata,historySheetId,openingBalance=0}){
  requests.push({updateCells:{range:{sheetId:viewId,startRowIndex:0,startColumnIndex:0,
    endRowIndex:viewMatrix.length,endColumnIndex:18},
    rows:gridRows(viewMatrix,14),fields:'userEnteredValue'}});
+ requests.push(...presentationRequests(viewId,viewMatrix.length));
  return {requests,mirrorId,viewId,historySheetId,
    historyPreserved:true,
    expectedMirror:mirrorMatrix,expectedView:viewMatrix,
@@ -135,4 +219,4 @@ function compileBatch({plan,metadata,historySheetId,openingBalance=0}){
    canWrite:false,approvedWrites:0};
 }
 module.exports={MIRROR,VIEW,MIRROR_HEADER,VIEW_HEADER,parseStoredMirror,
- normalizeMirror,normalizeView,verifyExistingView,compileBatch};
+ normalizeMirror,normalizeView,verifyExistingView,presentationRequests,compileBatch};

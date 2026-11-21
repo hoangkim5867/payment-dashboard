@@ -32,7 +32,35 @@ function isAllowlisted(env,project,spreadsheetId,historySheetId){
     target.historySheetId===historySheetId;
 }
 function canWriteTarget(env,project,spreadsheetId,historySheetId){
-  return env.CASH_SYNC_MULTI_PRODUCTION_WRITES==='YES'&&
+  // This endpoint's write flag is production-only. A Preview deployment
+  // cannot inherit authorization from a branch env, even if someone sets
+  // the flag and a matching allowlist by mistake. TEST writes must use a
+  // separate server-side test-only route with a trusted staging source.
+  return env.VERCEL_ENV==='production'&&
+    env.CASH_SYNC_FIREBASE_PROJECT_ID==='cscecmep-payment'&&
+    env.CASH_SYNC_MULTI_PRODUCTION_WRITES==='YES'&&
     isAllowlisted(env,project,spreadsheetId,historySheetId);
 }
-module.exports={parseAllowlist,isAllowlisted,canWriteTarget};
+function currentVietnamMonth(now=new Date()){
+ const parts=new Intl.DateTimeFormat('en-US',{
+  timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit'
+ }).formatToParts(now);
+ const year=parts.find(x=>x.type==='year')?.value;
+ const month=parts.find(x=>x.type==='month')?.value;
+ return year+'-'+month;
+}
+function canWriteMonthlyTarget(env,project,spreadsheetId,historySheetId,month){
+ // Rolling Admin-approved releases from Oct 2026 onward: new calendar months
+ // no longer require another Vercel deployment or environment flag change.
+ // Existing exact-month approval is supported until rolling mode is enabled.
+ const valid=/^20\d{2}-(?:0[1-9]|1[0-2])$/;
+ if(!valid.test(month||'')||!canWriteTarget(env,project,spreadsheetId,historySheetId))
+  return false;
+ const from=env.CASH_SYNC_MULTI_APPROVED_FROM_MONTH;
+ if(from!==undefined&&from!==''){
+  return valid.test(from)&&from>='2026-10'&&month>=from&&
+   month<=currentVietnamMonth();
+ }
+ return env.CASH_SYNC_MULTI_APPROVED_MONTH===month;
+}
+module.exports={parseAllowlist,isAllowlisted,canWriteTarget,canWriteMonthlyTarget};

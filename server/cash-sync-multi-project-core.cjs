@@ -42,8 +42,53 @@ function parseValues(row,{history=false,foxconn=false}={}){
   }
   return values;
 }
+/**
+ * Owner's standing policy: an existing October 2026 ledger starts syncing
+ * from November; a project without October starts from October. Consider
+ * both original history and already-posted technical mirror, without ever
+ * modifying either. Invalid historic dates cannot claim a completed month.
+ */
+function startMonthFromGoogle({history=[],mirror=[]}={}){
+ if(!Array.isArray(history)||!Array.isArray(mirror))fail('Invalid Google history');
+ const oct='2026-10';
+ const originalHasOctober=history.some(row=>Array.isArray(row)&&
+  date(row[0])?.slice(0,7)===oct);
+ const mirrorHasOctober=mirror.some(row=>
+  date(row?.values?.[0])?.slice(0,7)===oct);
+ return originalHasOctober||mirrorHasOctober?'2026-11':'2026-10';
+}
 const net=v=>round(v[6]-v.slice(7,14).reduce((n,m)=>n+m,0));
 const idSignature=v=>JSON.stringify([v[0],...v.slice(1,6).map(name),...v.slice(6)]);
+// A backdated Oct/Nov posting may be missing from the ORIGINAL Google ledger.
+// Append it ONLY to machine-owned VIEW/MIRROR if there is no plausible
+// duplicate in original history or an earlier mirrored posting.
+// Balance proof is separately enforced against the independent monthly
+// Cash Control balance by the Production API. This check cannot authorize a
+// write by itself.
+const postingKey=v=>JSON.stringify([v[0],...v.slice(6,14)]);
+const contractIpcKey=v=>{
+ const contract=name(v[2]),ipc=name(v[4]);
+ return contract&&ipc?JSON.stringify([v[0],contract,ipc]):'';
+};
+const looksTransfer=v=>/归还|借款|还款|hoàn vay|hoan vay|điều chuyển|dieu chuyen|repay|transfer/i
+ .test(v.slice(1,6).map(name).join(' '));
+const possibleDuplicate=(current,historyRows,mirrorRows)=>{
+ const cp=contractIpcKey(current),money=postingKey(current);
+ const netAmount=Math.abs(net(current));
+ for(const row of [...historyRows,...mirrorRows]){
+  const original=row.values;
+  if(original[0]!==current[0])continue;
+  if(postingKey(original)===money)return 'SAME_DAY_AMOUNT_COLUMNS_DIFFERENT_LABEL';
+  if(cp&&contractIpcKey(original)===cp)return 'SAME_CONTRACT_IPC_DIFFERENT_PAYMENT';
+  if(name(original[1])===name(current[1])&&
+     name(original[3])===name(current[3])&&name(current[3]))
+   return 'SAME_DAY_COMPANY_DESCRIPTION_CHANGED_AMOUNT';
+  if((looksTransfer(original)||looksTransfer(current))&&
+     netAmount>0&&Math.abs(Math.abs(net(original))-netAmount)<0.000001)
+   return 'POSSIBLE_ALREADY_POSTED_TRANSFER';
+ }
+ return '';
+};
 function auditHistory(raw,{foxconn=false,openingBalance=null}={}){
   if(!Array.isArray(raw)||raw.length>20000)fail('Sổ Google vượt giới hạn kiểm tra.');
   const entries=[];let firstOpening=null,prev=null,maxDate='';
@@ -84,7 +129,7 @@ function validateMirror(raw,projectKey){
   }
   return {entries,index,fingerprint:sha(raw)};
 }
-function planMonth({project,month,source,history,mirror=[],foxconn=false,openingBalance=null}){
+function planMonth({project,month,source,history,mirror=[],foxconn=false,openingBalance=null,allowCorrections=false}){
   const projectKey=name(project);
   if(!projectKey||projectKey.length>180||!/^20\d\d-(0[1-9]|1[0-2])$/.test(month)||
      month<'2026-10'||!Array.isArray(source)||source.length>20000)
@@ -125,16 +170,39 @@ function planMonth({project,month,source,history,mirror=[],foxconn=false,opening
     usedHistorical.add(position);
   }
   const combinedMirror=stored.entries.filter(r=>!r.values[0].startsWith(month+'-'));
-  const changes=[],reviews=[],bindings=[];
+  const changes=[],reviews=[],bindings=[],corrections=[];
   for(const current of sourceById.values()){
     const before=stored.index.get(current.id);
     if(before){
-      const status=before.status.startsWith('history:')&&before.hash!==current.hash?
-        'historyUpdated:'+before.status.slice(8):before.status;
-      const item={...current,project:projectKey,status};
-      combinedMirror.push(item);
-      if(before.hash!==item.hash||before.status!==item.status)
-        changes.push({id:item.id,action:'update',status:item.status});
+      // Cash Control export language may change between Vietnamese and Chinese.
+      // The original posted transaction is already mirrored by IMMUTABLE ID.
+      // Translation or description-only changes must NOT create another Google
+      // write or rewrite a posted value. Date/amount changes to an existing ID
+      // are corrections, not missing postings: require explicit reconciliation.
+      const financiallyIdentical=
+        before.values.length===current.values.length&&
+        before.values[0]===current.values[0]&&
+        before.values.slice(6).every((n,i)=>
+          Math.abs(n-current.values[i+6])<0.000001);
+      if(financiallyIdentical){
+        combinedMirror.push({...before,project:projectKey});
+        continue;
+      }
+      // Corrections may only replace an ORIGINAL machine-posted ID inside
+      // this SAME accounting month. Never rewrite historic-bound transactions,
+      // backdated months or a missing ID, even with Admin confirmation.
+      if(allowCorrections&&before.status==='synced'&&
+         before.values[0].startsWith(month+'-')&&
+         current.values[0].startsWith(month+'-')){
+        corrections.push({id:current.id,previousHash:before.hash,
+          before:{date:before.values[0],amounts:before.values.slice(6,14)},
+          after:{date:current.values[0],amounts:current.values.slice(6,14)}});
+        combinedMirror.push({...current,project:projectKey,status:'synced'});
+        changes.push({id:current.id,action:'correct',status:'synced'});
+      }else{
+        reviews.push({id:current.id,reason:'EXISTING_SOURCE_ID_FINANCIAL_CHANGE'});
+        combinedMirror.push({...before,project:projectKey});
+      }
       continue;
     }
     const found=(historySignatures.get(idSignature(current.values))||[])
@@ -147,14 +215,22 @@ function planMonth({project,month,source,history,mirror=[],foxconn=false,opening
       changes.push({id:item.id,action:'bind-history',status:item.status});
       continue;
     }
-    if(current.values[0]<=historical.maxDate){
-      reviews.push({id:current.id,reason:'MISSING_FROM_OLDER_GOOGLE_HISTORY'});
-      continue;
+    const backdated=current.values[0]<=historical.maxDate;
+    // Backfill applies from the approved start month into every later paid
+    // month. Exact release/month eligibility is checked by the Production
+    // server, not by a frozen October/November list in this pure planner.
+    if(backdated){
+      const collision=possibleDuplicate(current.values,historical.entries,
+        combinedMirror.filter(x=>x.status==='synced'));
+      if(collision){
+        reviews.push({id:current.id,reason:collision});
+        continue;
+      }
     }
-    // Only a strictly later new transaction may be appended automatically;
-    // earlier events must be reviewed, but other projects remain independent.
     const item={...current,project:projectKey,status:'synced'};
-    combinedMirror.push(item);changes.push({id:item.id,action:'append',status:'synced'});
+    combinedMirror.push(item);
+    changes.push({id:item.id,
+      action:backdated?'append-backfill':'append',status:'synced'});
   }
   if(reviews.length)
     return Object.freeze({project:projectKey,month,status:'REVIEW_REQUIRED',
@@ -189,11 +265,11 @@ function planMonth({project,month,source,history,mirror=[],foxconn=false,opening
   // Source/history/rows are still READ-ONLY evidence: a later authorized
   // adapter must check original and mirror revisions before any write.
   return Object.freeze({project:projectKey,month,status:'CANDIDATES_ONLY',
-    changes,bindings,mirrorNext:combinedMirror,viewRows:calculated,
+    changes,bindings,corrections,mirrorNext:combinedMirror,viewRows:calculated,
     historicalOpening:historical.openingBalance,
     historicalClosing:historical.closingBalance,closingBalance:balance,
     historyFingerprint:historical.fingerprint,
     mirrorFingerprint:stored.fingerprint,
     requiresOtherProjects:false,canWrite:false,approvedWrites:0});
 }
-module.exports={planMonth,auditHistory,parseValues,net,idSignature,sha};
+module.exports={startMonthFromGoogle,planMonth,auditHistory,parseValues,net,idSignature,sha};
