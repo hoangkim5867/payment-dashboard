@@ -110,8 +110,8 @@ html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first
   z-index:0 !important;
   right:4px !important;
   top:-13px !important;
-  width:142px !important;
-  height:80px !important;
+  width:156px !important;
+  height:92px !important;
   background:url("../img/payment-noel-sample2-scene.svg") no-repeat right bottom/contain !important;
   pointer-events:none !important;
 }
@@ -131,7 +131,7 @@ html.payment-noel-admin-preview[data-theme] body .data-first-summary > .summary-
   min-height:58px !important;
   max-height:58px !important;
   min-width:0 !important;
-  padding:6px 53px 6px 10px !important;
+  padding:6px 38px 6px 10px !important;
   background:#fffaf2 !important;
   border:1px solid #e6d9c6 !important;
   border-radius:8px !important;
@@ -146,12 +146,12 @@ html.payment-noel-admin-preview[data-theme] body .data-first-summary > .summary-
 html.payment-noel-admin-preview[data-theme] body .data-first-summary > .summary-card::after {
   content:"" !important;
   position:absolute !important;
-  right:2px !important;
-  top:2px !important;
-  width:47px !important;
-  height:52px !important;
+  right:6px !important;
+  top:9px !important;
+  width:30px !important;
+  height:37px !important;
   display:block !important;
-  opacity:.95 !important;
+  opacity:.88 !important;
   background-position:right center !important;
   background-repeat:no-repeat !important;
   background-size:contain !important;
@@ -306,10 +306,10 @@ html.payment-noel-admin-preview[data-theme] body #paymentNoelFooterScene {
   html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary::after {width:100px !important;height:63px !important}
   html.payment-noel-admin-preview[data-theme] body .data-first-summary > .summary-card {
     height:55px !important;min-height:55px !important;max-height:55px !important;
-    padding:5px 37px 5px 7px !important;
+    padding:5px 32px 5px 7px !important;
   }
   html.payment-noel-admin-preview[data-theme] body .data-first-summary > .summary-card::after {
-    width:33px !important;height:50px !important;
+    width:26px !important;height:34px !important;top:10px !important;right:4px !important;
   }
   html.payment-noel-admin-preview[data-theme] body .data-first-summary > .summary-card .summary-value {font-size:12px !important}
   html.payment-noel-admin-preview[data-theme] body .data-first-summary > .data-first-filter-panel {
