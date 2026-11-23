@@ -1071,3 +1071,271 @@ html.payment-noel-admin-preview[data-theme] body .container .card:has(> .data-fi
     background-size:100% 100%!important;
   }
 }
+
+
+/* =============================================================
+ * PAYMENT NOEL — KPI CARDS MATCH USER APPROVED REFERENCE
+ * Screenshot 2026-11-23 10:15:12. Keep all four real totals/labels,
+ * compact dimensions, and actual filter controls. Only Admin Noel.
+ * No DOM edits, no new database access, no payment logic changes.
+ * ============================================================= */
+
+/* Replace oversized dark-green banner with four independent pastel cards.
+ * The seasonal caption is intentionally about one THIRD of its old size. */
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary{
+  --noel-left:10px!important;
+  --noel-right:10px!important;
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  grid-template-rows:76px auto!important;
+  grid-auto-flow:row!important;
+  gap:7px 10px!important;
+  align-items:stretch!important;
+  width:100%!important;
+  max-width:100%!important;
+  margin:6px 0 8px!important;
+  padding:17px 10px 0!important;
+  border:1px solid #eadfce!important;
+  border-radius:10px!important;
+  background:linear-gradient(180deg,#fff8ee 0%,#fffbf5 100%)!important;
+  box-shadow:0 1px 5px rgba(91,63,35,.05)!important;
+  isolation:isolate!important;
+  overflow:visible!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary::before{
+  content:"✦ Merry Christmas"!important;
+  display:block!important;
+  position:absolute!important;
+  z-index:1!important;
+  top:3px!important;
+  left:12px!important;
+  width:auto!important;
+  height:11px!important;
+  margin:0!important;
+  padding:0!important;
+  font:700 10px/11px Georgia,"Times New Roman",serif!important;
+  font-style:italic!important;
+  letter-spacing:.1px!important;
+  white-space:nowrap!important;
+  color:#9a704b!important;
+  text-shadow:none!important;
+  pointer-events:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary::after{
+  content:none!important;
+  display:none!important;
+  background:none!important;
+}
+
+/* Same compact geometry on every KPI, no more left-side title taking 15%
+ * of the width. Numbers stay left, illustration stays right. */
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card{
+  box-sizing:border-box!important;
+  display:flex!important;
+  grid-row:1!important;
+  grid-column:auto!important;
+  flex-direction:column!important;
+  justify-content:center!important;
+  align-items:flex-start!important;
+  gap:2px!important;
+  position:relative!important;
+  width:100%!important;
+  min-width:0!important;
+  height:76px!important;
+  min-height:76px!important;
+  max-height:76px!important;
+  margin:0!important;
+  padding:8px 132px 7px 13px!important;
+  overflow:hidden!important;
+  border:1px solid #e6e1d7!important;
+  border-radius:9px!important;
+  box-shadow:0 1px 5px rgba(60,68,41,.06)!important;
+  transform:none!important;
+  transition:box-shadow .15s ease,border-color .15s ease!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card:nth-child(1){
+  background:linear-gradient(106deg,#f8faf5 0%,#f7f8f0 68%,#e9f2e9 100%)!important;
+  border-color:#e0e6da!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card:nth-child(2){
+  background:linear-gradient(108deg,#fff7f2 0%,#fff0eb 68%,#fae9e3 100%)!important;
+  border-color:#f0ddd4!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card:nth-child(3){
+  background:linear-gradient(108deg,#fbfaf3 0%,#faf8ec 70%,#f0f4e8 100%)!important;
+  border-color:#e7e5d8!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card:nth-child(4){
+  background:linear-gradient(107deg,#fffaf2 0%,#fff5e9 66%,#fff0df 100%)!important;
+  border-color:#eee1d2!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card::before{
+  content:none!important;
+  display:none!important;
+  background:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card::after{
+  content:""!important;
+  display:block!important;
+  position:absolute!important;
+  z-index:0!important;
+  top:-3px!important;
+  right:-3px!important;
+  bottom:auto!important;
+  width:128px!important;
+  height:82px!important;
+  transform:none!important;
+  opacity:1!important;
+  background-repeat:no-repeat!important;
+  background-position:right center!important;
+  background-size:contain!important;
+  image-rendering:auto!important;
+  filter:none!important;
+  pointer-events:none!important;
+}
+/* These 4 assets are VECTOR SVGs, not stretched low-resolution screenshots.
+ * Match the reference arrangement: gift+pine, Santa snowman, gingerbread
+ * and candy cane, gold bell with bow and greenery. */
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card:nth-child(1)::after{
+  background-image:url("../img/payment-noel-kpi-gift.svg")!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card:nth-child(2)::after{
+  background-image:url("../img/payment-noel-kpi-snowman.svg")!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card:nth-child(3)::after{
+  background-image:url("../img/payment-noel-kpi-ginger.svg")!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card:nth-child(4)::after{
+  background-image:url("../img/payment-noel-kpi-bells.svg")!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card .enterprise-kpi-icon{
+  display:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card .summary-label{
+  display:block!important;
+  font:800 9px/1.13 Arial,"Segoe UI",sans-serif!important;
+  letter-spacing:.05px!important;
+  color:#334e3d!important;
+  white-space:normal!important;
+  margin:0!important;
+  position:relative!important;
+  z-index:1!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card .summary-value{
+  font:900 clamp(14px,1.25vw,20px)/1.13 Arial,"Segoe UI",sans-serif!important;
+  letter-spacing:-.25px!important;
+  color:#154a32!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+  margin:0!important;
+  position:relative!important;
+  z-index:1!important;
+  font-variant-numeric:tabular-nums!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card:nth-child(even) .summary-value{
+  color:#b52630!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card .summary-meta{
+  font:600 9px/1.13 Arial,"Segoe UI",sans-serif!important;
+  color:#56695a!important;
+  margin:0!important;
+  position:relative!important;
+  z-index:1!important;
+}
+
+/* The filter row remains FULL width beneath the four KPI cards.
+ * No hidden search/status/reset controls, no variable-wide blank strip. */
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .data-first-filter-panel{
+  grid-column:1/-1!important;
+  grid-row:2!important;
+  box-sizing:border-box!important;
+  align-self:stretch!important;
+  justify-self:stretch!important;
+  width:calc(100% + 20px)!important;
+  max-width:none!important;
+  min-width:0!important;
+  margin:0 -10px!important;
+  padding:7px 9px!important;
+  border:1px solid #e5dac8!important;
+  border-radius:0 0 9px 9px!important;
+  background:#fffaf4!important;
+  box-shadow:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary .enterprise-filter-main{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+}
+
+/* Preserve realistic column density for smaller screens while
+ * keeping 2x2 cards readable; don't force the desktop four-up at 800px. */
+@media(max-width:1200px){
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    grid-template-rows:auto auto auto!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary > .summary-card{
+    grid-row:auto!important;
+    height:76px!important;
+    min-height:76px!important;
+    max-height:76px!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary > .data-first-filter-panel{
+    grid-row:3!important;
+  }
+}
+@media(max-width:610px){
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    grid-template-rows:auto auto auto!important;
+    padding:17px 6px 0!important;
+    gap:5px!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary > .summary-card{
+    padding:6px 53px 6px 8px!important;
+    height:65px!important;
+    min-height:65px!important;
+    max-height:65px!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary > .summary-card::after{
+    width:58px!important;
+    height:67px!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary > .summary-card .summary-value{
+    font-size:11px!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary > .data-first-filter-panel{
+    margin:0 -6px!important;
+    width:calc(100% + 12px)!important;
+    grid-row:3!important;
+  }
+}
