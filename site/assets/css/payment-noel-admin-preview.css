@@ -31,13 +31,15 @@ html.payment-noel-admin-preview[data-theme] body{background-color:#fffaf3!import
 html.payment-noel-admin-preview[data-theme] body .modern-app-header{
  display:flex!important;align-items:flex-end!important;justify-content:space-between!important;
  gap:8px!important;position:relative!important;isolation:isolate!important;
- box-sizing:border-box!important;min-height:141px!important;height:auto!important;
- padding:76px 12px 8px!important;color:#164d3a!important;
- background-image:var(--payment-noel-img-header)!important;
+ box-sizing:border-box!important;min-height:185px!important;height:auto!important;
+ padding:121px 12px 11px!important;color:#164d3a!important;
+ /* The approved banner artwork is 2172×395 (5.50:1).
+    Preserve its aspect ratio instead of distorting it to the viewport (≈14:1). */
+ background-image:var(--payment-noel-img-header),repeating-linear-gradient(90deg,#bb3430 0 19px,#fff8ed 19px 38px)!important;
  background-color:#fff8ef!important;
- background-size:100% 100%!important;
- background-position:center top!important;
- background-repeat:no-repeat!important;
+ background-size:auto 192px,auto 27px!important;
+ background-position:center top,left top!important;
+ background-repeat:no-repeat,repeat-x!important;
  border:0!important;border-bottom:1px solid #e7dccd!important;
  box-shadow:none!important
 }
@@ -185,13 +187,17 @@ html.payment-noel-admin-preview[data-theme] body :is(.payment-timeline-popup,.pa
 /* Approved 17:31 original snowy footer. It follows the live table instead of floating in viewport. */
 html.payment-noel-admin-preview[data-theme] body #paymentNoelFooterScene{
  display:block!important;position:relative!important;box-sizing:border-box!important;
- width:100%!important;height:clamp(155px,15vw,266px)!important;min-height:155px!important;
+ width:100%!important;height:clamp(340px,28vw,590px)!important;min-height:340px!important;
  margin:0!important;padding:0!important;border:0!important;pointer-events:none!important;user-select:none!important;
- background-image:var(--payment-noel-img-footer)!important;
- background-repeat:no-repeat!important;background-size:100% 100%!important;
- background-position:center bottom!important;background-color:#fff9f0!important;overflow:hidden!important}
+ /* Full-resolution footer, unwarped, placed at the END of live table flow. 
+    The empty cream sky belongs ABOVE the snowy scene, like the approved image. */
+ background-image:var(--payment-noel-img-footer),linear-gradient(180deg,#fff9f2,#fff4e9)!important;
+ background-repeat:no-repeat,no-repeat!important;
+ background-size:100% auto,100% 100%!important;
+ background-position:center bottom,center center!important;
+ background-color:#fff9f0!important;overflow:hidden!important}
 html.payment-noel-admin-preview[data-theme] body .container .card:has(>.data-first-shell){
- display:flex!important;flex-direction:column!important;min-height:calc(100dvh - 145px)!important}
+ display:flex!important;flex-direction:column!important;min-height:0!important}
 html.payment-noel-admin-preview[data-theme] body .container .card:has(>.data-first-shell) #paymentNoelFooterScene{
  margin-top:auto!important}
 @media(max-width:1560px) and (min-width:1101px){
@@ -206,9 +212,9 @@ html.payment-noel-admin-preview[data-theme] body .container .card:has(>.data-fir
 }
 @media(max-width:1100px){
  html.payment-noel-admin-preview[data-theme] body .modern-app-header{
-  min-height:112px!important;padding:58px 10px 8px!important;
-  background-size:100% 100%!important;
-  background-position:center top!important}
+  min-height:152px!important;padding:100px 10px 8px!important;
+  background-size:auto 158px,auto 23px!important;
+  background-position:center top,left top!important}
  html.payment-noel-admin-preview[data-theme] body .data-first-shell>.data-first-summary{
   grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:78px auto auto auto!important;gap:8px!important}
  html.payment-noel-admin-preview[data-theme] body .data-first-shell>.data-first-summary::before{
@@ -219,9 +225,9 @@ html.payment-noel-admin-preview[data-theme] body .container .card:has(>.data-fir
 }
 @media(max-width:630px){
  html.payment-noel-admin-preview[data-theme] body .modern-app-header{
-  min-height:96px!important;padding:46px 7px 6px!important;
-  background-size:auto 100%!important;
-  background-position:center top!important}
+  min-height:116px!important;padding:69px 7px 6px!important;
+  background-size:auto 126px,auto 20px!important;
+  background-position:center top,left top!important}
  html.payment-noel-admin-preview[data-theme] body .data-first-shell>.data-first-summary{
   grid-template-rows:64px auto auto auto!important;gap:6px!important}
  html.payment-noel-admin-preview[data-theme] body .data-first-shell>.data-first-summary::before{
@@ -234,7 +240,10 @@ html.payment-noel-admin-preview[data-theme] body .container .card:has(>.data-fir
  html.payment-noel-admin-preview[data-theme] body .data-first-summary>.summary-card .summary-label{font-size:8px!important}
  html.payment-noel-admin-preview[data-theme] body .data-first-summary>.summary-card .summary-value{font-size:12px!important}
  html.payment-noel-admin-preview[data-theme] body .data-first-summary>.summary-card .summary-meta{font-size:8px!important}
- html.payment-noel-admin-preview[data-theme] body #paymentNoelFooterScene{height:145px!important;min-height:145px!important}
+ html.payment-noel-admin-preview[data-theme] body #paymentNoelFooterScene{
+  height:220px!important;min-height:220px!important;
+  background-size:auto 100%,100% 100%!important;
+  background-position:center bottom,center center!important}
 }
 @media(prefers-reduced-motion:reduce){
  html.payment-noel-admin-preview[data-theme] body .summary-card,
