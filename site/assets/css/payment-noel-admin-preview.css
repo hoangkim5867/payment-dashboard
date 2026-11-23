@@ -907,3 +907,62 @@ html.payment-noel-admin-preview[data-theme] body :is(
   transition:none!important;
  }
 }
+
+
+/* 2026-11-23 · User-selected reference artwork, on real Payment.
+   Replaces ONLY the earlier illustration strips. No form, JS, table or
+   payment logic altered. The admin Noel toggle remains the only gate. */
+
+/* Soft warm fairy lights at the top, with pine sprigs at both ends.
+   Image comes from the cropped visual reference, no duplicated text. */
+html.payment-noel-admin-preview[data-theme] body .modern-app-header::after{
+  content:""!important;
+  display:block!important;
+  position:absolute!important;
+  z-index:0!important;
+  inset:0 0 auto 0!important;
+  top:0!important;
+  left:0!important;
+  right:0!important;
+  width:100%!important;
+  height:30px!important;
+  background-image:url("../img/payment-noel-header-lights-reference-user-2026.svg")!important;
+  background-size:100% 28px!important;
+  background-position:center top!important;
+  background-repeat:no-repeat!important;
+  filter:none!important;
+  opacity:1!important;
+  animation:none!important;
+  pointer-events:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header>*{
+  position:relative!important;z-index:1!important;
+}
+/* Winter illustration from the supplied preferred picture.
+   Preserve entire left cabin and right Christmas group; never crop edges. */
+html.payment-noel-admin-preview[data-theme] body .container .card:has(> .data-first-shell)::after{
+  content:""!important;
+  display:block!important;
+  position:relative!important;
+  clear:both!important;
+  width:100%!important;
+  height:clamp(105px,9.2vw,140px)!important;
+  min-height:105px!important;
+  margin:4px 0 61px!important;
+  padding:0!important;
+  background-color:#fffaf2!important;
+  background-image:url("../img/payment-noel-footer-reference-user-2026.svg")!important;
+  background-size:100% 100%!important;
+  background-position:center bottom!important;
+  background-repeat:no-repeat!important;
+  border:0!important;
+  pointer-events:none!important;
+  user-select:none!important;
+  overflow:hidden!important;
+}
+@media(max-width:720px){
+  html.payment-noel-admin-preview[data-theme] body .container .card:has(> .data-first-shell)::after{
+    height:90px!important;min-height:90px!important;
+    background-size:100% 100%!important;
+  }
+}
