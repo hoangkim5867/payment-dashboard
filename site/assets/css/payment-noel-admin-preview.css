@@ -1,0 +1,209 @@
+/* Payment Noel · ADMIN VISUAL PREVIEW V1
+  Opt-in only, after authenticated Admin role. Zero effects for Staff.
+  The page's existing data, forms, inputs and event handlers are untouched. */
+:root{--noel-holly:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2096%2065%22%3E%3Cpath%20d%3D%22M43%2027C9%202%203%2028%2021%2040c-8%2016%2020%2019%2029-3C80%207%2058-2%2043%2027Z%22%20fill%3D%22%23477d53%22%20stroke%3D%22%232a5a39%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22M43%2033%2015%2029M48%2030%2074%2016%22%20stroke%3D%22%239dc2a0%22%20stroke-width%3D%222%22%2F%3E%3Ccircle%20cx%3D%2250%22%20cy%3D%2235%22%20r%3D%229%22%20fill%3D%22%23bb353b%22%2F%3E%3Ccircle%20cx%3D%2263%22%20cy%3D%2235%22%20r%3D%229%22%20fill%3D%22%23d84b49%22%2F%3E%3Ccircle%20cx%3D%2255%22%20cy%3D%2244%22%20r%3D%229%22%20fill%3D%22%23c53d43%22%2F%3E%3C%2Fsvg%3E");--noel-wreath:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ccircle%20cx%3D%2250%22%20cy%3D%2254%22%20r%3D%2231%22%20fill%3D%22none%22%20stroke%3D%22%233f7951%22%20stroke-width%3D%2217%22%20stroke-dasharray%3D%2212%205%22%2F%3E%3Ccircle%20cx%3D%2250%22%20cy%3D%2254%22%20r%3D%2231%22%20fill%3D%22none%22%20stroke%3D%22%2374aa74%22%20stroke-width%3D%227%22%20stroke-dasharray%3D%226%209%22%2F%3E%3Cpath%20d%3D%22M51%2022Q20%204%2025%2027q8%2015%2025%201%2019-19%2030-7%2010%2016-30%209%22%20fill%3D%22%23c94046%22%20stroke%3D%22%23edb5a8%22%20stroke-width%3D%223%22%2F%3E%3Ccircle%20cx%3D%2223%22%20cy%3D%2253%22%20r%3D%225%22%20fill%3D%22%23cf4343%22%2F%3E%3Ccircle%20cx%3D%2272%22%20cy%3D%2275%22%20r%3D%225%22%20fill%3D%22%23cf4343%22%2F%3E%3Ccircle%20cx%3D%2254%22%20cy%3D%2285%22%20r%3D%225%22%20fill%3D%22%23cf4343%22%2F%3E%3C%2Fsvg%3E");--noel-bell:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%2083%22%3E%3Cpath%20d%3D%22M30%2052Q23%2024%2047%2014Q75%207%2083%2034l7%2023-53%2013Z%22%20fill%3D%22%23D7A650%22%20stroke%3D%22%23a97632%22%20stroke-width%3D%223%22%2F%3E%3Cpath%20d%3D%22M33%2059%2088%2046M58%2072q10%2010%2016-5%22%20stroke%3D%22%23f8dc94%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M45%2015Q13%2013%2028%2035q13%205%2020-17%2014%2016%2031%201-2-18-34-4Z%22%20fill%3D%22%23BA3940%22%2F%3E%3Cpath%20d%3D%22M51%2020q-4%2012-3%2031%22%20stroke%3D%22%23fce2ac%22%20stroke-width%3D%223%22%2F%3E%3C%2Fsvg%3E");--noel-gift:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20105%2090%22%3E%3Crect%20x%3D%2213%22%20y%3D%2233%22%20width%3D%2281%22%20height%3D%2251%22%20rx%3D%226%22%20fill%3D%22%23e8b66b%22%20stroke%3D%22%23d29b5e%22%20stroke-width%3D%223%22%2F%3E%3Crect%20x%3D%228%22%20y%3D%2226%22%20width%3D%2291%22%20height%3D%2221%22%20rx%3D%225%22%20fill%3D%22%23f5d8a0%22%2F%3E%3Cpath%20d%3D%22M52%2026v58M10%2040h86%22%20stroke%3D%22%23bb3741%22%20stroke-width%3D%2212%22%2F%3E%3Cpath%20d%3D%22M52%2027Q11%2026%2025%2012q10-10%2027%2015Q72-1%2084%2011q12%2016-32%2016Z%22%20fill%3D%22%23c83941%22%20stroke%3D%22%23f3c1a4%22%20stroke-width%3D%223%22%2F%3E%3C%2Fsvg%3E");--noel-tree:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20120%20110%22%3E%3Cpath%20d%3D%22M60%207%2034%2046h15L22%2072h17L14%2095h92L81%2072h18L72%2046h15Z%22%20fill%3D%22%23528765%22%20stroke%3D%22%23f7faed%22%20stroke-width%3D%223%22%2F%3E%3Cpath%20d%3D%22M59%209%2044%2031l14-5%2015%205L59%209M37%2052l23%209%2024-9M29%2081l32%207%2029-7%22%20fill%3D%22none%22%20stroke%3D%22%23e9f1de%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22m60%200%204%208%209%202-7%206%201%209-7-4-8%204%202-9-7-6%2010-2Z%22%20fill%3D%22%23f7d176%22%2F%3E%3Cpath%20d%3D%22M40%2082q28-20%2050-6M46%2051q20-10%2032%201%22%20stroke%3D%22%23e8bb65%22%20stroke-width%3D%223%22%20fill%3D%22none%22%2F%3E%3Ccircle%20cx%3D%2255%22%20cy%3D%2243%22%20r%3D%224%22%20fill%3D%22%23c73b40%22%2F%3E%3Ccircle%20cx%3D%2274%22%20cy%3D%2268%22%20r%3D%224%22%20fill%3D%22%23f1ddab%22%2F%3E%3Ccircle%20cx%3D%2241%22%20cy%3D%2275%22%20r%3D%224%22%20fill%3D%22%23c73b40%22%2F%3E%3C%2Fsvg%3E");--noel-snowflake:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Cg%20stroke%3D%22%23cfac6a%22%20stroke-width%3D%226%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M50%206v88M6%2050h88M19%2019l62%2062m0-62L19%2081%22%2F%3E%3Cpath%20d%3D%22m36%2016%2014%2014%2014-14M36%2084l14-14%2014%2014M16%2036l14%2014-14%2014M84%2036%2070%2050l14%2014%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");--noel-lights:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20700%2045%22%20preserveAspectRatio%3D%22none%22%3E%3Cpath%20d%3D%22M0%202Q175%2033%20350%2010T700%202%22%20fill%3D%22none%22%20stroke%3D%22%23b99d71%22%20stroke-width%3D%221.5%22%2F%3E%3Cg%3E%3Cellipse%20cx%3D%2250%22%20cy%3D%2215%22%20rx%3D%225%22%20ry%3D%228%22%20fill%3D%22%23ffe4a0%22%2F%3E%3Cellipse%20cx%3D%22140%22%20cy%3D%2225%22%20rx%3D%225%22%20ry%3D%228%22%20fill%3D%22%23e8bb75%22%2F%3E%3Cellipse%20cx%3D%22230%22%20cy%3D%2224%22%20rx%3D%225%22%20ry%3D%228%22%20fill%3D%22%23ffdf8b%22%2F%3E%3Cellipse%20cx%3D%22320%22%20cy%3D%2216%22%20rx%3D%225%22%20ry%3D%228%22%20fill%3D%22%23e8b574%22%2F%3E%3Cellipse%20cx%3D%22410%22%20cy%3D%2216%22%20rx%3D%225%22%20ry%3D%228%22%20fill%3D%22%23ffe2a0%22%2F%3E%3Cellipse%20cx%3D%22500%22%20cy%3D%2224%22%20rx%3D%225%22%20ry%3D%228%22%20fill%3D%22%23fff0ad%22%2F%3E%3Cellipse%20cx%3D%22590%22%20cy%3D%2225%22%20rx%3D%225%22%20ry%3D%228%22%20fill%3D%22%23e9b76b%22%2F%3E%3Cellipse%20cx%3D%22675%22%20cy%3D%229%22%20rx%3D%225%22%20ry%3D%228%22%20fill%3D%22%23ffe2a1%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E")}
+
+html.payment-noel-admin-preview[data-theme] body{
+ background:#f9f8f3!important;
+ background-image:url("../img/payment-noel-sample2-snow.svg")!important;
+ background-repeat:no-repeat!important;
+ background-position:center bottom!important;
+ background-attachment:fixed!important;
+ background-size:100% auto!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header{
+ background:linear-gradient(100deg,#164331,#1c4f3b 63%,#16372e)!important;
+ border-bottom-color:#d0b47e!important;color:#fff8e9!important;
+ box-shadow:0 2px 10px #153a2c27!important;
+ isolation:isolate!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header:after{
+ content:""!important;display:block!important;position:absolute!important;
+ inset:0 0 auto!important;height:18px!important;width:100%!important;
+ pointer-events:none!important;z-index:0!important;opacity:.88!important;
+ background:var(--noel-lights) repeat-x top center/700px 27px!important;
+ animation:payment-noel-glow 5s ease-in-out infinite alternate!important;
+}
+@keyframes payment-noel-glow{to{opacity:.62;filter:brightness(1.15)}}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header>*{position:relative!important;z-index:1!important}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header h1,
+html.payment-noel-admin-preview[data-theme] body .modern-app-header .brand-subtitle{color:#fff6e6!important}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header .compact-language,
+html.payment-noel-admin-preview[data-theme] body .modern-app-header .header-user-button,
+html.payment-noel-admin-preview[data-theme] body .modern-app-header .theme-picker-trigger {
+ background:#ffffff19!important;border-color:#e9d7b76b!important;color:#fff7ea!important
+}
+html.payment-noel-admin-preview[data-theme] body .data-first-topbar{
+ background:linear-gradient(#fffefa,#fff9f1)!important;border-color:#e5ddcd!important;
+}
+html.payment-noel-admin-preview[data-theme] body .project-tabs-bar{background:#fffdfa!important}
+html.payment-noel-admin-preview[data-theme] body .project-tabs-bar [aria-selected="true"],
+html.payment-noel-admin-preview[data-theme] body .project-tabs-bar .active{
+ background:#1d5b42!important;color:#fffaf0!important;border-color:#bdaa78!important
+}
+/* Real existing .data-first-summary contains KPI cards AND the filter panel.
+   Use grid with four KPIs in row one, filters full-width in row two.
+   Reserve reliable side zones for decorations: no overlapping text. */
+html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary{
+ --noel-left:185px;--noel-right:190px;
+ display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;
+ grid-template-rows:110px auto!important;gap:10px!important;
+ align-items:stretch!important;align-content:stretch!important;
+ width:100%!important;max-width:100%!important;
+ position:relative!important;isolation:isolate!important;
+ padding:31px var(--noel-right) 0 var(--noel-left)!important;
+ margin:7px 0 10px!important;
+ background:linear-gradient(105deg,#143f30 0%,#265640 54%,#153a30 100%)!important;
+ border:1px solid #d9b878!important;border-radius:15px!important;
+ box-shadow:0 5px 15px #1c3f3124!important;
+ overflow:visible!important;
+}
+html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary::before{
+ content:"Merry\A Christmas"!important;white-space:pre!important;
+ position:absolute!important;display:block!important;
+ top:49px!important;left:14px!important;z-index:0!important;
+ color:#f1d18f!important;pointer-events:none!important;
+ font:italic 700 32px/1.05 Georgia,serif!important;letter-spacing:-.035em!important;
+ text-shadow:0 2px 7px #b48b4a44!important;
+}
+html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary::after{
+ content:""!important;display:block!important;
+ position:absolute!important;right:2px!important;top:-18px!important;
+ width:var(--noel-right)!important;height:166px!important;z-index:0!important;
+ background:url("../img/payment-noel-sample2-scene.svg") no-repeat center bottom/contain!important;
+ pointer-events:none!important;opacity:1!important;
+}
+html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary > .summary-card {
+ grid-row:1!important;grid-column:auto!important;
+ display:flex!important;flex-direction:column!important;
+ align-items:flex-start!important;justify-content:center!important;
+ position:relative!important;z-index:2!important;overflow:hidden!important;
+ box-sizing:border-box!important;
+ width:auto!important;min-width:0!important;
+ height:108px!important;min-height:108px!important;max-height:none!important;
+ padding:10px 34px 10px 11px!important;
+ gap:3px!important;
+ background:linear-gradient(112deg,#fffbf3,#fff7ea 80%,#f3e9d8)!important;
+ border:1px solid #e8d5b6!important;border-radius:12px!important;
+ box-shadow:0 3px 10px #001b0d20!important;
+ transition:transform .25s ease,box-shadow .25s ease!important
+}
+html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary > .summary-card:hover{
+ transform:translateY(-3px)!important;box-shadow:0 7px 14px #00201527!important
+}
+html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary > .summary-card::before{
+ content:""!important;position:absolute!important;inset:0 0 auto!important;
+ height:3px!important;opacity:.85!important;
+ background:linear-gradient(90deg,#e7ba75,#bba773)!important;
+}
+html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary > .summary-card::after{
+ content:""!important;position:absolute!important;top:50%!important;right:4px!important;
+ width:30px!important;height:36px!important;
+ transform:translateY(-50%)!important;display:block!important;
+ background:var(--noel-gift) no-repeat center/contain!important;
+ pointer-events:none!important;opacity:.88!important;
+}
+html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary > .summary-card:nth-child(2)::after{background-image:var(--noel-wreath)!important}
+html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary > .summary-card:nth-child(3)::after{background-image:var(--noel-bell)!important}
+html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary > .summary-card:nth-child(4)::after{background-image:var(--noel-snowflake)!important}
+html.payment-noel-admin-preview[data-theme] body .data-first-summary .enterprise-kpi-icon{display:none!important}
+html.payment-noel-admin-preview[data-theme] body .data-first-summary > .summary-card .summary-label{
+ position:relative!important;z-index:2!important;margin:0!important;
+ font-size:9.5px!important;font-weight:800!important;line-height:1.25!important;
+ color:#496455!important;letter-spacing:0!important;
+}
+html.payment-noel-admin-preview[data-theme] body .data-first-summary > .summary-card .summary-value{
+ position:relative!important;z-index:2!important;
+ margin:0!important;padding:0!important;display:block!important;
+ line-height:1.24!important;font-size:clamp(13px,1.2vw,21px)!important;
+ font-weight:900!important;color:#a22f35!important;white-space:nowrap!important;
+}
+html.payment-noel-admin-preview[data-theme] body .data-first-summary > .summary-card:nth-child(even) .summary-value{
+ color:#1a583d!important
+}
+html.payment-noel-admin-preview[data-theme] body .data-first-summary > .summary-card .summary-meta{
+ position:relative!important;z-index:2!important;
+ color:#586e5a!important;font-size:10px!important;line-height:1.3!important
+}
+/* Bring the existing search/status panel below the dark banner with no DOM reparenting. */
+html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary > .data-first-filter-panel {
+ grid-row:2!important;grid-column:1/-1!important;
+ position:relative!important;z-index:3!important;
+ width:auto!important;min-width:0!important;
+ display:block!important;
+ padding:7px 9px!important;margin:0 calc(-1 * var(--noel-right)) 0 calc(-1 * var(--noel-left))!important;
+ background:linear-gradient(90deg,#fff8eb,#fffdf8)!important;
+ border:1px solid #e6dccb!important;border-radius:0 0 13px 13px!important;
+ box-shadow:0 2px 8px #00201511!important;
+}
+html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary .enterprise-filter-main{
+ max-width:100%!important;min-width:0!important
+}
+html.payment-noel-admin-preview[data-theme] body #paymentTable thead th{
+ color:#fff8ec!important;background:#174c3a!important;border-color:#2d6650!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:hover td{
+ background:#fff8e9!important
+}
+html.payment-noel-admin-preview[data-theme] body .table-wrap{
+ border-color:#cfddd1!important
+}
+html.payment-noel-admin-preview[data-theme] body #addPaymentBtn{
+ background:#1c5c40!important;border-color:#104733!important;color:white!important
+}
+html.payment-noel-admin-preview[data-theme] body .container>.card{
+ background:transparent!important
+}
+#paymentNoelAdminToggle {
+ display:none;align-items:center;gap:5px;white-space:nowrap;
+ padding:5px 9px;font:700 11px Arial,sans-serif;
+ color:#405f4e;background:#fffaf0;border:1px solid #d5bf9a;
+ border-radius:20px;cursor:pointer;line-height:1.2;
+}
+#paymentNoelAdminToggle[aria-pressed="true"]{
+ color:#fdf7e9;background:#1d5a40;border-color:#d3a36d
+}
+#paymentNoelAdminToggle:focus-visible{outline:2px solid #d9ad66;outline-offset:2px}
+html.payment-noel-admin-preview[data-theme] body #paymentNoelAdminToggle{background:#fff5dd!important;color:#154832!important}
+@media(max-width:1480px){
+ html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary{
+  --noel-left:137px;--noel-right:155px;gap:7px!important;padding-top:27px!important
+ }
+ html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary::before{
+  top:52px!important;left:10px!important;font-size:25px!important
+ }
+ html.payment-noel-admin-preview[data-theme] body .data-first-summary > .summary-card{
+  padding-right:25px!important
+ }
+ html.payment-noel-admin-preview[data-theme] body .data-first-summary > .summary-card::after{width:23px!important}
+}
+@media(max-width:1080px){
+ html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary{
+  --noel-left:10px;--noel-right:10px;
+  padding:82px 10px 0!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  grid-template-rows:auto auto auto!important
+ }
+ html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary::before{
+  top:20px!important;left:17px!important;font-size:30px!important
+ }
+ html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary::after{
+  width:120px!important;height:96px!important;top:-10px!important
+ }
+ html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary > .summary-card{
+  grid-row:auto!important;height:79px!important;min-height:79px!important
+ }
+ html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary > .data-first-filter-panel{grid-row:auto!important}
+}
+@media(max-width:540px){
+ html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary{gap:5px!important;padding:73px 7px 0!important;border-radius:10px!important}
+ html.payment-noel-admin-preview[data-theme] body .data-first-summary > .summary-card{padding:8px 20px 7px 7px!important}
+ html.payment-noel-admin-preview[data-theme] body .data-first-summary > .summary-card .summary-value{font-size:13px!important}
+ html.payment-noel-admin-preview[data-theme] body .data-first-summary > .summary-card .summary-label{font-size:8px!important}
+ html.payment-noel-admin-preview[data-theme] body .data-first-summary > .summary-card::after{width:18px!important}
+ html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary::after{width:98px!important}
+}
+@media(prefers-reduced-motion:reduce){
+ html.payment-noel-admin-preview[data-theme] body .modern-app-header:after{animation:none!important}
+ html.payment-noel-admin-preview[data-theme] body .summary-card:hover{transform:none!important}
+}
