@@ -697,3 +697,281 @@ html.payment-noel-admin-preview[data-theme] body .data-first-summary .enterprise
   font-size:7.5px!important;
  }
 }
+
+
+/* =======================================================================
+   PAYMENT NOEL – FINAL CONSISTENCY / SAFE ADMIN-ONLY PRESENTATION
+   This is purely styling for the existing app; never touch data / handlers.
+   Approved footer visual is separated from the body wallpaper.
+   ======================================================================= */
+#paymentNoelFooterScene { display:none!important; }
+html.payment-noel-admin-preview[data-theme] {
+ --theme-primary:#205a42;
+ --theme-primary-2:#2c7455;
+ --theme-soft:#eaf3e8;
+ --theme-page:#fffaf3;
+ --theme-surface:#fffdf7;
+ --theme-surface-alt:#faf5eb;
+ --theme-border:#e0d4c3;
+ --theme-text:#203d30;
+ --theme-muted:#667365;
+ --theme-table-head:#174e3a;
+ --theme-table-head-2:#23604a;
+ --theme-frozen:#fffdf7;
+ --theme-scroll:#f9f5eb;
+ --theme-accent:#bd8b4f;
+ --theme-shadow:rgba(48,58,35,.10);
+ --payment-noel-cream:#fffaf2;
+ --payment-noel-pine:#174e3a;
+ --payment-noel-berry:#ab3439;
+ --payment-noel-gold:#d6ac6c;
+ --payment-noel-border:#e4d6c3;
+}
+html.payment-noel-admin-preview[data-theme] body {
+ background-color:#fffaf3!important;
+ background-image:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentNoelFooterScene {
+ display:block!important;
+ position:relative!important;
+ width:100%!important;
+ height:clamp(68px,5.6vw,92px)!important;
+ min-height:68px!important;
+ box-sizing:border-box!important;
+ pointer-events:none!important;
+ user-select:none!important;
+ margin:0!important;
+ padding:0!important;
+ border:0!important;
+ background-color:#fff9f0!important;
+ background-image:url("../img/payment-noel-footer-approved.svg")!important;
+ background-size:100% 100%!important;
+ background-position:center bottom!important;
+ background-repeat:no-repeat!important;
+ overflow:hidden!important;
+}
+/* Keep the top cottage header composition already approved on the actual site.
+   Harmonize subtle controls, banner, stats and live totals, not functionality. */
+html.payment-noel-admin-preview[data-theme] body #exportWatchPanel .export-watch-bar {
+ background:linear-gradient(90deg,#fff0c6,#fff9ec)!important;
+ color:#76551d!important;
+ border:1px solid #ead29b!important;
+}
+html.payment-noel-admin-preview[data-theme] body #exportWatchPanel {
+ border-color:#ead8ae!important;
+ background:#fffaf0!important;
+}
+html.payment-noel-admin-preview[data-theme] body #exportWatchDetails,
+html.payment-noel-admin-preview[data-theme] body .export-watch-details,
+html.payment-noel-admin-preview[data-theme] body .export-watch-table-wrap {
+ background:#fffcf6!important;
+ color:#374b3d!important;
+ border-color:#e8decb!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentLiveTotalBar {
+ background:linear-gradient(90deg,#fffaf1,#fffdf9)!important;
+ border-color:#e7dac5!important;
+ color:#374d3c!important;
+ box-shadow:0 0 8px rgba(68,49,28,.06)!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentLiveTotalBar #paymentLivePlanValue {
+ color:#b03339!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentLiveTotalBar #paymentLiveActualValue {
+ color:#176143!important;
+}
+html.payment-noel-admin-preview[data-theme] body .table-wrap,
+html.payment-noel-admin-preview[data-theme] body #paymentHorizontalScrollbar {
+ background-color:#fffdf8!important;
+ border-color:#e5dac9!important;
+}
+/* All table headers, including fixed floating clone, must remain pine green. */
+html.payment-noel-admin-preview[data-theme] body :is(#paymentTable,#paymentFixedHeaderInner table) thead tr > th:nth-child(n),
+html.payment-noel-admin-preview[data-theme] body #paymentFixedHeaderInner .payment-fixed-header-cell {
+ background:#174e3b!important;
+ color:#fff9eb!important;
+ border-color:#356853!important;
+}
+/* Restore full-width hover as in Google Sheets. IMPORTANT:
+   Prior zebra rules with :nth-child(odd):not([style*="background"])
+   had greater specificity than the original :hover selector and masked it.
+   :nth-child(n) below matches that specificity and appears last. */
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:nth-child(n):hover > td:nth-child(n),
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:nth-child(n):focus-within > td:nth-child(n) {
+ background:#e4f3dc!important;
+ background-color:#e4f3dc!important;
+ background-image:none!important;
+ box-shadow:inset 0 1px 0 #c8dfbf,inset 0 -1px 0 #c8dfbf!important;
+ transition:background-color .08s ease!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:nth-child(n):hover > td:first-child,
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:nth-child(n):focus-within > td:first-child {
+ border-left:3px solid #2c8a59!important;
+}
+/* Keyboard focus is preserved; semantic red and green status pills stay distinct. */
+html.payment-noel-admin-preview[data-theme] body :is(
+ .data-first-topbar,.data-first-filter-panel,.enterprise-filter-main,
+ .column-filter-popover,.column-filter-dropdown,.project-tab-menu,
+ .payment-filter-popover,.tools-dropdown,.bulk-actions-menu
+) {
+ border-color:#e0d4c2!important;
+}
+html.payment-noel-admin-preview[data-theme] body .data-first-topbar :is(button,select,input):focus-visible,
+html.payment-noel-admin-preview[data-theme] body .data-first-filter-panel :is(button,select,input):focus-visible {
+ outline:2px solid #c49e5d!important;outline-offset:1px!important;
+}
+html.payment-noel-admin-preview[data-theme] body .data-first-topbar button:not(.btn-danger):not(.btn-red):not(.btn-primary),
+html.payment-noel-admin-preview[data-theme] body .data-first-filter-panel button:not(.active):not(.btn-danger),
+html.payment-noel-admin-preview[data-theme] body #columnFilterPopover button:not(.danger-lite) {
+ border-color:#e3d8c8!important;
+}
+/* Existing modals: add/edit, paste, export, batch, column picker,
+   bulk edits/processes, recycle, audit, password, duplicate warning.
+   Scope to the ID of each existing modal. Preserve sizes and scroll. */
+html.payment-noel-admin-preview[data-theme] body :is(
+ #paymentModal,#pasteExcelModal,#exportExcelModal,
+ #batchPaymentModal,#columnSettingsModal,
+ #bulkEditModal,#bulkProcessModal,
+ #recycleBinModal,#activityLogModal,
+ #crossMonthImportConfirmModal,#changePasswordModal
+) > .modal-box {
+ color:#263b30!important;
+ background:linear-gradient(180deg,#fffaf2 0%,#fffefb 23%,#fffdf8 100%)!important;
+ border:1px solid #e0cfb4!important;
+ border-top:3px solid #d2aa6e!important;
+ box-shadow:0 22px 65px rgba(29,46,35,.24)!important;
+}
+html.payment-noel-admin-preview[data-theme] body :is(
+ #paymentModal,#pasteExcelModal,#exportExcelModal,
+ #batchPaymentModal,#columnSettingsModal,
+ #bulkEditModal,#bulkProcessModal,
+ #recycleBinModal,#activityLogModal,
+ #crossMonthImportConfirmModal,#changePasswordModal
+) .modal-header {
+ background:linear-gradient(100deg,#eaf2e8,#f8f0e4 65%,#fffaf2)!important;
+ color:#1c5139!important;
+ border-bottom:1px solid #e5d6c1!important;
+}
+html.payment-noel-admin-preview[data-theme] body :is(
+ #paymentModal,#pasteExcelModal,#exportExcelModal,
+ #batchPaymentModal,#columnSettingsModal,
+ #bulkEditModal,#bulkProcessModal,
+ #recycleBinModal,#activityLogModal,
+ #crossMonthImportConfirmModal,#changePasswordModal
+) .modal-header :is(h2,h3,.modal-title) {
+ color:#1a503a!important;
+ text-shadow:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body :is(
+ #paymentModal,#pasteExcelModal,#exportExcelModal,
+ #batchPaymentModal,#columnSettingsModal,
+ #bulkEditModal,#bulkProcessModal,
+ #recycleBinModal,#activityLogModal,
+ #crossMonthImportConfirmModal,#changePasswordModal
+) :is(.modal-footer,.modal-actions,.column-settings-actions,.export-scope-actions) {
+ background:#fffbf4!important;
+ border-color:#e7dac8!important;
+}
+html.payment-noel-admin-preview[data-theme] body :is(
+ #paymentModal,#pasteExcelModal,#exportExcelModal,
+ #batchPaymentModal,#columnSettingsModal,
+ #bulkEditModal,#bulkProcessModal,
+ #recycleBinModal,#activityLogModal,
+ #crossMonthImportConfirmModal,#changePasswordModal
+) :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea) {
+ background:#fffefb!important;
+ color:#243c30!important;
+ border-color:#daccb9!important;
+}
+html.payment-noel-admin-preview[data-theme] body :is(
+ #paymentModal,#pasteExcelModal,#exportExcelModal,
+ #batchPaymentModal,#columnSettingsModal,
+ #bulkEditModal,#bulkProcessModal,
+ #recycleBinModal,#activityLogModal,
+ #crossMonthImportConfirmModal,#changePasswordModal
+) :is(input,select,textarea):focus-visible {
+ outline:2px solid #cba666!important;
+ outline-offset:1px!important;
+}
+html.payment-noel-admin-preview[data-theme] body :is(
+ #paymentModal,#pasteExcelModal,#exportExcelModal,
+ #batchPaymentModal,#columnSettingsModal,
+ #bulkEditModal,#bulkProcessModal,
+ #recycleBinModal,#activityLogModal,
+ #crossMonthImportConfirmModal,#changePasswordModal
+) :is(.btn-primary,.btn-purple,.btn-batch):not(:disabled) {
+ background:#1b5a41!important;
+ border-color:#13462f!important;
+ color:#fff9ed!important;
+}
+html.payment-noel-admin-preview[data-theme] body :is(
+ #paymentModal,#pasteExcelModal,#exportExcelModal,
+ #batchPaymentModal,#columnSettingsModal,
+ #bulkEditModal,#bulkProcessModal,
+ #recycleBinModal,#activityLogModal,
+ #crossMonthImportConfirmModal,#changePasswordModal
+) .btn-gray {
+ background:#f8f3eb!important;
+ color:#35503e!important;
+ border-color:#e2d6c6!important;
+}
+html.payment-noel-admin-preview[data-theme] body :is(
+ #paymentModal,#pasteExcelModal,#exportExcelModal,
+ #batchPaymentModal,#columnSettingsModal,
+ #bulkEditModal,#bulkProcessModal,
+ #recycleBinModal,#activityLogModal,
+ #crossMonthImportConfirmModal,#changePasswordModal
+) :is(.form-group > label,.bulk-process-field > label,.info-label,.process-label) {
+ color:#365e48!important;
+}
+html.payment-noel-admin-preview[data-theme] body :is(
+ #batchPaymentModal,#columnSettingsModal,#bulkEditModal,#bulkProcessModal,
+ #exportExcelModal,#recycleBinModal,#activityLogModal
+) :is(
+ .column-setting-item,.batch-modal-list,.batch-summary,
+ .bulk-edit-grid,.bulk-process-grid,.bulk-process-field,
+ .export-scope-list,.export-scope-summary,.export-scope-presets,
+ .recycle-list,.activity-log-toolbar,.activity-log-item
+) {
+ background-color:#fffaf2!important;
+ border-color:#e6d9c6!important;
+}
+/* Components that are not modal dialogs but were still corporate blue */
+html.payment-noel-admin-preview[data-theme] body :is(
+ #themePickerPanel,#exportWatchPanel,#columnFilterPopover
+) {
+ border-color:#e3d3be!important;
+ box-shadow:0 7px 20px rgba(37,50,36,.11)!important;
+}
+html.payment-noel-admin-preview[data-theme] body :is(
+ #themePickerPanel,#columnFilterPopover
+) :is(.theme-picker-title,.column-filter-title) {
+ color:#21543e!important;
+}
+/* Retain destructive-action warning red; never make a delete button look like save. */
+html.payment-noel-admin-preview[data-theme] body :is(.btn-danger,.btn-red,.danger-lite) {
+ color:inherit;
+}
+/* Opened details and small popovers: use the same cream/pine language. */
+html.payment-noel-admin-preview[data-theme] body :is(
+ .payment-timeline-popup,.payment-timeline-popover,
+ .payment-row-popover,.payment-detail-card,
+ .activity-log-month-popover,.export-watch-details,
+ .column-filter-dropdown
+) {
+ background-color:#fffdf8!important;
+ border-color:#e4d6c2!important;
+ color:#2d4536!important;
+}
+html.payment-noel-admin-preview[data-theme] body :is(
+ .payment-timeline-popup,.payment-timeline-popover,
+ .payment-row-popover,.payment-detail-card
+) :is(.popup-title,.popover-title,.timeline-title) {
+ color:#20583f!important;
+}
+/* Micro interactions only: no snowfall on tables or modals */
+@media(prefers-reduced-motion:reduce){
+ html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:nth-child(n) > td{
+  transition:none!important;
+ }
+}
