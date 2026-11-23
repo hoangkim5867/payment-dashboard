@@ -73,7 +73,7 @@ html.payment-noel-admin-preview[data-theme] body .data-first-shell>.data-first-s
  box-shadow:0 2px 7px #70502c10!important;overflow:visible!important
 }
 html.payment-noel-admin-preview[data-theme] body .data-first-shell>.data-first-summary::before{
- content:""!important;display:block!important;grid-column:1!important;grid-row:1!important;
+ content:"Merry\\A Christmas"!important;white-space:pre!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;color:#f9dfb7!important;text-shadow:0 2px 2px #08291d!important;font:italic 700 26px/1.06 Georgia,serif!important;grid-column:1!important;grid-row:1!important;
  position:relative!important;inset:auto!important;z-index:0!important;
  box-sizing:border-box!important;width:100%!important;height:100px!important;
  background:url("../img/payment-noel-2026-plaque.svg") no-repeat center/100% 100%!important;
