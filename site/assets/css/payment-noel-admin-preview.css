@@ -966,3 +966,108 @@ html.payment-noel-admin-preview[data-theme] body .container .card:has(> .data-fi
     background-size:100% 100%!important;
   }
 }
+
+
+/* =============================================================
+ * PAYMENT NOEL V3 — SHARP VECTORS + FOOTER AT REAL PAGE BOTTOM
+ * Only Admin's existing Noel mode. No payment data or JS changes.
+ * Existing KPI sizes, toolbars, tables and modal handlers untouched.
+ * ============================================================= */
+
+/* The old full-width fairy-light picture was blurry and visually noisy.
+ * Use a single small snow cottage, centered in the spare header space.
+ * A genuine SVG vector stays crisp at any desktop pixel density. */
+html.payment-noel-admin-preview[data-theme] body .modern-app-header::before{
+  content:none!important;
+  display:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header::after{
+  content:""!important;
+  display:block!important;
+  position:absolute!important;
+  top:0!important;
+  bottom:auto!important;
+  left:50%!important;
+  right:auto!important;
+  width:290px!important;
+  height:52px!important;
+  transform:translateX(-50%)!important;
+  z-index:0!important;
+  opacity:1!important;
+  pointer-events:none!important;
+  background-image:url("../img/payment-noel-header-snow-cottage-v3.svg")!important;
+  background-repeat:no-repeat!important;
+  background-position:center center!important;
+  background-size:contain!important;
+  filter:none!important;
+  animation:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header > *{
+  position:relative!important;
+  z-index:1!important;
+}
+
+/* Footer follows document flow, but the containing real Payment card fills
+ * the available viewport when only a few records exist. The flex auto-gap
+ * moves the illustration DOWN, not the table. With many records the card
+ * grows naturally, and the footer follows the final row instead of
+ * covering payments. Never use position:fixed / background-attachment:fixed. */
+html.payment-noel-admin-preview[data-theme] body .container .card:has(> .data-first-shell){
+  display:flex!important;
+  flex-direction:column!important;
+  box-sizing:border-box!important;
+  min-height:calc(100vh - 185px)!important;
+  min-height:calc(100dvh - 185px)!important;
+  overflow:visible!important;
+}
+html.payment-noel-admin-preview[data-theme] body .container .card:has(> .data-first-shell) > .data-first-shell,
+html.payment-noel-admin-preview[data-theme] body .container .card:has(> .data-first-shell) > .table-wrap{
+  width:100%!important;
+  min-width:0!important;
+  flex-shrink:0!important;
+}
+html.payment-noel-admin-preview[data-theme] body .container .card:has(> .data-first-shell)::after{
+  content:""!important;
+  display:block!important;
+  position:relative!important;
+  flex:none!important;
+  align-self:stretch!important;
+  clear:both!important;
+  width:100%!important;
+  height:clamp(112px,7.9vw,149px)!important;
+  min-height:112px!important;
+  max-height:149px!important;
+  margin:auto 0 0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  opacity:1!important;
+  background-color:#fffaf5!important;
+  background-image:url("../img/payment-noel-footer-vector-v3.svg")!important;
+  background-repeat:no-repeat!important;
+  background-position:center bottom!important;
+  background-size:100% 100%!important;
+  box-shadow:none!important;
+  pointer-events:none!important;
+  user-select:none!important;
+}
+
+/* On mobile, respect compact controls and the longer stacked header. */
+@media(max-width:1120px){
+  html.payment-noel-admin-preview[data-theme] body .modern-app-header::after{
+    content:none!important;
+    display:none!important;
+  }
+}
+@media(max-width:760px){
+  html.payment-noel-admin-preview[data-theme] body .container .card:has(> .data-first-shell){
+    min-height:calc(100dvh - 235px)!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body .container .card:has(> .data-first-shell)::after{
+    height:104px!important;
+    min-height:104px!important;
+    max-height:104px!important;
+    background-position:center bottom!important;
+    background-size:100% 100%!important;
+  }
+}
