@@ -1578,3 +1578,562 @@ html.payment-noel-admin-preview[data-theme] body
     max-height:105px!important;
   }
 }
+
+
+/* ================================================================
+   APPROVED CHRISTMAS VINTAGE — FULL PAYMENT VISUAL RE-SKIN
+   Design: approved 1774x887 vintage mockup (red candy stripes, ivory
+   paper, fir green, framed Christmas plaque, illustrated snowy footer).
+   Only Admin's already-authenticated opt-in Noel mode.
+   Never modifies table data, JS, event handlers or role permissions.
+   ================================================================ */
+html.payment-noel-admin-preview[data-theme]{
+  --unified-primary:#15583f!important;
+  --unified-accent:#c6a16b!important;
+  --unified-border:#e2d2b9!important;
+  --unified-surface:#fffaf0!important;
+  --unified-surface-alt:#fbf2e6!important;
+  --unified-soft:#eaf2e6!important;
+  --unified-text:#234a35!important;
+  --unified-muted:#7c745f!important;
+  --payment-christmas-forest:#15583f!important;
+  --payment-christmas-forest-dark:#0f4633!important;
+  --payment-christmas-berry:#aa3038!important;
+  --payment-christmas-champagne:#d1a66f!important;
+  --payment-christmas-cream:#fff8eb!important;
+  --payment-christmas-paper:#fbf5e9!important;
+  --payment-christmas-border:#e7d5b9!important;
+}
+html.payment-noel-admin-preview[data-theme] body{
+  background:#fff6e9!important;
+  background-image:
+    radial-gradient(ellipse 120% 54% at 50% 100%,rgba(232,203,166,.24),transparent 70%),
+    linear-gradient(#fff9f0,#fff6e9)!important;
+  background-size:auto!important;
+  background-attachment:scroll!important;
+  background-repeat:no-repeat!important;
+  color:#274c39!important;
+}
+/* The approved mockup features a full illustrated Christmas banner.
+   Use a high-resolution SVG, NOT an enlarged blurry source screenshot.
+   Controls remain real HTML above the artwork and stay clickable. */
+html.payment-noel-admin-preview[data-theme] body .modern-app-header{
+  position:relative!important;
+  isolation:isolate!important;
+  box-sizing:border-box!important;
+  min-height:140px!important;
+  height:auto!important;
+  padding:87px 14px 12px!important;
+  display:flex!important;
+  align-items:flex-end!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+  background:#fff6e7!important;
+  border-bottom:1px solid #d9bb8e!important;
+  box-shadow:0 2px 11px #80542c1a!important;
+  overflow:visible!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header::before{
+  content:none!important;display:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header::after{
+  content:""!important;
+  display:block!important;
+  position:absolute!important;
+  inset:0 0 auto 0!important;
+  top:0!important;left:0!important;right:0!important;
+  transform:none!important;
+  bottom:auto!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:125px!important;
+  background:url("../img/payment-noel-vintage-approved-header.svg") no-repeat center top/100% 100%!important;
+  opacity:1!important;filter:none!important;animation:none!important;
+  z-index:0!important;pointer-events:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header > *{
+  position:relative!important;z-index:1!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header .brand-block{
+  flex:0 1 auto!important;
+  padding:5px 11px!important;
+  min-height:37px!important;
+  margin:0!important;
+  border-radius:8px!important;
+  background:rgba(255,250,240,.93)!important;
+  box-shadow:0 1px 4px #6d47281a!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header .brand-block h1,
+html.payment-noel-admin-preview[data-theme] body .modern-app-header .brand-block .brand-subtitle{
+  color:#164b38!important;
+  text-shadow:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header .modern-header-right{
+  flex:0 1 auto!important;
+  align-self:flex-end!important;
+  background:rgba(255,250,241,.83)!important;
+  border-radius:9px!important;
+  padding:3px 5px!important;
+  box-shadow:0 1px 5px #785c3818!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header :is(
+  .compact-language,.theme-picker-trigger,.header-user-button
+){
+  background:#fffcf5!important;
+  border-color:#e2d1b7!important;
+  color:#264d38!important;
+  box-shadow:0 1px 3px #64452c12!important;
+}
+/* Cream and evergreen project / action navigation, as in the mockup. */
+html.payment-noel-admin-preview[data-theme] body :is(
+ .data-first-topbar,.project-tabs-bar
+){
+ background:linear-gradient(180deg,#fffdf8,#fff7eb)!important;
+ border-color:#e3d4bb!important;
+ color:#244a36!important;
+ box-shadow:0 2px 6px #7e5f2b0a!important;
+}
+html.payment-noel-admin-preview[data-theme] body .project-tabs-bar button{
+ color:#2b5340!important;
+}
+html.payment-noel-admin-preview[data-theme] body .project-tabs-bar button.active,
+html.payment-noel-admin-preview[data-theme] body .project-tabs-bar button[aria-selected="true"]{
+ color:#fffdf1!important;
+ background:#14553c!important;
+ border-color:#c39c5c!important;
+ box-shadow:0 2px 0 #d2bd89!important;
+}
+html.payment-noel-admin-preview[data-theme] body :is(
+ .enterprise-actions button,.tools-menu-trigger,.enterprise-bulk-trigger
+){
+ border-color:#e0ccb0!important;
+ box-shadow:0 1px 4px rgba(94,63,33,.07)!important;
+}
+html.payment-noel-admin-preview[data-theme] body #addPaymentBtn{
+ background:#14563c!important;
+ border-color:#0e4531!important;
+ color:#fff8ed!important;
+}
+/* Notification/banner remains the actual existing Export Watch element. */
+html.payment-noel-admin-preview[data-theme] body :is(
+ .export-watch-notice,.export-watch-indicator,.export-watch-banner,
+ .changes-since-export,.export-watch-toolbar
+){
+ background:#fff0be!important;
+ border-color:#e6c78b!important;
+ color:#885120!important;
+}
+/* KPI row: vintage green ornamental label + four cream/pastel cards.
+   Restore large expressive Merry Christmas like approved design. */
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary{
+  --noel-left:9px!important;
+  --noel-right:9px!important;
+  display:grid!important;
+  grid-template-columns:200px repeat(4,minmax(0,1fr))!important;
+  grid-template-rows:98px auto!important;
+  gap:8px 12px!important;
+  width:100%!important;
+  max-width:100%!important;
+  position:relative!important;
+  box-sizing:border-box!important;
+  align-items:center!important;
+  padding:10px 9px 0!important;
+  margin:7px 0 9px!important;
+  background:linear-gradient(180deg,#fff6e5,#fffaf1 91%)!important;
+  border:1px solid #ebdac1!important;
+  border-radius:10px!important;
+  box-shadow:0 2px 8px #5e513b0b!important;
+  overflow:visible!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary::before{
+  content:"Merry\A Christmas"!important;
+  display:flex!important;
+  box-sizing:border-box!important;
+  position:relative!important;
+  left:auto!important;top:auto!important;right:auto!important;bottom:auto!important;
+  grid-column:1!important;grid-row:1!important;
+  justify-self:stretch!important;align-self:stretch!important;
+  align-items:center!important;justify-content:center!important;
+  z-index:1!important;
+  width:200px!important;height:98px!important;
+  padding:12px 6px 4px!important;
+  margin:0!important;
+  color:#f6d69b!important;
+  background:#14543c url("../img/payment-noel-vintage-kpi-plaque.svg") no-repeat center/100% 100%!important;
+  border:0!important;border-radius:12px!important;
+  box-shadow:none!important;
+  text-shadow:0 2px 1px #0c3b2bb0!important;
+  font:italic 700 31px/1.02 Georgia,"Times New Roman",serif!important;
+  text-align:center!important;
+  letter-spacing:-1px!important;
+  white-space:pre!important;
+  pointer-events:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary::after{
+  content:none!important;display:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card{
+  display:flex!important;
+  position:relative!important;
+  grid-column:auto!important;grid-row:1!important;
+  flex-direction:column!important;align-items:flex-start!important;
+  justify-content:center!important;
+  width:100%!important;min-width:0!important;
+  height:98px!important;min-height:98px!important;max-height:98px!important;
+  padding:9px 113px 8px 14px!important;
+  margin:0!important;gap:3px!important;
+  border-radius:13px!important;
+  border:1px solid #e8dcca!important;
+  box-shadow:0 2px 6px #8768440f!important;
+  overflow:hidden!important;
+  transform:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card:nth-child(1){
+  background:linear-gradient(105deg,#fffaf0 0%,#f9f2e7 67%,#f2eddf)!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card:nth-child(2){
+  background:linear-gradient(105deg,#fff5ec 0%,#fff0e9 67%,#f6e7df)!important;
+  border-color:#efd9d0!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card:nth-child(3){
+  background:linear-gradient(105deg,#fff9ee 0%,#faf4e7 68%,#eaf1e6)!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card:nth-child(4){
+  background:linear-gradient(105deg,#fff8e9 0%,#fff0d9 68%,#f7e7ca)!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card::before{
+  content:none!important;display:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card::after{
+  content:""!important;display:block!important;position:absolute!important;
+  z-index:0!important;top:0!important;right:0!important;bottom:auto!important;
+  width:116px!important;height:98px!important;
+  opacity:1!important;transform:none!important;filter:none!important;
+  background-repeat:no-repeat!important;background-size:contain!important;
+  background-position:right bottom!important;
+  pointer-events:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card:nth-child(1)::after{
+  background-image:url("../img/payment-noel-kpi-gift.svg")!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card:nth-child(2)::after{
+  background-image:url("../img/payment-noel-kpi-snowman.svg")!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card:nth-child(3)::after{
+  background-image:url("../img/payment-noel-kpi-ginger.svg")!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .summary-card:nth-child(4)::after{
+  background-image:url("../img/payment-noel-kpi-bells.svg")!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary .summary-card :is(.summary-label,.summary-meta,.summary-value){
+  position:relative!important;z-index:1!important;
+  margin:0!important;
+  white-space:nowrap!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary .summary-card .summary-label{
+  color:#2d523d!important;
+  font:800 10px/1.25 Arial,"Segoe UI",sans-serif!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary .summary-card .summary-value{
+  font:900 clamp(14px,1.27vw,21px)/1.12 Arial,"Segoe UI",sans-serif!important;
+  letter-spacing:-.35px!important;
+  color:#154d37!important;
+  font-variant-numeric:tabular-nums!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary .summary-card:nth-child(even) .summary-value{
+ color:#b12b35!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary .summary-card .summary-meta{
+  color:#596a58!important;
+  font:600 10px/1.23 Arial,"Segoe UI",sans-serif!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary > .data-first-filter-panel{
+  display:block!important;
+  grid-column:1/-1!important;grid-row:2!important;
+  align-self:stretch!important;justify-self:stretch!important;
+  box-sizing:border-box!important;
+  width:calc(100% + 18px)!important;
+  max-width:none!important;
+  margin:0 -9px!important;
+  padding:8px 9px!important;
+  background:#fffaf2!important;
+  border:1px solid #e8dbc6!important;
+  border-radius:0 0 10px 10px!important;
+  box-shadow:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.data-first-shell > .data-first-summary .enterprise-filter-main{
+  background:#fffaf2!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  justify-content:space-between!important;
+}
+html.payment-noel-admin-preview[data-theme] body .enterprise-filter-main :is(
+ input,select,button
+){
+  background-color:#fffdf7!important;
+  border-color:#e1d4c2!important;
+  color:#2a4e3a!important;
+}
+html.payment-noel-admin-preview[data-theme] body .enterprise-filter-main :is(
+ button.active,button[aria-pressed="true"]
+){
+  background:#e4f0e3!important;
+  border-color:#a8c5ac!important;
+  color:#155239!important;
+}
+/* Mockup's deep-green header, cream body, and live sheet-like hover. */
+html.payment-noel-admin-preview[data-theme] body :is(
+ #paymentTable thead th,#paymentFixedHeaderInner th
+){
+  background:#12513b!important;
+  background-image:linear-gradient(180deg,#185b42,#0e4936)!important;
+  color:#fff8e9!important;
+  border-color:#37745c!important;
+  text-shadow:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:nth-child(odd) td:not([style*="background"]){
+  background:#fffdf8!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:nth-child(even) td:not([style*="background"]){
+  background:#faf6ed!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:nth-child(n):hover > td:nth-child(n),
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:nth-child(n):focus-within > td:nth-child(n),
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:nth-child(n):hover > th:nth-child(n){
+  background:#e3f1df!important;
+  background-color:#e3f1df!important;
+  background-image:none!important;
+  box-shadow:inset 0 1px #b0cda8,inset 0 -1px #b0cda8!important;
+  transition:background-color .08s ease!important;
+}
+/* Real native dialogs and popovers inherit the SAME holiday style.
+   Do not alter their input values, callbacks, or scroll geometry. */
+html.payment-noel-admin-preview[data-theme] body .modal > .modal-box,
+html.payment-noel-admin-preview[data-theme] body .modal > .modal-content{
+  background:linear-gradient(180deg,#fffcf6,#fff9ef)!important;
+  border:1px solid #ddc9aa!important;
+  border-top:4px solid #c6a16c!important;
+  border-radius:12px!important;
+  color:#274936!important;
+  box-shadow:0 24px 65px #1b352c3b!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal :is(
+ .modal-header,.modal-title-bar
+){
+  background:linear-gradient(90deg,#eaf3e8,#fff6e7 78%,#faecda)!important;
+  border-color:#e5d3b3!important;
+  color:#18563e!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal :is(
+ .modal-header h2,.modal-header h3,.modal-title
+){
+  color:#18533c!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal :is(
+ input:not([type="checkbox"]):not([type="radio"]),select,textarea
+){
+  background:#fffefa!important;
+  color:#294a37!important;
+  border-color:#dcc9ac!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal :is(
+ .column-setting-item,.export-scope-option,.export-project-option,
+ .import-preview-wrap,.import-mapping-wrap,.form-section,
+ .process-item,.export-scope-summary
+){
+  background:#fff9ef!important;
+  border-color:#e5d4bb!important;
+  color:#2c513b!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal :is(
+ .column-setting-item,.export-scope-option,.export-project-option
+):has(input:checked){
+  background:#e9f1e6!important;
+  border-color:#9bbb9b!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal input[type="checkbox"]{
+  accent-color:#1b6247!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal :is(
+ .btn-primary,.btn-export,.btn-confirm
+):not(:disabled){
+  background:#175a40!important;
+  border-color:#104832!important;
+  color:#fff9eb!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal :is(
+ .btn-secondary,.btn-gray,.btn-cancel
+):not(:disabled){
+  background:#f9f1e3!important;
+  border-color:#dfcba9!important;
+  color:#36543e!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal :is(
+ .btn-danger,.btn-red
+):not(:disabled){
+  background:#b33840!important;
+  color:white!important;
+}
+html.payment-noel-admin-preview[data-theme] body :is(
+ .tools-dropdown,.enterprise-bulk-menu,.column-filter-dropdown,
+ .column-filter-popover,.project-tab-menu,.theme-picker-panel,
+ .payment-row-popover,.payment-timeline-popup
+){
+  background:#fffaf0!important;
+  border-color:#dfc9aa!important;
+  color:#315340!important;
+}
+/* The approved concept's snowy lower border fills the page naturally.
+   Short project: the footer is at the bottom of the screen.
+   Long project: the footer follows the table, never overlays payments. */
+html.payment-noel-admin-preview[data-theme] body
+.container .card:has(> .data-first-shell){
+  display:flex!important;
+  flex-direction:column!important;
+  min-height:calc(100vh - 137px)!important;
+  min-height:calc(100dvh - 137px)!important;
+  padding-bottom:0!important;
+  background:#fff8ec!important;
+}
+html.payment-noel-admin-preview[data-theme] body
+.container .card:has(> .data-first-shell)::after{
+  content:""!important;
+  display:block!important;position:relative!important;
+  align-self:stretch!important;
+  flex:0 0 auto!important;
+  width:100%!important;
+  height:clamp(150px,11.7vw,205px)!important;
+  min-height:150px!important;max-height:205px!important;
+  margin:auto 0 0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:#fff7ec url("../img/payment-noel-footer-v4.svg") no-repeat center bottom/100% 100%!important;
+  box-shadow:none!important;
+  pointer-events:none!important;
+}
+@media(max-width:1500px){
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary{
+    grid-template-columns:157px repeat(4,minmax(0,1fr))!important;
+    gap:7px!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary::before{
+    width:157px!important;
+    font-size:25px!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary > .summary-card{
+    padding-right:90px!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary > .summary-card::after{
+    width:92px!important;
+  }
+}
+@media(max-width:1190px){
+  html.payment-noel-admin-preview[data-theme] body .modern-app-header{
+    min-height:100px!important;
+    padding:49px 9px 8px!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body .modern-app-header::after{
+    height:75px!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    grid-template-rows:70px auto auto auto!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary::before{
+    grid-column:1/-1!important;
+    grid-row:1!important;
+    width:100%!important;height:70px!important;
+    font-size:27px!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary > .summary-card{
+    grid-column:auto!important;
+    grid-row:auto!important;
+    height:90px!important;min-height:90px!important;max-height:90px!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary > .data-first-filter-panel{
+    grid-row:4!important;
+  }
+}
+@media(max-width:650px){
+  html.payment-noel-admin-preview[data-theme] body .modern-app-header{
+    min-height:auto!important;
+    padding:30px 6px 8px!important;
+    flex-wrap:wrap!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body .modern-app-header::after{
+    height:45px!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary{
+    gap:5px!important;
+    padding:7px 6px 0!important;
+    grid-template-rows:58px auto auto auto!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary::before{
+    height:58px!important;font-size:22px!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary > .summary-card{
+    height:72px!important;min-height:72px!important;max-height:72px!important;
+    padding:6px 58px 6px 7px!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary > .summary-card::after{
+    height:72px!important;width:59px!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary .summary-card .summary-value{
+    font-size:11px!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .data-first-shell > .data-first-summary > .data-first-filter-panel{
+    width:calc(100% + 12px)!important;
+    margin:0 -6px!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .container .card:has(> .data-first-shell){
+    min-height:calc(100dvh - 120px)!important;
+  }
+  html.payment-noel-admin-preview[data-theme] body
+  .container .card:has(> .data-first-shell)::after{
+    height:120px!important;min-height:120px!important;max-height:120px!important;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  html.payment-noel-admin-preview[data-theme] body *{
+    scroll-behavior:auto!important;
+  }
+}
