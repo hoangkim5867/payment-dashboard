@@ -207,3 +207,260 @@ html.payment-noel-admin-preview[data-theme] body #paymentNoelAdminToggle{backgro
  html.payment-noel-admin-preview[data-theme] body .modern-app-header:after{animation:none!important}
  html.payment-noel-admin-preview[data-theme] body .summary-card:hover{transform:none!important}
 }
+
+
+/* ============================================================
+   Christmas visual V2: consistent warm-cream controls, modal
+   headings, pasted Excel, new payment, and original data table.
+   Admin preview class only; no payment data, handler or Firebase
+   access changes. Scopes intentionally high for inline theme CSS.
+   ============================================================ */
+html.payment-noel-admin-preview[data-theme] {
+ --payment-christmas-forest:#174b38;
+ --payment-christmas-forest-dark:#103e31;
+ --payment-christmas-berry:#a83338;
+ --payment-christmas-champagne:#d9ad70;
+ --payment-christmas-cream:#fffaf2;
+ --payment-christmas-paper:#f7f3e9;
+ --payment-christmas-border:#e3d7c7;
+}
+/* Main header: pale gold / snow, like reference, not dark corporate blue. */
+html.payment-noel-admin-preview[data-theme] body .modern-app-header {
+ background:
+   radial-gradient(ellipse 70% 130% at 40% 100%,#efe3d3 0%,transparent 73%),
+   linear-gradient(100deg,#fffdf9,#f9ede3 52%,#fff9f0)!important;
+ border-bottom:1px solid #ddcdb9!important;
+ box-shadow:0 2px 8px rgba(79,59,35,.09)!important;
+ color:#244c39!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header::after {
+ background:var(--noel-lights) repeat-x center top/700px 27px!important;
+ opacity:.7!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header .brand-block h1,
+html.payment-noel-admin-preview[data-theme] body .modern-app-header .brand-subtitle {
+ color:#1d513c!important;text-shadow:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header .compact-language,
+html.payment-noel-admin-preview[data-theme] body .modern-app-header .header-user-button,
+html.payment-noel-admin-preview[data-theme] body .modern-app-header .theme-picker-trigger {
+ background:#fffaf2!important;
+ color:#254a38!important;
+ border-color:#e2d3bf!important;
+}
+/* project bar, secondary toolbar, controls and table deliberately share one warm palette */
+html.payment-noel-admin-preview[data-theme] body .data-first-topbar,
+html.payment-noel-admin-preview[data-theme] body .project-tabs-bar {
+ background:linear-gradient(180deg,#fffdf8,#faf5ec)!important;
+ border-color:#e2d5c4!important;
+}
+html.payment-noel-admin-preview[data-theme] body .project-tabs-bar button {
+ color:#3d5146!important;
+}
+html.payment-noel-admin-preview[data-theme] body .project-tabs-bar button.active,
+html.payment-noel-admin-preview[data-theme] body .project-tabs-bar button[aria-selected="true"] {
+ color:#fffaf2!important;background:#1a563e!important;border-color:#bfa675!important;
+}
+html.payment-noel-admin-preview[data-theme] body .data-first-summary > .data-first-filter-panel,
+html.payment-noel-admin-preview[data-theme] body .data-first-summary .enterprise-filter-main {
+ background:#fff9f0!important;color:#294737!important;
+}
+html.payment-noel-admin-preview[data-theme] body .data-first-summary .enterprise-filter-main button:not(.active),
+html.payment-noel-admin-preview[data-theme] body .data-first-summary .enterprise-filter-main select,
+html.payment-noel-admin-preview[data-theme] body .data-first-summary .enterprise-filter-main input {
+ border-color:#ddcfbc!important;
+}
+html.payment-noel-admin-preview[data-theme] body .data-first-summary .payment-status-segments button.active,
+html.payment-noel-admin-preview[data-theme] body .data-first-summary .payment-status-segments button[aria-pressed="true"]{
+ background:#e7f0e6!important;color:#1c593f!important;border-color:#a5c8b1!important;
+}
+/* Entire header row must change, including frozen cells and individual process columns.
+   Preserve sticky columns, widths and overflow. */
+html.payment-noel-admin-preview[data-theme] body #paymentTable thead,
+html.payment-noel-admin-preview[data-theme] body #paymentTable thead tr,
+html.payment-noel-admin-preview[data-theme] body #paymentTable thead th,
+html.payment-noel-admin-preview[data-theme] body #paymentTable thead th.basic-header,
+html.payment-noel-admin-preview[data-theme] body #paymentTable thead th.process-header,
+html.payment-noel-admin-preview[data-theme] body #paymentTable thead th.select-cell,
+html.payment-noel-admin-preview[data-theme] body #paymentTable thead th[class*="sticky"],
+html.payment-noel-admin-preview[data-theme] body #paymentFixedHeaderInner table thead th,
+html.payment-noel-admin-preview[data-theme] body #paymentFixedHeaderInner th {
+ background-color:#164c38!important;
+ background-image:none!important;
+ color:#fff9ef!important;
+ border-color:#326550!important;
+ text-shadow:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentTable thead th .column-menu-trigger,
+html.payment-noel-admin-preview[data-theme] body #paymentFixedHeaderInner th .column-menu-trigger{
+ color:#f8edcd!important;
+}
+/* Readable warm table rows without overwriting dynamic status cell colors. */
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr td{
+ border-color:#ebe3d7!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:nth-child(odd) td:not([style*="background"]){
+ background-color:#fffdf8!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:nth-child(even) td:not([style*="background"]){
+ background-color:#faf7f0!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:hover td{
+ background-color:#fff1d8!important;
+}
+html.payment-noel-admin-preview[data-theme] body .table-wrap{
+ border-color:#e0d4c4!important;
+}
+/* Native Payment modals only: no geometry changes, preserve existing scroll. */
+html.payment-noel-admin-preview[data-theme] body #paymentModal > .modal-box,
+html.payment-noel-admin-preview[data-theme] body #pasteExcelModal > .modal-box {
+ position:relative!important;
+ isolation:isolate!important;
+ background:linear-gradient(180deg,#fffcf7 0%,#fffefd 26%,#fffdf8 100%)!important;
+ border:1px solid #e2cfb3!important;
+ border-top:4px solid #d8ae72!important;
+ color:#263d30!important;
+ box-shadow:0 22px 70px rgba(25,42,29,.27)!important;
+ scrollbar-color:#b8a075 #f5eee4!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentModal > .modal-box::after,
+html.payment-noel-admin-preview[data-theme] body #pasteExcelModal > .modal-box::after {
+ content:""!important;position:sticky!important;display:block!important;
+ height:0!important;width:0!important;overflow:hidden!important;pointer-events:none!important;
+}
+/* Festive modal header with controlled ornament area; no fake buttons. */
+html.payment-noel-admin-preview[data-theme] body #paymentModal .modal-header,
+html.payment-noel-admin-preview[data-theme] body #pasteExcelModal .modal-header{
+ position:relative!important;
+ min-height:58px!important;
+ margin-bottom:15px!important;
+ padding:9px 77px 13px 17px!important;
+ border-bottom:1px solid #e8d8be!important;
+ border-radius:9px 9px 0 0!important;
+ background:linear-gradient(100deg,#e9f0e6 0%,#f8f2e7 62%,#fff9ee 100%)!important;
+ overflow:visible!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentModal .modal-header::before,
+html.payment-noel-admin-preview[data-theme] body #pasteExcelModal .modal-header::before{
+ content:"✦  ❄"!important;display:block!important;
+ position:absolute!important;right:52px!important;top:14px!important;
+ font-size:15px!important;letter-spacing:6px!important;color:#bc9458!important;
+ line-height:1!important;opacity:.9!important;pointer-events:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentModal .modal-header h2,
+html.payment-noel-admin-preview[data-theme] body #pasteExcelModal .modal-header h2{
+ color:#1a533b!important;font-size:20px!important;
+ font-weight:850!important;letter-spacing:-.02em!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentModal .modal-header .close,
+html.payment-noel-admin-preview[data-theme] body #pasteExcelModal .modal-header .close {
+ position:absolute!important;right:10px!important;top:8px!important;
+ background:#fffdf8!important;color:#6d553a!important;
+ border:1px solid #e8d9c4!important;z-index:3!important;
+}
+/* Payment form sections and the process bar, previously corporate blue. */
+html.payment-noel-admin-preview[data-theme] body #paymentModal .contract-info,
+html.payment-noel-admin-preview[data-theme] body #paymentModal .mep-manual-panel,
+html.payment-noel-admin-preview[data-theme] body #paymentModal .process-box {
+ background:#fffbf5!important;border-color:#e6d9c8!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentModal .contract-info-title{
+ color:#285b42!important;
+ border-left:3px solid #d5af76!important;
+ padding-left:9px!important;
+ background:transparent!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentModal .process-title{
+ background:linear-gradient(100deg,#144d38,#256448)!important;
+ color:#fff7e7!important;
+ border-bottom:2px solid #d7ad6e!important;
+ position:relative!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentModal .process-title::after {
+ content:"❄ ✦"!important;float:right!important;
+ font-size:12px!important;letter-spacing:6px!important;color:#edcb91!important;
+ pointer-events:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentModal .process-item {
+ background:#fffdf8!important;
+ border-color:#ece2d4!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentModal .process-item:nth-child(4n+2),
+html.payment-noel-admin-preview[data-theme] body #paymentModal .process-item:nth-child(4n+3){
+ background:#fcf8f0!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentModal .process-label,
+html.payment-noel-admin-preview[data-theme] body #paymentModal .form-group > label,
+html.payment-noel-admin-preview[data-theme] body #paymentModal .info-label {
+ color:#355f4c!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentModal .payment-entry-type{
+ background:#f3f5ed!important;border-color:#e2d8c8!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentModal .payment-entry-type > button.active {
+ background:#19583d!important;color:#fff9ed!important;
+ border-color:#d4b277!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentModal .payment-entry-type > button:not(.active) {
+ background:#fffdf9!important;color:#3c5145!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentModal #ipcPreview,
+html.payment-noel-admin-preview[data-theme] body #paymentModal .mep-code-preview {
+ color:#1d6444!important;
+}
+/* Inputs stay high contrast; no decorative overlays over fields. */
+html.payment-noel-admin-preview[data-theme] body #paymentModal :is(input:not([type="checkbox"]),textarea,select),
+html.payment-noel-admin-preview[data-theme] body #pasteExcelModal :is(input:not([type="checkbox"]),textarea,select) {
+ background-color:#fffefa!important;
+ border-color:#d9cbb8!important;
+ color:#253d31!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentModal :is(input,textarea,select):focus,
+html.payment-noel-admin-preview[data-theme] body #pasteExcelModal :is(input,textarea,select):focus {
+ outline-color:#c6a56e!important;
+ border-color:#b6a06f!important;
+ box-shadow:0 0 0 3px rgba(205,171,110,.15)!important;
+}
+/* Restore red/green emphasis to the existing action buttons. */
+html.payment-noel-admin-preview[data-theme] body #paymentModal .btn-primary,
+html.payment-noel-admin-preview[data-theme] body #paymentModal #savePaymentBtn,
+html.payment-noel-admin-preview[data-theme] body #pasteExcelModal .btn-primary,
+html.payment-noel-admin-preview[data-theme] body #pasteExcelModal #confirmImportBtn{
+ background:#1a5b42!important;border-color:#15533b!important;
+ color:#fffaf0!important;box-shadow:0 3px 9px #20553a25!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentModal .btn-gray,
+html.payment-noel-admin-preview[data-theme] body #pasteExcelModal .btn-gray {
+ background:#f8f3e9!important;border-color:#e2d7c8!important;color:#335341!important;
+}
+/* Paste Excel import: cohesive pill controls, preview mapping and help text. */
+html.payment-noel-admin-preview[data-theme] body #pasteExcelModal .import-mode-pill {
+ background:#fffdf8!important;color:#325b45!important;
+ border:1px solid #ddcfba!important;
+}
+html.payment-noel-admin-preview[data-theme] body #pasteExcelModal .import-mode-pill.active{
+ background:#1b593f!important;color:#fff9e9!important;border-color:#1b593f!important;
+}
+html.payment-noel-admin-preview[data-theme] body #pasteExcelModal .import-paste-box {
+ border:1px solid #d8c5a9!important;
+ background:#fffefb!important;
+}
+html.payment-noel-admin-preview[data-theme] body #pasteExcelModal :is(.import-mapping-wrap,.import-preview-wrap,.import-defaults-grid){
+ background:#fdf9f2!important;border-color:#e4d6c4!important;
+}
+html.payment-noel-admin-preview[data-theme] body #pasteExcelModal .import-mapping-title{
+ color:#2a5b42!important;
+}
+html.payment-noel-admin-preview[data-theme] body #pasteExcelModal .import-paste-help{
+ color:#687b6a!important;
+}
+@media(max-width:720px){
+ html.payment-noel-admin-preview[data-theme] body #paymentModal .modal-header,
+ html.payment-noel-admin-preview[data-theme] body #pasteExcelModal .modal-header {
+ padding-left:10px!important;padding-right:56px!important;
+ }
+ html.payment-noel-admin-preview[data-theme] body #paymentModal .modal-header::before,
+ html.payment-noel-admin-preview[data-theme] body #pasteExcelModal .modal-header::before{
+ right:39px!important;letter-spacing:1px!important;font-size:11px!important;
+ }
+}
