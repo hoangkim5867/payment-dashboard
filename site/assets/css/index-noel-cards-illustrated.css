@@ -1,0 +1,58 @@
+/* Christmas scene card illustration preview. Layered on original layout, only in Noel mode. */
+.noel-illustration{display:none}
+html.noel-motion-on .workspace .grid>.card{isolation:isolate}
+html.noel-motion-on .workspace .grid>.card .noel-illustration{
+ display:block;position:absolute;inset:auto 1% 0 auto;width:clamp(125px,35%,185px);height:100%;
+ z-index:0;pointer-events:none;user-select:none;opacity:.93;
+ transition:transform .7s cubic-bezier(.22,1,.36,1),filter .5s ease,opacity .5s ease;
+}
+html.noel-motion-on .workspace .grid>.card .noel-illustration svg{
+ position:absolute;right:0;bottom:-9px;max-width:100%;height:96%;width:100%;overflow:visible;
+ filter:drop-shadow(0 9px 9px rgba(75,65,43,.11));
+}
+html.noel-motion-on .workspace .grid>.card .noel-illustration-0{
+ width:42%;height:86%;right:0;bottom:-1px;opacity:1;
+ filter:drop-shadow(0 0 18px rgba(247,203,120,.13))
+}
+html.noel-motion-on .workspace .grid>.card .noel-illustration-0 svg{height:100%;bottom:-6px}
+html.noel-motion-on .workspace .grid>.card .noel-illustration:not(.noel-illustration-0){opacity:.86}
+html.noel-motion-on .workspace .grid>.card .icon,
+html.noel-motion-on .workspace .grid>.card .card-copy,
+html.noel-motion-on .workspace .grid>.card .arrow{position:relative;z-index:2}
+html.noel-motion-on .workspace .grid>.card .card-copy{max-width:calc(100% - 105px)}
+html.noel-motion-on .workspace .grid>.card.card-primary .card-copy{max-width:60%}
+html.noel-motion-on .workspace .grid>.card.card-primary .arrow{z-index:3}
+html.noel-motion-on .workspace .grid>.card:not(.card-primary){background:
+ radial-gradient(ellipse at 87% 88%,rgba(241,215,177,.19),transparent 56%),#fffdfa}
+html.noel-motion-on .workspace .grid>.card:not(.card-primary):after{
+ content:'';position:absolute;inset:auto 0 0;height:19px;z-index:1;pointer-events:none;
+ background:radial-gradient(ellipse at 20% 105%,#f5f1e9 0 24%,transparent 25%),
+ radial-gradient(ellipse at 45% 106%,#f3eee5 0 27%,transparent 28%),
+ radial-gradient(ellipse at 81% 107%,#f8f4ed 0 25%,transparent 26%);
+}
+html.noel-motion-on .workspace .grid>.card.card-primary{
+ background:radial-gradient(circle at 85% 22%,rgba(230,194,106,.09),transparent 49%),#143e31}
+html.noel-motion-on .workspace .grid>.card.card-primary:before{
+ content:'';height:16px;opacity:.7!important;background:linear-gradient(0deg,rgba(240,246,241,.35),transparent);
+}
+html.noel-motion-on .workspace .grid>.card:hover .noel-illustration{transform:translate3d(0,-7px,0) rotate(-1deg);filter:brightness(1.06)}
+html.noel-motion-on .workspace .grid>.card .noel-illustration-0:after{
+ content:'✦';position:absolute;right:36%;top:15%;color:#f7d48a;font-size:16px;animation:noel-card-glow 2.5s ease-in-out infinite alternate;
+}
+@keyframes noel-card-glow{0%{opacity:.25;transform:scale(.8)}100%{opacity:1;transform:scale(1.25)}}
+@media (max-width:1100px) {
+ html.noel-motion-on .workspace .grid>.card .noel-illustration{width:32%;opacity:.85}
+ html.noel-motion-on .workspace .grid>.card .card-copy{max-width:calc(100% - 75px)}
+ html.noel-motion-on .workspace .grid>.card.card-primary .card-copy{max-width:67%}
+}
+@media (max-width:740px) {
+ html.noel-motion-on .workspace .grid>.card .noel-illustration{width:27%;right:0}
+ html.noel-motion-on .workspace .grid>.card .noel-illustration-0{width:42%;height:74%}
+ html.noel-motion-on .workspace .grid>.card .card-copy{max-width:calc(100% - 58px)}
+ html.noel-motion-on .workspace .grid>.card.card-primary .card-copy{max-width:60%}
+}
+@media (prefers-reduced-motion:reduce) {
+ html.noel-motion-on .workspace .grid>.card .noel-illustration,
+ html.noel-motion-on .workspace .grid>.card:hover .noel-illustration{transition:none;transform:none}
+ html.noel-motion-on .workspace .grid>.card .noel-illustration-0:after{animation:none}
+}
