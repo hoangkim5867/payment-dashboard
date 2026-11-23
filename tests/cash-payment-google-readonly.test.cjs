@@ -944,3 +944,64 @@ test('shared project planner is linked from Cash Control Admin-only manual compa
  assert.match(code.slice(start,end),/generalPlanner\.planProject/);
  assert.doesNotMatch(code.slice(start,end),/(?:setDoc|addDoc|updateDoc|deleteDoc|writeBatch)\(/);
 });
+
+test('ELYSIAN triage separates payroll and leave metadata from HĐ/IPC, pairs transfer only by signed exact money',()=>{
+ const n=amount=>[amount,0,0,0,0,0,0];
+ const src=[
+   {date:'2026-10-26',content:'FOXCONN hoàn trả ELYSIAN',contractNo:'',ipc:'',
+    income:-5700000000,subcontract:0,material:0,otherDirect:0,indirect:0,financial:0,otherPayable:0},
+   {date:'2026-10-02',content:'Lương Trung Quốc · Tháng 08/2026',contractNo:'',ipc:''},
+   {date:'2026-10-29',content:'李维凯探亲年休假',contractNo:'',ipc:''},
+   {date:'2026-11-13',content:'ELYSIAN lab contract',contractNo:'LAB-021',ipc:'IPC001'}
+ ];
+ const history=[['2026-10-26','','','FOXCONN归还ELYSIAN借款','','',...n(-5700000000)]];
+ const cmp={matched:70,cashOnly:6,historicalOnly:1,
+   sourceOnlyPositions:[1,4],historyOnlyPositions:[1],
+   identityConflictPositions:[2],identityUnverifiedPositions:[3]};
+ const result=auditor.reviewElysianExceptions(history,src,cmp);
+ assert.equal(result.sourceOnly,2);
+ assert.equal(result.googleOnly,1);
+ assert.deepEqual(result.payrollMetadataPositions,[2]);
+ assert.deepEqual(result.leaveIdentityPositions,[3]);
+ assert.deepEqual(result.transferSourcePositions,[1]);
+ assert.deepEqual(result.transferGooglePositions,[1]);
+ assert.deepEqual(result.otherSourceOnlyPositions,[4]);
+ assert.equal(result.possibleTransferCounterparts.length,1);
+ assert.equal(result.possibleTransferCounterparts[0].sameDay,true);
+ assert.equal(result.possibleTransferCounterparts[0].exactSignedCategoryAmounts,true);
+ assert.equal(result.possibleTransferCounterparts[0].matched,false);
+ assert.deepEqual(result.oneSidedByMonth,[
+  {month:'2026-10',cash:1,google:1},
+  {month:'2026-11',cash:1,google:0}
+ ]);
+ assert.equal(result.possibleTransferCounterparts[0].sourceNet,-5700000000);
+ assert.equal(result.possibleTransferCounterparts[0].googleNet,-5700000000);
+ assert.equal(result.possibleTransferCounterparts[0].differingCategories.length,0);
+
+ assert.equal(result.canWrite,false);assert.equal(result.googleWrites,0);
+ assert.equal(result.sourceComplete,false);
+ const wrong=history.map(r=>r.slice());wrong[0][6]=5700000000;
+ const blocked=auditor.reviewElysianExceptions(wrong,src,cmp);
+ assert.equal(blocked.possibleTransferCounterparts[0].exactSignedCategoryAmounts,false);
+ assert.equal(blocked.possibleTransferCounterparts[0].oppositeNet,true);
+ assert.equal(blocked.possibleTransferCounterparts[0].sameAbsoluteNet,true);
+ assert.deepEqual(blocked.possibleTransferCounterparts[0].differingCategories,[
+  {category:'Thu',source:-5700000000,google:5700000000}
+ ]);
+ assert.equal(blocked.possibleTransferCounterparts[0].canWrite,false);
+
+ assert.equal(blocked.canWrite,false);
+});
+test('ELYSIAN triage never pairs repayment by text alone or forces staff rows into contract matches',()=>{
+ const src=[{date:'2026-10-26',content:'FOXCONN hoàn trả ELYSIAN',
+   income:-5700000000,subcontract:0,material:0,otherDirect:0,
+   indirect:0,financial:0,otherPayable:0}];
+ const google=[['2026-10-27','','','FOXCONN归还ELYSIAN借款','','',
+   -5700000000,0,0,0,0,0,0]];
+ const summary=auditor.reviewElysianExceptions(google,src,{
+   sourceOnlyPositions:[1],historyOnlyPositions:[1],
+   identityConflictPositions:[],identityUnverifiedPositions:[],
+   matched:0,cashOnly:1,historicalOnly:1});
+ assert.equal(summary.possibleTransferCounterparts.length,0);
+ assert.equal(summary.canWrite,false);
+});
