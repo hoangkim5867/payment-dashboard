@@ -975,3 +975,56 @@ html.payment-noel-admin-preview[data-theme] body :is(
   transition:none!important;
  }
 }
+
+
+/* Last-mile parity: all dynamically mounted modal dialogs get the same
+   Christmas palette; no sizing, stacking, forms or event rules modified. */
+html.payment-noel-admin-preview[data-theme] body .modal > .modal-box {
+ background-color:#fffdf8!important;
+ border-color:#e1d1b9!important;
+ color:#253e2f!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal > .modal-box > .modal-header {
+ background:linear-gradient(100deg,#eaf2e8,#f9f1e4 64%,#fff9f0)!important;
+ border-color:#e8dac5!important;
+ color:#1c523b!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal > .modal-box > .modal-header :is(h2,h3) {
+ color:#1c523b!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal > .modal-box :is(
+ .modal-footer,.form-section,.form-grid,.form-group,.column-settings-grid,
+ .batch-modal-list,.import-mapping-wrap,.import-preview-wrap,
+ .activity-log-toolbar,.recycle-selection-toolbar
+) {
+ border-color:#e6dac7!important;
+}
+html.payment-noel-admin-preview[data-theme] body :is(
+ #paymentHorizontalScrollbar,#paymentHorizontalScrollbarInner,
+ #paymentFixedHeaderWrap,#paymentFixedHeaderInner
+) {
+ border-color:#e4d8c6!important;
+}
+/* Restore whole-row tracking hover for both the usual Payment view and Noel.
+   This is a presentation-only regression fix. Higher specificity than the
+   zebra and sticky-cell background rules avoids patchy highlighting. */
+html:not(.payment-noel-admin-preview) body #paymentTable tbody tr:nth-child(n):hover > td:nth-child(n),
+html:not(.payment-noel-admin-preview) body #paymentTable tbody tr:nth-child(n):focus-within > td:nth-child(n) {
+ background-color:#e5f0ff!important;
+ background-image:none!important;
+ box-shadow:inset 0 1px 0 #c6daf6,inset 0 -1px 0 #c6daf6!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:nth-child(n):hover > td:nth-child(n),
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:nth-child(n):focus-within > td:nth-child(n) {
+ background-color:#e4f3dc!important;
+ background-image:none!important;
+ box-shadow:inset 0 1px 0 #c8dfbf,inset 0 -1px 0 #c8dfbf!important;
+}
+/* Do not paint selections, state chips or row action buttons themselves. */
+html body #paymentTable tbody tr:hover td :is(button,.badge,.payment-locked,.status-pill),
+html body #paymentTable tbody tr:focus-within td :is(button,.badge,.payment-locked,.status-pill){
+ background-image:initial;
+}
+/* Footer stays attached to the table, not to the browser viewport.
+   Hide it in all modes until authenticated Admin enables Noel. */
+html body #paymentNoelFooterScene{pointer-events:none!important}
