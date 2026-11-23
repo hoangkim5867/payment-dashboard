@@ -24,6 +24,9 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
  for(const name of fs.readdirSync(out).filter(n=>n.endsWith('.html'))){const file=path.join(out,name);let text=fs.readFileSync(file,'utf8');const pattern=/const firebaseConfig\s*=\s*\{[\s\S]*?\};/g;
  text=text.replace(pattern,original=>{configs++;return target==='staging'?'const firebaseConfig='+JSON.stringify(stagingConfig)+';':original});
  if(name==='cash-control.html'){
+   // Show each IPC's actual receipt date(s) from recorded receipt entries.
+   // View-only change: no writes to Cash Control or Google history.
+   text=require('./cash-inflow-actual-dates.cjs').applyInflowActualDates(text);
    // Cash Control Excel (and its Google monthly source projection) use one
    // classification. Design service fees are direct project costs, never
    // 其他应付款. Do not alter the stored Payment or Cash Control document.
