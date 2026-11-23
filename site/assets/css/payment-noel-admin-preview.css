@@ -697,3 +697,213 @@ html.payment-noel-admin-preview[data-theme] body .data-first-summary .enterprise
   font-size:7.5px!important;
  }
 }
+
+
+/* ==============================================================
+   PAYMENT NOEL · 2026-11-23 LIVE-BASIS MINIMAL CORRECTIONS
+   Basis: exact production a8c75a3; no HTML/data/auth/JS changes.
+   Scope: four user-reported issues only.
+   ============================================================== */
+html.payment-noel-admin-preview[data-theme]{
+ --unified-primary:#1f6045!important;
+ --unified-accent:#bc8c52!important;
+ --unified-border:#e4d4bf!important;
+ --unified-surface:#fffdf8!important;
+ --unified-surface-alt:#fbf5ec!important;
+ --unified-soft:#eaf3e7!important;
+ --unified-text:#294736!important;
+ --unified-muted:#697467!important;
+ --unified-shadow:rgba(52,64,39,.1)!important;
+}
+/* 1. The village footer was mistakenly installed as a fixed body
+   wallpaper, not a footer. Never paint a fixed illustration behind data. */
+html.payment-noel-admin-preview[data-theme] body{
+ background-color:#fffaf3!important;
+ background-image:none!important;
+ background-attachment:scroll!important;
+}
+/* Header: one quiet illustrated evergreen string in the EXISTING blank
+   gap, without adding panels, changing header height or covering controls. */
+html.payment-noel-admin-preview[data-theme] body .modern-app-header{
+ position:relative!important;
+ isolation:isolate!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header::after{
+ content:""!important;
+ display:block!important;
+ position:absolute!important;
+ top:1px!important;
+ bottom:auto!important;
+ left:clamp(204px,12.2vw,238px)!important;
+ right:clamp(470px,31.5vw,570px)!important;
+ width:auto!important;
+ height:48px!important;
+ background:url("../img/payment-noel-header-garland-2026.svg") no-repeat center center / 100% auto!important;
+ opacity:1!important;
+ animation:none!important;
+ filter:none!important;
+ z-index:0!important;
+ pointer-events:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modern-app-header>*{
+ position:relative!important;
+ z-index:1!important;
+}
+/* Restore the existing four KPI sizes and type: remove only the giant
+   right-hand scene and reclaim the empty right padding it reserved. */
+html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary{
+ --noel-right:12px!important;
+}
+html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary::after{
+ content:none!important;
+ display:none!important;
+ background-image:none!important;
+}
+/* True footer following the ACTUAL table inside the main data card.
+   No fixed viewport wallpaper, no oversize edge-cropped characters. */
+html.payment-noel-admin-preview[data-theme] body .container .card:has(> .data-first-shell)::after{
+ content:""!important;
+ display:block!important;
+ position:relative!important;
+ clear:both!important;
+ width:100%!important;
+ height:78px!important;
+ min-height:78px!important;
+ margin:4px 0 61px!important;
+ border:0!important;
+ background:#fffaf4 url("../img/payment-noel-footer-garland-2026.svg") no-repeat center center/100% 100%!important;
+ pointer-events:none!important;
+ user-select:none!important;
+}
+/* 2. A single hover highlight must win over alternating stripes and
+   frozen/sticky cell paints. Works in ordinary and Christmas modes. */
+html body #paymentTable tbody tr:nth-child(n):hover > td:nth-child(n),
+html body #paymentTable tbody tr:nth-child(n):focus-within > td:nth-child(n),
+html body #paymentTable tbody tr:nth-child(n):hover > th:nth-child(n),
+html body #paymentTable tbody tr:nth-child(n):focus-within > th:nth-child(n){
+ background:#e7f1ff!important;
+ background-color:#e7f1ff!important;
+ background-image:none!important;
+ box-shadow:inset 0 1px #bed5f3,inset 0 -1px #bed5f3!important;
+ transition:background-color .08s ease!important;
+}
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:nth-child(n):hover > td:nth-child(n),
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:nth-child(n):focus-within > td:nth-child(n),
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:nth-child(n):hover > th:nth-child(n),
+html.payment-noel-admin-preview[data-theme] body #paymentTable tbody tr:nth-child(n):focus-within > th:nth-child(n){
+ background:#dff1e1!important;
+ background-color:#dff1e1!important;
+ background-image:none!important;
+ box-shadow:inset 0 1px #b7d5b7,inset 0 -1px #b7d5b7!important;
+}
+/* 3. Unified style for EVERY EXISTING Payment modal. No altered size,
+   close behavior, scrolling, input value, selection or button handlers. */
+html.payment-noel-admin-preview[data-theme] body .modal > .modal-box{
+ background:#fffdf8!important;
+ border-color:#e1d0b9!important;
+ border-top:3px solid #cba46e!important;
+ color:#2a4635!important;
+ box-shadow:0 20px 58px rgba(30,51,36,.23)!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal > .modal-box > .modal-header{
+ background:linear-gradient(103deg,#eaf3e8,#fffaf2 63%,#fff4e7)!important;
+ border-color:#e7d8c0!important;
+ color:#20583e!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal .modal-header :is(h2,h3,.modal-title){
+ color:#20583e!important;
+ text-shadow:none!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal :is(
+ .export-scope-desc,.column-settings-grid,.export-scope-list,
+ .import-mode-bar,.import-preview-wrap,.import-mapping-wrap,
+ .modal-footer,.column-settings-actions,.export-scope-summary,
+ .batch-summary,.bulk-edit-grid,.bulk-process-grid,
+ .activity-log-toolbar,.recycle-selection-toolbar
+){
+ border-color:#e8dac6!important;
+}
+html.payment-noel-admin-preview[data-theme] body #exportExcelModal :is(
+ .export-scope-option,.export-scope-presets button,.export-scope-summary,
+ .export-scope-option-badge
+),
+html.payment-noel-admin-preview[data-theme] body #columnSettingsModal .column-setting-item{
+ background-color:#fffaf2!important;
+ color:#2f4b39!important;
+ border-color:#e5d5c0!important;
+}
+html.payment-noel-admin-preview[data-theme] body #exportExcelModal .export-scope-option:has(input:checked),
+html.payment-noel-admin-preview[data-theme] body #columnSettingsModal .column-setting-item:has(input:checked){
+ background:#e9f3e9!important;
+ border-color:#97b9a1!important;
+}
+html.payment-noel-admin-preview[data-theme] body :is(
+ #exportExcelModal,#columnSettingsModal
+) input[type="checkbox"]{
+ accent-color:#246447!important;
+}
+html.payment-noel-admin-preview[data-theme] body :is(
+ #exportExcelModal,#columnSettingsModal,#batchPaymentModal,
+ #bulkEditModal,#bulkProcessModal,#recycleBinModal,#activityLogModal,
+ #pasteExcelModal,#paymentModal
+) :is(input:not([type="checkbox"]):not([type="radio"]),textarea,select){
+ background-color:#fffefa!important;
+ border-color:#dfd0bb!important;
+ color:#263e30!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal :is(.modal-footer,.column-settings-actions,.export-scope-footer){
+ background-color:#fffaf2!important;
+ border-color:#e4d6c1!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal :is(
+ .btn-primary,.btn-purple,.btn-batch
+):not(:disabled){
+ background:#205e43!important;
+ border-color:#174d35!important;
+ color:#fffdf5!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal :is(
+ .btn-gray,.btn-secondary
+):not(:disabled){
+ background:#f7f1e8!important;
+ border-color:#dfd1bd!important;
+ color:#365641!important;
+}
+html.payment-noel-admin-preview[data-theme] body .modal :is(
+ .btn-danger,.btn-red,.danger-lite
+):not(:disabled){
+ background:#b74046!important;
+ border-color:#a5373d!important;
+ color:#fff!important;
+}
+/* 4. Same cream-and-evergreen visual system in existing popovers. */
+html.payment-noel-admin-preview[data-theme] body :is(
+ .tools-dropdown,.enterprise-bulk-menu,.column-filter-dropdown,
+ .column-filter-popover,.project-tab-menu,.theme-picker-panel,
+ .payment-timeline-popup,.payment-row-popover
+){
+ background-color:#fffaf3!important;
+ border-color:#e4d5bf!important;
+ color:#2e4b3b!important;
+}
+@media(max-width:1200px){
+ html.payment-noel-admin-preview[data-theme] body .modern-app-header::after{
+  left:194px!important;right:450px!important;height:44px!important;
+ }
+}
+@media(max-width:980px){
+ html.payment-noel-admin-preview[data-theme] body .modern-app-header::after{
+  content:none!important;display:none!important;
+ }
+}
+@media(max-width:720px){
+ html.payment-noel-admin-preview[data-theme] body .container .card:has(> .data-first-shell)::after{
+  height:54px!important;min-height:54px!important;
+  background-size:auto 100%!important;
+ }
+}
+@media(prefers-reduced-motion:reduce){
+ html body #paymentTable tbody tr:nth-child(n) > td:nth-child(n){
+  transition:none!important;
+ }
+}
