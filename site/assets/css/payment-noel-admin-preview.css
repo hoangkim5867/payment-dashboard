@@ -95,7 +95,7 @@ html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first
   overflow:visible !important;
 }
 html.payment-noel-admin-preview[data-theme] body .data-first-shell > .data-first-summary::before {
-  content:"Merry\\A Christmas" !important; white-space:pre !important;
+  content:"Merry\A Christmas" !important; white-space:pre !important;
   position:relative !important; grid-column:1 !important; grid-row:1 !important;
   display:flex !important; align-items:center !important; justify-content:center !important;
   inset:auto !important; z-index:1 !important;
