@@ -15,7 +15,6 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
 <link rel="stylesheet" href="assets/css/payment.css" data-stage1-extracted="primary">
-<link rel="stylesheet" href="assets/css/payment-noel-admin-preview.css" id="paymentNoelAdminStyles">
 
 
 <style id="toolbar-unified-click-effect-fix">
@@ -4391,48 +4390,6 @@ function usernameToAuthEmail(username){
 /* =====================================================
    AUTH HELPERS
 ===================================================== */
-
-/* Admin-only, visual-preview toggle. No Firestore, no payment read/write calls. */
-function syncPaymentNoelAdminPreview(){
-    const oldButton=document.getElementById("paymentNoelAdminToggle");
-    if(!isAdmin()){
-        document.documentElement.classList.remove("payment-noel-admin-preview");
-        oldButton?.remove();
-        return;
-    }
-    if(oldButton) return;
-    const target=document.getElementById("themePickerWrap");
-    if(!target) return;
-    const button=document.createElement("button");
-    button.id="paymentNoelAdminToggle";
-    button.type="button";
-    button.setAttribute("aria-pressed","false");
-    button.title="Chỉ Admin: xem trước giao diện Noel cùng dữ liệu thật. Không thay đổi thanh toán.";
-    const render=()=>{
-        const locale=document.getElementById("languageSelect")?.value||"vi";
-        const enabled=document.documentElement.classList.contains("payment-noel-admin-preview");
-        const names={
-          vi:[ "🎄 Noel thử: Tắt", "🎄 Noel thử: Bật" ],
-          zh:[ "🎄 圣诞预览：关", "🎄 圣诞预览：开" ],
-          en:[ "🎄 Noel preview: Off", "🎄 Noel preview: On" ]
-        };
-        button.textContent=(names[locale]||names.vi)[enabled?1:0];
-        button.setAttribute("aria-pressed",String(enabled));
-    };
-    button.addEventListener("click",()=>{
-        if(!isAdmin()){
-            document.documentElement.classList.remove("payment-noel-admin-preview");
-            button.remove();
-            return;
-        }
-        document.documentElement.classList.toggle("payment-noel-admin-preview");
-        render();
-    });
-    document.getElementById("languageSelect")?.addEventListener("change",render);
-    target.after(button);
-    button.style.display="inline-flex";
-    render();
-}
 
 function isAdmin(){
     return (
@@ -13201,9 +13158,6 @@ onAuthStateChanged(
 
         currentAuthUser =
             user || null;
-        /* A new login must never inherit the previous Admin preview. */
-        document.documentElement.classList.remove("payment-noel-admin-preview");
-        document.getElementById("paymentNoelAdminToggle")?.remove();
         if(privateHistory2026LoadedUid && privateHistory2026LoadedUid!==user?.uid){
             clearPrivateHistory2026();
         }
@@ -13299,7 +13253,6 @@ onAuthStateChanged(
                 : "none";
 
         applyRoleUI();
-        syncPaymentNoelAdminPreview();
 
         /*
            Security Rules now require an approved signed-in profile.
