@@ -1,241 +1,127 @@
-/* PAYMENT NOEL 2026 — chalet reference, seasonal-only scope.
-   Images contain decoration only; native controls and data remain live. */
+/* PAYMENT NOEL CHALET v3 — single consolidated seasonal sheet. */
 #paymentChaletToggle{display:none;white-space:nowrap;align-items:center;justify-content:center;gap:5px;min-height:30px;padding:0 12px;border:1px solid #a96b43;border-radius:7px;background:#fff6e6;color:#81241b;font:700 12px/1.2 Arial,sans-serif;cursor:pointer}
 #paymentChaletToggle[aria-pressed=true]{background:#9e1d19;color:white;border-color:#7d1715}
 #paymentChaletToggle:focus-visible{outline:2px solid #bd8741;outline-offset:2px}
 #paymentChaletFooter{display:none}
-html.payment-noel-chalet[data-theme]{--theme-primary:#8f251b;--theme-primary-2:#9d251e;--theme-soft:#fdf0d6;--theme-page:#f8ebd4;--theme-surface:#fff9eb;--theme-surface-alt:#f8ead4;--theme-border:#ddc4a3;--theme-text:#32231c;--theme-muted:#82644d;--theme-table-head:#21472d;--theme-table-head-2:#31573a;--theme-frozen:#fff9ee;--theme-scroll:#fdf3e4;--theme-accent:#a3231e;--unified-primary:#8f251b;--unified-surface:#fff9eb;--unified-border:#d8bc97;--unified-text:#35251c;--chalet-header-height:clamp(108px,6.494vw,160px);--chalet-plaid:repeating-linear-gradient(90deg,transparent 0 11px,#b48d4b55 11px 12px,transparent 12px 23px,#b94e3d35 23px 25px),repeating-linear-gradient(0deg,transparent 0 11px,#b48d4b55 11px 12px,transparent 12px 23px,#b94e3d35 23px 25px),linear-gradient(135deg,#1b3829,#34563b 50%,#24432f)}
-html.payment-noel-chalet[data-theme] body{color:#32231c!important;background:#f8ecd6!important;background-image:radial-gradient(ellipse at 50% 0%,#fff7e6 0%,transparent 70%)!important}
-html.payment-noel-chalet[data-theme] body .modern-app-header{position:relative!important;isolation:isolate!important;display:flex!important;justify-content:space-between!important;align-items:flex-end!important;box-sizing:border-box!important;height:var(--chalet-header-height)!important;min-height:var(--chalet-header-height)!important;max-height:none!important;padding:0 19px 8px 20px!important;gap:12px!important;overflow:visible!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:#9d6139 url('../img/chalet-header.webp') center center/100% 100% no-repeat!important}
-html.payment-noel-chalet[data-theme] body .modern-app-header::before,html.payment-noel-chalet[data-theme] body .modern-app-header::after{content:none!important;display:none!important}
-html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block,html.payment-noel-chalet[data-theme] body .modern-header-right{position:relative!important;z-index:2!important;box-shadow:none!important}
-html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block{display:flex!important;align-items:center!important;gap:11px!important;flex:0 1 auto!important;margin:0!important;padding:5px 9px!important;min-width:0!important;border:1px solid #e6cba5!important;border-radius:9px!important;background:#fff3de!important}
-html.payment-noel-chalet[data-theme] body .modern-app-header .brand-logo{width:40px!important;height:40px!important;min-width:40px!important;flex:0 0 40px!important;position:relative!important;inset:auto!important;background:transparent!important;border:0!important;box-shadow:none!important}
+html.payment-noel-chalet[data-theme]{--theme-primary:#8f251b;--theme-primary-2:#9d251e;--theme-soft:#fdf0d6;--theme-page:#f8ebd4;--theme-surface:#fff9eb;--theme-surface-alt:#f8ead4;--theme-border:#ddc4a3;--theme-text:#32231c;--theme-muted:#82644d;--theme-table-head:#21472d;--theme-table-head-2:#31573a;--theme-frozen:#fff9ee;--theme-scroll:#fdf3e4;--theme-accent:#a3231e;--unified-primary:#8f251b;--unified-surface:#fff9eb;--unified-border:#d8bc97;--unified-text:#35251c;--frozen-head-light:#294a35;--chalet-header-height:clamp(108px,6.494vw,160px);--chalet-paper:url('../img/chalet-paper.svg');--chalet-weave:#284833 url('../img/chalet-plaid.webp') left top/97px 32px repeat;--chalet-trim:url('../img/chalet-knit-alpha.svg');--chalet-holly:url('../img/chalet-holly-alpha.svg');--chalet-frame:inset 0 0 0 1px #fff9e9,inset 0 0 0 3px #c7996350,inset 0 0 8px #a76a342a,0 1px 2px #86512c26}
+html.payment-noel-chalet[data-theme] body{color:#32231c!important;background:#f8ecd6 var(--chalet-paper) repeat!important}
+html.payment-noel-chalet[data-theme] body .modern-app-header{position:relative!important;isolation:isolate!important;display:flex!important;justify-content:space-between!important;align-items:flex-end!important;box-sizing:border-box!important;height:var(--chalet-header-height)!important;min-height:var(--chalet-header-height)!important;max-height:none!important;padding:0 max(12px,1.05vw) 6px max(17px,1.62vw)!important;gap:12px!important;overflow:visible!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:#9d6139 url('../img/chalet-header.webp') center/100% 100% no-repeat!important}
+html.payment-noel-chalet[data-theme] body .modern-app-header::before,
+html.payment-noel-chalet[data-theme] body .modern-app-header::after,
+html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block::before,
+html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block::after,
+html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block h1::before,
+html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block h1::after{content:none!important;display:none!important}
+html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block,
+html.payment-noel-chalet[data-theme] body .modern-header-right{position:relative!important;z-index:2!important;box-shadow:none!important}
+html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block{display:flex!important;align-items:center!important;gap:8px!important;flex:0 1 auto!important;margin:0!important;padding:0!important;min-width:0!important;max-width:calc(18.9vw - 15px)!important;min-height:clamp(34px,2.55vw,48px)!important;border:0!important;border-radius:0!important;background:transparent!important}
+html.payment-noel-chalet[data-theme] body .modern-app-header .brand-logo{width:clamp(29px,2.27vw,43px)!important;height:clamp(29px,2.27vw,43px)!important;min-width:clamp(29px,2.27vw,43px)!important;flex:0 0 clamp(29px,2.27vw,43px)!important;position:relative!important;inset:auto!important;background:transparent!important;border:0!important;box-shadow:none!important}
 html.payment-noel-chalet[data-theme] body .modern-app-header .brand-logo-image{width:100%!important;height:100%!important;object-fit:contain!important;filter:none!important;transform:none!important}
-html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block h1{font:700 clamp(18px,1.45vw,27px)/1.18 Georgia,'Times New Roman',serif!important;color:#8c201a!important;margin:0!important;letter-spacing:0!important;text-shadow:none!important;white-space:nowrap!important}
+html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block>div:last-child{min-width:0!important}
+html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block h1{font:700 clamp(14px,1.31vw,26px)/1.12 Georgia,'Times New Roman',serif!important;color:#8c211b!important;margin:0!important;letter-spacing:0!important;text-shadow:0 1px #fff4e0!important;white-space:nowrap!important}
 html.payment-noel-chalet[data-theme] body .modern-app-header .brand-subtitle{display:none!important}
-html.payment-noel-chalet[data-theme] body .modern-header-right{display:flex!important;align-items:center!important;align-self:flex-start!important;gap:6px!important;margin:14px 0 0 auto!important;padding:4px!important;border-radius:9px!important;background:#704122d9!important;flex-wrap:wrap!important;justify-content:flex-end!important}
-html.payment-noel-chalet[data-theme] body .modern-app-header :is(.compact-language,.theme-picker-trigger,.header-user-button){background:#fff6e8!important;color:#49271c!important;border:1px solid #cba77d!important;border-radius:7px!important;box-shadow:0 1px 2px #4e2e2130!important;min-height:30px!important}
+html.payment-noel-chalet[data-theme] body .modern-header-right{display:flex!important;align-items:center!important;align-self:flex-start!important;gap:6px!important;margin:14px 0 0 auto!important;padding:0!important;border:0!important;background:none!important;flex-wrap:wrap!important;justify-content:flex-end!important}
+html.payment-noel-chalet[data-theme] body .modern-app-header :is(.compact-language,.theme-picker-trigger,.header-user-button){background:#fff6e8!important;color:#49271c!important;border:1px solid #c39a6c!important;border-radius:7px!important;box-shadow:inset 0 0 0 1px #fff9e7,0 2px 4px #4b291d38!important;min-height:30px!important}
 html.payment-noel-chalet[data-theme] body .modern-app-header .compact-language label{color:#70523b!important}
 html.payment-noel-chalet[data-theme] body .modern-app-header .compact-language select{background:transparent!important;color:#49271c!important}
 html.payment-noel-chalet[data-theme] body .container{padding:3px 8px 0!important}
 html.payment-noel-chalet[data-theme] body .container>.card{display:flex!important;flex-direction:column!important;min-height:calc(100dvh - var(--chalet-header-height) - 48px)!important;box-sizing:border-box!important;background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0!important}
-html.payment-noel-chalet[data-theme] body .data-first-topbar{background:linear-gradient(180deg,#fff9eb,#f7e9d2)!important;border:1px solid #dec3a1!important;border-radius:9px!important;box-shadow:none!important;padding:4px 7px!important;margin:0 0 5px!important}
+html.payment-noel-chalet[data-theme] body .data-first-topbar{background:#fff4e0 var(--chalet-paper) repeat!important;border:1px solid #dec3a1!important;border-radius:9px!important;box-shadow:inset 0 0 0 1px #fff8e9!important;padding:4px 7px!important;margin:0 0 5px!important}
 html.payment-noel-chalet[data-theme] body .data-first-topbar .project-tabs-bar{background:none!important;border:0!important;box-shadow:none!important}
 html.payment-noel-chalet[data-theme] body .project-tabs-bar :is(button,[role=tab]){background:#fff6e5!important;border-color:#e1c7a7!important;color:#5c2e21!important;border-radius:6px!important}
 html.payment-noel-chalet[data-theme] body .project-tabs-bar :is(.active,[aria-selected=true]){background:linear-gradient(#b12d23,#8f1c18)!important;color:#fff!important;border-color:#9f3527!important;box-shadow:inset 0 0 0 1px #e6b27f,0 1px 2px #87502e35!important}
 html.payment-noel-chalet[data-theme] body .enterprise-actions :is(button,.tools-menu-wrap>button){border-color:#d6b28b!important;background:#fff6e4!important;color:#6e2f22!important;border-radius:6px!important}
 html.payment-noel-chalet[data-theme] body #addPaymentBtn{background:linear-gradient(#b72b20,#8f1c17)!important;color:white!important;border:1px solid #852018!important;box-shadow:0 2px 4px #a1262226!important}
-/* Use the native export watch bar, add artwork without changing its handlers. */
-html.payment-noel-chalet[data-theme] body #exportWatchPanel{background:#fff0cc!important;border-color:#d8ad73!important;color:#80231b!important}
-html.payment-noel-chalet[data-theme] body :is(#exportWatchPanel,.export-watch-panel) .export-watch-summary{background-image:url('../img/chalet-knit.webp')!important;background-position:75% center!important;background-repeat:no-repeat!important;background-size:auto 17px!important}
-/* Four compact KPI cards first row; full-width filters second row — no clipping. */
-html.payment-noel-chalet[data-theme] body .data-first-summary{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-rows:auto auto!important;gap:5px!important;padding:0!important;margin:0 0 6px!important;width:100%!important;max-width:none!important;min-width:0!important;background:none!important;border:0!important;box-shadow:none!important;overflow:visible!important}
-html.payment-noel-chalet[data-theme] body .data-first-summary::before,html.payment-noel-chalet[data-theme] body .data-first-summary::after,html.payment-noel-chalet[data-theme] body .data-first-filter-panel::before,html.payment-noel-chalet[data-theme] body .data-first-filter-panel::after{content:none!important;display:none!important}
-html.payment-noel-chalet[data-theme] body .data-first-summary>.summary-card{--chalet-icon:url('../img/chalet-gifts.webp');--chalet-color:#8e2018;position:relative!important;box-sizing:border-box!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:center!important;gap:1px!important;grid-row:1!important;grid-column:auto!important;min-width:0!important;max-width:none!important;width:100%!important;height:51px!important;min-height:51px!important;max-height:none!important;padding:3px 64px 3px 11px!important;margin:0!important;background:linear-gradient(135deg,#fff8e8,#fbedd4)!important;border:1px solid #cfa97d!important;border-radius:9px!important;box-shadow:inset 0 0 0 2px #fff8e9,0 1px 3px #8c4d2520!important;overflow:hidden!important;transform:none!important}
-html.payment-noel-chalet[data-theme] body .data-first-summary>.summary-card:nth-child(2){--chalet-icon:url('../img/chalet-holly.webp');--chalet-color:#315638}
-html.payment-noel-chalet[data-theme] body .data-first-summary>.summary-card:nth-child(3){--chalet-icon:url('../img/chalet-baubles.webp');--chalet-color:#8e2018}
-html.payment-noel-chalet[data-theme] body .data-first-summary>.summary-card:nth-child(4){--chalet-icon:url('../img/chalet-pinecone.webp');--chalet-color:#74512a}
-html.payment-noel-chalet[data-theme] body .data-first-summary>.summary-card::before{content:''!important;display:block!important;position:absolute!important;inset:3px!important;border:1px dashed #bb8a5e66!important;border-radius:6px!important;background:none!important;pointer-events:none!important}
-html.payment-noel-chalet[data-theme] body .data-first-summary>.summary-card::after{content:''!important;display:block!important;position:absolute!important;left:auto!important;right:5px!important;top:3px!important;bottom:3px!important;width:54px!important;height:auto!important;background:transparent var(--chalet-icon) center/contain no-repeat!important;mix-blend-mode:multiply;opacity:1!important;pointer-events:none!important;transform:none!important;filter:none!important;border:0!important;box-shadow:none!important}
+html.payment-noel-chalet[data-theme] body #exportWatchPanel#exportWatchPanel{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;border-radius:8px!important}
+html.payment-noel-chalet[data-theme] body #exportWatchPanel#exportWatchPanel .export-watch-bar,
+html.payment-noel-chalet[data-theme] body #exportWatchPanel#exportWatchPanel .export-watch-bar[aria-expanded]{background:linear-gradient(0deg,#e9b34b19,#fff3c431),var(--chalet-paper) repeat!important;border:1px solid #c8975c!important;border-radius:10px!important;box-shadow:var(--chalet-frame)!important;padding:4px 10px!important;min-height:30px!important;color:#85251a!important;position:relative!important}
+html.payment-noel-chalet[data-theme] body #exportWatchPanel#exportWatchPanel .export-watch-title{position:relative!important;background:none!important;padding-left:29px!important;color:#862219!important;font-weight:700!important;min-height:22px!important}
+html.payment-noel-chalet[data-theme] body #exportWatchPanel#exportWatchPanel .export-watch-title::before{content:''!important;display:block!important;position:absolute!important;left:0!important;top:50%!important;width:25px!important;height:25px!important;transform:translateY(-50%)!important;background:url('../img/chalet-bell-alpha.svg') center/contain no-repeat!important;pointer-events:none}
+html.payment-noel-chalet[data-theme] body #exportWatchPanel#exportWatchPanel .export-watch-spacer{background:none!important;position:relative!important;min-height:16px!important}
+html.payment-noel-chalet[data-theme] body #exportWatchPanel#exportWatchPanel .export-watch-spacer::after{content:''!important;position:absolute!important;right:3px!important;top:50%!important;transform:translateY(-50%)!important;width:min(100%,550px)!important;height:15px!important;background:var(--chalet-trim) right center/auto 15px repeat-x!important;opacity:.9;pointer-events:none;mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent)}
+html.payment-noel-chalet[data-theme] body .data-first-summary{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr)) minmax(0,5.6fr)!important;grid-template-rows:auto!important;align-items:center!important;gap:5px!important;padding:0!important;margin:0 0 6px!important;width:100%!important;max-width:none!important;min-width:0!important;background:none!important;border:0!important;box-shadow:none!important;overflow:visible!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary::before,
+html.payment-noel-chalet[data-theme] body .data-first-summary::after,
+html.payment-noel-chalet[data-theme] body .data-first-filter-panel::before,
+html.payment-noel-chalet[data-theme] body .data-first-filter-panel::after{content:none!important;display:none!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary>.summary-card{--chalet-icon:url('../img/chalet-gifts-alpha.svg');--chalet-color:#8e2018;position:relative!important;box-sizing:border-box!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:center!important;gap:1px!important;grid-row:1!important;grid-column:auto!important;min-width:0!important;max-width:none!important;width:100%!important;height:49px!important;min-height:49px!important;max-height:none!important;padding:3px 42px 3px 9px!important;margin:0!important;background:var(--chalet-paper) repeat!important;border:1px solid #c28e57!important;border-radius:11px!important;box-shadow:var(--chalet-frame)!important;overflow:hidden!important;transform:none!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary>.summary-card:nth-child(2){--chalet-icon:url('../img/chalet-holly-alpha.svg');--chalet-color:#315638}
+html.payment-noel-chalet[data-theme] body .data-first-summary>.summary-card:nth-child(3){--chalet-icon:url('../img/chalet-baubles-alpha.svg');--chalet-color:#8e2018}
+html.payment-noel-chalet[data-theme] body .data-first-summary>.summary-card:nth-child(4){--chalet-icon:url('../img/chalet-pinecone-alpha.svg');--chalet-color:#74512a}
+html.payment-noel-chalet[data-theme] body .data-first-summary>.summary-card::before{content:''!important;display:block!important;position:absolute!important;inset:3px!important;border:1px solid #b78a5850!important;border-radius:7px!important;background:none!important;pointer-events:none!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary>.summary-card::after{content:''!important;display:block!important;position:absolute!important;left:auto!important;right:4px!important;top:2px!important;bottom:2px!important;width:40px!important;height:auto!important;background:transparent var(--chalet-icon) center/contain no-repeat!important;pointer-events:none!important;transform:none!important;filter:none!important;border:0!important;box-shadow:none!important;opacity:1!important;mask-image:none!important;mix-blend-mode:normal}
 html.payment-noel-chalet[data-theme] body .data-first-summary .summary-card :is(.enterprise-kpi-icon,.dashboard-kpi-icon){display:none!important}
 html.payment-noel-chalet[data-theme] body .data-first-summary .summary-card :is(.summary-label,.summary-value,.summary-meta){position:relative!important;display:block!important;min-width:0!important;max-width:100%!important;margin:0!important;padding:0!important;letter-spacing:0!important;z-index:1!important}
-html.payment-noel-chalet[data-theme] body .data-first-summary .summary-card .summary-label{font:800 10px/1.15 Arial,'Segoe UI',sans-serif!important;color:#43291f!important;white-space:normal!important}
-html.payment-noel-chalet[data-theme] body .data-first-summary .summary-card .summary-value{font:800 clamp(14px,1.02vw,20px)/1.06 Arial,'Segoe UI',sans-serif!important;color:var(--chalet-color)!important;overflow-wrap:anywhere!important;white-space:normal!important;font-variant-numeric:tabular-nums}
-html.payment-noel-chalet[data-theme] body .data-first-summary .summary-card .summary-meta{font:500 9px/1.1 Arial,'Segoe UI',sans-serif!important;color:#695544!important}
-html.payment-noel-chalet[data-theme] body .data-first-summary>.data-first-filter-panel{grid-column:1/-1!important;grid-row:2!important;display:block!important;box-sizing:border-box!important;width:100%!important;height:auto!important;min-width:0!important;min-height:0!important;overflow:visible!important;background:#fff6e5!important;border:1px solid #d9bd98!important;border-radius:8px!important;padding:4px 6px!important;margin:0!important;box-shadow:none!important}
-html.payment-noel-chalet[data-theme] body .data-first-summary .enterprise-filter-main,html.payment-noel-chalet[data-theme] body .data-first-summary .enterprise-filter-main.has-actual-payment-month{display:flex!important;flex-wrap:wrap!important;align-items:center!important;width:100%!important;gap:6px!important;margin:0!important}
-html.payment-noel-chalet[data-theme] body .data-first-summary .enterprise-filter-main>.month-filter-box{display:flex!important;align-items:center!important;gap:7px!important;flex:0 0 auto!important;width:auto!important;min-width:194px!important;max-width:100%!important}
-html.payment-noel-chalet[data-theme] body .data-first-summary .month-filter-box>label{flex:0 0 auto!important;white-space:nowrap!important}
-html.payment-noel-chalet[data-theme] body .data-first-summary .month-filter-box>#paymentMonthFilter{flex:1 0 86px!important;min-width:86px!important;width:auto!important}
-html.payment-noel-chalet[data-theme] body .data-first-summary .enterprise-filter-main>.global-search-field{width:auto!important;flex:1 1 230px!important;min-width:200px!important;max-width:100%!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary .summary-card .summary-label{font:800 9px/1.12 Arial,'Segoe UI',sans-serif!important;color:#43291f!important;white-space:nowrap!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary .summary-card .summary-value{font:800 clamp(12px,.9vw,18px)/1.06 Arial,'Segoe UI',sans-serif!important;color:var(--chalet-color)!important;overflow-wrap:normal!important;white-space:nowrap!important;font-variant-numeric:tabular-nums}
+html.payment-noel-chalet[data-theme] body .data-first-summary .summary-card .summary-meta{font:500 8.5px/1.1 Arial,'Segoe UI',sans-serif!important;color:#695544!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary>.data-first-filter-panel{grid-column:5!important;grid-row:1!important;display:block!important;box-sizing:border-box!important;width:100%!important;height:auto!important;min-width:0!important;min-height:0!important;overflow:visible!important;background:transparent!important;border:0!important;border-radius:0!important;padding:0!important;margin:0!important;box-shadow:none!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary .enterprise-filter-main,
+html.payment-noel-chalet[data-theme] body .data-first-summary .enterprise-filter-main.has-actual-payment-month{display:flex!important;flex-wrap:nowrap!important;align-items:center!important;width:100%!important;min-width:0!important;gap:4px!important;margin:0!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary .enterprise-filter-main>.month-filter-box{display:flex!important;align-items:center!important;gap:4px!important;flex:0 0 auto!important;width:auto!important;min-width:151px!important;max-width:100%!important;padding:0 5px!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary .month-filter-box>label{flex:0 0 auto!important;white-space:nowrap!important;font-size:8px!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary .month-filter-box>#paymentMonthFilter{flex:1 0 66px!important;min-width:66px!important;width:auto!important;font-size:10px!important;padding:0 2px!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary .enterprise-filter-main>.global-search-field{width:auto!important;flex:1 1 126px!important;min-width:126px!important;max-width:100%!important}
 html.payment-noel-chalet[data-theme] body .data-first-summary .global-search-field>#searchInput{box-sizing:border-box!important;width:100%!important;min-width:0!important}
-html.payment-noel-chalet[data-theme] body .data-first-filter-panel :is(.month-filter-box,.global-search-field,.payment-status-segments,.enterprise-reset-btn,#refreshBtn){border-color:#dcc09c!important;background:#fff9ec!important;border-radius:7px!important}
-html.payment-noel-chalet[data-theme] body .data-first-filter-panel .payment-status-segments{display:flex!important;align-items:center!important;flex-wrap:wrap!important;max-width:100%!important;overflow:visible!important;flex:0 1 auto!important}
-html.payment-noel-chalet[data-theme] body .data-first-filter-panel .payment-status-segment{color:#623d2b!important;white-space:nowrap!important}
+html.payment-noel-chalet[data-theme] body .data-first-filter-panel :is(.month-filter-box,.global-search-field,.payment-status-segments,.enterprise-reset-btn,#refreshBtn){border-color:#cda777!important;background:#fff5e2 var(--chalet-paper) repeat!important;border-radius:8px!important;box-shadow:inset 0 0 0 1px #fff9ed!important}
+html.payment-noel-chalet[data-theme] body .data-first-filter-panel .payment-status-segments{display:flex!important;align-items:center!important;flex-wrap:nowrap!important;max-width:100%!important;overflow:visible!important;flex:0 0 auto!important;gap:2px!important;padding:2px!important}
+html.payment-noel-chalet[data-theme] body .data-first-filter-panel .payment-status-segment{color:#623d2b!important;white-space:nowrap!important;padding:0 5px!important;font-size:9px!important}
 html.payment-noel-chalet[data-theme] body .data-first-filter-panel .payment-status-segment:is(.active,[aria-pressed=true]){background:#8f251b!important;color:white!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary :is(.enterprise-reset-btn,#refreshBtn,.enterprise-advanced-trigger){flex:0 0 auto!important;padding-left:6px!important;padding-right:6px!important;font-size:9px!important;white-space:nowrap!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary .enterprise-filter-main.has-actual-payment-month{flex-wrap:wrap!important}
 html.payment-noel-chalet[data-theme] body .table-wrap{background:#fff9ec!important;border:1px solid #cda77f!important;border-radius:8px!important;box-shadow:none!important;margin:0!important;flex-shrink:0!important}
-html.payment-noel-chalet[data-theme] body :is(#paymentTable,#paymentFixedHeaderInner table) thead th,html.payment-noel-chalet[data-theme] body #paymentFixedHeaderInner .payment-fixed-header-cell{background:#23482e!important;background-image:var(--chalet-plaid)!important;color:#fff9ed!important;border-color:#816b40!important;border-bottom:2px solid #a52a22!important;text-shadow:0 1px 1px #16291c!important}
-html.payment-noel-chalet[data-theme] body #paymentTable tbody tr>td{border-color:#e0cbae!important}
-html.payment-noel-chalet[data-theme] body #paymentTable tbody tr:nth-child(odd)>td:not([style*='background']){background:#fffaf0!important}
-html.payment-noel-chalet[data-theme] body #paymentTable tbody tr:nth-child(even)>td:not([style*='background']){background:#f9efdf!important}
-html.payment-noel-chalet[data-theme] body #paymentTable tbody tr:nth-child(n):hover>td:nth-child(n),html.payment-noel-chalet[data-theme] body #paymentTable tbody tr:nth-child(n):focus-within>td:nth-child(n){background:#e4eddb!important;background-image:none!important;box-shadow:inset 0 1px #b2c69e,inset 0 -1px #b2c69e!important}
-html.payment-noel-chalet[data-theme] body #paymentChaletFooter{display:block!important;position:relative!important;flex:0 0 auto!important;width:100%!important;height:clamp(112px,9.906vw,260px)!important;margin:auto 0 0!important;padding:0!important;background:#f8ecd6 url('../img/chalet-footer.webp') center bottom/100% auto no-repeat!important;border:0!important;pointer-events:none!important;user-select:none!important}
-html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar{background:#fff4dd!important;border-color:#d2b58c!important;color:#4c3021!important;box-shadow:none!important}
-html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar :is(strong,b){color:#8e2018!important}
-@media(max-width:1120px){html.payment-noel-chalet[data-theme]{--chalet-header-height:100px}html.payment-noel-chalet[data-theme] body .modern-app-header{background-size:cover!important;padding:6px 8px!important}html.payment-noel-chalet[data-theme] body .modern-header-right{gap:4px!important;margin-top:0!important}html.payment-noel-chalet[data-theme] body .data-first-summary>.summary-card{padding-right:48px!important}html.payment-noel-chalet[data-theme] body .data-first-summary>.summary-card::after{width:40px!important}}
-@media(max-width:720px){html.payment-noel-chalet[data-theme] body .modern-app-header{height:auto!important;flex-wrap:wrap!important;align-items:flex-start!important;padding:9px 8px!important}html.payment-noel-chalet[data-theme] body .modern-header-right{margin:0!important;justify-content:flex-start!important}html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block h1{font-size:17px!important;white-space:normal!important}html.payment-noel-chalet[data-theme] body .data-first-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:auto auto auto!important}html.payment-noel-chalet[data-theme] body .data-first-summary>.summary-card{grid-row:auto!important;height:auto!important;min-height:51px!important;padding-right:44px!important}html.payment-noel-chalet[data-theme] body .data-first-summary>.data-first-filter-panel{grid-row:3!important}html.payment-noel-chalet[data-theme] body .data-first-summary .enterprise-filter-main>.global-search-field{min-width:min(200px,100%)!important}html.payment-noel-chalet[data-theme] body #paymentChaletFooter{height:100px!important;background-size:auto 100%!important}}
-@media(prefers-reduced-motion:reduce){html.payment-noel-chalet[data-theme] body .summary-card,html.payment-noel-chalet[data-theme] body #paymentTable tbody td{transition:none!important}}
-html.payment-noel-chalet[data-theme] body #exportWatchPanel .export-watch-bar{background:linear-gradient(90deg,#fff2cb,#fff6df)!important;border:1px solid #dcba80!important;border-radius:6px!important;color:#85251a!important;position:relative!important}
-html.payment-noel-chalet[data-theme] body #exportWatchPanel .export-watch-title{padding-left:27px!important;background:url('../img/chalet-bell.webp') left center/23px auto no-repeat!important}
-html.payment-noel-chalet[data-theme] body #exportWatchPanel .export-watch-spacer{background:url('../img/chalet-knit.webp') center right/auto 14px no-repeat!important;min-height:15px!important;opacity:.82!important}
-html.payment-noel-chalet[data-theme] body #paymentChaletFooter{order:initial!important}
-
-/* CHALET V2 — finish the original artwork, never replace live labels.
-   Frozen and cloned headers must use the same woven tile as the normal cells. */
-html.payment-noel-chalet[data-theme]{
- --chalet-parchment:#fff1d9;
- --chalet-ink:#84251c;
- --chalet-weave:#284833 url('../img/chalet-plaid.webp') repeat;
- --frozen-head-light:#294a35;
- --chalet-trim:url('../img/chalet-knit.webp');
- --chalet-holly:url('../img/chalet-holly.webp');
-}
 html.payment-noel-chalet[data-theme] body #paymentTable#paymentTable thead tr th,
 html.payment-noel-chalet[data-theme] body #paymentTable#paymentTable thead tr th:nth-child(n),
 html.payment-noel-chalet[data-theme] body #paymentTable#paymentTable thead tr th.process-header,
 html.payment-noel-chalet[data-theme] body #paymentFixedHeaderInner#paymentFixedHeaderInner th,
 html.payment-noel-chalet[data-theme] body #paymentFixedHeaderInner#paymentFixedHeaderInner .payment-fixed-header-cell,
-html.payment-noel-chalet[data-theme] body #paymentFixedHeaderInner#paymentFixedHeaderInner .payment-fixed-header-cell.is-frozen{
- background:var(--chalet-weave)!important;
- background-size:97px 32px!important;
- background-position:left top!important;
- background-repeat:repeat!important;
- color:#fff9ed!important;
- border-color:#71643f!important;
- border-bottom:2px solid #a32a21!important;
- text-shadow:0 1px 1px #18321f!important;
-}
-html.payment-noel-chalet[data-theme] body #paymentFixedHeaderWrap#paymentFixedHeaderWrap{
- background:var(--chalet-weave)!important;
- background-size:97px 32px!important;
-}
+html.payment-noel-chalet[data-theme] body #paymentFixedHeaderInner#paymentFixedHeaderInner .payment-fixed-header-cell.is-frozen{background:var(--chalet-weave)!important;color:#fff9ed!important;border-color:#71643f!important;border-bottom:2px solid #a32a21!important;text-shadow:0 1px 1px #18321f!important}
+html.payment-noel-chalet[data-theme] body #paymentFixedHeaderWrap#paymentFixedHeaderWrap{background:var(--chalet-weave)!important}
 html.payment-noel-chalet[data-theme] body #paymentTable#paymentTable thead th.amount-total-header-selected,
-html.payment-noel-chalet[data-theme] body #paymentFixedHeaderInner#paymentFixedHeaderInner .amount-total-header-selected{
- box-shadow:inset 0 0 0 2px #eac66c!important;
-}
-/* Use the painted title cartouche already present in the header image.
-   On desktop the live logo/title sit inside it, not on another opaque box. */
-html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block::before,
-html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block::after,
-html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block h1::before,
-html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block h1::after{
- content:none!important;display:none!important;
-}
-html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block{
- background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0!important;
- padding:0!important;gap:8px!important;align-items:center!important;
-}
-html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block h1{
- font-family:Georgia,'Times New Roman',serif!important;
- font-size:clamp(17px,1.38vw,27px)!important;
- font-weight:700!important;line-height:1.12!important;color:#8c211b!important;
- text-shadow:0 1px #fff4e0!important;
-}
-html.payment-noel-chalet[data-theme] body .modern-header-right{
- background:none!important;border:0!important;box-shadow:none!important;padding:0!important;
-}
-html.payment-noel-chalet[data-theme] body .modern-app-header :is(.compact-language,.theme-picker-trigger,.header-user-button,#paymentChaletToggle){
- border:1px solid #c39a6c!important;box-shadow:inset 0 0 0 1px #fff9e7,0 2px 4px #4b291d38!important;
-}
-@media(min-width:1121px){
- html.payment-noel-chalet[data-theme] body .modern-app-header{
-  padding:0 max(12px,1.05vw) 6px max(17px,1.62vw)!important;
-  background-size:100% 100%!important;
- }
- html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block{
-  max-width:calc(18.9vw - 15px)!important;
-  min-height:clamp(34px,2.55vw,48px)!important;
- }
- html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block .brand-logo{
-  width:clamp(29px,2.27vw,43px)!important;height:clamp(29px,2.27vw,43px)!important;
-  min-width:clamp(29px,2.27vw,43px)!important;flex:0 0 clamp(29px,2.27vw,43px)!important;
- }
- html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block>div:last-child{min-width:0!important}
- html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block h1{
-  font-size:clamp(14px,1.31vw,26px)!important;white-space:nowrap!important;
- }
-}
-@media(max-width:1120px){
- html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block{
-  background:#fff1db!important;border:1px solid #d3ae82!important;
-  border-radius:8px!important;padding:4px 8px!important;
- }
-}
-/* Export watch: one continuous parchment bar. Fade the photographic crop
-   into the base instead of showing a rectangular yellow sticker edge. */
-html.payment-noel-chalet[data-theme] body #exportWatchPanel#exportWatchPanel{
- background:transparent!important;border:0!important;box-shadow:none!important;
- padding:0!important;border-radius:8px!important;
-}
-html.payment-noel-chalet[data-theme] body #exportWatchPanel#exportWatchPanel .export-watch-bar,
-html.payment-noel-chalet[data-theme] body #exportWatchPanel#exportWatchPanel .export-watch-bar[aria-expanded="false"],
-html.payment-noel-chalet[data-theme] body #exportWatchPanel#exportWatchPanel .export-watch-bar[aria-expanded="true"]{
- background:linear-gradient(180deg,#fff8dc 0%,#ffedbe 52%,#fff3d2 100%)!important;
- border:1px solid #cf9f61!important;border-radius:8px!important;
- box-shadow:inset 0 0 0 2px #fff6dc,inset 0 0 0 3px #dbb16b45!important;
- padding:4px 10px!important;min-height:30px!important;color:#85251a!important;
-}
-html.payment-noel-chalet[data-theme] body #exportWatchPanel#exportWatchPanel .export-watch-title{
- position:relative!important;background:none!important;padding-left:29px!important;
- color:#862219!important;font-weight:700!important;min-height:22px!important;
-}
-html.payment-noel-chalet[data-theme] body #exportWatchPanel#exportWatchPanel .export-watch-title::before{
- content:""!important;display:block!important;position:absolute!important;left:0!important;top:50%!important;
- width:25px!important;height:25px!important;transform:translateY(-50%)!important;
- background:url('../img/chalet-bell.webp') center/contain no-repeat!important;
- mix-blend-mode:multiply;pointer-events:none;
- mask-image:radial-gradient(ellipse at center,#000 0 65%,transparent 100%);
-}
-html.payment-noel-chalet[data-theme] body #exportWatchPanel#exportWatchPanel .export-watch-spacer{
- background:none!important;position:relative!important;min-height:16px!important;
-}
-html.payment-noel-chalet[data-theme] body #exportWatchPanel#exportWatchPanel .export-watch-spacer::after{
- content:""!important;position:absolute!important;right:3px!important;top:50%!important;
- transform:translateY(-50%)!important;width:min(100%,550px)!important;height:15px!important;
- background:var(--chalet-trim) right center/auto 15px repeat-x!important;
- mix-blend-mode:multiply;opacity:.9;pointer-events:none;
- mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);
-}
-/* The totals bar remains fixed above its native horizontal scrollbar.
-   Textile trim only occupies the free space between the live counters. */
-html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar{
- box-sizing:border-box!important;
- background:linear-gradient(180deg,#fff9e9,#fcebd2 50%,#fff5e3)!important;
- border:1px solid #cba577!important;border-radius:8px 8px 0 0!important;
- box-shadow:inset 0 0 0 2px #fff7e9,inset 0 0 0 3px #d4af813d!important;
- backdrop-filter:none!important;gap:12px!important;padding:0 12px!important;
- isolation:isolate;
-}
-html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar .payment-live-total-left{
- order:0!important;flex:0 0 auto!important;
-}
-html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar .payment-live-total-right{
- order:2!important;flex:0 0 auto!important;margin-left:0!important;
-}
-html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar::before{
- content:""!important;display:block!important;order:1!important;
- flex:1 1 30px!important;min-width:0!important;height:13px!important;
- background:var(--chalet-trim) center/auto 13px repeat-x!important;
- mix-blend-mode:multiply;opacity:.86;pointer-events:none;
- mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);
-}
+html.payment-noel-chalet[data-theme] body #paymentFixedHeaderInner#paymentFixedHeaderInner .amount-total-header-selected{box-shadow:inset 0 0 0 2px #eac66c!important}
+html.payment-noel-chalet[data-theme] body #paymentTable tbody tr>td{border-color:#e0cbae!important}
+html.payment-noel-chalet[data-theme] body #paymentTable tbody tr:nth-child(odd)>td:not([style*='background']){background:#fffaf0!important}
+html.payment-noel-chalet[data-theme] body #paymentTable tbody tr:nth-child(even)>td:not([style*='background']){background:#f9efdf!important}
+html.payment-noel-chalet[data-theme] body #paymentTable tbody tr:nth-child(n):hover>td:nth-child(n),
+html.payment-noel-chalet[data-theme] body #paymentTable tbody tr:nth-child(n):focus-within>td:nth-child(n){background:#e4eddb!important;background-image:none!important;box-shadow:inset 0 1px #b2c69e,inset 0 -1px #b2c69e!important}
+html.payment-noel-chalet[data-theme] body #paymentChaletFooter#paymentChaletFooter{display:block!important;position:relative!important;flex:0 0 auto!important;width:100%!important;height:clamp(112px,9.906vw,260px)!important;margin:auto 0 0!important;padding:0!important;background:transparent url('../img/chalet-footer.webp') center bottom/100% 100% no-repeat!important;border:0!important;pointer-events:none!important;user-select:none!important;order:initial!important;mask-image:linear-gradient(180deg,transparent 0,#000 7px,#000 100%)}
+html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar{box-sizing:border-box!important;background:var(--chalet-paper) repeat!important;border:1px solid #c18d58!important;border-radius:11px!important;box-shadow:var(--chalet-frame)!important;backdrop-filter:none!important;gap:12px!important;padding:0 12px!important;isolation:isolate;color:#4c3021!important}
+html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar :is(strong,b){color:#8e2018!important}
+html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar .payment-live-total-item.actual b{color:#315738!important}
+html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar .payment-live-total-left{order:0!important;flex:0 0 auto!important}
+html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar .payment-live-total-right{order:2!important;flex:0 0 auto!important;margin-left:0!important}
+html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar::before{content:''!important;display:block!important;order:1!important;flex:1 1 30px!important;min-width:0!important;height:15px!important;background:var(--chalet-trim) center/auto 15px repeat-x!important;opacity:.92;pointer-events:none;mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent)}
 html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar .payment-live-total-left::before,
 html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar .payment-live-total-right::before,
-html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar .payment-live-total-right::after{
- content:""!important;display:block!important;flex:0 0 24px!important;width:24px!important;height:22px!important;
- background:var(--chalet-holly) center/contain no-repeat!important;mix-blend-mode:multiply;
- mask-image:radial-gradient(ellipse,#000 62%,transparent 100%);pointer-events:none;
+html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar .payment-live-total-right::after{content:''!important;display:block!important;flex:0 0 24px!important;width:24px!important;height:22px!important;background:var(--chalet-holly) center/contain no-repeat!important;pointer-events:none}
+@media(max-width:1720px){
+html.payment-noel-chalet[data-theme] body .data-first-summary{grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-rows:auto auto!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary>.data-first-filter-panel{grid-column:1/-1!important;grid-row:2!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary .enterprise-filter-main{flex-wrap:wrap!important;gap:6px!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary>.summary-card{padding-right:48px!important}
 }
-html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar .payment-live-total-item.actual b{color:#315738!important}
-/* Seam between the bottom illustration and the parchment workspace:
-   use the same warm paper, natural image ratio, and a subtle top-edge fade. */
-html.payment-noel-chalet[data-theme] body #paymentChaletFooter#paymentChaletFooter{
- background-color:transparent!important;background-position:center bottom!important;
- background-size:100% 100%!important;
- mask-image:linear-gradient(180deg,transparent 0,#000 7px,#000 100%);
-}
-html.payment-noel-chalet[data-theme] body .data-first-summary>.summary-card::after{
- mask-image:radial-gradient(ellipse at center,#000 0 66%,transparent 100%);
-}
-@media(max-width:1100px){
- html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar::before,
- html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar .payment-live-total-right::after{display:none!important}
- html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar .payment-live-total-right{margin-left:auto!important}
+@media(max-width:1120px){html.payment-noel-chalet[data-theme]{--chalet-header-height:100px}
+html.payment-noel-chalet[data-theme] body .modern-app-header{background-size:cover!important;padding:6px 8px!important}
+html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block{max-width:none!important;background:#fff1db var(--chalet-paper) repeat!important;border:1px solid #d3ae82!important;border-radius:8px!important;padding:4px 8px!important}
+html.payment-noel-chalet[data-theme] body .modern-header-right{gap:4px!important;margin-top:0!important}
+html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar::before,
+html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar .payment-live-total-right::after{display:none!important}
+html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar .payment-live-total-right{margin-left:auto!important}
 }
 @media(max-width:720px){
- html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar .payment-live-total-left::before,
- html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar .payment-live-total-right::before,
- html.payment-noel-chalet[data-theme] body #exportWatchPanel#exportWatchPanel .export-watch-spacer::after{display:none!important}
- html.payment-noel-chalet[data-theme] body #paymentChaletFooter#paymentChaletFooter{background-size:auto 100%!important}
+html.payment-noel-chalet[data-theme] body .modern-app-header{height:auto!important;flex-wrap:wrap!important;align-items:flex-start!important;padding:9px 8px!important}
+html.payment-noel-chalet[data-theme] body .modern-header-right{margin:0!important;justify-content:flex-start!important}
+html.payment-noel-chalet[data-theme] body .modern-app-header .brand-block h1{font-size:17px!important;white-space:normal!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:auto auto auto!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary>.summary-card{grid-row:auto!important;height:auto!important;min-height:49px!important;padding-right:42px!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary>.data-first-filter-panel{grid-row:3!important}
+html.payment-noel-chalet[data-theme] body .data-first-filter-panel .payment-status-segments{flex-wrap:wrap!important;flex:0 1 auto!important}
+html.payment-noel-chalet[data-theme] body .data-first-summary .enterprise-filter-main>.global-search-field{min-width:min(126px,100%)!important}
+html.payment-noel-chalet[data-theme] body #paymentChaletFooter#paymentChaletFooter{height:100px!important;background-size:auto 100%!important}
+html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar .payment-live-total-left::before,
+html.payment-noel-chalet[data-theme] body #paymentLiveTotalBar#paymentLiveTotalBar .payment-live-total-right::before,
+html.payment-noel-chalet[data-theme] body #exportWatchPanel#exportWatchPanel .export-watch-spacer::after{display:none!important}
+}
+@media(prefers-reduced-motion:reduce){html.payment-noel-chalet[data-theme] body .summary-card,
+html.payment-noel-chalet[data-theme] body #paymentTable tbody td{transition:none!important}
 }
