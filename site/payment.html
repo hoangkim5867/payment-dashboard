@@ -4046,6 +4046,8 @@ window.HISTORY_2026_EDITED_PREVIEW = null;
 
 <script type="module">
 import {createPaymentEmergencyDrafts} from "./assets/js/payment-emergency-drafts.mjs";
+import {createNoelTreePreview} from "./assets/js/payment-noel-tree-preview.mjs";
+const noelTreePreview=createNoelTreePreview();
 import {buildBankOnlyPaymentPatch} from "./assets/js/payment-bank-only-edit.mjs";
 import {buildAmountOnlyFormPatch} from "./assets/js/payment-amount-only-edit.mjs";
 
@@ -13281,6 +13283,7 @@ onAuthStateChanged(
         currentAuthUser =
             user || null;
         clearPaymentNoel();
+        noelTreePreview.unmount();
         if(privateHistory2026LoadedUid && privateHistory2026LoadedUid!==user?.uid){
             clearPrivateHistory2026();
         }
@@ -13377,6 +13380,7 @@ onAuthStateChanged(
 
         applyRoleUI();
         syncPaymentChaletTheme();
+        if(isAdmin())noelTreePreview.mount({uid:user.uid,name:currentOperatorName,allowed:()=>isAdmin()&&currentAuthUser?.uid===user.uid});
 
         /*
            Security Rules now require an approved signed-in profile.
