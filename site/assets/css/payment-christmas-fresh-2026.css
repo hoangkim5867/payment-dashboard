@@ -48,7 +48,7 @@ html.payment-noel-nordic[data-theme] body .modern-app-header {
   height:104px!important;min-height:104px!important;max-height:104px!important;
   padding:0 16px 6px!important;gap:10px!important;margin:0!important;
   border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important;
-  background:#034d34 url('../img/payment-noel-header-pine-stars-20261125.svg') center bottom/100% auto no-repeat!important;
+  background:#034d34 url('../img/payment-noel-header-pine-stars-20261125.svg?v=photo-sprigs-2') center bottom/100% auto no-repeat!important;
 }
 html.payment-noel-nordic[data-theme] body .modern-app-header::before,
 html.payment-noel-nordic[data-theme] body .modern-app-header::after,
