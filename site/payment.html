@@ -4419,17 +4419,13 @@ function removeWinterArt(){
 function installWinterArt(){
  if(!isAdmin())return;
  const art=(name,cls)=>{
-  const img=document.createElement("img");img.src="assets/img/winter-blue-2026/"+name+".webp";img.className=cls;img.alt="";img.draggable=false;img.decoding="async";img.setAttribute("aria-hidden","true");img.setAttribute("data-payment-winter-art","");return img;
+  const img=document.createElement("img");img.src="assets/img/winter-pastel-2026/"+name+".webp";img.className=cls;img.alt="";img.draggable=false;img.decoding="async";img.setAttribute("aria-hidden","true");img.setAttribute("data-payment-winter-art","");return img;
  };
- const header=document.querySelector(".modern-app-header");
- header?.prepend(art("header","winter-header-art"));
- document.querySelector("#exportWatchPanel .export-watch-title")?.prepend(art("notice-bell","winter-notice-bell"));
- document.querySelector("#exportWatchPanel .export-watch-spacer")?.append(art("notice-sprig","winter-notice-sprig"));
- [["summaryCount","coins"],["summaryAmount","check"],["summaryActual","hourglass"],["summaryUnpaid","carry"]].forEach(([id,name])=>{
-  const card=document.getElementById(id)?.closest(".summary-card");
-  card?.prepend(art(name,"winter-kpi-icon"));card?.append(art("pine","winter-kpi-pine"));
+ document.querySelector(".modern-app-header")?.prepend(art("header","winter-header-art"));
+ [["summaryCount","globe"],["summaryAmount","tree"],["summaryActual","penguin"],["summaryUnpaid","lantern"]].forEach(([id,name])=>{
+  document.getElementById(id)?.closest(".summary-card")?.prepend(art(name,"winter-kpi-icon"));
  });
- const footer=art("footer","winter-footer-art");footer.id="paymentWinterFooter";footer.width=2172;footer.height=394;
+ const footer=art("footer","winter-footer-art");footer.id="paymentWinterFooter";footer.width=1817;footer.height=192;
  (document.getElementById("paymentHorizontalScrollbar")||document.getElementById("paymentLiveTotalBar"))?.before(footer);
 }
 function clearPaymentNoel(){
@@ -47410,6 +47406,6 @@ Admin writes one temporaryPaymentMonthAccess value into Staff authUsers profiles
 Staff receives CURRENT_MONTH + that one old month only; old month is view-only. -->
 <script type="module" src="./assets/js/payment-doc-link-ui.mjs"></script>
 <link rel="stylesheet" href="assets/css/payment-noel-chalet-2026.css?v=20261125-chalet-v9" id="paymentChaletStyle">
-<link rel="stylesheet" href="assets/css/payment-noel-winter-blue-2026.css?v=20261125-blue1" id="paymentWinterBlueStyle">
+<link rel="stylesheet" href="assets/css/payment-noel-winter-pastel-2026.css?v=20261125-pastel1" id="paymentWinterPastelStyle">
 </body>
 </html>
