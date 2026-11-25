@@ -48,7 +48,7 @@ html.payment-noel-nordic[data-theme] body .modern-app-header {
   height:104px!important;min-height:104px!important;max-height:104px!important;
   padding:0 16px 6px!important;gap:10px!important;margin:0!important;
   border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important;
-  background:#034d34 url('../img/payment-noel-header-unified-20261125.webp') center bottom/100% auto no-repeat!important;
+  background:#034d34 url('../img/payment-noel-header-pine-stars-20261125.svg') center bottom/100% auto no-repeat!important;
 }
 html.payment-noel-nordic[data-theme] body .modern-app-header::before,
 html.payment-noel-nordic[data-theme] body .modern-app-header::after,
@@ -71,6 +71,11 @@ html.payment-noel-nordic[data-theme] body .modern-app-header .brand-logo {
   width:clamp(30px,2.5vw,48px)!important;height:clamp(30px,2.5vw,48px)!important;
   min-width:0!important;border-radius:7px!important;
 }
+html.payment-noel-nordic[data-theme] body .modern-app-header .brand-logo .brand-logo-image {
+  content:url('../img/payment-noel-cscec-crisp-20261125.svg')!important;
+  display:block!important;width:100%!important;height:100%!important;
+  object-fit:contain!important;filter:none!important;transform:none!important;
+}
 html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block>div:not(.brand-logo) {
   position:absolute!important;left:clamp(75px,6.8vw - 16px,115px)!important;
   bottom:clamp(19px,1.55vw,30px)!important;
@@ -92,7 +97,7 @@ html.payment-noel-nordic[data-theme] body .modern-app-header .compact-language #
 html.payment-noel-nordic[data-theme] body .modern-app-header .compact-language:focus-within {outline:2px solid #d6af69!important;outline-offset:2px!important}
 html.payment-noel-nordic[data-theme] body #paymentNordicNoelBtn {display:inline-flex;height:32px!important;min-height:32px!important}
 @media(min-width:1921px) {
-  html.payment-noel-nordic[data-theme] body .modern-app-header {background-size:100% 100%!important}
+  html.payment-noel-nordic[data-theme] body .modern-app-header {background-size:100% auto!important}
 }
 @media(max-width:1000px) {
   html.payment-noel-nordic[data-theme] body .modern-app-header {background:#034d34!important}
