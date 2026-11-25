@@ -39,18 +39,16 @@ html.payment-noel-nordic[data-theme] body {
   padding-bottom:18px!important;
 }
 
-/* Single Noel header. The 2825 × 153 artwork keeps its native aspect ratio.
-   Greeting is part of the original image; live controls never enter the image. */
-html.payment-noel-nordic[data-theme] {
-  --payment-noel-header-height:5.41593vw;
-}
+/* 2026-11-25 · unified approved banner. One background image contains
+   the golden greeting, sky, winter village and snow; no layered image seam.
+   Only logo, translated page title and existing interactive controls are live. */
 html.payment-noel-nordic[data-theme] body .modern-app-header {
   position:relative!important;isolation:isolate!important;box-sizing:border-box!important;
   display:flex!important;align-items:center!important;justify-content:space-between!important;
-  height:var(--payment-noel-header-height)!important;min-height:0!important;max-height:none!important;
-  padding:0 16px!important;gap:10px!important;margin:0!important;
+  height:104px!important;min-height:104px!important;max-height:104px!important;
+  padding:0 16px 6px!important;gap:10px!important;margin:0!important;
   border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important;
-  background:#034d34 url('../img/payment-noel-header-unified-20261125.webp') center center/100% auto no-repeat!important;
+  background:#034d34 url('../img/payment-noel-header-unified-20261125.webp') center bottom/100% auto no-repeat!important;
 }
 html.payment-noel-nordic[data-theme] body .modern-app-header::before,
 html.payment-noel-nordic[data-theme] body .modern-app-header::after,
@@ -59,36 +57,28 @@ html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block::after
 html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block>div:not(.brand-logo)::before,
 html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block>div:not(.brand-logo)::after,
 html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block h1::before,
-html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block h1::after {
-  content:none!important;display:none!important;
-}
+html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block h1::after {content:none!important;display:none!important}
 html.payment-noel-nordic[data-theme] body .modern-app-header>* {position:relative!important;z-index:2!important}
 html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block {
-  display:flex!important;align-items:center!important;align-self:flex-end!important;gap:7px!important;
-  flex:0 0 auto!important;min-width:0!important;min-height:0!important;
-  background:transparent!important;border:0!important;box-shadow:none!important;
-  padding:0!important;margin:0 0 5px!important;text-decoration:none!important;
+  display:flex!important;align-items:center!important;position:relative!important;
+  align-self:stretch!important;flex:0 0 clamp(200px,19vw,360px)!important;
+  min-width:0!important;min-height:0!important;
+  background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0!important;
 }
 html.payment-noel-nordic[data-theme] body .modern-app-header .brand-logo {
-  position:relative!important;inset:auto!important;
-  width:32px!important;height:32px!important;min-width:32px!important;flex:0 0 32px!important;
-  padding:0!important;border:0!important;border-radius:5px!important;
-  background:transparent!important;box-shadow:none!important;transform:none!important;
-}
-html.payment-noel-nordic[data-theme] body .modern-app-header .brand-logo .brand-logo-image {
-  display:block!important;width:100%!important;height:100%!important;
-  object-fit:contain!important;object-position:center!important;
-  border:0!important;border-radius:5px!important;transform:none!important;filter:none!important;
-  box-shadow:none!important;
+  position:absolute!important;left:clamp(0px,.25vw,6px)!important;
+  bottom:clamp(19px,1.9vw,36px)!important;
+  width:clamp(30px,2.5vw,48px)!important;height:clamp(30px,2.5vw,48px)!important;
+  min-width:0!important;border-radius:7px!important;
 }
 html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block>div:not(.brand-logo) {
-  position:static!important;display:block!important;overflow:visible!important;
-  background:none!important;border:0!important;box-shadow:none!important;
+  position:absolute!important;left:clamp(75px,6.8vw - 16px,115px)!important;
+  bottom:clamp(19px,1.55vw,30px)!important;
+  display:block!important;overflow:visible!important;
 }
 html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block h1 {
-  color:#174d39!important;font:700 10px/1.2 Arial,"Segoe UI",sans-serif!important;
-  margin:0!important;letter-spacing:0!important;white-space:nowrap!important;
-  text-decoration:none!important;text-shadow:0 0 3px #fff9ef,0 0 5px #fff9ef!important;
+  color:#fffaf0!important;font:600 clamp(10px,.72vw,14px)/1.25 Arial,"Segoe UI",sans-serif!important;
+  margin:0!important;letter-spacing:0!important;white-space:nowrap!important;text-shadow:0 1px 3px #034d34!important;
 }
 html.payment-noel-nordic[data-theme] body .modern-app-header .brand-subtitle {display:none!important}
 html.payment-noel-nordic[data-theme] body .modern-header-right {display:flex!important;align-items:center!important;gap:7px!important;margin:0!important;padding:0!important;background:transparent!important}
@@ -101,11 +91,14 @@ html.payment-noel-nordic[data-theme] body .modern-app-header .compact-language l
 html.payment-noel-nordic[data-theme] body .modern-app-header .compact-language #languageSelect {box-sizing:border-box!important;height:100%!important;min-height:0!important;max-height:100%!important;margin:0!important;padding:0 25px 0 8px!important;border:0!important;border-radius:0!important;background-color:transparent!important;box-shadow:none!important;outline:none!important;color:#234a37!important;line-height:normal!important;cursor:pointer!important}
 html.payment-noel-nordic[data-theme] body .modern-app-header .compact-language:focus-within {outline:2px solid #d6af69!important;outline-offset:2px!important}
 html.payment-noel-nordic[data-theme] body #paymentNordicNoelBtn {display:inline-flex;height:32px!important;min-height:32px!important}
+@media(min-width:1921px) {
+  html.payment-noel-nordic[data-theme] body .modern-app-header {background-size:100% 100%!important}
+}
 @media(max-width:1000px) {
-  html.payment-noel-nordic[data-theme] {--payment-noel-header-height:64px}
   html.payment-noel-nordic[data-theme] body .modern-app-header {background:#034d34!important}
-  html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block {align-self:center!important;margin:0!important}
-  html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block h1 {color:#fffaf0!important;text-shadow:none!important}
+  html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block {flex:0 1 auto!important;gap:8px!important;align-self:center!important}
+  html.payment-noel-nordic[data-theme] body .modern-app-header .brand-logo,
+  html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block>div:not(.brand-logo) {position:relative!important;left:auto!important;bottom:auto!important}
   html.payment-noel-nordic[data-theme] body .modern-app-header .compact-language label {display:none!important}
 }
 
@@ -283,7 +276,7 @@ html.payment-noel-nordic[data-theme] body .container {
 html.payment-noel-nordic[data-theme] body .container>.card {
   display:flex!important;flex-direction:column!important;
   box-sizing:border-box!important;
-  min-height:calc(100dvh - var(--payment-noel-header-height) - 24px)!important;height:auto!important;
+  min-height:calc(100dvh - 128px)!important;height:auto!important;
   width:100%!important;max-width:none!important;padding-bottom:0!important;margin-bottom:0!important;
 }
 html.payment-noel-nordic[data-theme] body .container>.card>.table-wrap {flex-shrink:0!important}
@@ -354,6 +347,7 @@ html.payment-noel-nordic[data-theme] body #paymentLiveTotalBar :is(strong,b) {co
     padding:6px 8px!important;background:#034d34!important;background-image:none!important;flex-wrap:wrap!important;
   }
   html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block h1 {font-size:11px!important;letter-spacing:0!important}
+  html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block h1::before {display:none!important}
   html.payment-noel-nordic[data-theme] body .modern-header-right {flex-wrap:wrap!important;gap:5px!important
   }
   html.payment-noel-nordic[data-theme] body .data-first-summary {
