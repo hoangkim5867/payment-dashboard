@@ -1451,7 +1451,6 @@ html[data-theme] .data-first-summary .enterprise-filter-main > .global-search-fi
     white-space:nowrap;
 }
 </style>
-<link rel="stylesheet" href="assets/css/payment-noel-cartoon-2026.css?v=20261125-vintage-v4" id="paymentNordicNoelStyle">
 </head>
 
 
@@ -4392,49 +4391,6 @@ function usernameToAuthEmail(username){
    AUTH HELPERS
 ===================================================== */
 
-
-/* Admin-only visual Noël preview; no Firestore listener, writes or export logic. */
-function syncPaymentNordicNoelPreview(){
-    const oldButton=document.getElementById("paymentNordicNoelBtn");
-    if(!isAdmin()){
-        document.documentElement.classList.remove("payment-noel-nordic");
-        oldButton?.remove();
-        return;
-    }
-    if(oldButton) return;
-    const target=document.getElementById("themePickerWrap");
-    if(!target) return;
-    const button=document.createElement("button");
-    button.type="button";
-    button.id="paymentNordicNoelBtn";
-    button.setAttribute("aria-pressed","false");
-    button.title="Chỉ Admin: giao diện Noel trên Payment thật, không đổi dữ liệu";
-    const render=()=>{
-        const active=document.documentElement.classList.contains("payment-noel-nordic");
-        const lang=document.getElementById("languageSelect")?.value||"vi";
-        const names={vi:active?"🎄 Noel: Bật":"🎄 Noel: Thử",
-            zh:active?"🎄 圣诞：开":"🎄 圣诞预览",
-            en:active?"🎄 Noël: On":"🎄 Noël preview"};
-        button.textContent=names[lang]||names.vi;
-        button.setAttribute("aria-pressed",String(active));
-    };
-    button.addEventListener("click",()=>{
-        if(!isAdmin()) return;
-        document.documentElement.classList.toggle("payment-noel-nordic");
-        document.getElementById("paymentNordicFooter")?.remove();
-        if(document.documentElement.classList.contains("payment-noel-nordic")){
-            const footer=document.createElement("div");
-            footer.id="paymentNordicFooter";
-            footer.setAttribute("aria-hidden","true");
-            document.getElementById("paymentLiveTotalBar")?.after(footer);
-        }
-        render();
-    });
-    document.getElementById("languageSelect")?.addEventListener("change",render);
-    target.after(button);
-    button.style.display="inline-flex";
-    render();
-}
 
 function isAdmin(){
     return (
@@ -13203,9 +13159,6 @@ onAuthStateChanged(
 
         currentAuthUser =
             user || null;
-        document.documentElement.classList.remove("payment-noel-nordic");
-        document.getElementById("paymentNordicNoelBtn")?.remove();
-        document.getElementById("paymentNordicFooter")?.remove();
         if(privateHistory2026LoadedUid && privateHistory2026LoadedUid!==user?.uid){
             clearPrivateHistory2026();
         }
@@ -13301,7 +13254,6 @@ onAuthStateChanged(
                 : "none";
 
         applyRoleUI();
-        syncPaymentNordicNoelPreview();
 
         /*
            Security Rules now require an approved signed-in profile.
