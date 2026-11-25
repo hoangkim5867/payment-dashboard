@@ -4393,52 +4393,106 @@ function usernameToAuthEmail(username){
 ===================================================== */
 
 
-/* Noel chalet is a local visual option for authenticated Admin and Staff.
-   Business permissions remain independent in applyRoleUI and Firestore Rules. */
-function canUsePaymentChaletTheme(){
-    return isAdmin() || isStaff();
-}
 
+/* Seasonal appearance only; no Firestore operations or business permission changes. */
+const paymentNoelDefaultStaff = new Set([
+ "huynhbuiphuongly","huynhthithuytrang","lamhailam","lenguyenxuanan",
+ "nguyencaonganthe","nguyenhoanhthu","nguyenthanhlam","nguyenthimylinh",
+ "nguyenthinhuquynh",
+ "phungtuephuong","tranthikimtrinh","tranthithuthao","truonggiaman","truongvoanhthu"
+]);
+let paymentNoelLanguageHandler=null;
+let paymentNoelOutsideHandler=null;
+let paymentNoelEscapeHandler=null;
+function canUsePaymentChaletTheme(){return isAdmin()||isStaff();}
+function paymentNoelStorageKey(){return "payment.noel.2026."+currentAuthUser?.uid;}
+function paymentNoelDefault(){
+ if(!isStaff()) return "off";
+ const login=String(currentAuthUser?.email||"").split("@")[0].trim().toLowerCase();
+ const profileLogin=String(currentUserProfile?.username||"").trim().toLowerCase();
+ return paymentNoelDefaultStaff.has(login)||paymentNoelDefaultStaff.has(profileLogin)?"chalet":"off";
+}
+function clearPaymentNoel(){
+ document.documentElement.classList.remove("payment-noel-chalet","payment-noel-sweet");
+ ["paymentChaletToggle","paymentChaletFooter","paymentSweetFooter","paymentNoelMenu"].forEach(id=>document.getElementById(id)?.remove());
+ if(paymentNoelLanguageHandler)document.getElementById("languageSelect")?.removeEventListener("change",paymentNoelLanguageHandler);
+ if(paymentNoelOutsideHandler)document.removeEventListener("click",paymentNoelOutsideHandler);
+ if(paymentNoelEscapeHandler)document.removeEventListener("keydown",paymentNoelEscapeHandler);
+ paymentNoelLanguageHandler=paymentNoelOutsideHandler=paymentNoelEscapeHandler=null;
+}
 function syncPaymentChaletTheme(){
-    const current=document.getElementById("paymentChaletToggle");
-    if(!canUsePaymentChaletTheme()){
-        document.documentElement.classList.remove("payment-noel-chalet");
-        current?.remove();
-        document.getElementById("paymentChaletFooter")?.remove();
-        return;
-    }
-    if(current) return;
-    const target=document.getElementById("themePickerWrap");
-    if(!target) return;
-    const button=document.createElement("button");
-    button.type="button";
-    button.id="paymentChaletToggle";
-    const render=()=>{
-        const active=document.documentElement.classList.contains("payment-noel-chalet");
-        const lang=document.getElementById("languageSelect")?.value||"vi";
-        const names={vi:active?"🎄 Noel: Bật":"🎄 Noel: Tắt",zh:active?"🎄 圣诞：开":"🎄 圣诞：关",en:active?"🎄 Noël: On":"🎄 Noël: Off"};
-        button.textContent=names[lang]||names.vi;
-        button.setAttribute("aria-pressed",String(active));
-        const actions={vi:active?"Tắt giao diện Noel":"Bật giao diện Noel",zh:active?"关闭圣诞主题":"开启圣诞主题",en:active?"Turn off Christmas theme":"Turn on Christmas theme"};
-        button.title=actions[lang]||actions.vi;
-    };
-    button.addEventListener("click",()=>{
-        if(!canUsePaymentChaletTheme()) return;
-        document.documentElement.classList.toggle("payment-noel-chalet");
-        document.getElementById("paymentChaletFooter")?.remove();
-        if(document.documentElement.classList.contains("payment-noel-chalet")){
-            const footer=document.createElement("div");
-            footer.id="paymentChaletFooter";
-            footer.setAttribute("aria-hidden","true");
-            document.getElementById("paymentLiveTotalBar")?.before(footer);
-        }
-        render();
-        window.dispatchEvent(new Event("resize"));
-    });
-    document.getElementById("languageSelect")?.addEventListener("change",render);
-    target.after(button);
-    button.style.display="inline-flex";
-    render();
+ if(!canUsePaymentChaletTheme()){clearPaymentNoel();return;}
+ if(document.getElementById("paymentChaletToggle"))return;
+ const target=document.getElementById("themePickerWrap");
+ if(!target)return;
+ const button=document.createElement("button");
+ button.type="button";button.id="paymentChaletToggle";
+ const menu=document.createElement("div");
+ menu.id="paymentNoelMenu";menu.hidden=true;
+ menu.setAttribute("role","group");
+ const strings={
+ vi:{off:"🎄 Noel: Tắt",on:"🎄 Noel: Bật",chalet:"🎄 Noel Chalet",sweet:"🎀 Sweet Christmas",turnoff:"Tắt Noel",preview:"Thử nghiệm · Admin",choose:"Chọn giao diện Noel"},
+ zh:{off:"🎄 圣诞：关",on:"🎄 圣诞：开",chalet:"🎄 圣诞木屋",sweet:"🎀 甜蜜圣诞",turnoff:"关闭圣诞",preview:"仅管理员预览",choose:"选择圣诞主题"},
+ en:{off:"🎄 Noël: Off",on:"🎄 Noël: On",chalet:"🎄 Noel Chalet",sweet:"🎀 Sweet Christmas",turnoff:"Turn off Noël",preview:"Admin preview",choose:"Choose Christmas theme"}
+ };
+ const lang=()=>strings[document.getElementById("languageSelect")?.value]||strings.vi;
+ let mode=paymentNoelDefault();
+ try{mode=localStorage.getItem(paymentNoelStorageKey())||mode;}catch{}
+ const allowed=m=>m==="chalet"&&canUsePaymentChaletTheme()||m==="sweet"&&isAdmin()||m==="off";
+ const close=()=>{menu.hidden=true;button.setAttribute("aria-expanded","false");};
+ function render(){
+  const t=lang();
+  button.textContent=isAdmin()?(mode==="off"?t.off:t[mode])+" ▾":mode==="off"?t.off:t.on;
+  button.setAttribute("aria-pressed",String(mode!=="off"));
+  button.title=isAdmin()?t.choose:(mode==="off"?t.on:t.turnoff);
+  menu.setAttribute("aria-label",t.choose);
+  menu.replaceChildren();
+  if(isAdmin())for(const m of ["chalet","sweet","off"]){
+    const option=document.createElement("button");option.type="button";
+    option.textContent=(m==="off"?t.turnoff:t[m])+(m==="sweet"?" · "+t.preview:"")+(mode===m?" ✓":"");
+    option.setAttribute("aria-pressed",String(mode===m));
+    option.addEventListener("click",()=>{if(!isAdmin())return;apply(m,true);close();button.focus();});
+    menu.append(option);
+  }
+ }
+ function apply(next,save=false){
+  if(!canUsePaymentChaletTheme()) {clearPaymentNoel();return;}
+  mode=allowed(next)?next:"off";
+  const root=document.documentElement;
+  root.classList.remove("payment-noel-chalet","payment-noel-sweet");
+  document.getElementById("paymentChaletFooter")?.remove();
+  document.getElementById("paymentSweetFooter")?.remove();
+  if(mode!=="off"){
+   root.classList.add(mode==="sweet"?"payment-noel-sweet":"payment-noel-chalet");
+   const footer=document.createElement("div");
+   footer.id=mode==="sweet"?"paymentSweetFooter":"paymentChaletFooter";
+   footer.setAttribute("aria-hidden","true");
+   document.getElementById("paymentLiveTotalBar")?.before(footer);
+  }
+  if(save)try{localStorage.setItem(paymentNoelStorageKey(),mode);}catch{}
+  render();window.dispatchEvent(new Event("resize"));
+ }
+ button.addEventListener("click",()=>{
+  if(!canUsePaymentChaletTheme()){clearPaymentNoel();return;}
+  if(!isAdmin()){apply(mode==="off"?"chalet":"off",true);return;}
+  if(!menu.hidden){close();return;}
+  render();menu.hidden=false;button.setAttribute("aria-expanded","true");
+  const rect=button.getBoundingClientRect();
+  menu.style.top=(rect.bottom+5)+"px";
+  menu.style.right=Math.max(8,window.innerWidth-rect.right)+"px";
+ });
+ if(isAdmin()){
+  button.setAttribute("aria-haspopup","true");button.setAttribute("aria-expanded","false");
+  document.body.append(menu);
+  paymentNoelOutsideHandler=e=>{if(!button.contains(e.target)&&!menu.contains(e.target))close();};
+  paymentNoelEscapeHandler=e=>{if(e.key==="Escape"&&!menu.hidden){close();button.focus();}};
+  document.addEventListener("click",paymentNoelOutsideHandler);
+  document.addEventListener("keydown",paymentNoelEscapeHandler);
+ }
+ paymentNoelLanguageHandler=render;
+ document.getElementById("languageSelect")?.addEventListener("change",render);
+ target.after(button);button.style.display="inline-flex";
+ apply(mode);
 }
 
 function isAdmin(){
@@ -13208,9 +13262,7 @@ onAuthStateChanged(
 
         currentAuthUser =
             user || null;
-        document.documentElement.classList.remove("payment-noel-chalet");
-        document.getElementById("paymentChaletToggle")?.remove();
-        document.getElementById("paymentChaletFooter")?.remove();
+        clearPaymentNoel();
         if(privateHistory2026LoadedUid && privateHistory2026LoadedUid!==user?.uid){
             clearPrivateHistory2026();
         }
@@ -47335,6 +47387,7 @@ html[data-theme="bluebutter"] .theme-picker-panel .theme-option[data-theme-choic
 Admin writes one temporaryPaymentMonthAccess value into Staff authUsers profiles.
 Staff receives CURRENT_MONTH + that one old month only; old month is view-only. -->
 <script type="module" src="./assets/js/payment-doc-link-ui.mjs"></script>
-<link rel="stylesheet" href="assets/css/payment-noel-chalet-2026.css?v=20261125-chalet-v8" id="paymentChaletStyle">
+<link rel="stylesheet" href="assets/css/payment-noel-chalet-2026.css?v=20261125-chalet-v9" id="paymentChaletStyle">
+<link rel="stylesheet" href="assets/css/payment-noel-sweet-2026.css?v=1" id="paymentSweetStyle">
 </body>
 </html>
