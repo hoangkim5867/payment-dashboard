@@ -4393,10 +4393,15 @@ function usernameToAuthEmail(username){
 ===================================================== */
 
 
-/* Admin-only visual Noel chalet; no new data listeners or writes. */
+/* Noel chalet is a local visual option for authenticated Admin and Staff.
+   Business permissions remain independent in applyRoleUI and Firestore Rules. */
+function canUsePaymentChaletTheme(){
+    return isAdmin() || isStaff();
+}
+
 function syncPaymentChaletTheme(){
     const current=document.getElementById("paymentChaletToggle");
-    if(!isAdmin()){
+    if(!canUsePaymentChaletTheme()){
         document.documentElement.classList.remove("payment-noel-chalet");
         current?.remove();
         document.getElementById("paymentChaletFooter")?.remove();
@@ -4411,12 +4416,14 @@ function syncPaymentChaletTheme(){
     const render=()=>{
         const active=document.documentElement.classList.contains("payment-noel-chalet");
         const lang=document.getElementById("languageSelect")?.value||"vi";
-        const names={vi:active?"🎄 Noel: Bật":"🎄 Noel: Thử",zh:active?"🎄 圣诞：开":"🎄 圣诞预览",en:active?"🎄 Noël: On":"🎄 Noël preview"};
+        const names={vi:active?"🎄 Noel: Bật":"🎄 Noel: Tắt",zh:active?"🎄 圣诞：开":"🎄 圣诞：关",en:active?"🎄 Noël: On":"🎄 Noël: Off"};
         button.textContent=names[lang]||names.vi;
         button.setAttribute("aria-pressed",String(active));
+        const actions={vi:active?"Tắt giao diện Noel":"Bật giao diện Noel",zh:active?"关闭圣诞主题":"开启圣诞主题",en:active?"Turn off Christmas theme":"Turn on Christmas theme"};
+        button.title=actions[lang]||actions.vi;
     };
     button.addEventListener("click",()=>{
-        if(!isAdmin()) return;
+        if(!canUsePaymentChaletTheme()) return;
         document.documentElement.classList.toggle("payment-noel-chalet");
         document.getElementById("paymentChaletFooter")?.remove();
         if(document.documentElement.classList.contains("payment-noel-chalet")){
