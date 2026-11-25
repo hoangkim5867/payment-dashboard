@@ -39,31 +39,35 @@ html.payment-noel-nordic[data-theme] body {
   padding-bottom:18px!important;
 }
 
-/* A real full-width 2x panorama replaces the old vertically squashed image.
- * The art is composited ONCE; the live logo/buttons are never baked into it. */
+/* Continuous evergreen header: live controls stay outside the art layer.
+ * Crop only the Santa scene from the panorama; feather its baked edges. */
 html.payment-noel-nordic[data-theme] body .modern-app-header {
   position:relative!important;isolation:isolate!important;box-sizing:border-box!important;
   display:flex!important;align-items:center!important;justify-content:space-between!important;
   height:64px!important;min-height:64px!important;max-height:64px!important;
   padding:0 12px!important;gap:9px!important;margin:0!important;
-  border:0!important;border-bottom:1px solid #e6d7c1!important;
-  border-radius:12px 12px 0 0!important;color:#19543c!important;
-  overflow:visible!important;background-color:#17533b!important;
-  background-image:url('../img/payment-christmas-polished-2026-header-blended.webp')!important;
-  background-position:center center!important;background-size:cover!important;
-  background-repeat:no-repeat!important;
-  box-shadow:0 2px 5px rgba(52,70,44,.08)!important;
+  border:0!important;border-radius:0!important;color:#19543c!important;
+  overflow:visible!important;
+  background:
+    radial-gradient(ellipse 240px 80px at 12% 56%,#fff8ed 20%,rgba(255,248,237,.95) 47%,transparent 100%),
+    radial-gradient(circle at 31% 19%,#f8e6b0 0 1.2px,transparent 2px),
+    radial-gradient(circle at 64% 25%,#f8e6b0 0 1px,transparent 2px),
+    radial-gradient(circle at 69% 70%,#f8e6b0 0 1.4px,transparent 2.5px),
+    linear-gradient(90deg,#fff8ef 0%,#fff8ef 13%,#d8dfc8 20%,#6b9076 25%,#17533b 32%,#16513a 70%,#214e38 100%)!important;
+  box-shadow:none!important;
 }
-/* Soft snow-cloud blend placed inside the original header – no rectangular image seam. */
 html.payment-noel-nordic[data-theme] body .modern-app-header::before {
   content:""!important;display:block!important;
-  position:absolute!important;inset:0!important;z-index:1!important;
-  border-radius:inherit!important;pointer-events:none!important;
-  background:
-   radial-gradient(ellipse 136px 43px at 14% 102%,#fff8ed 46%,rgba(255,248,237,.82) 62%,transparent 78%),
-   radial-gradient(ellipse 116px 39px at 3% 116%,#fff8ed 55%,transparent 80%),
-   linear-gradient(90deg,rgba(255,248,237,.58),transparent 24%)!important;
-  opacity:.94!important;
+  position:absolute!important;inset:0 auto 0 43%!important;
+  width:clamp(300px,31vw,520px)!important;height:64px!important;
+  transform:translateX(-50%)!important;z-index:1!important;
+  pointer-events:none!important;
+  background:url('../img/payment-christmas-polished-2026-header-blended.webp') 36% center/auto 64px no-repeat!important;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent),linear-gradient(0deg,transparent 0%,#000 12%,#000 89%,transparent 100%)!important;
+  -webkit-mask-composite:source-in!important;
+  mask-image:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent),linear-gradient(0deg,transparent 0%,#000 12%,#000 89%,transparent 100%)!important;
+  mask-composite:intersect!important;
+  opacity:1!important;
 }
 html.payment-noel-nordic[data-theme] body .modern-app-header::after {
   content:none!important;display:none!important;
@@ -82,7 +86,7 @@ html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block h1 {
 }
 html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block h1::after {
   content:""!important;display:block!important;position:absolute!important;
-  width:26px!important;height:19px!important;left:-4px!important;right:auto!important;top:-15px!important;
+  width:30px!important;height:22px!important;left:-7px!important;right:auto!important;top:-17px!important;
   background:url('../img/payment-christmas-title-hat-20261125.svg') center/contain no-repeat!important;
   transform:rotate(-13deg)!important;pointer-events:none!important;z-index:3!important;
 }
@@ -285,15 +289,38 @@ html.payment-noel-nordic[data-theme] body .container>.card {
 }
 html.payment-noel-nordic[data-theme] body .container>.card>.table-wrap {flex-shrink:0!important}
 html.payment-noel-nordic[data-theme] body #paymentNordicFooter {
-  display:block!important;box-sizing:border-box!important;
-  width:100%!important;height:clamp(100px,5.416667vw,208px)!important;
-  min-height:clamp(100px,5.416667vw,208px)!important;flex-shrink:0!important;
+  display:block!important;position:relative!important;isolation:isolate!important;box-sizing:border-box!important;
+  width:100%!important;height:clamp(148px,11vw,210px)!important;
+  min-height:clamp(148px,11vw,210px)!important;flex-shrink:0!important;
   margin:auto 0 0!important;padding:0!important;border:0!important;
-  background-color:#fff9f1!important;
-  background-image:url('../img/payment-christmas-polished-2026-footer-blended.webp')!important;
-  background-position:center bottom!important;background-size:100% auto!important;
-  background-repeat:no-repeat!important;
+  background:linear-gradient(180deg,transparent 0%,#fff8ef 14%,#faf3e8 100%)!important;
   pointer-events:none!important;user-select:none!important;overflow:hidden!important;
+}
+/* Transparent continuous winter landscape, with no solid rectangular top or lower rule. */
+html.payment-noel-nordic[data-theme] body #paymentNordicFooter::before {
+  content:""!important;position:absolute!important;inset:0!important;z-index:0!important;
+  background:url('../img/payment-noel-art-20261125-footer-panorama.webp') center bottom/max(100%,1120px) auto no-repeat!important;
+  -webkit-mask-image:linear-gradient(180deg,transparent,#000 24%,#000 86%,transparent 100%)!important;
+  mask-image:linear-gradient(180deg,transparent,#000 24%,#000 86%,transparent 100%)!important;
+  pointer-events:none!important;
+}
+/* Individual high-resolution transparent decorations; larger, overlapping groups on one snowy ground. */
+html.payment-noel-nordic[data-theme] body #paymentNordicFooter::after {
+  content:""!important;position:absolute!important;inset:0!important;z-index:1!important;
+  background-image:
+    url('../img/payment-christmas-fresh-2026-kpi-house-fresh.webp'),
+    url('../img/payment-christmas-fresh-2026-kpi-gifts-fresh.webp'),
+    url('../img/payment-christmas-fresh-2026-kpi-snowman-fresh.webp'),
+    url('../img/payment-christmas-fresh-2026-kpi-reindeer-fresh.webp'),
+    url('../img/payment-noel-art-20261125-tree.webp'),
+    url('../img/payment-noel-art-20261125-tree.webp'),
+    url('../img/payment-noel-art-20261125-tree.webp')!important;
+  background-size:
+    clamp(148px,12.2vw,230px) auto,clamp(84px,7.5vw,142px) auto,
+    clamp(132px,10.5vw,200px) auto,clamp(128px,10vw,190px) auto,
+    clamp(92px,8vw,150px) auto,clamp(80px,7vw,130px) auto,clamp(100px,8.6vw,160px) auto!important;
+  background-position:1% bottom,17% bottom,52% bottom,91% bottom,12% bottom,43% bottom,99% bottom!important;
+  background-repeat:no-repeat!important;pointer-events:none!important;
 }
 html.payment-noel-nordic[data-theme] body #paymentLiveTotalBar {
   left:0!important;right:0!important;bottom:18px!important;
@@ -340,8 +367,10 @@ html.payment-noel-nordic[data-theme] body #paymentLiveTotalBar :is(strong,b) {co
   }
   html.payment-noel-nordic[data-theme] body .data-first-filter-panel .payment-status-segments {grid-column:1/-1!important}
   html.payment-noel-nordic[data-theme] body #paymentNordicFooter {
-    height:76px!important;min-height:76px!important;background-size: auto 76px!important
+    height:120px!important;min-height:120px!important
   }
+  html.payment-noel-nordic[data-theme] body .modern-app-header::before {display:none!important}
+  html.payment-noel-nordic[data-theme] body #paymentNordicFooter::after {background-size:120px auto,65px auto,95px auto,90px auto,70px auto,55px auto,75px auto!important}
   html.payment-noel-nordic[data-theme] body .container>.card {
     min-height:calc(100dvh - 112px)!important;
   }
