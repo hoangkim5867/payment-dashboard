@@ -39,16 +39,16 @@ html.payment-noel-nordic[data-theme] body {
   padding-bottom:18px!important;
 }
 
-/* 2026-11-25 · unified approved banner. One background image contains
-   the golden greeting, sky, winter village and snow; no layered image seam.
-   Only logo, translated page title and existing interactive controls are live. */
+/* Single native-ratio raster banner: gold greeting, village and both pine clusters
+   are baked into one artwork. No SVG sprigs, mask, crop or overlay on the header.
+   The live brand, title and interactive controls remain separate. */
 html.payment-noel-nordic[data-theme] body .modern-app-header {
   position:relative!important;isolation:isolate!important;box-sizing:border-box!important;
   display:flex!important;align-items:center!important;justify-content:space-between!important;
-  height:104px!important;min-height:104px!important;max-height:104px!important;
+  height:max(104px,6.575521vw)!important;min-height:104px!important;max-height:none!important;
   padding:0 16px 6px!important;gap:10px!important;margin:0!important;
   border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important;
-  background:#034d34 url('../img/payment-noel-header-pine-stars-20261125.svg?v=photo-sprigs-2') center bottom/100% auto no-repeat!important;
+  background:#034d34 url('../img/payment-noel-header-single-20261125.png') center bottom/100% auto no-repeat!important;
 }
 html.payment-noel-nordic[data-theme] body .modern-app-header::before,
 html.payment-noel-nordic[data-theme] body .modern-app-header::after,
@@ -96,9 +96,6 @@ html.payment-noel-nordic[data-theme] body .modern-app-header .compact-language l
 html.payment-noel-nordic[data-theme] body .modern-app-header .compact-language #languageSelect {box-sizing:border-box!important;height:100%!important;min-height:0!important;max-height:100%!important;margin:0!important;padding:0 25px 0 8px!important;border:0!important;border-radius:0!important;background-color:transparent!important;box-shadow:none!important;outline:none!important;color:#234a37!important;line-height:normal!important;cursor:pointer!important}
 html.payment-noel-nordic[data-theme] body .modern-app-header .compact-language:focus-within {outline:2px solid #d6af69!important;outline-offset:2px!important}
 html.payment-noel-nordic[data-theme] body #paymentNordicNoelBtn {display:inline-flex;height:32px!important;min-height:32px!important}
-@media(min-width:1921px) {
-  html.payment-noel-nordic[data-theme] body .modern-app-header {background-size:100% auto!important}
-}
 @media(max-width:1000px) {
   html.payment-noel-nordic[data-theme] body .modern-app-header {background:#034d34!important}
   html.payment-noel-nordic[data-theme] body .modern-app-header .brand-block {flex:0 1 auto!important;gap:8px!important;align-self:center!important}
@@ -281,7 +278,7 @@ html.payment-noel-nordic[data-theme] body .container {
 html.payment-noel-nordic[data-theme] body .container>.card {
   display:flex!important;flex-direction:column!important;
   box-sizing:border-box!important;
-  min-height:calc(100dvh - 128px)!important;height:auto!important;
+  min-height:calc(100dvh - max(104px,6.575521vw) - 24px)!important;height:auto!important;
   width:100%!important;max-width:none!important;padding-bottom:0!important;margin-bottom:0!important;
 }
 html.payment-noel-nordic[data-theme] body .container>.card>.table-wrap {flex-shrink:0!important}
