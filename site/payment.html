@@ -4413,27 +4413,29 @@ function paymentNoelDefault(){
  return paymentNoelDefaultStaff.has(login)||paymentNoelDefaultStaff.has(profileLogin)?"chalet":"off";
 }
 
-function removeSweetWatercolorArt(){
- document.querySelectorAll("[data-payment-sweet-art]").forEach(node=>node.remove());
+function removeWinterArt(){
+ document.querySelectorAll("[data-payment-winter-art]").forEach(node=>node.remove());
 }
-function installSweetWatercolorArt(){
+function installWinterArt(){
  if(!isAdmin())return;
  const art=(name,cls)=>{
-  const img=document.createElement("img");img.src="assets/img/sweet-watercolor/"+name+".webp";img.className=cls;img.alt="";img.draggable=false;img.decoding="async";img.setAttribute("aria-hidden","true");img.setAttribute("data-payment-sweet-art","");return img;
+  const img=document.createElement("img");img.src="assets/img/winter-blue-2026/"+name+".webp";img.className=cls;img.alt="";img.draggable=false;img.decoding="async";img.setAttribute("aria-hidden","true");img.setAttribute("data-payment-winter-art","");return img;
  };
  const header=document.querySelector(".modern-app-header");
- header?.prepend(art("header-watercolor","sweet-header-art"),art("corner-left","sweet-corner-left"),art("corner-right","sweet-corner-right"));
- document.querySelector("#exportWatchPanel .export-watch-title")?.prepend(art("notice-gift","sweet-notice-gift"));
- document.querySelector("#exportWatchPanel .export-watch-spacer")?.append(art("notice-bow","sweet-notice-bow"));
- [["summaryCount","kpi-gift"],["summaryAmount","kpi-ginger"],["summaryActual","kpi-wreath"],["summaryUnpaid","kpi-globe"]].forEach(([id,name])=>document.getElementById(id)?.closest(".summary-card")?.prepend(art(name,"sweet-kpi-icon")));
- const footer=art("footer-watercolor","sweet-footer-art");footer.id="paymentSweetFooter";footer.width=1817;footer.height=166;
+ header?.prepend(art("header","winter-header-art"));
+ document.querySelector("#exportWatchPanel .export-watch-title")?.prepend(art("notice-bell","winter-notice-bell"));
+ document.querySelector("#exportWatchPanel .export-watch-spacer")?.append(art("notice-sprig","winter-notice-sprig"));
+ [["summaryCount","coins"],["summaryAmount","check"],["summaryActual","hourglass"],["summaryUnpaid","carry"]].forEach(([id,name])=>{
+  const card=document.getElementById(id)?.closest(".summary-card");
+  card?.prepend(art(name,"winter-kpi-icon"));card?.append(art("pine","winter-kpi-pine"));
+ });
+ const footer=art("footer","winter-footer-art");footer.id="paymentWinterFooter";footer.width=2172;footer.height=394;
  (document.getElementById("paymentHorizontalScrollbar")||document.getElementById("paymentLiveTotalBar"))?.before(footer);
 }
-
 function clearPaymentNoel(){
- removeSweetWatercolorArt();
- document.documentElement.classList.remove("payment-noel-chalet","payment-noel-sweet");
- ["paymentChaletToggle","paymentChaletFooter","paymentSweetFooter","paymentNoelMenu"].forEach(id=>document.getElementById(id)?.remove());
+ removeWinterArt();
+ document.documentElement.classList.remove("payment-noel-chalet","payment-noel-winter");
+ ["paymentChaletToggle","paymentChaletFooter","paymentWinterFooter","paymentNoelMenu"].forEach(id=>document.getElementById(id)?.remove());
  if(paymentNoelLanguageHandler)document.getElementById("languageSelect")?.removeEventListener("change",paymentNoelLanguageHandler);
  if(paymentNoelOutsideHandler)document.removeEventListener("click",paymentNoelOutsideHandler);
  if(paymentNoelEscapeHandler)document.removeEventListener("keydown",paymentNoelEscapeHandler);
@@ -4450,14 +4452,14 @@ function syncPaymentChaletTheme(){
  menu.id="paymentNoelMenu";menu.hidden=true;
  menu.setAttribute("role","group");
  const strings={
- vi:{off:"🎄 Noel: Tắt",on:"🎄 Noel: Bật",chalet:"🎄 Noel Chalet",sweet:"🎀 Sweet Christmas",turnoff:"Tắt Noel",preview:"Thử nghiệm · Admin",choose:"Chọn giao diện Noel"},
- zh:{off:"🎄 圣诞：关",on:"🎄 圣诞：开",chalet:"🎄 圣诞木屋",sweet:"🎀 甜蜜圣诞",turnoff:"关闭圣诞",preview:"仅管理员预览",choose:"选择圣诞主题"},
- en:{off:"🎄 Noël: Off",on:"🎄 Noël: On",chalet:"🎄 Noel Chalet",sweet:"🎀 Sweet Christmas",turnoff:"Turn off Noël",preview:"Admin preview",choose:"Choose Christmas theme"}
+ vi:{off:"🎄 Noel: Tắt",on:"🎄 Noel: Bật",chalet:"🎄 Noel Chalet",winter:"❄ Winter Blue",turnoff:"Tắt Noel",preview:"Thử nghiệm · Admin",choose:"Chọn giao diện Noel"},
+ zh:{off:"🎄 圣诞：关",on:"🎄 圣诞：开",chalet:"🎄 圣诞木屋",winter:"❄ 冰雪圣诞",turnoff:"关闭圣诞",preview:"仅管理员预览",choose:"选择圣诞主题"},
+ en:{off:"🎄 Noël: Off",on:"🎄 Noël: On",chalet:"🎄 Noel Chalet",winter:"❄ Winter Blue",turnoff:"Turn off Noël",preview:"Admin preview",choose:"Choose Christmas theme"}
  };
  const lang=()=>strings[document.getElementById("languageSelect")?.value]||strings.vi;
  let mode=paymentNoelDefault();
- try{mode=localStorage.getItem(paymentNoelStorageKey())||mode;}catch{}
- const allowed=m=>m==="chalet"&&canUsePaymentChaletTheme()||m==="sweet"&&isAdmin()||m==="off";
+ try{const saved=localStorage.getItem(paymentNoelStorageKey());mode=saved==="sweet"?(isAdmin()?"winter":paymentNoelDefault()):(saved||mode);}catch{}
+ const allowed=m=>m==="chalet"&&canUsePaymentChaletTheme()||m==="winter"&&isAdmin()||m==="off";
  const close=()=>{menu.hidden=true;button.setAttribute("aria-expanded","false");};
  function render(){
   const t=lang();
@@ -4466,9 +4468,9 @@ function syncPaymentChaletTheme(){
   button.title=isAdmin()?t.choose:(mode==="off"?t.on:t.turnoff);
   menu.setAttribute("aria-label",t.choose);
   menu.replaceChildren();
-  if(isAdmin())for(const m of ["chalet","sweet","off"]){
+  if(isAdmin())for(const m of ["chalet","winter","off"]){
     const option=document.createElement("button");option.type="button";
-    option.textContent=(m==="off"?t.turnoff:t[m])+(m==="sweet"?" · "+t.preview:"")+(mode===m?" ✓":"");
+    option.textContent=(m==="off"?t.turnoff:t[m])+(m==="winter"?" · "+t.preview:"")+(mode===m?" ✓":"");
     option.setAttribute("aria-pressed",String(mode===m));
     option.addEventListener("click",()=>{if(!isAdmin())return;apply(m,true);close();button.focus();});
     menu.append(option);
@@ -4478,13 +4480,13 @@ function syncPaymentChaletTheme(){
   if(!canUsePaymentChaletTheme()) {clearPaymentNoel();return;}
   mode=allowed(next)?next:"off";
   const root=document.documentElement;
-  root.classList.remove("payment-noel-chalet","payment-noel-sweet");
+  root.classList.remove("payment-noel-chalet","payment-noel-winter");
   document.getElementById("paymentChaletFooter")?.remove();
-  document.getElementById("paymentSweetFooter")?.remove();
-  removeSweetWatercolorArt();
+  document.getElementById("paymentWinterFooter")?.remove();
+  removeWinterArt();
   if(mode!=="off"){
-   root.classList.add(mode==="sweet"?"payment-noel-sweet":"payment-noel-chalet");
-   if(mode==="sweet"){installSweetWatercolorArt();}else{
+   root.classList.add(mode==="winter"?"payment-noel-winter":"payment-noel-chalet");
+   if(mode==="winter"){installWinterArt();}else{
     const footer=document.createElement("div");footer.id="paymentChaletFooter";footer.setAttribute("aria-hidden","true");
     document.getElementById("paymentLiveTotalBar")?.before(footer);
    }
@@ -47408,6 +47410,6 @@ Admin writes one temporaryPaymentMonthAccess value into Staff authUsers profiles
 Staff receives CURRENT_MONTH + that one old month only; old month is view-only. -->
 <script type="module" src="./assets/js/payment-doc-link-ui.mjs"></script>
 <link rel="stylesheet" href="assets/css/payment-noel-chalet-2026.css?v=20261125-chalet-v9" id="paymentChaletStyle">
-<link rel="stylesheet" href="assets/css/payment-noel-sweet-watercolor-2026.css?v=20261125-watercolor1" id="paymentSweetWatercolorStyle">
+<link rel="stylesheet" href="assets/css/payment-noel-winter-blue-2026.css?v=20261125-blue1" id="paymentWinterBlueStyle">
 </body>
 </html>
