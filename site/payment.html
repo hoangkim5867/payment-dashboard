@@ -4425,7 +4425,7 @@ function installWinterArt(){
  [["summaryCount","globe"],["summaryAmount","tree"],["summaryActual","penguin"],["summaryUnpaid","lantern"]].forEach(([id,name])=>{
   document.getElementById(id)?.closest(".summary-card")?.prepend(art(name,"winter-kpi-icon"));
  });
- const footer=art("footer","winter-footer-art");footer.src+="?v=footer3";footer.id="paymentWinterFooter";footer.width=1817;footer.height=192;
+ const footer=art("footer","winter-footer-art");footer.id="paymentWinterFooter";footer.width=1817;footer.height=192;
  (document.getElementById("paymentHorizontalScrollbar")||document.getElementById("paymentLiveTotalBar"))?.before(footer);
 }
 function clearPaymentNoel(){
@@ -47406,6 +47406,6 @@ Admin writes one temporaryPaymentMonthAccess value into Staff authUsers profiles
 Staff receives CURRENT_MONTH + that one old month only; old month is view-only. -->
 <script type="module" src="./assets/js/payment-doc-link-ui.mjs"></script>
 <link rel="stylesheet" href="assets/css/payment-noel-chalet-2026.css?v=20261125-chalet-v9" id="paymentChaletStyle">
-<link rel="stylesheet" href="assets/css/payment-noel-winter-refined-2026.css?v=20261125-footer3" id="paymentWinterPastelStyle">
+<link rel="stylesheet" href="assets/css/payment-noel-winter-refined-2026.css?v=20261125-blend2" id="paymentWinterPastelStyle">
 </body>
 </html>
