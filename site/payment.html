@@ -1451,6 +1451,7 @@ html[data-theme] .data-first-summary .enterprise-filter-main > .global-search-fi
     white-space:nowrap;
 }
 </style>
+<link rel="stylesheet" href="assets/css/payment-noel-chalet-2026.css?v=20261125-chalet-v1" id="paymentChaletStyle">
 </head>
 
 
@@ -4391,6 +4392,47 @@ function usernameToAuthEmail(username){
    AUTH HELPERS
 ===================================================== */
 
+
+/* Admin-only visual Noel chalet; no new data listeners or writes. */
+function syncPaymentChaletTheme(){
+    const current=document.getElementById("paymentChaletToggle");
+    if(!isAdmin()){
+        document.documentElement.classList.remove("payment-noel-chalet");
+        current?.remove();
+        document.getElementById("paymentChaletFooter")?.remove();
+        return;
+    }
+    if(current) return;
+    const target=document.getElementById("themePickerWrap");
+    if(!target) return;
+    const button=document.createElement("button");
+    button.type="button";
+    button.id="paymentChaletToggle";
+    const render=()=>{
+        const active=document.documentElement.classList.contains("payment-noel-chalet");
+        const lang=document.getElementById("languageSelect")?.value||"vi";
+        const names={vi:active?"🎄 Noel: Bật":"🎄 Noel: Thử",zh:active?"🎄 圣诞：开":"🎄 圣诞预览",en:active?"🎄 Noël: On":"🎄 Noël preview"};
+        button.textContent=names[lang]||names.vi;
+        button.setAttribute("aria-pressed",String(active));
+    };
+    button.addEventListener("click",()=>{
+        if(!isAdmin()) return;
+        document.documentElement.classList.toggle("payment-noel-chalet");
+        document.getElementById("paymentChaletFooter")?.remove();
+        if(document.documentElement.classList.contains("payment-noel-chalet")){
+            const footer=document.createElement("div");
+            footer.id="paymentChaletFooter";
+            footer.setAttribute("aria-hidden","true");
+            document.getElementById("paymentLiveTotalBar")?.before(footer);
+        }
+        render();
+        window.dispatchEvent(new Event("resize"));
+    });
+    document.getElementById("languageSelect")?.addEventListener("change",render);
+    target.after(button);
+    button.style.display="inline-flex";
+    render();
+}
 
 function isAdmin(){
     return (
@@ -13159,6 +13201,9 @@ onAuthStateChanged(
 
         currentAuthUser =
             user || null;
+        document.documentElement.classList.remove("payment-noel-chalet");
+        document.getElementById("paymentChaletToggle")?.remove();
+        document.getElementById("paymentChaletFooter")?.remove();
         if(privateHistory2026LoadedUid && privateHistory2026LoadedUid!==user?.uid){
             clearPrivateHistory2026();
         }
@@ -13254,6 +13299,7 @@ onAuthStateChanged(
                 : "none";
 
         applyRoleUI();
+        syncPaymentChaletTheme();
 
         /*
            Security Rules now require an approved signed-in profile.
