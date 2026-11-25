@@ -24,22 +24,36 @@ html.payment-noel-nordic[data-theme] body{
  background:#fffaf4!important;background-image:none!important;
  background-attachment:scroll!important;color:#273b31!important
 }
-/* Original live Payment header: no fake dashboard, no extra banner row. */
+/* Noel is a compact 54px Payment header, identical to the normal header height.
+   Two REAL cropped artwork fragments sit on the opposite ends of the decoration area;
+   Merry Christmas stays in the center, never replacing actual brand or account controls. */
 html.payment-noel-nordic[data-theme] body .modern-app-header{
  position:relative!important;isolation:isolate!important;box-sizing:border-box!important;
  display:flex!important;align-items:center!important;justify-content:space-between!important;
- height:84px!important;min-height:84px!important;gap:9px!important;
- padding:0 14px!important;
- background-color:#fffaf4!important;
- background-image:url("../img/payment-noel-art-20261125-header.webp")!important;
- background-repeat:no-repeat!important;background-position:center center!important;
- background-size:100% 100%!important;
+ height:54px!important;min-height:54px!important;max-height:54px!important;
+ gap:9px!important;padding:0 10px!important;
+ background:#fffaf4!important;background-image:none!important;
  color:#1e503a!important;border:0!important;border-bottom:1px solid #e9ded0!important;
  box-shadow:0 2px 7px rgba(55,68,43,.05)!important
 }
-html.payment-noel-nordic[data-theme] body .modern-app-header::before,
+html.payment-noel-nordic[data-theme] body .modern-app-header::before{
+ content:""!important;display:block!important;position:absolute!important;
+ inset:0!important;z-index:0!important;pointer-events:none!important;
+ background-image:url("../img/payment-noel-art-20261125-corner-pine.webp"),url("../img/payment-noel-art-20261125-corner-reindeer.webp")!important;
+ background-repeat:no-repeat,no-repeat!important;
+ background-size:auto 54px,auto 54px!important;
+ background-position:left 235px center,right 560px center!important;
+ opacity:.95!important
+}
 html.payment-noel-nordic[data-theme] body .modern-app-header::after{
- content:none!important;display:none!important
+ content:"Merry Christmas"!important;display:block!important;
+ position:absolute!important;z-index:1!important;pointer-events:none!important;
+ left:50%!important;top:50%!important;
+ transform:translate(-50%,-50%)!important;
+ color:#b53032!important;text-shadow:0 1px 0 #fffaf3!important;
+ font:italic 700 25px/1.1 Georgia,"Times New Roman",serif!important;
+ letter-spacing:.15px!important;white-space:nowrap!important;
+ background:transparent!important;border:0!important
 }
 html.payment-noel-nordic[data-theme] body .modern-app-header>*{
  position:relative!important;z-index:2!important
@@ -246,6 +260,21 @@ html.payment-noel-nordic[data-theme] body .modal>.modal-box .modal-header{
   width:40px!important;height:44px!important
  }
 }
+@media(max-width:1600px) and (min-width:1361px){
+ html.payment-noel-nordic[data-theme] body .modern-app-header::before{
+  background-size:auto 44px,auto 42px!important;
+  background-position:left 210px center,right 510px center!important
+ }
+ html.payment-noel-nordic[data-theme] body .modern-app-header::after{
+  font-size:21px!important
+ }
+}
+@media(max-width:1360px){
+ html.payment-noel-nordic[data-theme] body .modern-app-header::before,
+ html.payment-noel-nordic[data-theme] body .modern-app-header::after{
+  display:none!important;content:none!important
+ }
+}
 @media(max-width:1030px){
  html.payment-noel-nordic[data-theme] body .data-first-summary{
   grid-template-columns:repeat(2,minmax(0,1fr))!important;
@@ -258,7 +287,7 @@ html.payment-noel-nordic[data-theme] body .modal>.modal-box .modal-header{
   grid-row:3!important
  }
  html.payment-noel-nordic[data-theme] body .modern-app-header{
-  background-size:auto 100%!important
+  height:54px!important;min-height:54px!important;max-height:54px!important
  }
 }
 @media(max-width:590px){
