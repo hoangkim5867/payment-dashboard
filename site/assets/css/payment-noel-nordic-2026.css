@@ -193,16 +193,25 @@ html.payment-noel-nordic[data-theme] body #paymentTable tbody tr:nth-child(n):fo
 html.payment-noel-nordic[data-theme] body #paymentLiveTotalBar{
  background:#fffaf4!important;color:#214a35!important;border-color:#e2d8cd!important
 }
+/* Pin the illustrated panorama to the page's actual lower edge; never overlay data rows.
+   Preserve the native scrollable table, card order, and pinned total bar. */
+html.payment-noel-nordic[data-theme] body .container>.card{
+ display:flex!important;flex-direction:column!important;
+ min-height:calc(100dvh - 145px)!important;
+}
+html.payment-noel-nordic[data-theme] body .container>.card>.table-wrap{
+ flex-shrink:0!important;
+}
 /* Exactly one footer illustration from the selected artwork sheet. */
 html.payment-noel-nordic[data-theme] body #paymentNordicFooter{
  display:block!important;box-sizing:border-box!important;position:relative!important;
- min-height:0!important;height:198px!important;width:100%!important;
- padding:0!important;margin:0!important;pointer-events:none!important;
+ min-height:210px!important;height:210px!important;width:100%!important;flex-shrink:0!important;
+ padding:0!important;margin:auto 0 0!important;pointer-events:none!important;
  user-select:none!important;overflow:hidden!important;border:0!important;
  background-color:#fffaf4!important;
- background-image:url("../img/payment-noel-art-20261125-footer.webp")!important;
+ background-image:url("../img/payment-noel-art-20261125-footer-panorama.webp")!important;
  background-position:center bottom!important;background-repeat:no-repeat!important;
- background-size:auto 100%!important
+ background-size:100% 100%!important
 }
 html.payment-noel-nordic[data-theme] body .modal>.modal-box{
  background:#fffdfa!important;border-color:#e4d7c8!important
@@ -267,7 +276,7 @@ html.payment-noel-nordic[data-theme] body .modal>.modal-box .modal-header{
   font-size:8px!important
  }
  html.payment-noel-nordic[data-theme] body #paymentNordicFooter{
-  height:128px!important;background-size:auto 100%!important
+  height:128px!important;min-height:128px!important;background-size:100% 100%!important
  }
 }
 @media(prefers-reduced-motion:reduce){
