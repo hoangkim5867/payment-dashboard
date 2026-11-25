@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 104" width="200" height="208">
+<defs>
+<linearGradient id="gold" x1="0" x2="1" y1=".3" y2=".7"><stop stop-color="#814212"/><stop offset=".18" stop-color="#df9d35"/><stop offset=".34" stop-color="#fff0a3"/><stop offset=".47" stop-color="#edb54b"/><stop offset=".65" stop-color="#a15b16"/><stop offset=".82" stop-color="#ffda76"/><stop offset="1" stop-color="#98601d"/></linearGradient>
+<linearGradient id="rim" x2="0" y2="1"><stop stop-color="#fff0a0"/><stop offset=".42" stop-color="#d99b36"/><stop offset=".8" stop-color="#9a5114"/><stop offset="1" stop-color="#f6cb6d"/></linearGradient>
+<radialGradient id="inside"><stop stop-color="#5b2c0e"/><stop offset=".7" stop-color="#9a5418"/><stop offset="1" stop-color="#edb64e"/></radialGradient>
+<linearGradient id="red" x1=".1" y1="0" x2=".9" y2="1"><stop stop-color="#f46148"/><stop offset=".22" stop-color="#b52822"/><stop offset=".5" stop-color="#7b1a18"/><stop offset=".72" stop-color="#cf382b"/><stop offset="1" stop-color="#651510"/></linearGradient>
+<linearGradient id="fold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ff9a77"/><stop offset=".3" stop-color="#d23c30"/><stop offset="1" stop-color="#7c1a17"/></linearGradient>
+<linearGradient id="leaf" x2="1" y2="1"><stop stop-color="#789457"/><stop offset=".5" stop-color="#36592b"/><stop offset="1" stop-color="#163c27"/></linearGradient>
+<radialGradient id="berry" cx=".3" cy=".24"><stop stop-color="#ff9a76"/><stop offset=".35" stop-color="#d43c2c"/><stop offset="1" stop-color="#821d18"/></radialGradient>
+</defs>
+<!-- Fine brass bell, transparent silhouette, no enclosing card. -->
+<path d="M43 30V21a7 7 0 0 1 14 0v9" fill="none" stroke="#976020" stroke-width="6"/><path d="M44 25v-4a6 6 0 0 1 11 0v4" fill="none" stroke="#ffe69a" stroke-width="2"/>
+<g transform="rotate(-9 50 60)">
+<path d="M42 28C21 33 27 52 18 68l-9 12c-5 7 10 12 37 13 27 1 45-4 44-10-1-3-9-12-11-17-8-17-4-32-22-38Z" fill="url(#gold)" stroke="#8b4b18" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M36 36c-8 6-8 17-12 29-2 6-5 12-8 15" fill="none" stroke="#fff4bb" stroke-width="3.4" stroke-linecap="round" opacity=".78"/>
+<path d="M65 39c7 10 6 21 13 35" fill="none" stroke="#824510" stroke-width="2" opacity=".6"/>
+<path d="M24 70q26 11 53 0" fill="none" stroke="#b56d21" stroke-width="1.4"/><path d="M23 72q26 11 54 0" fill="none" stroke="#ffe5a0" stroke-width="1.2"/>
+<ellipse cx="49" cy="83" rx="40" ry="10" fill="url(#rim)" stroke="#94501a" stroke-width="1.2"/>
+<ellipse cx="49" cy="86" rx="33" ry="6" fill="url(#inside)" stroke="#f6ca6a" stroke-width="1.3"/>
+<path d="M48 86v7" stroke="#8e4d16" stroke-width="4" stroke-linecap="round"/><circle cx="48" cy="95" r="5.5" fill="url(#gold)" stroke="#824713" stroke-width="1"/><circle cx="46" cy="93" r="1.4" fill="#fff2b0"/>
+<path d="M14 80q34 11 70 0" fill="none" stroke="#fff1ac" stroke-width="1.6" opacity=".85"/>
+<path d="M48 42l1.7 5 5 .5-4 3 1.2 5-4-3-4 3 1.2-5-4-3 5-.5Z" fill="#fff0b5" stroke="#a56b24" stroke-width=".7"/>
+</g>
+<!-- Evergreen and holly behind the bow. -->
+<g fill="url(#leaf)" stroke="#365229" stroke-width=".7">
+<path d="M47 25Q29 5 13 10l6 5-8 2 11 4-3 5 13 1 15 4Z"/><path d="M55 24Q70 3 87 8l-5 6 8 2-11 5 4 5-14 1-14 4Z"/>
+</g><path d="M21 15 45 26M80 13 57 26" stroke="#c2b77a" stroke-width="1" fill="none"/>
+<!-- Satin ribbon with shaded folds and stitched highlight. -->
+<path d="M43 24C35 40 26 48 22 60l13-5 6 9c3-15 10-25 12-37Z" fill="url(#red)" stroke="#7c2118" stroke-width="1.2"/>
+<path d="M55 24c8 15 16 24 24 35l-13-4-5 9c-4-15-10-25-15-37Z" fill="url(#red)" stroke="#7c2118" stroke-width="1.2"/>
+<path d="M46 25C31 13 13 6 10 14 4 26 9 42 21 40c12-2 20-9 28-11Z" fill="url(#red)" stroke="#781b16" stroke-width="1.5"/>
+<path d="M54 25C69 12 87 6 90 14c6 12 1 28-11 26-12-2-20-9-28-11Z" fill="url(#red)" stroke="#781b16" stroke-width="1.5"/>
+<path d="M43 24C30 15 16 12 14 17c-2 5 1 11 7 11 9 0 16-2 22-4Z" fill="url(#fold)"/>
+<path d="M57 24c13-9 27-12 29-7 2 5-1 11-7 11-9 0-16-2-22-4Z" fill="url(#fold)"/>
+<path d="M13 15Q23 9 43 22M87 15Q77 9 57 22M15 34Q27 38 43 28M85 34Q73 38 57 28" fill="none" stroke="#ffd39c" stroke-width="1.3" stroke-linecap="round" opacity=".85"/>
+<rect x="43" y="20" width="14" height="14" rx="5" fill="url(#red)" stroke="#751a17" stroke-width="1.3"/><path d="M46 22q-2 5 0 10m7-10q2 5 0 10" fill="none" stroke="#f17d58" stroke-width="1.1"/>
+<g fill="url(#berry)" stroke="#7b2118" stroke-width=".6"><circle cx="18" cy="10" r="3.8"/><circle cx="24" cy="8" r="4.1"/><circle cx="79" cy="8" r="4"/><circle cx="85" cy="11" r="3.4"/></g>
+</svg>
