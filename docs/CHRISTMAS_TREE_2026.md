@@ -27,3 +27,6 @@ The temporary release hold is lifted at the owner's request. Approved Admin and 
 
 ## Received gift arrangement
 Only the receiving tree owner can move or hide/show received gifts. Hidden gifts remain in the owner's selector and their private wishes remain intact. Shared viewing excludes hidden gifts. The new `allow update` clause in gifts must be inserted into current live Firebase Rules; no other permission changes. Each arrangement is a single explicit gift metadata write; no realtime listeners.
+
+## Noel garden release
+Page capacity 24 canopy ornaments + 8 ground gifts; older ornaments preserved, excess is displayed on additional pages without rewriting old documents. The owner may choose page colors and a local featured tree, move ornaments between pages, scale and rotate or explicitly auto-arrange the current tree. Personal decoration maximum 300; page maximum 100. Gift and wish reads are on-demand and no longer silently truncate at 100. Wishes remain private and locked by server Rules until Dec 23 Vietnam time. Replace only the Noel fragment in live Rules with the current revision; old gift documents remain compatible. Do not replace the full Payment rules.

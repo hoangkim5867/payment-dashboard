@@ -17,7 +17,7 @@ const stamp=g=>g.createdAt?.seconds??0;
 export function layoutGarden(local=[],remote=[]){
  const entries=[...local.map(g=>({g,local:true})),...remote.slice().sort((a,b)=>stamp(a)-stamp(b)||String(a.id||"").localeCompare(String(b.id||""))).map(g=>({g,local:false}))];
  const counts=new Map(),out=new Map();
- const place=(entry,p,z,legacy)=>{const g=entry.g,k=key(p,z),n=counts.get(k)||0;counts.set(k,n+1);const slots=z==="ground"?groundSlots:treeSlots;const pos=legacy&&p>0?slots[n%slots.length]:[g.x,g.y];out.set(g,{g,local:entry.local,page:p,zone:z,x:pos[0],y:pos[1],scale:safeScale(g.scale),rotation:safeRotation(g.rotation)})};
+ const place=(entry,p,z,legacy)=>{const g=entry.g,k=key(p,z),n=counts.get(k)||0;counts.set(k,n+1);const slots=z==="ground"?groundSlots:treeSlots;const pos=legacy&&(p>0||!validPoint(g.x,g.y,z))?slots[n%slots.length]:[g.x,g.y];out.set(g,{g,local:entry.local,page:p,zone:z,x:pos[0],y:pos[1],scale:safeScale(g.scale),rotation:safeRotation(g.rotation)})};
  for(const e of entries)if(Number.isInteger(e.g.page)&&e.g.page>=0&&e.g.page<MAX_PAGES)place(e,e.g.page,safeZone(e.g.zone),false);
  for(const e of entries)if(!out.has(e.g)){const z=safeZone(e.g.zone);let p=0;while(p<MAX_PAGES-1&&(counts.get(key(p,z))||0)>=capacity(z))p++;place(e,p,z,true)}
  return {entries:entries.map(e=>out.get(e.g)),counts};
