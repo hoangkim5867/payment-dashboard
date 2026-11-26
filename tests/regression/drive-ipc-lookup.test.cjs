@@ -118,3 +118,23 @@ test('Alias editor is Admin-only, browser-local and never triggers extra Firebas
  assert.match(bulk,/await render\(result,parseProjectAliases\(aliasInput\.value\)\)/);
  assert.doesNotMatch(bulk,/getDocs\s*\(|onSnapshot\s*\(/);
 });
+
+test('Payment bulk match classification rejects shared PDFs and keeps unique matches',async()=>{
+ const {classifyPaymentIpcMatches}=await import(pathToFileURL(path.join(root,'site/assets/js/drive-ipc-picker-ui.mjs')).href);
+ const scan={rootName:'SSIS',files:[{id:'file00001',name:'EATON PARK P1-MEP-SUPL-024 IPC-004.pdf',path:'SSIS/EATON PARK/SUPL-024/IPC'},{id:'file00002',name:'EATON PARK P1-MEP-SUPL-024 IPC-005.pdf',path:'SSIS/EATON PARK/SUPL-024/IPC'}]};
+ const result=await classifyPaymentIpcMatches([row,{...row,id:'p2'},{...row,id:'p3',ipcNo:'IPC005'}],scan);
+ assert.deepEqual(result.map(x=>x.strong),[false,false,true]);
+});
+test('Payment bulk save uses transaction, explicit selection, no overwrite and current archive link carry',()=>{
+ const app=fs.readFileSync(path.join(root,'site/assets/js/payment-doc-link-ui.mjs'),'utf8');
+ const pay=fs.readFileSync(path.join(root,'site/payment.html'),'utf8');
+ const picker=fs.readFileSync(path.join(root,'site/assets/js/drive-ipc-picker-ui.mjs'),'utf8');
+ assert.match(app,/runTransaction\(db,async tx=>/);
+ assert.match(app,/if\(clean\(fresh.ipcDocumentUrl\)\)throw Error/);
+ assert.match(app,/window\.__ipcDriveWriteThrough/);
+ assert.match(pay,/ipcDocumentLinks\[id\]=url/);
+ assert.match(pay,/toolsPaymentIpcBulkBtn/);
+ assert.match(picker,/selected.slice\(0,40\)/);
+ assert.match(picker,/if\(batchSaving\|\|batchRendering\|\|lastScan\?\.partial/);
+ assert.doesNotMatch(picker,/getDocs\s*\(|getDoc\s*\(|onSnapshot\s*\(/);
+});
