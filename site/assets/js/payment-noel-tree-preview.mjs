@@ -142,7 +142,7 @@ export function createNoelTreePreview(){
  function showVillage(){if(!alive())return;viewSequence++;activeUid="";area.hidden=true;area.replaceChildren();villageBack.hidden=true;list.hidden=false;drawVillage();dialog.scrollTop=villageScroll}
  function drawVillage(){
  if(!alive())return;list.replaceChildren();
- const hero=node("div","nt-village-hero");hero.append(node("div","nt-village-kicker","✧ CHRISTMAS VILLAGE · 2026 ✧"),node("h2","nt-village-heading",words("Ghé thăm làng Noel","Visit the Christmas Village","漫步圣诞村")),node("p","nt-village-sub",words("Gửi chút lấp lánh đến những người đồng nghiệp.","Send a little sparkle to your colleagues.","给同事送上一点圣诞闪光。")));
+ const hero=node("div","nt-village-hero");hero.append(node("div","nt-village-kicker","✧ CHRISTMAS VILLAGE · 2026 ✧"));
  const snow=node("div","nt-village-snow");snow.setAttribute("aria-hidden","true");for(let i=0;i<18;i++){const flake=node("i");flake.style.setProperty("--x",((i*37+11)%100)+"%");flake.style.setProperty("--y",((i*53+9)%100)+"%");flake.style.setProperty("--d",(-i*.77)+"s");flake.style.setProperty("--s",(2+i%3)+"px");snow.append(flake)}hero.prepend(snow);
  const filter=node("div","nt-village-filter"),search=node("input","nt-input nt-village-search"),count=node("span","nt-village-total"),grid=node("div","nt-village-grid");
  search.type="search";search.placeholder=words("Tìm tên cây…","Find a tree…","搜索圣诞树…");search.setAttribute("aria-label",search.placeholder);search.value=searchText;filter.append(search,count);list.append(hero,filter,grid);
