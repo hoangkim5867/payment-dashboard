@@ -4047,6 +4047,7 @@ window.HISTORY_2026_EDITED_PREVIEW = null;
 <script type="module">
 import {createPaymentEmergencyDrafts} from "./assets/js/payment-emergency-drafts.mjs";
 import {createNoelTreePreview} from "./assets/js/payment-noel-tree-preview.mjs";
+import {isContractIdentifierInProject,filterExportWatchImportMistakes} from "./assets/js/payment-export-watch-import-guard.mjs";
 const noelTreePreview=createNoelTreePreview();
 import {buildBankOnlyPaymentPatch} from "./assets/js/payment-bank-only-edit.mjs";
 import {buildAmountOnlyFormPatch} from "./assets/js/payment-amount-only-edit.mjs";
@@ -23904,6 +23905,11 @@ function buildExcelImportRows({skipHistoryDuplicateCheck = false} = {}){
                             "contractNo"
                         );
 
+                // A contract identifier cannot be a Project; stop the import rather than invent a Master.
+                if(isContractIdentifierInProject(project)){
+                    errors.push(currentLanguage === "zh" ? "项目列包含合同编号，请检查 Excel 列映射。" : currentLanguage === "en" ? "Project contains a contract number. Check Excel column mapping." : "Cột Dự án đang chứa mã hợp đồng. Kiểm tra lại cột Excel trước khi nhập.");
+                }
+
                 const rawIPC =
                     useSmartAutoDetect
                         ? (
@@ -24432,6 +24438,10 @@ function buildExcelImportRows({skipHistoryDuplicateCheck = false} = {}){
                     data.processPaymentDate = "";
                 }
 
+
+                if(data && isContractIdentifierInProject(data.project) && !isContractIdentifierInProject(project)){
+                    errors.push(currentLanguage === "zh" ? "项目不能是合同编号。" : currentLanguage === "en" ? "Project cannot be a contract number." : "Dự án không được là mã hợp đồng.");
+                }
 
                 const notices = [];
                 let crossMonthDuplicate = null;
@@ -29388,7 +29398,9 @@ async function loadExportWatchChanges(context = exportWatchContext(), {force = f
         }
         const acknowledged = exportWatchAcknowledged(context);
         const removedIds = new Set();
-        const logs = rawLogs.map(log => String(log.action).toUpperCase() === "RESTORE" ? {...log,action:"ADD"} : log)
+        const scopeComplete = activePaymentsScopeKey === context.month && !!paymentsRealtimeReadyPromise && await paymentsRealtimeReadyPromise && exportWatchContextCurrent(context);
+        const cleanLogs = filterExportWatchImportMistakes(rawLogs,{payments:allPayments,scopeComplete,acknowledged});
+        const logs = cleanLogs.map(log => String(log.action).toUpperCase() === "RESTORE" ? {...log,action:"ADD"} : log)
             .filter(log => exportWatchLogRelevant(log,context) &&
             (exportWatchLogDate(log)?.getTime() || 0) > (Number(acknowledged[log.paymentId]) || 0))
             .filter(log => {
