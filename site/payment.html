@@ -33848,6 +33848,12 @@ function initThemePicker(){
         }
     );
 
+    window.addEventListener("resize",() => {
+        if(panel.classList.contains("show")){
+            positionViewportPopover(panel,button,8);
+        }
+    });
+
     updateThemePickerLanguage();
     loadSavedTheme();
 }
@@ -33890,11 +33896,7 @@ function mountAllModalsAtBodyRoot(){
         }
     );
 
-    window.addEventListener("resize",() => {
-        if(panel.classList.contains("show")){
-            positionViewportPopover(panel,button,8);
-        }
-    });
+
 }
 
 mountAllModalsAtBodyRoot();
