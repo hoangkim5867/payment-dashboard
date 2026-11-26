@@ -24,3 +24,6 @@ Christmas tree feature mounts for Admin only, including direct tree links. Staff
 
 ## Staff release authorized — 2026-11-26
 The temporary release hold is lifted at the owner's request. Approved Admin and Staff can use the tree, with Staff initially collapsed if they have no saved preference. The Noel rules fragment now allows approved users. Live Firestore Rules still must be updated by the project administrator (only noelEnabled2026 return expression); no other rules or financial data changed. No end-to-end gift persistence test is asserted.
+
+## Received gift arrangement
+Only the receiving tree owner can move or hide/show received gifts. Hidden gifts remain in the owner's selector and their private wishes remain intact. Shared viewing excludes hidden gifts. The new `allow update` clause in gifts must be inserted into current live Firebase Rules; no other permission changes. Each arrangement is a single explicit gift metadata write; no realtime listeners.
