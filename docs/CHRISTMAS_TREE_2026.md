@@ -12,3 +12,6 @@
 
 ## Shared storage implementation
 Published trees, gift metadata and private wishes use noelTrees2026 only; staff gate noelTreeConfig2026/settings. Staff checks one config doc on sign-in; directory and gifts fetched on demand. Admin must paste ONLY security/noel-tree-2026.rules.fragment into verified current live Rules and test actual sending before clicking Enable staff. Do not deploy a historical full ruleset. Own miniature updates when receiving a refresh/open, not realtime. Existing preview items stay local. Shared ornaments are distinct from local decorations. Wishes unlocked server-side December 23 00:00 UTC+7; Admin preview button only reveals local test messages.
+
+## Expanded personal appearance
+Five display widths XS 112, S 165, M 240, L 325, XL 420 px (bounded by viewport), local per UID; three caption modes; 12 tree colors; 81 ornament designs with six themed categories, multilingual search, and reusable inline SVG/emoji artwork. Old IDs remain valid. The shared client and proposed Rules accept the same catalog; Firebase Rules still require live activation. No new reads or writes for appearance changes.

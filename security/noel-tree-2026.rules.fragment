@@ -10,7 +10,7 @@ function noelEnabled2026(){
 function noelTreeData2026(d){
   return d.keys().hasOnly(['name','style','color','updatedAt'])
     && d.name is string && d.name.size() > 0 && d.name.size() <= 32
-    && d.style in ['pastel','chalet'] && d.color in ['pink','green','snow','cream']
+    && d.style in ['pastel','chalet'] && d.color in ['pink','green','snow','cream','berry','lavender','mint','peach','pearl','navy','gold','matcha']
     && d.updatedAt == request.time;
 }
 match /noelTreeConfig2026/settings {
@@ -28,7 +28,7 @@ match /noelTrees2026/{uid} {
       && request.resource.data.keys().hasOnly(['kind','senderUid','sender','x','y','createdAt'])
       && request.resource.data.senderUid == request.auth.uid
       && request.resource.data.sender is string && request.resource.data.sender.size() <= 32
-      && request.resource.data.kind in ['bear','snow','gift','bow','star','bell','candy','heart','deer','cookie','sock','moon','flake','penguin','ball','candle']
+      && request.resource.data.kind in ['bear','snow','gift','bow','star','bell','candy','heart','deer','cookie','sock','moon','flake','penguin','ball','candle','ball_gold','ball_emerald','ball_blue','ball_lilac','ball_rose','ball_pearl','ball_rainbow','bow_red','bow_gold','bow_mint','bow_lilac','gift_pink','gift_blue','gift_vintage','gift_gold','star_pink','star_ice','star_glow','heart_lilac','heart_gold','gem_aqua','gem_pink','gem_violet','pearl','crown','angel','spark','candycane','cane_mint','holly','santa','sleigh','polar','ice','cloud','snow_white','rabbit','cat_santa','capybara','duck_santa','frog','mushroom','boba','croissant','pizza','earth','camera','laptop','fish','strawberry','cupcake','macaron','lollipop','cocoa','ginger','pinecone','mitten','scarf','cabin','lantern','woodstar','snowglobe','clover','music','ribbon_blue']
       && request.resource.data.x is number && request.resource.data.x >= 0 && request.resource.data.x <= 100
       && request.resource.data.y is number && request.resource.data.y >= 0 && request.resource.data.y <= 82
       && request.resource.data.createdAt == request.time
