@@ -22,7 +22,7 @@ export function layoutGarden(local=[],remote=[]){
  for(const e of entries)if(!out.has(e.g)){const z=safeZone(e.g.zone);let p=0;while(p<MAX_PAGES-1&&(counts.get(key(p,z))||0)>=capacity(z))p++;place(e,p,z,true)}
  return {entries:entries.map(e=>out.get(e.g)),counts};
 }
-export function countPages(layout,m={}){return Math.max(1,Math.min(MAX_PAGES,Math.max(m.gardenColors?.length||0,...layout.entries.map(e=>e.page+1))))}
+export function countPages(layout,m={}){return Math.max(1,Math.min(MAX_PAGES,Math.max(m.gardenColors?.length||0,m.gardenStyles?.length||0,safePage(m.representative)+1,...layout.entries.map(e=>e.page+1))))}
 export function pageCount(layout,p,z){return layout.counts.get(key(p,z))||0}
 export function nextPage(layout,p,z){for(let i=p;i<MAX_PAGES;i++)if(pageCount(layout,i,z)<capacity(z))return i;return -1}
 export function freeSpot(layout,p,z,exclude){const slots=z==="ground"?groundSlots:treeSlots;const occupied=layout.entries.filter(e=>e.page===p&&e.zone===z&&e.g!==exclude&&e.g.hidden!==true);return slots.slice().sort((a,b)=>distance(b)-distance(a))[0];function distance(a){return occupied.length?Math.min(...occupied.map(e=>(e.x-a[0])**2+(e.y-a[1])**2)):10000}}
