@@ -41,10 +41,13 @@
         selectors.some(selector => heading.querySelector(selector))));
       if (!hasControls || !heading) {
         toolbar.classList.remove("archive-admin-consolidated");
-        if(menu && menu.parentElement !== heading) menu = items = allProxy = null;
+        if(menu && (!heading || !heading.contains(menu))) menu = items = allProxy = null;
         return;
       }
-      if (!menu || menu.parentElement !== heading) {
+      // Global search nests its close button in an actions wrapper. Accept any
+      // descendant of the current heading, not only a direct child, to avoid
+      // an endless MutationObserver loop creating a new menu on every pass.
+      if (!menu || !heading.contains(menu)) {
         menu = document.createElement("details");
         menu.className = "archive-admin-menu";
         const summary = document.createElement("summary");
