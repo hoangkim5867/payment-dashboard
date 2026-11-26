@@ -137,18 +137,42 @@ export function createNoelTreePreview(){
  controls.append(button(w[5],()=>void task(async()=>{await s.shared.publish(model.own);const url=new URL(location.pathname,location.origin);url.searchParams.set("noelTree",s.uid);await navigator.clipboard.writeText(url.href);if(alive())status.textContent=w[11]}),"nt-secondary"));
  dialog.append(controls,status);const list=node("div","nt-tabs"),area=node("div","nt-body");dialog.append(list,area);
  async function directory(){const trees=await s.shared.listTrees();if(!alive())return;list.replaceChildren();area.replaceChildren();if(!trees.length){list.append(node("p","nt-detail",w[8]));return}for(const tree of trees){const b=button(tree.name,()=>void task(()=>showTree(tree.uid)),tree.uid===remoteOwner?"active":"");b.dataset.uid=tree.uid;list.append(b)}const pick=trees.find(x=>x.uid===requested)||trees.find(x=>x.uid!==s.uid)||trees[0];await showTree(pick.uid)}
- async function showTree(uid,preferred=0){const tree=await s.shared.getTree(uid);if(!tree||!alive())return;const received=await s.shared.gifts(uid);if(!alive())return;const local=(Array.isArray(tree.decorations)?tree.decorations.slice(0,MAX_LOCAL):[]).filter(g=>g&&itemById(g.kind)&&Number.isFinite(g.x)&&Number.isFinite(g.y)),remote=received.filter(g=>g&&itemById(g.kind)&&Number.isFinite(g.x)&&Number.isFinite(g.y));const layout=layoutGarden(local,remote);let total=countPages(layout,tree),page=Math.min(safePage(preferred),total-1),zone="tree",chosen=null,pos=null,sending=false,senderDraft=model.own.name||"",wishDraft="";remoteOwner=uid;for(const b of list.children)b.classList.toggle("active",b.dataset.uid===uid);
- function draw(){if(!alive())return;area.replaceChildren();const scene=node("div","nt-scene"),side=node("div","nt-side"),canvas=node("div","nt-canvas");scene.append(node("h2","nt-name",tree.name),node("div","nt-count",remote.length+" · "+t[7]),pageNav(page,total,p=>{if(sending)return;page=p;pos=null;draw()},()=>{if(sending||total>=MAX_PAGES)return;page=total++;pos=null;draw()}),canvas);
- canvas.append(treeArt(pageColor(tree,page),tree.style==="chalet"?"chalet":"pastel","nt-shared-paint"));for(const e of layout.entries.filter(e=>e.page===page&&e.g.hidden!==true)){const icon=ornamentPosition(putArt(node("span","nt-ornament"),e.g.kind),e);canvas.append(icon)}
- const marker=node("span","nt-marker"),hint=node("p","nt-hint");scene.append(zonePicker(zone,z=>{if(sending)return;zone=z;pos=null;draw()}),hint);
- const mark=()=>{if(!chosen||!pos){marker.remove();return}putArt(marker,chosen);ornamentPosition(marker,{x:pos[0],y:pos[1],zone});if(!marker.isConnected)canvas.append(marker)};
- canvas.addEventListener("click",e=>{if(!chosen||sending)return;const r=canvas.getBoundingClientRect(),x=(e.clientX-r.left)*100/r.width,y=(e.clientY-r.top)*100/r.height;if(!validPoint(x,y,zone))return;pos=[x,y];mark();sync()});
- const grid=makePicker(()=>chosen,kind=>{if(sending)return;chosen=kind;const dest=nextPage(layout,page,zone);if(dest<0){pos=null;sync();return}if(dest!==page){page=dest;total=Math.max(total,dest+1);pos=null;draw();return}mark();sync()});
- const sender=node("input","nt-input");sender.value=senderDraft;sender.placeholder=t[14];sender.maxLength=32;sender.addEventListener("input",()=>senderDraft=sender.value);const wish=node("textarea","nt-input");wish.placeholder=t[5];wish.maxLength=160;wish.value=wishDraft;wish.addEventListener("input",()=>wishDraft=wish.value);
- const sendBtn=button(w[4],()=>{if(!alive()||sending||!chosen||!pos)return;const dest=nextPage(layout,page,zone);if(dest<0)return;const [x,y]=dest===page?pos:freeSpot(layout,dest,zone);sending=true;sync();const gift={kind:chosen,x,y,page:dest,zone,scale:1,rotation:0,sender:sender.value,message:wish.value};void task(async()=>{try{await s.shared.send(uid,gift);if(alive()){status.textContent=w[9];chosen=null;pos=null;mark();if(uid===s.uid)await refreshOwnShared();await showTree(uid,dest)}}finally{sending=false;sync()}})},"nt-primary");
- function sync(){sendBtn.disabled=sending||!chosen||!pos||nextPage(layout,page,zone)<0;canvas.style.cursor=chosen?"crosshair":"default";hint.textContent=!chosen?words("Chọn món đồ nếu muốn trang trí cây này.","Choose an ornament if you want to decorate.","如需装饰，请选择挂饰。"):!pos?words(zone==="ground"?"Chọn vị trí dưới gốc cây.":"Chọn vị trí trên cây.","Choose a position.","请选择位置。"):words("Đã chọn vị trí · bấm Gửi quà.","Position selected · send gift.","已选择位置，发送礼物。")}
- sync();mark();side.append(node("label","nt-label",t[3]),grid,sender,wish,sendBtn);area.append(scene,side)}
- draw();
+ let viewSequence=0;
+ async function showTree(uid,preferred=0){
+ const sequence=++viewSequence;const current=()=>alive()&&sequence===viewSequence;
+ const tree=await s.shared.getTree(uid);if(!tree||!current())return;const received=await s.shared.gifts(uid);if(!current())return;
+ const local=(Array.isArray(tree.decorations)?tree.decorations.slice(0,MAX_LOCAL):[]).filter(g=>g&&itemById(g.kind)&&Number.isFinite(g.x)&&Number.isFinite(g.y)),remote=received.filter(g=>g&&itemById(g.kind)&&Number.isFinite(g.x)&&Number.isFinite(g.y));const layout=layoutGarden(local,remote);
+ let total=countPages(layout,tree),page=Math.min(safePage(preferred),total-1),zone="tree",chosen=null,pos=null,sending=false;
+ remoteOwner=uid;for(const b of list.children)b.classList.toggle("active",b.dataset.uid===uid);
+ area.replaceChildren();area.classList.add("nt-shared-garden");
+ const scene=node("div","nt-scene nt-garden-scene"),side=node("div","nt-side nt-garden-tools"),stack=node("div","nt-garden-stack"),summary=node("div","nt-count"),cards=[],marker=node("span","nt-marker"),hint=node("p","nt-hint"),target=node("div","nt-garden-target");
+ stack.tabIndex=0;stack.setAttribute("aria-label",words("Cuộn để xem tất cả cây","Scroll to view all trees","滚动查看所有圣诞树"));scene.append(node("h2","nt-name",tree.name),summary,stack);
+ const add=button(words("+ Thêm cây để gửi quà","+ Add tree for a gift","+ 添加圣诞树送礼"),()=>{if(sending||!current()||total>=MAX_PAGES)return;appendCard(total++);updateSummary();selectPage(total-1,true)},"nt-secondary nt-garden-add");
+ scene.append(add,node("div","nt-garden-scroll-note",words("Cuộn xuống để xem các cây tiếp theo","Scroll down for more trees","向下滚动查看更多圣诞树")));
+ function updateSummary(){summary.textContent=remote.length+" · "+t[7]+" · "+total+" "+words("cây","trees","棵树");add.disabled=sending||total>=MAX_PAGES}
+ function appendCard(p){
+ const card=node("section","nt-garden-card"),heading=node("div","nt-garden-card-head"),title=node("strong","",pageLabel(p)),counts=node("span","nt-garden-capacity"),canvas=node("div","nt-canvas");heading.append(title,counts);card.append(heading,canvas);
+ canvas.append(treeArt(pageColor(tree,p),tree.style==="chalet"?"chalet":"pastel","nt-shared-paint-"+p));
+ for(const e of layout.entries.filter(e=>e.page===p&&e.g.hidden!==true))canvas.append(ornamentPosition(putArt(node("span","nt-ornament"),e.g.kind),e));
+ cards.push({card,canvas,counts});stack.append(card);
+ canvas.addEventListener("click",e=>{if(!current()||sending)return;if(!chosen){selectPage(p,false);return}const rect=canvas.getBoundingClientRect(),x=(e.clientX-rect.left)*100/rect.width,y=(e.clientY-rect.top)*100/rect.height;if(!validPoint(x,y,zone)){selectPage(p,false);return}
+ if(pageCount(layout,p,zone)>=capacity(zone)){const dest=nextPage(layout,p,zone);if(dest<0){pos=null;sync();return}ensurePage(dest);selectPage(dest,true);hint.textContent=words("Cây này đã đầy, chọn vị trí trên cây tiếp theo nhé.","This tree is full. Choose a spot on the next tree.","这棵树已满，请在下一棵树选择位置。");return}
+ page=p;pos=[x,y];sync()});
+ }
+ function ensurePage(p){while(total<=p&&total<MAX_PAGES)appendCard(total++);updateSummary()}
+ function selectPage(p,scroll){if(p<0||p>=total)return;page=p;pos=null;sync();if(scroll){const el=cards[p].card;stack.scrollTo({top:stack.scrollTop+el.getBoundingClientRect().top-stack.getBoundingClientRect().top-3,behavior:"smooth"})}}
+ for(let p=0;p<total;p++)appendCard(p);
+ const grid=makePicker(()=>chosen,kind=>{if(sending||!current())return;chosen=kind;pos=null;sync()});
+ const sender=node("input","nt-input");sender.value=model.own.name||"";sender.placeholder=t[14];sender.maxLength=32;const wish=node("textarea","nt-input");wish.placeholder=t[5];wish.maxLength=160;
+ const zoneRow=zonePicker(zone,z=>{if(sending)return;zone=z;pos=null;for(const [i,b] of Array.from(zoneRow.children).entries())b.classList.toggle("active",i===(zone==="tree"?0:1));sync()});
+ const sendBtn=button(w[4],()=>{if(!current()||sending||!chosen||!pos)return;const dest=nextPage(layout,page,zone);if(dest<0)return;const [x,y]=dest===page?pos:freeSpot(layout,dest,zone);sending=true;sync();const gift={kind:chosen,x,y,page:dest,zone,scale:1,rotation:0,sender:sender.value,message:wish.value};void task(async()=>{try{await s.shared.send(uid,gift);if(current()){status.textContent=w[9];chosen=null;pos=null;marker.remove();if(uid===s.uid)await refreshOwnShared();if(current())await showTree(uid,dest)}}finally{sending=false;if(current())sync()}})},"nt-primary");
+ function sync(){
+ marker.remove();for(const [i,e] of cards.entries()){e.card.classList.toggle("nt-garden-selected",i===page);e.canvas.style.cursor=chosen&&!sending?"crosshair":"default";const n=pageCount(layout,i,zone),full=n>=capacity(zone);e.counts.textContent=n+"/"+capacity(zone)+(full?" · "+words("Đầy","Full","已满"):"");e.card.classList.toggle("nt-garden-full",full)}
+ if(chosen&&pos){putArt(marker,chosen);ornamentPosition(marker,{x:pos[0],y:pos[1],zone});cards[page].canvas.append(marker)}
+ target.textContent=words("Đang chọn: ","Selected: ","已选：")+pageLabel(page)+" · "+(zone==="ground"?words("Dưới gốc","Under tree","树下"):words("Trên cây","On tree","树上"));
+ sendBtn.disabled=sending||!chosen||!pos||nextPage(layout,page,zone)<0;hint.textContent=!chosen?words("Chọn icon, rồi bấm vị trí trên cây bất kỳ.","Pick an icon, then tap any tree.","选择挂饰后点击任意一棵树。"):!pos?words("Bấm vị trí muốn đặt quà. Cây đầy sẽ chuyển sang cây tiếp theo.","Tap a spot. Full trees advance to the next one.","点击放置位置，满树将切换至下一棵。"):words("Đã chọn vị trí · bấm Gửi quà.","Position selected · send gift.","已选择位置，发送礼物。");updateSummary()
+ }
+ side.append(node("label","nt-label",t[3]),grid,zoneRow,target,hint,sender,wish,sendBtn);area.append(scene,side);sync();if(page>0)selectPage(page,true);
  }
  await task(async()=>{await refreshOwnShared();await directory()});
  }
