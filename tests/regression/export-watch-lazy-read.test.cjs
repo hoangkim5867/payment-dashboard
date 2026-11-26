@@ -46,7 +46,7 @@ test('collapsed View Changes control is renderable with zero Activity Log reads'
         currentLanguage:'vi',exportWatchUserAllowed:()=>true,
         exportWatchContextCurrent:()=>true,
         exportWatchPanelEls:()=>elems,
-        getExportWatchMarkerMs:()=>1000,exportWatchMarkerText:()=> '10:00 28/10',
+        getExportWatchMarkerMs:()=>1000,getExportWatchLatestExportMs:()=>1000,exportWatchMarkerText:()=> '10:00 28/10',
         exportWatchEventRows:()=>[],
         exportWatchUiCopy:()=>({open:'Xem thay đổi'}),
         syncExportWatchTheme:()=>{},
