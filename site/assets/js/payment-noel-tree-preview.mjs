@@ -30,7 +30,8 @@ export function createNoelTreePreview(){
  for(let i=2;i>=0;i--)s.append(svg("path",{d:paths[i],fill:i===1?b:"url(#"+id+")",stroke:c,"stroke-width":style==="chalet"?1.5:.6,"stroke-linejoin":"round"}));
  for(let i=0;i<45;i++){const y=80+(i*47%205),w=(y-40)*.46,x=150+Math.sin(i*2.4)*w;s.append(svg("circle",{cx:x,cy:y,r:i%4===0?2.1:1.1,fill:i%3===0?"#fff4b0":"#fff",opacity:".52"}))}
  if(style==="chalet")for(const d of ["M105 115 Q150 148 195 115","M72 188 Q150 235 228 188","M44 258 Q150 315 256 258"])s.append(svg("path",{d,fill:"none",stroke:"#e9bc60","stroke-width":2.5,"stroke-dasharray":"2 7","stroke-linecap":"round"}));
- if(id==="nt-mini-paint"){
+ {
+ // All tree views share the same fairy lights and glints.
  const lights=svg("g",{class:"nt-fairy-lights"});
  const wires=[[111,116,189,116,150,145],[77,178,223,178,150,224],[43,244,257,244,150,310]];
  for(let j=0;j<wires.length;j++){const [x1,y1,x2,y2,cx,cy]=wires[j];lights.append(svg("path",{d:"M"+x1+" "+y1+" Q"+cx+" "+cy+" "+x2+" "+y2,fill:"none",stroke:"#ffe9a7","stroke-opacity":".78","stroke-width":"1.5"}));for(let k=0;k<10+j*3;k++){const t=k/(9+j*3),u=1-t,x=u*u*x1+2*u*t*cx+t*t*x2,y=u*u*y1+2*u*t*cy+t*t*y2;const bulb=svg("circle",{cx:x,cy:y,r:3.2,fill:k%4===0?"#fff":k%4===1?"#ffda69":k%4===2?"#ffb8bd":"#fff2b6",class:"nt-light",style:"--delay:"+(-((k+j*3)%7)*.36)+"s"});lights.append(bulb)}}s.append(lights);
