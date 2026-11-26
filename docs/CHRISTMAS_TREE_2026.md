@@ -18,3 +18,6 @@ Five display widths XS 112, S 165, M 240, L 325, XL 420 px (bounded by viewport)
 
 ## Staff release
 Both Admin and Staff can select Winter Blue, Chalet or Off; existing preferences remain. Tree editor available to approved Staff, initially collapsed for new Staff. Demo tab and demo link removed. Share my tree publishes the user's name, color, style and own ornament positions (no private messages), then copies the real UID link. No gate read at login. Shared Firestore access opens to approved users only once the updated fragment is merged into LIVE rules. Until then, local decorating works, shared errors are explicitly reported and no false success is shown. No other collections or Rules are modified.
+
+## Current release hold — supersedes Staff tree release above
+Christmas tree feature mounts for Admin only, including direct tree links. Staff retains independent Winter Blue / Chalet / Off theme selector. Existing local decorations remain untouched. Proposed Noel-only Rules fragment is Admin-only until explicit Staff release; this change does not publish live Rules.
