@@ -1,4 +1,4 @@
-// Christmas Tree 2026 — local-only Admin preview; no Firebase, no network data calls.
+// Christmas Tree 2026 — local editor and on-demand shared colleague village.
 const styles=new URL("../css/payment-noel-tree-preview.css",import.meta.url).href;
 import {items,colors,colorNames,displaySizes,safeColor,safeSize,itemById,labelFor,groups,groupLabel,filterItems,ornamentArt} from "./payment-noel-tree-catalog.mjs";
 import {MAX_PAGES,MAX_LOCAL,fields,safePage,pageColor,layoutGarden,countPages,pageCount,capacity,nextPage,freeSpot,arrangePage,validPoint,safeZone,safeScale,safeRotation} from "./payment-noel-garden.mjs";
@@ -131,21 +131,44 @@ export function createNoelTreePreview(){
  }
  function sharedWords(){const lang=document.getElementById("languageSelect")?.value;return lang==="zh"?["同事圣诞树","返回","发布/更新我的树","刷新","发送礼物","分享链接","开放员工","请输入树名","暂无已发布的树","已发送","读取失败：尚未开放共享存储","已更新","选择同事","开启员工后同事可参与","礼物已收到"]:lang==="en"?["Colleagues' trees","Back","Publish/update my tree","Refresh","Send gift","Share link","Enable staff","Set a tree nickname first","No published trees yet","Gift sent","Shared storage not available","Updated","Choose a colleague","Staff can join after activation","Received gifts"]:["Cây đồng nghiệp","Quay lại","Đăng / cập nhật cây của tôi","Làm mới","Gửi quà","Chia sẻ link","Mở cho Staff","Đặt tên cây trước nhé","Chưa có cây nào được đăng","Đã gửi quà","Chưa kết nối được kho Noel chung","Đã cập nhật","Chọn đồng nghiệp","Staff tham gia sau khi được mở","Quà đã nhận"]}
  async function refreshOwnShared(){const s=session;if(!s?.shared||!allowed())return;const [gs,ws]=await Promise.all([s.shared.gifts(s.uid),s.shared.wishes()]);if(s!==session||!allowed())return;const selectedRemote=remoteGifts.includes(editTarget)?editTarget.id:null;remoteGifts=gs.filter(g=>items.some(i=>i[0]===g.kind)&&Number.isFinite(g.x)&&Number.isFinite(g.y));if(selectedRemote)editTarget=remoteGifts.find(g=>g.id===selectedRemote)||null;remoteWishes=ws;renderMini();if(dialog?.open&&!sharedView)render()}
- async function showShared(requested=""){if(!allowed()||!session?.shared)return;editTarget=null;moving=false;point=null;const s=session;sharedView=true;const w=sharedWords(),t=tr();dialog.replaceChildren();dialog.className="nt-dialog "+model.own.style;const head=node("div","nt-head");head.append(node("div","nt-title",w[0]),button("×",()=>dialog.close(),"nt-close"));dialog.append(head);const status=node("p","nt-detail");const controls=node("div","nt-actions");const alive=()=>s===session&&allowed()&&sharedView&&dialog?.contains(status);
+ async function showShared(requested=""){if(!allowed()||!session?.shared)return;editTarget=null;moving=false;point=null;const s=session;sharedView=true;const w=sharedWords(),t=tr();dialog.replaceChildren();dialog.className="nt-dialog "+model.own.style;const head=node("div","nt-head");head.append(node("div","nt-title",words("Làng Giáng sinh","Christmas Village","圣诞村")),button("×",()=>dialog.close(),"nt-close"));dialog.append(head);const status=node("p","nt-detail nt-village-status");status.setAttribute("role","status");const controls=node("div","nt-actions nt-village-toolbar");const alive=()=>s===session&&allowed()&&sharedView&&dialog?.contains(status);
  const task=async fn=>{if(!alive())return;for(const b of controls.querySelectorAll("button"))b.disabled=true;try{await fn()}catch(e){if(alive())status.textContent=e.message==="TREE_NAME_REQUIRED"?w[7]:w[10]+" · "+(e.code||"")}finally{if(alive())for(const b of controls.querySelectorAll("button"))b.disabled=false}};
- controls.append(button(w[1],()=>{tab="own";render()},"nt-secondary"),button(w[2],()=>void task(async()=>{await s.shared.publish(model.own);await refreshOwnShared();if(alive()){status.textContent=w[11];await directory()}}),"nt-primary"),button(w[3],()=>void task(async()=>{await refreshOwnShared();await directory()}),"nt-secondary"));
+ controls.append(button(w[1],()=>{tab="own";render()},"nt-secondary"),button(w[2],()=>void task(async()=>{await s.shared.publish(model.own);await refreshOwnShared();if(alive()){status.textContent=w[11];await directory(activeUid)}}),"nt-primary"),button(w[3],()=>void task(async()=>{await refreshOwnShared();await directory(activeUid)}),"nt-secondary"));
 
  controls.append(button(w[5],()=>void task(async()=>{await s.shared.publish(model.own);const url=new URL(location.pathname,location.origin);url.searchParams.set("noelTree",s.uid);await navigator.clipboard.writeText(url.href);if(alive())status.textContent=w[11]}),"nt-secondary"));
- dialog.append(controls,status);const list=node("div","nt-tabs"),area=node("div","nt-body");dialog.append(list,area);
- async function directory(){const trees=await s.shared.listTrees();if(!alive())return;list.replaceChildren();area.replaceChildren();if(!trees.length){list.append(node("p","nt-detail",w[8]));return}for(const tree of trees){const b=button(tree.name,()=>void task(()=>showTree(tree.uid)),tree.uid===remoteOwner?"active":"");b.dataset.uid=tree.uid;list.append(b)}const pick=trees.find(x=>x.uid===requested)||trees.find(x=>x.uid!==s.uid)||trees[0];await showTree(pick.uid)}
- let viewSequence=0;
+ dialog.append(controls,status);const list=node("div","nt-village"),area=node("div","nt-body");dialog.append(list,area);
+ let viewSequence=0,activeUid="",directoryTrees=[],searchText="",villageScroll=0;
+ const villageBack=button(words("‹ Về làng Noel","‹ Back to village","‹ 返回圣诞村"),()=>showVillage(),"nt-secondary nt-village-back");villageBack.hidden=true;dialog.insertBefore(villageBack,area);
+ function showVillage(){if(!alive())return;viewSequence++;activeUid="";area.hidden=true;area.replaceChildren();villageBack.hidden=true;list.hidden=false;drawVillage();dialog.scrollTop=villageScroll}
+ function drawVillage(){
+ if(!alive())return;list.replaceChildren();
+ const hero=node("div","nt-village-hero");hero.append(node("div","nt-village-kicker","✧ CHRISTMAS VILLAGE · 2026 ✧"),node("h2","nt-village-heading",words("Ghé thăm làng Noel","Visit the Christmas Village","漫步圣诞村")),node("p","nt-village-sub",words("Gửi chút lấp lánh đến những người đồng nghiệp.","Send a little sparkle to your colleagues.","给同事送上一点圣诞闪光。")));
+ const snow=node("div","nt-village-snow");snow.setAttribute("aria-hidden","true");for(let i=0;i<18;i++){const flake=node("i");flake.style.setProperty("--x",((i*37+11)%100)+"%");flake.style.setProperty("--y",((i*53+9)%100)+"%");flake.style.setProperty("--d",(-i*.77)+"s");flake.style.setProperty("--s",(2+i%3)+"px");snow.append(flake)}hero.prepend(snow);
+ const filter=node("div","nt-village-filter"),search=node("input","nt-input nt-village-search"),count=node("span","nt-village-total"),grid=node("div","nt-village-grid");
+ search.type="search";search.placeholder=words("Tìm tên cây…","Find a tree…","搜索圣诞树…");search.setAttribute("aria-label",search.placeholder);search.value=searchText;filter.append(search,count);list.append(hero,filter,grid);
+ const normalize=v=>String(v??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/đ/g,"d");
+ function populate(){grid.replaceChildren();const q=normalize(searchText.trim()),visible=directoryTrees.filter(tree=>normalize(tree.name).includes(q));count.textContent=visible.length+" / "+directoryTrees.length+" "+words("cây","trees","棵树");
+ if(!visible.length){grid.append(node("p","nt-village-empty",q?words("Không tìm thấy cây phù hợp.","No matching trees.","未找到匹配的圣诞树。"):w[8]));return}
+ for(const [i,tree] of visible.entries()){
+ const card=button("",()=>{if(!alive())return;villageScroll=dialog.scrollTop;void task(()=>showTree(tree.uid))},"nt-village-card");card.setAttribute("aria-label",tree.name);
+ const art=node("span","nt-village-art"),name=node("span","nt-village-name",tree.name),base=node("span","nt-village-card-base");
+ art.append(treeArt(safeColor(tree.color),tree.style==="chalet"?"chalet":"pastel","nt-village-paint-"+i));
+ const decorations=Array.isArray(tree.decorations)?tree.decorations.filter(g=>g&&itemById(g.kind)&&Number.isFinite(g.x)&&Number.isFinite(g.y)):[];
+ // Only published personal ornaments are previewed here; received gifts are fetched when visiting.
+ const preview=layoutGarden(decorations,[]).entries.filter(e=>e.page===0&&e.g.hidden!==true).slice(0,14);
+ for(const e of preview)art.append(ornamentPosition(putArt(node("span","nt-village-ornament"),e.g.kind),e));
+ name.title=tree.name;base.append(name,node("span","nt-village-visit",tree.uid===s.uid?words("Cây của tôi · Ghé thăm","My tree · Visit","我的树 · 访问"):words("Ghé thăm ›","Visit ›","访问 ›")));card.append(art,base);grid.append(card)
+ }}
+ search.addEventListener("input",()=>{searchText=search.value;populate()});populate()
+ }
+ async function directory(preferred=""){const seq=++viewSequence;const trees=await s.shared.listTrees();if(!alive()||seq!==viewSequence)return;directoryTrees=trees;const pick=trees.find(x=>x.uid===preferred);if(pick)await showTree(pick.uid);else showVillage()}
  async function showTree(uid,preferred=0){
  const sequence=++viewSequence;const current=()=>alive()&&sequence===viewSequence;
  const tree=await s.shared.getTree(uid);if(!tree||!current())return;const received=await s.shared.gifts(uid);if(!current())return;
  const local=(Array.isArray(tree.decorations)?tree.decorations.slice(0,MAX_LOCAL):[]).filter(g=>g&&itemById(g.kind)&&Number.isFinite(g.x)&&Number.isFinite(g.y)),remote=received.filter(g=>g&&itemById(g.kind)&&Number.isFinite(g.x)&&Number.isFinite(g.y));const layout=layoutGarden(local,remote);
  let total=countPages(layout,tree),page=Math.min(safePage(preferred),total-1),zone="tree",chosen=null,pos=null,sending=false;
- remoteOwner=uid;for(const b of list.children)b.classList.toggle("active",b.dataset.uid===uid);
- area.replaceChildren();area.classList.add("nt-shared-garden");
+ remoteOwner=uid;activeUid=uid;list.hidden=true;villageBack.hidden=false;area.hidden=false;
+ area.replaceChildren();area.classList.add("nt-shared-garden");dialog.scrollTop=0;
  const scene=node("div","nt-scene nt-garden-scene"),side=node("div","nt-side nt-garden-tools"),stack=node("div","nt-garden-stack"),summary=node("div","nt-count"),cards=[],marker=node("span","nt-marker"),hint=node("p","nt-hint"),target=node("div","nt-garden-target");
  stack.tabIndex=0;stack.setAttribute("aria-label",words("Cuộn để xem tất cả cây","Scroll to view all trees","滚动查看所有圣诞树"));scene.append(node("h2","nt-name",tree.name),summary,stack);
  const add=button(words("+ Thêm cây để gửi quà","+ Add tree for a gift","+ 添加圣诞树送礼"),()=>{if(sending||!current()||total>=MAX_PAGES)return;appendCard(total++);updateSummary();selectPage(total-1,true)},"nt-secondary nt-garden-add");
@@ -175,7 +198,7 @@ export function createNoelTreePreview(){
  }
  side.append(node("label","nt-label",t[3]),grid,zoneRow,target,hint,sender,wish,sendBtn);area.append(scene,side);sync();if(page>0)selectPage(page,true);
  }
- await task(async()=>{await refreshOwnShared();await directory()});
+ await task(async()=>{await directory(requested)});
  }
  function unmount(){if(langListener)document.getElementById("languageSelect")?.removeEventListener("change",langListener);langListener=null;host?.remove();host=root=dialog=trigger=dock=session=model=null;point=null;opened=false;tab="own";collapsed=false;remoteGifts=[];remoteWishes={};remoteOwner="";sharedView=false;ownCategory="all";editTarget=null;moving=false;editBusy=false;editStatus="";ownPage=0;ownZone="tree"}
  function mount(s){unmount();session=s;if(!allowed())return;model=load();host=node("div");host.id="paymentNoelTreePreview";root=host.attachShadow({mode:"open"});const link=node("link");link.rel="stylesheet";link.href=styles;root.append(link);dock=node("div","nt-dock");dialog=node("dialog","nt-dialog");dialog.setAttribute("aria-label",tr()[0]);root.append(dock,dialog);document.body.append(host);try{const stored=localStorage.getItem(key()+".collapsed");collapsed=stored===null?!s.admin:stored==="1"}catch{collapsed=!s.admin}renderMini();langListener=()=>{if(!allowed())return;renderMini();dialog.setAttribute("aria-label",tr()[0]);if(dialog.open)render()};document.getElementById("languageSelect")?.addEventListener("change",langListener);const target=new URL(location.href).searchParams.get("noelTree");if(target==="preview"){openEditor()}else if(target&&/^[A-Za-z0-9_-]{1,128}$/.test(target)){openEditor();void showShared(target)}}
