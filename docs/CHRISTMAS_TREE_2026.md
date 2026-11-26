@@ -15,3 +15,6 @@ Published trees, gift metadata and private wishes use noelTrees2026 only; staff 
 
 ## Expanded personal appearance
 Five display widths XS 112, S 165, M 240, L 325, XL 420 px (bounded by viewport), local per UID; three caption modes; 12 tree colors; 81 ornament designs with six themed categories, multilingual search, and reusable inline SVG/emoji artwork. Old IDs remain valid. The shared client and proposed Rules accept the same catalog; Firebase Rules still require live activation. No new reads or writes for appearance changes.
+
+## Staff release
+Both Admin and Staff can select Winter Blue, Chalet or Off; existing preferences remain. Tree editor available to approved Staff, initially collapsed for new Staff. Demo tab and demo link removed. Share my tree publishes the user's name, color, style and own ornament positions (no private messages), then copies the real UID link. No gate read at login. Shared Firestore access opens to approved users only once the updated fragment is merged into LIVE rules. Until then, local decorating works, shared errors are explicitly reported and no false success is shown. No other collections or Rules are modified.

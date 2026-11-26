@@ -3,12 +3,11 @@
 // Do NOT replace any existing Payment Rules. Requires existing approvedUser() and adminUser().
 // This file is a fragment, not a complete ruleset.
 function noelEnabled2026(){
-  return approvedUser() && (adminUser() ||
-    (exists(/databases/$(database)/documents/noelTreeConfig2026/settings)
-     && get(/databases/$(database)/documents/noelTreeConfig2026/settings).data.enabled == true));
+  return approvedUser();
 }
 function noelTreeData2026(d){
-  return d.keys().hasOnly(['name','style','color','updatedAt'])
+  return d.keys().hasOnly(['name','style','color','updatedAt','decorations'])
+    && d.get('decorations',[]) is list && d.get('decorations',[]).size() <= 60
     && d.name is string && d.name.size() > 0 && d.name.size() <= 32
     && d.style in ['pastel','chalet'] && d.color in ['pink','green','snow','cream','berry','lavender','mint','peach','pearl','navy','gold','matcha']
     && d.updatedAt == request.time;

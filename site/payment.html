@@ -4421,7 +4421,7 @@ function removeWinterArt(){
  document.querySelectorAll("[data-payment-winter-art]").forEach(node=>node.remove());
 }
 function installWinterArt(){
- if(!isAdmin())return;
+ if(!canUsePaymentChaletTheme())return;
  const art=(name,cls)=>{
   const img=document.createElement("img");img.src="assets/img/winter-refined-2026/"+name+".svg";img.className=cls;img.alt="";img.draggable=false;img.decoding="async";img.setAttribute("aria-hidden","true");img.setAttribute("data-payment-winter-art","");return img;
  };
@@ -4458,21 +4458,21 @@ function syncPaymentChaletTheme(){
  };
  const lang=()=>strings[document.getElementById("languageSelect")?.value]||strings.vi;
  let mode=paymentNoelDefault();
- try{const saved=localStorage.getItem(paymentNoelStorageKey());mode=saved==="sweet"?(isAdmin()?"winter":paymentNoelDefault()):(saved||mode);}catch{}
- const allowed=m=>m==="chalet"&&canUsePaymentChaletTheme()||m==="winter"&&isAdmin()||m==="off";
+ try{const saved=localStorage.getItem(paymentNoelStorageKey());mode=saved==="sweet"?"winter":(saved||mode);}catch{}
+ const allowed=m=>m==="off"||(["chalet","winter"].includes(m)&&canUsePaymentChaletTheme());
  const close=()=>{menu.hidden=true;button.setAttribute("aria-expanded","false");};
  function render(){
   const t=lang();
-  button.textContent=isAdmin()?(mode==="off"?t.off:t[mode])+" ▾":mode==="off"?t.off:t.on;
+  button.textContent=(mode==="off"?t.off:t[mode])+" ▾";
   button.setAttribute("aria-pressed",String(mode!=="off"));
-  button.title=isAdmin()?t.choose:(mode==="off"?t.on:t.turnoff);
+  button.title=t.choose;
   menu.setAttribute("aria-label",t.choose);
   menu.replaceChildren();
-  if(isAdmin())for(const m of ["chalet","winter","off"]){
+  for(const m of ["chalet","winter","off"]){
     const option=document.createElement("button");option.type="button";
-    option.textContent=(m==="off"?t.turnoff:t[m])+(m==="winter"?" · "+t.preview:"")+(mode===m?" ✓":"");
+    option.textContent=(m==="off"?t.turnoff:t[m])+(mode===m?" ✓":"");
     option.setAttribute("aria-pressed",String(mode===m));
-    option.addEventListener("click",()=>{if(!isAdmin())return;apply(m,true);close();button.focus();});
+    option.addEventListener("click",()=>{if(!canUsePaymentChaletTheme())return;apply(m,true);close();button.focus();});
     menu.append(option);
   }
  }
@@ -4496,14 +4496,13 @@ function syncPaymentChaletTheme(){
  }
  button.addEventListener("click",()=>{
   if(!canUsePaymentChaletTheme()){clearPaymentNoel();return;}
-  if(!isAdmin()){apply(mode==="off"?"chalet":"off",true);return;}
   if(!menu.hidden){close();return;}
   render();menu.hidden=false;button.setAttribute("aria-expanded","true");
   const rect=button.getBoundingClientRect();
   menu.style.top=(rect.bottom+5)+"px";
   menu.style.right=Math.max(8,window.innerWidth-rect.right)+"px";
  });
- if(isAdmin()){
+ {
   button.setAttribute("aria-haspopup","true");button.setAttribute("aria-expanded","false");
   document.body.append(menu);
   paymentNoelOutsideHandler=e=>{if(!button.contains(e.target)&&!menu.contains(e.target))close();};
@@ -13382,15 +13381,12 @@ onAuthStateChanged(
 
         applyRoleUI();
         syncPaymentChaletTheme();
-        // Seasonal storage is separate from payments. Staff checks one gate document per sign-in.
+        // Seasonal storage is separate from payments; no background reads on sign-in.
         const noelAllowed=()=>currentAuthUser?.uid===user.uid&&(isAdmin()||isStaff());
         const noelAdmin=isAdmin();
         const noelShared=createNoelShared({db,doc,collection,getDoc,getDocs,query,limit,setDoc,writeBatch,serverTimestamp,uid:user.uid,allowed:noelAllowed});
         const noelSession={uid:user.uid,name:currentOperatorName,admin:noelAdmin,allowed:noelAllowed,shared:noelShared};
-        if(noelAdmin)noelTreePreview.mount(noelSession);
-        else if(isStaff())void noelShared.staffEnabled().then(enabled=>{
-            if(enabled&&noelAllowed())noelTreePreview.mount(noelSession);
-        }).catch(()=>{});
+        if(noelAllowed())noelTreePreview.mount(noelSession);
 
         /*
            Security Rules now require an approved signed-in profile.
