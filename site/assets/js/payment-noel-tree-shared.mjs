@@ -1,7 +1,7 @@
 // Isolated, on-demand Christmas storage. No realtime listeners or Payment reads.
 export const REVEAL_AT=Date.parse("2026-12-23T00:00:00+07:00");
 import {safeColor,itemById} from "./payment-noel-tree-catalog.mjs";
-import {fields,MAX_LOCAL,MAX_PAGES,validPoint,safeZone} from "./payment-noel-garden.mjs";
+import {fields,MAX_LOCAL,MAX_PAGES,capacity,validPoint,safeZone} from "./payment-noel-garden.mjs";
 const trim=(v,n)=>String(v??"").trim().slice(0,n);
 const metadata=g=>{const f=fields(g);return {...(Number.isInteger(g.page)&&g.page!==0?{page:f.page}:{}),...(f.zone!=="tree"?{zone:f.zone}:{}),...(f.scale!==1?{scale:f.scale}:{}),...(f.rotation!==0?{rotation:f.rotation}:{})}};
 const validUid=v=>typeof v==="string"&&/^[A-Za-z0-9_-]{1,128}$/.test(v);
@@ -29,7 +29,7 @@ export function createNoelShared({db,doc,collection,getDoc,getDocs,query,limit,s
   if("hidden" in patch&&typeof patch.hidden!=="boolean")throw Error("INVALID_GIFT_VISIBILITY");
   await updateDoc(doc(collection(tree(uid),"gifts"),giftId),{...patch,updatedAt:serverTimestamp()});check();
  }
- async function arrangeReceivedGifts(entries){check();if(!Array.isArray(entries)||entries.length>32)throw Error("INVALID_BATCH");const batch=writeBatch(db);for(const {id,patch:p} of entries){if(!validUid(id)||!validPoint(p.x,p.y,p.zone)||!Number.isInteger(p.page)||p.page<0||p.page>=MAX_PAGES||Object.keys(p).some(k=>!["x","y","page","zone","scale","rotation"].includes(k)))throw Error("INVALID_ARRANGEMENT");batch.update(doc(collection(tree(uid),"gifts"),id),{...p,updatedAt:serverTimestamp()})}if(entries.length)await batch.commit();check()}
+ async function arrangeReceivedGifts(entries){check();if(!Array.isArray(entries)||entries.length>capacity("tree")+capacity("ground"))throw Error("INVALID_BATCH");const batch=writeBatch(db);for(const {id,patch:p} of entries){if(!validUid(id)||!validPoint(p.x,p.y,p.zone)||!Number.isInteger(p.page)||p.page<0||p.page>=MAX_PAGES||Object.keys(p).some(k=>!["x","y","page","zone","scale","rotation"].includes(k)))throw Error("INVALID_ARRANGEMENT");batch.update(doc(collection(tree(uid),"gifts"),id),{...p,updatedAt:serverTimestamp()})}if(entries.length)await batch.commit();check()}
  async function enableStaff(){check();await setDoc(config(),{enabled:true,updatedAt:serverTimestamp()});check()}
  return {staffEnabled,publish,listTrees,getTree,gifts,wishes,send,editReceivedGift,arrangeReceivedGifts,enableStaff};
 }

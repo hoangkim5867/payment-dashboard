@@ -1,8 +1,8 @@
 // View-only layout for old ornaments; explicit changes are saved by their owner.
 import {safeColor} from "./payment-noel-tree-catalog.mjs";
 export const MAX_PAGES=100, MAX_LOCAL=300;
-export const PAGE_SLOTS=24;
-export const treeSlots=[[50,21],[43,32],[57,32],[35,42],[50,42],[65,42],[29,53],[43,53],[57,53],[71,53],[23,64],[36,64],[50,64],[64,64],[77,64],[17,75],[30,75],[43,75],[57,75],[70,75],[83,75],[38,83],[50,83],[62,83]].map(([x,y])=>[x,Math.min(y,82)]);
+export const PAGE_SLOTS=40;
+export const treeSlots=[[50,19],[45,27],[55,27],[40,35],[50,35],[60,35],[35,43],[45,43],[55,43],[65,43],[35,51],[45,51],[55,51],[65,51],[30,59],[40,59],[50,59],[60,59],[70,59],[25,67],[35,67],[45,67],[55,67],[65,67],[75,67],[20,75],[30,75],[40,75],[50,75],[60,75],[70,75],[80,75],[15,82],[25,82],[35,82],[45,82],[55,82],[65,82],[75,82],[85,82]];
 export const groundSlots=[[14,90],[38,90],[62,90],[86,90],[14,97],[38,97],[62,97],[86,97]];
 export const safePage=v=>Number.isInteger(v)&&v>=0&&v<MAX_PAGES?v:0;
 export const safeZone=v=>v==="ground"?"ground":"tree";
@@ -26,4 +26,4 @@ export function countPages(layout,m={}){return Math.max(1,Math.min(MAX_PAGES,Mat
 export function pageCount(layout,p,z){return layout.counts.get(key(p,z))||0}
 export function nextPage(layout,p,z){for(let i=p;i<MAX_PAGES;i++)if(pageCount(layout,i,z)<capacity(z))return i;return -1}
 export function freeSpot(layout,p,z,exclude){const slots=z==="ground"?groundSlots:treeSlots;const occupied=layout.entries.filter(e=>e.page===p&&e.zone===z&&e.g!==exclude&&e.g.hidden!==true);return slots.slice().sort((a,b)=>distance(b)-distance(a))[0];function distance(a){return occupied.length?Math.min(...occupied.map(e=>(e.x-a[0])**2+(e.y-a[1])**2)):10000}}
-export function arrangePage(layout,p){const result=[];for(const z of ["tree","ground"]){const slots=z==="ground"?groundSlots:treeSlots;let n=0;for(const e of layout.entries.filter(e=>e.page===p&&e.zone===z&&e.g.hidden!==true)){if(n>=slots.length)break;const [x,y]=slots[n++];result.push({g:e.g,local:e.local,patch:{page:p,zone:z,x,y,scale:z==="tree"?.78:.9,rotation:0}})}}return result}
+export function arrangePage(layout,p){const result=[];for(const z of ["tree","ground"]){const slots=z==="ground"?groundSlots:treeSlots;let n=0;for(const e of layout.entries.filter(e=>e.page===p&&e.zone===z&&e.g.hidden!==true)){if(n>=slots.length)break;const [x,y]=slots[n++];result.push({g:e.g,local:e.local,patch:{page:p,zone:z,x,y,scale:z==="tree"?(pageCount(layout,p,"tree")>32?.60:pageCount(layout,p,"tree")>24?.68:.78):.9,rotation:0}})}}return result}
