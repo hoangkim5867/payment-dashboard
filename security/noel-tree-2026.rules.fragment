@@ -3,7 +3,7 @@
 // Do NOT replace any existing Payment Rules. Requires existing approvedUser() and adminUser().
 // This file is a fragment, not a complete ruleset.
 function noelEnabled2026(){
-  return approvedUser() && adminUser();
+  return approvedUser();
 }
 function noelTreeData2026(d){
   return d.keys().hasOnly(['name','style','color','updatedAt','decorations'])

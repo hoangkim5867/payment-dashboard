@@ -21,3 +21,6 @@ Both Admin and Staff can select Winter Blue, Chalet or Off; existing preferences
 
 ## Current release hold — supersedes Staff tree release above
 Christmas tree feature mounts for Admin only, including direct tree links. Staff retains independent Winter Blue / Chalet / Off theme selector. Existing local decorations remain untouched. Proposed Noel-only Rules fragment is Admin-only until explicit Staff release; this change does not publish live Rules.
+
+## Staff release authorized — 2026-11-26
+The temporary release hold is lifted at the owner's request. Approved Admin and Staff can use the tree, with Staff initially collapsed if they have no saved preference. The Noel rules fragment now allows approved users. Live Firestore Rules still must be updated by the project administrator (only noelEnabled2026 return expression); no other rules or financial data changed. No end-to-end gift persistence test is asserted.

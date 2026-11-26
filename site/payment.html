@@ -13382,8 +13382,8 @@ onAuthStateChanged(
         applyRoleUI();
         syncPaymentChaletTheme();
         // Seasonal storage is separate from payments; no background reads on sign-in.
-        // Temporary Admin-only preview until shared Noel is finished.
-        const noelAllowed=()=>currentAuthUser?.uid===user.uid&&isAdmin();
+        // Christmas tree release: approved Admin and Staff, independent of payment permissions.
+        const noelAllowed=()=>currentAuthUser?.uid===user.uid&&(isAdmin()||isStaff());
         const noelAdmin=isAdmin();
         const noelShared=createNoelShared({db,doc,collection,getDoc,getDocs,query,limit,setDoc,writeBatch,serverTimestamp,uid:user.uid,allowed:noelAllowed});
         const noelSession={uid:user.uid,name:currentOperatorName,admin:noelAdmin,allowed:noelAllowed,shared:noelShared};
