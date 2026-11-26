@@ -1,0 +1,46 @@
+// INSERT these match blocks and functions INSIDE the existing
+// match /databases/{database}/documents { ... } in CURRENT LIVE Rules.
+// Do NOT replace any existing Payment Rules. Requires existing approvedUser() and adminUser().
+// This file is a fragment, not a complete ruleset.
+function noelEnabled2026(){
+  return approvedUser() && (adminUser() ||
+    (exists(/databases/$(database)/documents/noelTreeConfig2026/settings)
+     && get(/databases/$(database)/documents/noelTreeConfig2026/settings).data.enabled == true));
+}
+function noelTreeData2026(d){
+  return d.keys().hasOnly(['name','style','color','updatedAt'])
+    && d.name is string && d.name.size() > 0 && d.name.size() <= 32
+    && d.style in ['pastel','chalet'] && d.color in ['pink','green','snow','cream']
+    && d.updatedAt == request.time;
+}
+match /noelTreeConfig2026/settings {
+  allow get: if approvedUser();
+  allow create, update: if adminUser()
+    && request.resource.data.keys().hasOnly(['enabled','updatedAt'])
+    && request.resource.data.enabled is bool && request.resource.data.updatedAt == request.time;
+}
+match /noelTrees2026/{uid} {
+  allow get, list: if noelEnabled2026();
+  allow create, update: if noelEnabled2026() && request.auth.uid == uid && noelTreeData2026(request.resource.data);
+  match /gifts/{giftId} {
+    allow get, list: if noelEnabled2026();
+    allow create: if noelEnabled2026() && exists(/databases/$(database)/documents/noelTrees2026/$(uid))
+      && request.resource.data.keys().hasOnly(['kind','senderUid','sender','x','y','createdAt'])
+      && request.resource.data.senderUid == request.auth.uid
+      && request.resource.data.sender is string && request.resource.data.sender.size() <= 32
+      && request.resource.data.kind in ['bear','snow','gift','bow','star','bell','candy','heart','deer','cookie','sock','moon','flake','penguin','ball','candle']
+      && request.resource.data.x is number && request.resource.data.x >= 0 && request.resource.data.x <= 100
+      && request.resource.data.y is number && request.resource.data.y >= 0 && request.resource.data.y <= 82
+      && request.resource.data.createdAt == request.time
+      && getAfter(/databases/$(database)/documents/noelTrees2026/$(uid)/wishes/$(giftId)).data.senderUid == request.auth.uid;
+  }
+  match /wishes/{giftId} {
+    allow get, list: if noelEnabled2026() && request.auth.uid == uid
+      && request.time >= timestamp.date(2026,12,22) + duration.value(17,'h');
+    allow create: if noelEnabled2026() && request.resource.data.keys().hasOnly(['senderUid','message','createdAt'])
+      && request.resource.data.senderUid == request.auth.uid
+      && request.resource.data.message is string && request.resource.data.message.size() <= 160
+      && request.resource.data.createdAt == request.time
+      && getAfter(/databases/$(database)/documents/noelTrees2026/$(uid)/gifts/$(giftId)).data.senderUid == request.auth.uid;
+  }
+}

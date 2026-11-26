@@ -4047,6 +4047,7 @@ window.HISTORY_2026_EDITED_PREVIEW = null;
 <script type="module">
 import {createPaymentEmergencyDrafts} from "./assets/js/payment-emergency-drafts.mjs";
 import {createNoelTreePreview} from "./assets/js/payment-noel-tree-preview.mjs";
+import {createNoelShared} from "./assets/js/payment-noel-tree-shared.mjs";
 import {isContractIdentifierInProject,filterExportWatchImportMistakes} from "./assets/js/payment-export-watch-import-guard.mjs";
 const noelTreePreview=createNoelTreePreview();
 import {buildBankOnlyPaymentPatch} from "./assets/js/payment-bank-only-edit.mjs";
@@ -13381,7 +13382,15 @@ onAuthStateChanged(
 
         applyRoleUI();
         syncPaymentChaletTheme();
-        if(isAdmin())noelTreePreview.mount({uid:user.uid,name:currentOperatorName,allowed:()=>isAdmin()&&currentAuthUser?.uid===user.uid});
+        // Seasonal storage is separate from payments. Staff checks one gate document per sign-in.
+        const noelAllowed=()=>currentAuthUser?.uid===user.uid&&(isAdmin()||isStaff());
+        const noelAdmin=isAdmin();
+        const noelShared=createNoelShared({db,doc,collection,getDoc,getDocs,query,limit,setDoc,writeBatch,serverTimestamp,uid:user.uid,allowed:noelAllowed});
+        const noelSession={uid:user.uid,name:currentOperatorName,admin:noelAdmin,allowed:noelAllowed,shared:noelShared};
+        if(noelAdmin)noelTreePreview.mount(noelSession);
+        else if(isStaff())void noelShared.staffEnabled().then(enabled=>{
+            if(enabled&&noelAllowed())noelTreePreview.mount(noelSession);
+        }).catch(()=>{});
 
         /*
            Security Rules now require an approved signed-in profile.
@@ -29048,6 +29057,14 @@ function getExportWatchMarkerMs(context = exportWatchContext()){
     }
 }
 
+function getExportWatchLatestExportMs(context = exportWatchContext()){
+    const base=getExportWatchMarkerMs(context);
+    try{
+        const latest=Number(localStorage.getItem(exportWatchMarkerKey(context)+"_latest"))||0;
+        const ack=Object.values(exportWatchAcknowledged(context)).reduce((max,v)=>Math.max(max,Number(v)||0),0);
+        return Math.max(base,latest,ack);
+    }catch{return base;}
+}
 function setExportWatchMarkerNow(context = exportWatchContext(), cutoffMs = Date.now()){
     if(!context.uid) return;
     // Storage failures must not break a successfully generated workbook.
@@ -29061,6 +29078,7 @@ function exportWatchAcknowledged(context){
 }
 
 function acknowledgeExportWatch(context, cutoffMs, paymentIds){
+    try{localStorage.setItem(exportWatchMarkerKey(context)+"_latest",String(Math.max(getExportWatchLatestExportMs(context),cutoffMs)));}catch{}
     if(!getExportWatchMarkerMs(context)){
         setExportWatchMarkerNow(context,cutoffMs);
         return;
@@ -30421,6 +30439,8 @@ function renderExportWatchPanel(
         return;
     }
 
+    const markerLabel = document.getElementById("exportWatchMarkerLabel");
+    markerLabel.title = currentLanguage === "zh" ? "最近一次成功导出；未导出的项目仍保留原对比记录。" : currentLanguage === "en" ? "Latest successful export; outstanding changes from other scopes remain." : "Lần xuất gần nhất; các khoản chưa xuất ở dự án khác vẫn được giữ lại.";
     const rows =
         exportWatchEventRows(
             exportWatch
@@ -30437,7 +30457,7 @@ function renderExportWatchPanel(
         els.remove.hidden = true;
         els.delta.textContent = "";
         document.getElementById("exportWatchCopyStatus").textContent = "";
-        document.getElementById("exportWatchMarkerLabel").textContent = exportWatchMarkerText(markerMs);
+        document.getElementById("exportWatchMarkerLabel").textContent = exportWatchMarkerText(getExportWatchLatestExportMs() || markerMs);
         const copy = exportWatchUiCopy();
         els.title.textContent = exportWatch
             ? (currentLanguage === "zh" ? "自上次导出 Excel 后暂无变更"
@@ -30475,7 +30495,7 @@ function renderExportWatchPanel(
     syncExportWatchTheme();
     els.title.textContent = currentLanguage === "zh" ? "自上次导出 Excel 后的变更"
         : currentLanguage === "en" ? "Changes since Excel export" : "Thay đổi từ lần xuất Excel";
-    document.getElementById("exportWatchMarkerLabel").textContent = exportWatchMarkerText(markerMs);
+    document.getElementById("exportWatchMarkerLabel").textContent = exportWatchMarkerText(getExportWatchLatestExportMs() || markerMs);
     els.add.hidden = summary.addCount === 0;
     els.edit.hidden = summary.editCount === 0;
     els.remove.hidden = summary.removeCount === 0;
