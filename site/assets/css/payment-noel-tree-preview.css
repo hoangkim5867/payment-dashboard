@@ -78,3 +78,11 @@
 }
 [data-light-mode="static"] .nt-bling-bulb,[data-light-mode="static"] .nt-light,[data-light-mode="static"] .nt-glint,[data-light-mode="static"] .nt-star-top,.nt-village-art .nt-bling-bulb,.nt-village-art .nt-light,.nt-village-art .nt-glint,.nt-bling-sample .nt-bling-bulb,.nt-bling-sample .nt-light,.nt-bling-sample .nt-glint,.nt-bling-sample .nt-star-top{animation:none!important}
 .nt-village-art .nt-bling-bulb,.nt-bling-sample .nt-bling-bulb{filter:drop-shadow(0 0 1.5px var(--nt-glow,#ffe1a0))}
+
+/* Background-only treatment: glow belongs to the tree, not the rectangular backdrop. */
+.nt-tree-svg.nt-depth-tree,.nt-village-art .nt-tree-svg.nt-depth-tree{filter:none}
+.nt-depth-tree>.nt-depth-foreground{filter:drop-shadow(0 1px 1px #fff9d9) drop-shadow(0 0 4px #fff0bd) drop-shadow(0 6px 6px #253b3852)}
+.nt-depth-far{filter:blur(.65px)}
+.nt-village-art .nt-depth-far{opacity:.27;filter:none}
+.nt-village-art .nt-depth-dust{display:none}
+.nt-village-art .nt-depth-tree>.nt-depth-foreground{filter:drop-shadow(0 1px 2px #ffe0a8) drop-shadow(0 3px 5px #0003)}
