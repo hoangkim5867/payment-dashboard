@@ -34,7 +34,7 @@ function runtime(){
     excelCashIpc:x=>x?.ipcNo||'',
     excelCashType:()=> '职工薪酬'
   };
-  return vm.runInNewContext(payroll+'\n'+tax+'\n({excelCashContent,excelPayrollLabel,excelTaxQuarterCode,excelTaxQuarterContent,excelGroupQuarterlyTaxRows})',context);
+  return vm.runInNewContext(payroll+'\n'+tax+'\n({excelCashContent,excelCashCompany,excelPayrollLabel,excelTaxQuarterCode,excelTaxQuarterContent,excelGroupQuarterlyTaxRows})',context);
 }
 
 test('Chinese IPC receipt uses compact identifier, preserves original receipt rows',()=>{
@@ -115,4 +115,31 @@ test('Management report 02A groups same-day quarterly tax without changing closi
  assert.equal(out[1].cashOut,75);
  assert.equal(out[1].balance,625);
  assert.equal(out.reduce((a,x)=>a+x.movement,0),-375);
+});
+
+test('Insurance export uses new Chinese labels without changing the source period or amount',()=>{
+  const f=runtime();
+  for(const [type,label] of [['insurance_cn','中方保险'],['insurance_vn','越籍保险']]){
+    const txn={source:'payroll',type,period:'2026-11',actualDate:'2026-12-05',actualAmount:123456.7};
+    const before=JSON.stringify(txn);
+    assert.equal(f.excelCashCompany(txn),label);
+    assert.equal(f.excelCashContent(txn),'2026-11'+label);
+    assert.equal(JSON.stringify(txn),before);
+  }
+});
+test('Old and new insurance names remain equivalent in both Google sync identity maps',()=>{
+  const server=fs.readFileSync(path.join(__dirname,'../../server/cash-sync-live-core.cjs'),'utf8');
+  const clientCode=extract('const CC_SYNC_PAYROLL_LABEL_ALIASES=new Map([','const ccGoogleSyncFingerprint=');
+  const clientKey=vm.runInNewContext(clientCode+'\nccGoogleSyncLedgerCompanyKey',{ccGoogleSyncNormalizeLabel:v=>String(v??'').normalize('NFKC').trim().toUpperCase().replace(/\\s+/g,'')});
+  const a=server.indexOf('function normalizeName('),b=server.indexOf('function sanitizeSource(');
+  assert.ok(a>=0&&b>a);
+  const serverIdentity=vm.runInNewContext(server.slice(a,b)+'\nidentity',{normDate:v=>v,round:v=>v,money:Number});
+  const row=name=>['2026-11-05',name,'','','','',0,0,0,0,123456.7,0,0];
+  for(const [oldName,newName] of [['中国社保','中方保险'],['越南社保','越籍保险']]){
+    assert.equal(clientKey(oldName,'',''),clientKey(newName,'',''));
+    assert.equal(serverIdentity(row(oldName)),serverIdentity(row(newName)));
+    assert.notEqual(clientKey(oldName,'HD01',''),clientKey(newName,'HD01',''));
+  }
+  assert.notEqual(clientKey('中方保险','',''),clientKey('越籍保险','',''));
+  assert.notEqual(serverIdentity(row('中方保险')),serverIdentity(row('越籍保险')));
 });
