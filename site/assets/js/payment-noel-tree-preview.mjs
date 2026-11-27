@@ -174,7 +174,7 @@ export function createNoelTreePreview(){
  dialog.append(controls,status);const list=node("div","nt-village"),area=node("div","nt-body");dialog.append(list,area);
  let viewSequence=0,activeUid="",activePage=0,directoryTrees=[],searchText="",villageScroll=0,villageLimit=24;
  const villageBack=button(words("‹ Về làng Noel","‹ Back to village","‹ 返回圣诞村"),()=>showVillage(),"nt-secondary nt-village-back");villageBack.hidden=true;dialog.insertBefore(villageBack,area);
- function showVillage(){if(!alive())return;viewSequence++;activeUid="";area.hidden=true;area.replaceChildren();villageBack.hidden=true;list.hidden=false;drawVillage();dialog.scrollTop=villageScroll}
+ function showVillage(){if(!alive())return;viewSequence++;activeUid="";dialog.classList.remove("nt-visit-editor");area.hidden=true;area.replaceChildren();villageBack.hidden=true;list.hidden=false;drawVillage();dialog.scrollTop=villageScroll}
  function drawVillage(){
  if(!alive())return;list.replaceChildren();
  const hero=node("div","nt-village-hero");hero.append(node("div","nt-village-kicker","✧ CHRISTMAS VILLAGE · 2026 ✧"));
@@ -203,12 +203,12 @@ export function createNoelTreePreview(){
  const local=(Array.isArray(tree.decorations)?tree.decorations.slice(0,MAX_LOCAL):[]).filter(g=>g&&itemById(g.kind)&&Number.isFinite(g.x)&&Number.isFinite(g.y)),remote=received.filter(g=>g&&itemById(g.kind)&&Number.isFinite(g.x)&&Number.isFinite(g.y));const layout=layoutGarden(local,remote);
  let total=countPages(layout,tree),page=Math.min(safePage(preferred),total-1),zone="tree",chosen=null,pos=null,sending=false;
  remoteOwner=uid;activeUid=uid;activePage=page;list.hidden=true;villageBack.hidden=false;area.hidden=false;
- area.replaceChildren();area.classList.add("nt-shared-garden");dialog.scrollTop=0;
+ area.replaceChildren();area.classList.add("nt-shared-garden");dialog.classList.add("nt-visit-editor");dialog.scrollTop=0;
  const scene=node("div","nt-scene nt-garden-scene"),side=node("div","nt-side nt-garden-tools"),stack=node("div","nt-garden-stack"),summary=node("div","nt-count"),cards=[],marker=node("span","nt-marker"),hint=node("p","nt-hint"),target=node("div","nt-garden-target");
- stack.tabIndex=0;stack.setAttribute("aria-label",words("Cuộn để xem tất cả cây","Scroll to view all trees","滚动查看所有圣诞树"));scene.append(node("h2","nt-name",tree.name),summary,stack);
+ const nav=node("div","nt-visit-nav"),headRow=node("div","nt-visit-heading"),owner=node("div","nt-visit-owner");owner.append(node("h2","nt-name",tree.name),summary);headRow.append(owner,nav);stack.setAttribute("aria-label",words("Cây đang ghé thăm","Tree being visited","正在访问的圣诞树"));scene.append(headRow,stack);
  const add=button(words("+ Thêm cây để gửi quà","+ Add tree for a gift","+ 添加圣诞树送礼"),()=>{if(sending||!current()||total>=MAX_PAGES)return;appendCard(total++);updateSummary();selectPage(total-1,true)},"nt-secondary nt-garden-add");
- scene.append(add,node("div","nt-garden-scroll-note",words("Cuộn xuống để xem các cây tiếp theo","Scroll down for more trees","向下滚动查看更多圣诞树")));
- function updateSummary(){summary.textContent=remote.length+" · "+t[7]+" · "+total+" "+words("cây","trees","棵树");add.disabled=sending||total>=MAX_PAGES}
+ scene.append(add);
+ function updateSummary(){summary.textContent=remote.length+" · "+t[7]+" · "+total+" "+words("cây","trees","棵树");add.disabled=sending||total>=MAX_PAGES;nav.replaceChildren(pageNav(page,total,p=>{if(!sending&&current())selectPage(p,false)}));for(const b of nav.querySelectorAll("button"))if(sending)b.disabled=true}
  function appendCard(p){
  const card=node("section","nt-garden-card"),heading=node("div","nt-garden-card-head"),title=node("strong","",treeLabel(tree,p)),counts=node("span","nt-garden-capacity"),canvas=node("div","nt-canvas");heading.append(title,counts);card.append(heading,canvas);
  canvas.append(treeArt(pageColor(tree,p),pageStyle(tree,p),"nt-shared-paint-"+p,sceneAt(tree,p)));
@@ -219,19 +219,19 @@ export function createNoelTreePreview(){
  page=p;activePage=p;pos=[x,y];sync()});
  }
  function ensurePage(p){while(total<=p&&total<MAX_PAGES)appendCard(total++);updateSummary()}
- function selectPage(p,scroll){if(p<0||p>=total)return;page=p;activePage=p;pos=null;sync();if(scroll){const el=cards[p].card;stack.scrollTo({top:stack.scrollTop+el.getBoundingClientRect().top-stack.getBoundingClientRect().top-3,behavior:"smooth"})}}
+ function selectPage(p,scroll){if(p<0||p>=total)return;page=p;activePage=p;pos=null;sync()}
  for(let p=0;p<total;p++)appendCard(p);
  const grid=makePicker(()=>chosen,kind=>{if(sending||!current())return;chosen=kind;pos=null;sync()});
  const sender=node("input","nt-input");sender.value=model.own.name||"";sender.placeholder=t[14];sender.maxLength=32;const wish=node("textarea","nt-input");wish.placeholder=t[5];wish.maxLength=160;
  const zoneRow=zonePicker(zone,z=>{if(sending)return;zone=z;pos=null;for(const [i,b] of Array.from(zoneRow.children).entries())b.classList.toggle("active",i===(zone==="tree"?0:1));sync()});
  const sendBtn=button(w[4],()=>{if(!current()||sending||!chosen||!pos)return;const dest=nextPage(layout,page,zone);if(dest<0)return;const [x,y]=dest===page?pos:freeSpot(layout,dest,zone);sending=true;sync();const gift={kind:chosen,x,y,page:dest,zone,scale:1,rotation:0,sender:sender.value,message:wish.value};void task(async()=>{try{await s.shared.send(uid,gift);if(current()){status.textContent=w[9];chosen=null;pos=null;marker.remove();if(uid===s.uid)await refreshOwnShared();if(current())await showTree(uid,dest)}}finally{sending=false;if(current())sync()}})},"nt-primary");
  function sync(){
- marker.remove();for(const e of cards)e.canvas.querySelectorAll(".nt-pending-drag").forEach(el=>el.remove());for(const [i,b] of Array.from(zoneRow.children).entries())b.classList.toggle("active",i===(zone==="tree"?0:1));for(const [i,e] of cards.entries()){e.card.classList.toggle("nt-garden-selected",i===page);e.canvas.style.cursor=chosen&&!sending?"crosshair":"default";const n=pageCount(layout,i,zone),full=n>=capacity(zone);e.counts.textContent=n+"/"+capacity(zone)+(full?" · "+words("Đầy","Full","已满"):"");e.card.classList.toggle("nt-garden-full",full)}
+ marker.remove();for(const e of cards)e.canvas.querySelectorAll(".nt-pending-drag").forEach(el=>el.remove());for(const [i,b] of Array.from(zoneRow.children).entries())b.classList.toggle("active",i===(zone==="tree"?0:1));for(const [i,e] of cards.entries()){e.card.hidden=i!==page;e.card.classList.toggle("nt-garden-selected",i===page);e.canvas.style.cursor=chosen&&!sending?"crosshair":"default";const n=pageCount(layout,i,zone),full=n>=capacity(zone);e.counts.textContent=n+"/"+capacity(zone)+(full?" · "+words("Đầy","Full","已满"):"");e.card.classList.toggle("nt-garden-full",full)}
  if(chosen&&pos){const preview=putArt(node("span","nt-marker nt-pending-drag"),chosen),entry={x:pos[0],y:pos[1],zone};ornamentPosition(preview,entry);cards[page].canvas.append(preview);attachStickerDrag(preview,cards[page].canvas,entry,(x,y,z)=>{if(pageCount(layout,page,z)>=capacity(z)&&z!==zone){hint.textContent=words("Khu vực này đã đầy.","This area is full.","该区域已满。");return}zone=z;pos=[x,y];sync()},()=>current()&&!sending);preview.addEventListener("click",e=>e.stopPropagation())}
  target.textContent=words("Đang chọn: ","Selected: ","已选：")+treeLabel(tree,page)+" · "+(zone==="ground"?words("Dưới gốc","Under tree","树下"):words("Trên cây","On tree","树上"));
- sendBtn.disabled=sending||!chosen||!pos||nextPage(layout,page,zone)<0;hint.textContent=!chosen?words("Chọn icon, rồi bấm vị trí trên cây bất kỳ.","Pick an icon, then tap any tree.","选择挂饰后点击任意一棵树。"):!pos?words("Bấm vị trí muốn đặt quà. Cây đầy sẽ chuyển sang cây tiếp theo.","Tap a spot. Full trees advance to the next one.","点击放置位置，满树将切换至下一棵。"):words("Kéo sticker để chỉnh vị trí · bấm Gửi quà khi xong.","Drag to adjust · Send gift when ready.","拖动调整位置 · 完成后送礼。");updateSummary()
+ sendBtn.disabled=sending||!chosen||!pos||nextPage(layout,page,zone)<0;hint.textContent=!chosen?words("Chọn sticker rồi bấm vị trí trên cây.","Pick an icon, then tap the tree.","选择挂饰后点击树上位置。"):!pos?words("Bấm vị trí muốn đặt quà. Cây đầy sẽ chuyển sang cây tiếp theo.","Tap a spot. Full trees advance to the next one.","点击放置位置，满树将切换至下一棵。"):words("Kéo sticker để chỉnh vị trí · bấm Gửi quà khi xong.","Drag to adjust · Send gift when ready.","拖动调整位置 · 完成后送礼。");updateSummary()
  }
- side.append(node("label","nt-label",t[3]),grid,zoneRow,target,hint,sender,wish,sendBtn);area.append(scene,side);sync();if(page>0)selectPage(page,true);
+ side.append(node("label","nt-label",t[3]),grid,zoneRow,target,hint,sender,wish,sendBtn);area.append(scene,side);sync();
  }
  await task(async()=>{await directory(requested)});
  }
