@@ -86,3 +86,18 @@
 .nt-village-art .nt-depth-far{opacity:.27;filter:none}
 .nt-village-art .nt-depth-dust{display:none}
 .nt-village-art .nt-depth-tree>.nt-depth-foreground{filter:drop-shadow(0 1px 2px #ffe0a8) drop-shadow(0 3px 5px #0003)}
+
+/* Desktop export picker: scoped to the nested dialog, no changes to tree artwork. */
+.nt-desktop-choice{box-sizing:border-box;width:min(385px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;padding:18px;border:1px solid var(--line);border-radius:16px;background:#203b55;color:#fff9ef;box-shadow:0 16px 56px #0008;font:inherit}
+.chalet .nt-desktop-choice{background:#4b3229;border-color:#b48a55;color:#fff2d9}
+.nt-desktop-choice::backdrop{background:#09111b99}
+.nt-desktop-title{margin:0 0 6px;font-size:17px;font-weight:750}
+.nt-desktop-desc{margin:0 0 14px;font-size:12px;line-height:1.45;opacity:.83}
+.nt-desktop-option{display:flex;align-items:flex-start;gap:9px;padding:11px;border:1px solid var(--line);border-radius:10px;margin:7px 0;background:var(--panel);cursor:pointer}
+.nt-desktop-option:has(input:checked){border-color:var(--accent)}
+.nt-desktop-option:has(input:disabled){opacity:.48;cursor:not-allowed}
+.nt-desktop-option input,.nt-desktop-remember input{margin:2px 0 0;accent-color:var(--accent);flex:none}
+.nt-desktop-option strong,.nt-desktop-option small{display:block}
+.nt-desktop-option strong{font-size:13px}.nt-desktop-option small{font-size:11px;opacity:.8;margin-top:4px;line-height:1.4}
+.nt-desktop-remember{display:flex;align-items:center;gap:7px;font-size:12px;margin:14px 0;cursor:pointer}
+.nt-desktop-actions{display:flex;justify-content:flex-end;gap:8px}.nt-desktop-actions button{min-height:35px}
