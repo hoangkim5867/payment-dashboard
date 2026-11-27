@@ -1,4 +1,4 @@
-import {finishBackdrop,finishAccessories,luxeTop} from "./payment-noel-luxe.mjs";
+import {luxeTop} from "./payment-noel-luxe.mjs";
 import {blingOptions} from "./payment-noel-bling.mjs";
 // Static SVG material artwork. No network, external images or Firebase calls.
 import {colors,ornamentArt} from "./payment-noel-tree-catalog.mjs";
@@ -48,17 +48,17 @@ export function materialArt(color,style,id){
  const paint="url(#"+id+"-mat)";
  if(style==="watercolor"){
   // Layered irregular brush silhouettes, translucent washes, visible pigment flecks.
-  for(let i=0;i<8;i++){const y=49+i*29,w=18+i*15;const shape=p("M150 "+(y-28)+" Q"+(150-w*.38)+" "+(y+8)+" "+(150-w)+" "+(y+25)+" Q"+(150-w*.75)+" "+(y+39)+" 150 "+(y+25)+" Q"+(150+w*.64)+" "+(y+43)+" "+(150+w)+" "+(y+23)+" Q"+(150+w*.28)+" "+(y+4)+" 150 "+(y-28)+"Z",i%3===0?b:a,c,.5);shape.setAttribute("class","nt-foliage");shape.setAttribute("opacity",".75");s.append(shape);for(let j=0;j<9;j++){const x=150+Math.sin(i*21+j*9)*w*.83;const blot=ellipse(x,y+14+Math.cos(j*13+i)*13,8+j%3*4,3+j%2*3,j%3===0?b:c);blot.setAttribute("opacity",".22");s.append(blot)}}
+  for(let i=0;i<8;i++){const y=49+i*29,w=18+i*15;const shape=p("M150 "+(y-28)+" Q"+(150-w*.38)+" "+(y+8)+" "+(150-w)+" "+(y+25)+" Q"+(150-w*.75)+" "+(y+39)+" 150 "+(y+25)+" Q"+(150+w*.64)+" "+(y+43)+" "+(150+w)+" "+(y+23)+" Q"+(150+w*.28)+" "+(y+4)+" 150 "+(y-28)+"Z",i%3===0?b:a,c,.5);shape.setAttribute("opacity",".75");s.append(shape);for(let j=0;j<9;j++){const x=150+Math.sin(i*21+j*9)*w*.83;const blot=ellipse(x,y+14+Math.cos(j*13+i)*13,8+j%3*4,3+j%2*3,j%3===0?b:c);blot.setAttribute("opacity",".22");s.append(blot)}}
  }else if(style==="knitted"){
   // Sculpted rounded tiers with paired stitches, seams and soft ribbed hem.
-  for(let i=3;i>=0;i--){const y=67+i*59,w=43+i*25;const outline="M150 "+(y-36)+" C"+(150-w*.3)+" "+(y+9)+" "+(150-w)+" "+(y+20)+" "+(150-w)+" "+(y+49)+" Q"+(150-w)+" "+(y+66)+" 150 "+(y+65)+" Q"+(150+w)+" "+(y+66)+" "+(150+w)+" "+(y+49)+" C"+(150+w)+" "+(y+20)+" "+(150+w*.3)+" "+(y+9)+" 150 "+(y-36)+"Z";const tier=p(outline,paint,c,2);tier.setAttribute("class","nt-foliage");s.append(tier);for(let row=0;row<3;row++){const yy=y+19+row*13,ww=w*(.55+row*.14);for(let x=150-ww+7;x<150+ww-5;x+=12)s.append(p("M"+(x-4)+" "+(yy-4)+" Q"+x+" "+yy+" "+x+" "+(yy+6)+" M"+(x+4)+" "+(yy-4)+" Q"+x+" "+yy+" "+x+" "+(yy+6),"none",b,2.2))}s.append(p("M"+(150-w+8)+" "+(y+53)+" Q150 "+(y+68)+" "+(150+w-8)+" "+(y+53),"none",c,3))}
+  for(let i=3;i>=0;i--){const y=67+i*59,w=43+i*25;const outline="M150 "+(y-36)+" C"+(150-w*.3)+" "+(y+9)+" "+(150-w)+" "+(y+20)+" "+(150-w)+" "+(y+49)+" Q"+(150-w)+" "+(y+66)+" 150 "+(y+65)+" Q"+(150+w)+" "+(y+66)+" "+(150+w)+" "+(y+49)+" C"+(150+w)+" "+(y+20)+" "+(150+w*.3)+" "+(y+9)+" 150 "+(y-36)+"Z";s.append(p(outline,paint,c,2));for(let row=0;row<3;row++){const yy=y+19+row*13,ww=w*(.55+row*.14);for(let x=150-ww+7;x<150+ww-5;x+=12)s.append(p("M"+(x-4)+" "+(yy-4)+" Q"+x+" "+yy+" "+x+" "+(yy+6)+" M"+(x+4)+" "+(yy-4)+" Q"+x+" "+yy+" "+x+" "+(yy+6),"none",b,2.2))}s.append(p("M"+(150-w+8)+" "+(y+53)+" Q150 "+(y+68)+" "+(150+w-8)+" "+(y+53),"none",c,3))}
  }else if(style==="crystal"){
   // Geometric cut-glass facets, clear highlights and a separate glass pedestal.
-  for(let i=2;i>=0;i--){const top=35+i*61,y=top+124,w=56+i*33;const outline="M150 "+top+" L"+(150-w)+" "+y+" L150 "+(y+18)+" L"+(150+w)+" "+y+"Z";const facet=p(outline,paint,"#f4ffff",2);facet.setAttribute("class","nt-foliage");s.append(facet,p("M150 "+top+" L150 "+(y+18)+" L"+(150-w)+" "+y+"Z",b,"#fff",1.2),p("M150 "+top+" L"+(150+w*.43)+" "+(y-18)+" L150 "+(y+18)+"Z","#ffffff90","#ffffff",1),p("M"+(150-w)+" "+y+" L150 "+(y-35)+" L"+(150+w)+" "+y,"none","#f6ffff",1.3))}
+  for(let i=2;i>=0;i--){const top=35+i*61,y=top+124,w=56+i*33;const outline="M150 "+top+" L"+(150-w)+" "+y+" L150 "+(y+18)+" L"+(150+w)+" "+y+"Z";s.append(p(outline,paint,"#f4ffff",2),p("M150 "+top+" L150 "+(y+18)+" L"+(150-w)+" "+y+"Z",b,"#fff",1.2),p("M150 "+top+" L"+(150+w*.43)+" "+(y-18)+" L150 "+(y+18)+"Z","#ffffff90","#ffffff",1),p("M"+(150-w)+" "+y+" L150 "+(y-35)+" L"+(150+w)+" "+y,"none","#f6ffff",1.3))}
   s.append(p("M132 294 H168 L185 326 H115Z",b,"#edfaff",2),ellipse(150,326,38,7,"#c2d8e6"));
  }else{
   // Natural fir: layered branch tips instead of a scalloped triangle.
-  for(let i=8;i>=0;i--){const y=49+i*28,w=13+i*14;const d="M150 "+(y-29)+" Q"+(150-w*.4)+" "+(y+8)+" "+(150-w)+" "+(y+25)+" L"+(150-w*.64)+" "+(y+21)+" L"+(150-w*.82)+" "+(y+34)+" L"+(150-w*.35)+" "+(y+25)+" L150 "+(y+39)+" L"+(150+w*.35)+" "+(y+25)+" L"+(150+w*.82)+" "+(y+34)+" L"+(150+w*.64)+" "+(y+21)+" L"+(150+w)+" "+(y+25)+" Q"+(150+w*.4)+" "+(y+8)+" 150 "+(y-29)+"Z";const branch=p(d,i%2?a:c,c,.7);branch.setAttribute("class","nt-foliage");s.append(branch);for(const dir of [-1,1])s.append(p("M150 "+(y-10)+" Q"+(150+dir*w*.3)+" "+(y+10)+" "+(150+dir*w*.83)+" "+(y+23),"none",b,3),p("M"+(150+dir*w*.18)+" "+(y+7)+" Q"+(150+dir*w*.4)+" "+(y+15)+" "+(150+dir*w*.72)+" "+(y+20),"none","#f8fcff",4.5))}
+  for(let i=8;i>=0;i--){const y=49+i*28,w=13+i*14;const d="M150 "+(y-29)+" Q"+(150-w*.4)+" "+(y+8)+" "+(150-w)+" "+(y+25)+" L"+(150-w*.64)+" "+(y+21)+" L"+(150-w*.82)+" "+(y+34)+" L"+(150-w*.35)+" "+(y+25)+" L150 "+(y+39)+" L"+(150+w*.35)+" "+(y+25)+" L"+(150+w*.82)+" "+(y+34)+" L"+(150+w*.64)+" "+(y+21)+" L"+(150+w)+" "+(y+25)+" Q"+(150+w*.4)+" "+(y+8)+" 150 "+(y-29)+"Z";s.append(p(d,i%2?a:c,c,.7));for(const dir of [-1,1])s.append(p("M150 "+(y-10)+" Q"+(150+dir*w*.3)+" "+(y+10)+" "+(150+dir*w*.83)+" "+(y+23),"none",b,3),p("M"+(150+dir*w*.18)+" "+(y+7)+" Q"+(150+dir*w*.4)+" "+(y+15)+" "+(150+dir*w*.72)+" "+(y+20),"none","#f8fcff",4.5))}
  }
  materialLights(s,style);
  s.append(p("M150 6 158 25 180 27 164 41 169 63 150 51 131 63 136 41 120 27 142 25Z","#ffdb7d","#ffeab0",2));s.lastChild.setAttribute("class","nt-star-top");return s;
@@ -98,9 +98,8 @@ export function addSceneBackground(s,kind,id){
  g.append(layer);s.insertBefore(g,s.firstChild);return s;
 }
 export function decorateScene(s,scene,id="nt"){
- const first=s.firstChild;addSceneBackground(s,scene.gardenBackgrounds,id);const background=s.firstChild!==first?s.firstChild:null;
- const full=s.getAttribute("viewBox")==="0 0 300 360";if(full)finishBackdrop(s,id,scene,background);
- const existing=new Set(s.children);const {gardenBases:base,gardenSides:side,gardenTops:top}=scene;
+ addSceneBackground(s,scene.gardenBackgrounds,id);
+ const {gardenBases:base,gardenSides:side,gardenTops:top}=scene;
  if(base==="basket"){s.append(p("M117 294 H183 L176 336 H124Z","#c49c6a","#806044",2));for(let y=301;y<335;y+=7){s.append(p("M124 "+y+" H176","none","#edd5aa",2));for(let x=126;x<176;x+=8)s.append(p("M"+x+" "+y+" l5 6","none","#92704a",1))}}
  if(base==="pot")s.append(p("M115 295 H185 L176 336 H124Z","#b76a57","#8c4c43",2),rect(112,292,76,9,3,"#da9882"));
  if(base==="snowmat")s.append(ellipse(150,334,117,13,"#f9fdff"),ellipse(150,337,92,5,"#d9e9f4"));
@@ -112,9 +111,8 @@ export function decorateScene(s,scene,id="nt"){
  if(side==="tiger")sticker(s,"tiger",225,276,66);
  if(side==="cat")sticker(s,"kitty_white",225,276,66);
  if(side==="deer")sticker(s,"deer",225,275,66);
- s.querySelector(".nt-star-top")?.remove();
- extraAccessories(s,{...scene,gardenTops:"none"},sticker);
- finishAccessories(s,Array.from(s.children).filter(n=>!existing.has(n)),id,scene);
- if(full||s.getAttribute("viewBox")==="104 0 92 105")luxeTop(s,top,id,scene);
+ if(top!=="star"){s.querySelector(".nt-star-top")?.remove();if(top==="bow")sticker(s,"bow_red",122,3,56);if(top==="snowflake")sticker(s,"snow_white",122,3,56)}
+ extraAccessories(s,scene,sticker);
+ if(["bethlehem","moravian","sunburst","pearlstar","filigreestar","rubystar","aurorastar","cometstar","artdecostar","rosettestar","tiara","twinbells","lotusgem"].includes(top))luxeTop(s,top,id,{...scene,gardenLightStrength:"soft"});
  return s;
 }

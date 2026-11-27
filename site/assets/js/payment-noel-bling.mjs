@@ -17,7 +17,7 @@ const curve=(w,offset=0)=>"M"+w[0]+" "+(w[1]+offset)+" Q"+w[4]+" "+(w[5]+offset)
 const at=(w,t,offset=0)=>{const u=1-t;return [u*u*w[0]+2*u*t*w[4]+t*t*w[2],u*u*w[1]+2*u*t*w[5]+t*t*w[3]+offset]};
 const star=(x,y,r,col)=>path("M"+x+" "+(y-r)+" Q"+(x+1)+" "+(y-1)+" "+(x+r)+" "+y+" Q"+(x+1)+" "+(y+1)+" "+x+" "+(y+r)+" Q"+(x-1)+" "+(y+1)+" "+(x-r)+" "+y+" Q"+(x-1)+" "+(y-1)+" "+x+" "+(y-r)+"Z",col);
 function animated(n,i,color){n.setAttribute("class","nt-bling-bulb");n.setAttribute("style","--nt-glow:"+color+";--nt-delay:"+(-i*.19)+"s;--nt-twinkle:"+(-((i*17)%23)*.17)+"s");return n}
-export function applyBling(s,style,scene,id="nt-bling"){
+export function applyBling(s,style,scene){
  const light=blingOptions.gardenLights.includes(scene.gardenLights)?scene.gardenLights:"original",garland=blingOptions.gardenGarlands.includes(scene.gardenGarlands)?scene.gardenGarlands:"none",mode=blingOptions.gardenLightMode.includes(scene.gardenLightMode)?scene.gardenLightMode:"twinkle",strength=blingOptions.gardenLightStrength.includes(scene.gardenLightStrength)?scene.gardenLightStrength:"medium";
  const rows=wires[style]||wires.classic;
  // Keep original artwork intact for old trees and only replace lighting for an explicit choice.
@@ -33,21 +33,21 @@ export function applyBling(s,style,scene,id="nt-bling"){
  else {g.append(path(d,"none",garland==="cranberry"?"#a95055":"#f7ebd9",1));for(let k=0;k<=12;k++){const [x,y]=at(w,k/12,10);if(garland==="crystaldrops"){g.append(dot(x,y,2,"#dff9ff"),path("M"+x+" "+(y+3)+" l3 5 -3 5 -3 -5Z","#c9ecfa","#f8ffff",.8))}else{g.append(dot(x,y,garland==="pearl"?3:2.8,garland==="pearl"?"#f9e9d8":"#ad384b"),dot(x-.8,y-.8,1,"#fff6e6"))}}}
  }insert(g)}
  if(light==="original"||light==="off")return s;
- const g=el("g",{class:"nt-custom-bling","pointer-events":"none"}),palette=palettes[light],defs=el("defs"),halos=el("g",{class:"nt-bulb-halos"});for(const [i,color] of palette.entries()){const grad=el("radialGradient",{id:id+"-bulb-halo-"+i});for(const [offset,opacity] of [["0%",".92"],["20%",".55"],["55%",".18"],["100%","0"]])grad.append(el("stop",{offset,"stop-color":color,"stop-opacity":opacity}));defs.append(grad)}g.append(defs,halos);const halo=(x,y,color,r=13)=>halos.append(dot(x,y,r,"url(#"+id+"-bulb-halo-"+palette.indexOf(color)+")"));
+ const g=el("g",{class:"nt-custom-bling","pointer-events":"none"}),palette=palettes[light];
  let seq=0;
- if(light==="stardust"){for(let i=0;i<32;i++){const y=47+(i*37)%244,x=150+Math.sin(i*2.39)*Math.min(136,22+(y-30)*.48),r=1.7+(i%5)*.85,col=palette[i%3];halo(x,y,col,14);g.append(animated(i%3===0?star(x,y,r+3,col):dot(x,y,r,col),seq++,col))}}
+ if(light==="stardust"){for(let i=0;i<32;i++){const y=47+(i*37)%244,x=150+Math.sin(i*2.39)*Math.min(136,22+(y-30)*.48),r=1.7+(i%5)*.85,col=palette[i%3];g.append(animated(i%3===0?star(x,y,r+2,col):dot(x,y,r,col),seq++,col))}}
  else for(const [j,w] of rows.entries()){
-  if(light!=="candlelight"){g.append(path(curve(w),"none",light==="crystalfrost"?"#b9ebff":"#caa253",2),path(curve(w,-.5),"none",light==="crystalfrost"?"#effdff":"#fff0bd",.9))}
-  const n=light==="candlelight"?4+j:light==="retromulti"?6+j*2:light==="pearlglow"?15+j*3:13+j*3;
+  if(light!=="candlelight")g.append(path(curve(w),"none",light==="crystalfrost"?"#ccebf8":"#e2c184",light==="retromulti"?1.4:.8));
+  const n=light==="candlelight"?4+j:light==="retromulti"?6+j*2:light==="pearlglow"?12+j*2:10+j*2;
   for(let k=0;k<n;k++){const [x,y]=at(w,k/(n-1)),col=palette[(k+j)%palette.length];let b;
    if(light==="candlelight"){g.append(path("M"+(x-3)+" "+y+" h6 v-10 h-6Z","#f1e3c8","#c5a578",.7),path("M"+(x-5)+" "+(y+1)+" h10","none","#bf9657",2));b=path("M"+x+" "+(y-12)+" q-6 -3 0 -12 q6 9 0 12Z",col)}
    else if(light==="retromulti"){g.append(path("M"+(x-2)+" "+(y-3)+" h4 v4 h-4Z","#9f8f67"));b=path("M"+x+" "+(y+1)+" q-7 5 -3 11 q3 3 6 0 q4 -6 -3 -11Z",col)}
    else if(light==="crystalfrost"){b=k%3===0?star(x,y,5,col):path("M"+x+" "+(y-4)+" l3 4 -3 5 -3 -5Z",col)}
    else if(light==="royalgold"&&k%3===0)b=star(x,y,5.5,col);
    else {b=dot(x,y,light==="pearlglow"?3.7:light==="royalgold"?3.4:2.6,col);if(light==="pearlglow")g.append(dot(x-1,y-1,1.1,"#fff"))}
-   halo(x,light==="candlelight"?y-16:light==="retromulti"?y+7:y,col,light==="royalgold"?16:light==="crystalfrost"?14:12);g.append(animated(b,seq++,col));
+   g.append(animated(b,seq++,col));
   }
  }
- if(light!=="stardust"){for(const [i,[x,y]] of [[102,58],[205,74],[65,155],[240,166],[31,238],[272,252],[80,303],[222,300]].entries()){const col=palette[i%palette.length];halo(x,y,col,17);g.append(animated(star(x,y,light==="royalgold"?9:6,col),seq++,col))}}
+ if(light!=="stardust"){for(const [i,[x,y]] of [[102,58],[205,74],[65,155],[240,166],[31,238],[272,252],[80,303],[222,300]].entries()){const col=palette[i%palette.length];g.append(animated(star(x,y,light==="royalgold"?7:4.5,col),seq++,col))}}
  insert(g);return s;
 }

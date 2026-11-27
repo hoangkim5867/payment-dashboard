@@ -57,11 +57,11 @@
 
 /* Per-tree bling: render only on the client. Directory thumbnails remain static. */
 .nt-bling-controls{display:flex;flex-direction:column;gap:5px}.nt-bling-controls:empty{display:none}.nt-bling-settings button{flex:1;min-width:0;font-size:11px;padding:7px 4px}.nt-bling-picks .nt-bling-sample{height:105px;max-width:100%;filter:none}.nt-scene-categories{flex-wrap:wrap}.nt-scene-categories button{flex:1 1 28%}
-[data-light-strength="soft"] .nt-bling-bulb{opacity:.78;--nt-shine:2.2px}
-[data-light-strength="medium"] .nt-bling-bulb{opacity:.98;--nt-shine:4px}
-[data-light-strength="bright"] .nt-bling-bulb{opacity:1;--nt-shine:6px}
-.nt-bling-bulb{filter:drop-shadow(0 0 1px #fff9df) drop-shadow(0 0 var(--nt-shine,4px) var(--nt-glow,#ffe1a0));pointer-events:none}
-[data-light-kind="pearlglow"][data-light-strength="medium"] .nt-bling-bulb{--nt-shine:3.2px}
+[data-light-strength="soft"] .nt-bling-bulb{opacity:.65;--nt-shine:1.4px}
+[data-light-strength="medium"] .nt-bling-bulb{opacity:.93;--nt-shine:2.8px}
+[data-light-strength="bright"] .nt-bling-bulb{opacity:1;--nt-shine:4.6px}
+.nt-bling-bulb{filter:drop-shadow(0 0 var(--nt-shine,2.8px) var(--nt-glow,#ffe1a0));pointer-events:none}
+[data-light-kind="pearlglow"][data-light-strength="medium"] .nt-bling-bulb{--nt-shine:1.8px}
 [data-light-strength="soft"] .nt-custom-bling{opacity:.65}
 [data-light-kind="off"] .nt-star-top{animation:none;filter:none}
 [data-light-strength="soft"] .nt-fairy-lights,[data-light-strength="soft"] .nt-glints{opacity:.65}
@@ -78,26 +78,3 @@
 }
 [data-light-mode="static"] .nt-bling-bulb,[data-light-mode="static"] .nt-light,[data-light-mode="static"] .nt-glint,[data-light-mode="static"] .nt-star-top,.nt-village-art .nt-bling-bulb,.nt-village-art .nt-light,.nt-village-art .nt-glint,.nt-bling-sample .nt-bling-bulb,.nt-bling-sample .nt-light,.nt-bling-sample .nt-glint,.nt-bling-sample .nt-star-top{animation:none!important}
 .nt-village-art .nt-bling-bulb,.nt-bling-sample .nt-bling-bulb{filter:drop-shadow(0 0 1.5px var(--nt-glow,#ffe1a0))}
-
-/* Luxe finishing. Artwork remains crisp; only small highlights are animated. */
-.nt-bulb-halos{opacity:.83}
-[data-light-strength="soft"] .nt-bulb-halos{opacity:.48}
-[data-light-strength="bright"] .nt-bulb-halos{opacity:1}
-.nt-luxe-spark{opacity:.95;transform-box:fill-box;transform-origin:center;filter:drop-shadow(0 0 2px #fff7cf) drop-shadow(0 0 4px #ffd480)}
-.nt-luxe-scene-icon{filter:drop-shadow(0 0 1px #fff5dc) drop-shadow(0 1px 2px #24191c55)}
-.nt-luxe-topper{filter:drop-shadow(0 0 2px #ffe9b7) drop-shadow(0 3px 2px #33232660)}
-[data-light-kind="off"] .nt-luxe-topper{filter:drop-shadow(0 2px 2px #33232660)}
-.nt-luxe-icon .nt-sticker-svg,.nt-luxe-icon .nt-emoji{filter:drop-shadow(0 0 .65px #fff9e9) drop-shadow(0 0 1.7px #ffe1a7) drop-shadow(0 1px 1px #4b34294d) saturate(1.12)}
-.nt-grid .nt-luxe-icon{position:relative}
-.nt-luxe-icon::after{content:"";position:absolute;pointer-events:none;top:6%;right:4%;width:.31em;height:.31em;background:#fffdf0;clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);filter:drop-shadow(0 0 2px #ffe29d);opacity:.95}
-.nt-grid .nt-luxe-icon::after{top:16%;right:16%}
-.nt-canvas:has([data-light-kind="off"]) .nt-luxe-icon::after,.nt-mini-art:has([data-light-kind="off"]) .nt-luxe-icon::after,.nt-village-art:has([data-light-kind="off"]) .nt-luxe-icon::after{display:none}
-@media(prefers-reduced-motion:no-preference){
- .nt-canvas [data-light-mode]:not([data-light-mode="static"]) .nt-luxe-spark,.nt-mini-art [data-light-mode]:not([data-light-mode="static"]) .nt-luxe-spark{animation:nt-luxe-jewel 4.8s ease-in-out infinite;animation-delay:var(--nt-spark-delay,0s)}
- .nt-canvas [data-light-mode="pulse"] .nt-bulb-halos{animation:nt-bling-pulse 3.5s ease-in-out infinite}
- .nt-canvas [data-light-mode="sparkle"] .nt-luxe-spark{animation:nt-luxe-jewel 3.4s ease-in-out infinite;animation-delay:var(--nt-spark-delay,0s)}
- @keyframes nt-luxe-jewel{0%,100%{opacity:.72;transform:scale(.86)}26%{opacity:1;transform:scale(1.14)}42%{opacity:.55;transform:scale(.8)}65%{opacity:1;transform:scale(1.05)}}
-}
-.nt-village-art .nt-luxe-spark,.nt-scene-sample .nt-luxe-spark{animation:none;filter:none}
-.nt-village-art .nt-bulb-halos,.nt-bling-sample .nt-bulb-halos{opacity:.64}
-.nt-village-art .nt-luxe-icon::after{opacity:.65}
