@@ -25,7 +25,7 @@ export function layoutGarden(local=[],remote=[]){
 export const cleanTreeName=v=>typeof v==="string"?v.trim().slice(0,32):"";
 export const safeGardenNames=v=>Array.isArray(v)?v.slice(0,MAX_PAGES).map(cleanTreeName):[];
 export function treeNameAt(m,p){return cleanTreeName(m.gardenNames?.[p])||(p===0?cleanTreeName(m.name):"")}
-export function countPages(layout,m={}){return Math.max(1,Math.min(MAX_PAGES,Math.max(...["gardenColors","gardenStyles","gardenNames","gardenBases","gardenSides","gardenTops","gardenBackgrounds"].map(k=>Array.isArray(m[k])?m[k].length:0),safePage(m.representative)+1,...layout.entries.map(e=>e.page+1))))}
+export function countPages(layout,m={}){return Math.max(1,Math.min(MAX_PAGES,Math.max(...["gardenColors","gardenStyles","gardenNames","gardenBases","gardenSides","gardenTops","gardenBackgrounds","gardenLights","gardenGarlands","gardenLightMode","gardenLightStrength"].map(k=>Array.isArray(m[k])?m[k].length:0),safePage(m.representative)+1,...layout.entries.map(e=>e.page+1))))}
 export function directoryPages(trees,giftsFor=()=>[]){return trees.flatMap(tree=>{const local=(Array.isArray(tree.decorations)?tree.decorations:[]).filter(g=>g&&typeof g.kind==="string"&&Number.isFinite(g.x)&&Number.isFinite(g.y));const gifts=giftsFor(tree.uid)||[],layout=layoutGarden(local,gifts),total=countPages(layout,tree);return Array.from({length:total},(_,page)=>({tree,page,layout,total}))})}
 
 export function pageCount(layout,p,z){return layout.counts.get(key(p,z))||0}

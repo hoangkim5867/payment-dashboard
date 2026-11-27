@@ -1,3 +1,4 @@
+import {blingOptions} from "./payment-noel-bling.mjs";
 // Static SVG material artwork. No network, external images or Firebase calls.
 import {colors,ornamentArt} from "./payment-noel-tree-catalog.mjs";
 import {extraOptions,extraBackground,extraAccessories} from "./payment-noel-scene-expansion.mjs";
@@ -10,6 +11,7 @@ const rect=(x,y,width,height,rx,fill)=>el("rect",{x,y,width,height,rx,fill});
 export const materialStyles=["watercolor","knitted","crystal","forest"];
 export const accessoryOptions={gardenBases:["default","basket","pot","snowmat","wood"],gardenSides:["none","gifts","fence","lantern","snowman","tiger","cat","deer"],gardenTops:["star","bow","snowflake","none"],gardenBackgrounds:["none","snowforest","cabinroom","wintervillage","pastelstudio"]};
 for(const k of Object.keys(extraOptions))accessoryOptions[k].push(...extraOptions[k]);
+Object.assign(accessoryOptions,blingOptions);
 export const safeAccessory=(key,v)=>accessoryOptions[key].includes(v)?v:accessoryOptions[key][0];
 export const sceneAt=(m,i)=>Object.fromEntries(Object.keys(accessoryOptions).map(k=>[k,safeAccessory(k,m[k]?.[i])]));
 // Material-specific garlands follow each silhouette. Reuse the existing CSS
