@@ -2196,8 +2196,8 @@ function excelLinkedPayrollRecord(x){
 function excelPayrollTypeFromCash(x,record=null){
     if(record?.type)return record.type;
     const sub=String(x?.subCode||'').toUpperCase(),cat=String(x?.category||''),desc=String(x?.description||'');
-    if(sub==='BHTQ'||/Bảo hiểm Trung Quốc|Bảo hiểm TQ|中国社保|中方社保/i.test(cat+' '+desc))return 'insurance_cn';
-    if(sub==='BHVN'||/Bảo hiểm Việt Nam|Bảo hiểm VN|越南社保|越籍社保/i.test(cat+' '+desc))return 'insurance_vn';
+    if(sub==='BHTQ'||/Bảo hiểm Trung Quốc|Bảo hiểm TQ|中国社保|中方社保|中方保险/i.test(cat+' '+desc))return 'insurance_cn';
+    if(sub==='BHVN'||/Bảo hiểm Việt Nam|Bảo hiểm VN|越南社保|越籍社保|越籍保险/i.test(cat+' '+desc))return 'insurance_vn';
     if(sub==='KPCD'||/Phí công đoàn|工会经费|工会费/i.test(cat+' '+desc))return 'union';
     if(sub==='TH'||/Thuế TNCN|个人所得税/i.test(cat+' '+desc))return 'tax';
     if(sub==='THUONG'||/Thưởng|奖金/i.test(cat+' '+desc))return 'bonus';
@@ -2210,7 +2210,7 @@ function excelPayrollLabel(x,lang=cashLang,withMonth=false){
     const record=excelLinkedPayrollRecord(x),type=excelPayrollTypeFromCash(x,record),group=record?inferPayrollStaffGroup(record):'';
     const dict={
       vi:{salary:'Lương thực nhận',salary_vn:'Lương Việt Nam',salary_cn:'Lương Trung Quốc',bonus:'Thưởng',tax:'Thuế TNCN',insurance_vn:'Bảo hiểm VN',insurance_cn:'Bảo hiểm TQ',union:'Phí công đoàn',insurance:'Bảo hiểm',meal:'Tiền ăn',other:'Nhân sự / khoản khác'},
-      zh:{salary:'实发工资',salary_vn:'越籍员工工资',salary_cn:'中方员工工资',bonus:'奖金',tax:'个人所得税',insurance_vn:'越南社保',insurance_cn:'中国社保',union:'工会经费',insurance:'社保',meal:'伙食费',other:'人员 / 其他'},
+      zh:{salary:'实发工资',salary_vn:'越籍员工工资',salary_cn:'中方员工工资',bonus:'奖金',tax:'个人所得税',insurance_vn:'越籍保险',insurance_cn:'中方保险',union:'工会经费',insurance:'社保',meal:'伙食费',other:'人员 / 其他'},
       en:{salary:'Net salary',salary_vn:'Vietnamese payroll',salary_cn:'Chinese payroll',bonus:'Bonus',tax:'Personal income tax',insurance_vn:'Vietnam insurance',insurance_cn:'China insurance',union:'Union fee',insurance:'Insurance',meal:'Meal allowance',other:'Payroll / other'}
     };
     let key=type;
@@ -6853,8 +6853,8 @@ const CC_SYNC_PAYROLL_LABEL_ALIASES=new Map([
   ['LƯƠNGTRUNGQUỐC','PAYROLL_CN'],['中方员工工资','PAYROLL_CN'],
   ['TIỀNĂN','PAYROLL_MEAL'],['伙食费','PAYROLL_MEAL'],
   ['LƯƠNGVIỆTNAM','PAYROLL_VN'],['越籍员工工资','PAYROLL_VN'],
-  ['BẢOHIỂMTQ','PAYROLL_CN_INSURANCE'],['中国社保','PAYROLL_CN_INSURANCE'],
-  ['BẢOHIỂMVN','PAYROLL_VN_INSURANCE'],['越南社保','PAYROLL_VN_INSURANCE'],
+  ['BẢOHIỂMTQ','PAYROLL_CN_INSURANCE'],['中国社保','PAYROLL_CN_INSURANCE'],['中方保险','PAYROLL_CN_INSURANCE'],
+  ['BẢOHIỂMVN','PAYROLL_VN_INSURANCE'],['越南社保','PAYROLL_VN_INSURANCE'],['越籍保险','PAYROLL_VN_INSURANCE'],
   ['PHÍCÔNGĐOÀN','PAYROLL_UNION'],['工会经费','PAYROLL_UNION']
 ]);
 const ccGoogleSyncLedgerCompanyKey=(company,contractNo,ipc)=>{
