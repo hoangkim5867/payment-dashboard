@@ -1,3 +1,4 @@
+import {backgroundNames,depthBackground,isolateBackgroundForeground} from "./payment-noel-depth-backgrounds.mjs";
 import {luxeTop} from "./payment-noel-luxe.mjs";
 import {blingOptions} from "./payment-noel-bling.mjs";
 // Static SVG material artwork. No network, external images or Firebase calls.
@@ -12,7 +13,8 @@ const rect=(x,y,width,height,rx,fill)=>el("rect",{x,y,width,height,rx,fill});
 export const materialStyles=["watercolor","knitted","crystal","forest"];
 export const accessoryOptions={gardenBases:["default","basket","pot","snowmat","wood"],gardenSides:["none","gifts","fence","lantern","snowman","tiger","cat","deer"],gardenTops:["star","bow","snowflake","none"],gardenBackgrounds:["none","snowforest","cabinroom","wintervillage","pastelstudio"]};
 for(const k of Object.keys(extraOptions))accessoryOptions[k].push(...extraOptions[k]);
-Object.assign(accessoryOptions,blingOptions);
+accessoryOptions.gardenBackgrounds.push(...Object.keys(backgroundNames));
+Object.assign(accessoryOptions,blingOptions,{gardenBackgroundLevel:["medium","soft","focus"]});
 export const safeAccessory=(key,v)=>accessoryOptions[key].includes(v)?v:accessoryOptions[key][0];
 export const sceneAt=(m,i)=>Object.fromEntries(Object.keys(accessoryOptions).map(k=>[k,safeAccessory(k,m[k]?.[i])]));
 // Material-specific garlands follow each silhouette. Reuse the existing CSS
@@ -65,40 +67,9 @@ export function materialArt(color,style,id){
 }
 function sticker(s,kind,x,y,w){const a=ornamentArt(kind);if(a.namespaceURI===ns){a.setAttribute("x",x);a.setAttribute("y",y);a.setAttribute("width",w);a.setAttribute("height",w);s.append(a)}else{const t=el("text",{x:x+w/2,y:y+w*.8,"text-anchor":"middle","font-size":w*.8,"font-family":"Apple Color Emoji, Segoe UI Emoji, sans-serif"});t.textContent=a.textContent;s.append(t)}}
 // Original vector scenery, shared by the editor, village, album and PNG.
-export function addSceneBackground(s,kind,id){
- if(kind==="none")return s;
- if(extraBackground(s,kind,id))return s;
- const palette={snowforest:["#c6dce3","#f8eee0","#a4b9bd"],cabinroom:["#674337","#c99b77","#a67d5e"],wintervillage:["#18334f","#667c99","#bed4e0"],pastelstudio:["#f2dce6","#fff8ed","#e8ccd6"]}[kind];
- if(!palette)return s;
- const [a,b,c]=palette,g=el("g",{"aria-hidden":"true"}),defs=el("defs"),grad=el("linearGradient",{id:id+"-scene",x1:"0",y1:"0",x2:"0",y2:"100%"}),clip=el("clipPath",{id:id+"-scene-clip"});
- grad.append(el("stop",{offset:"0%","stop-color":a}),el("stop",{offset:"100%","stop-color":b}));clip.append(rect(0,0,300,360,13,"#fff"));defs.append(grad,clip);g.append(defs);const layer=el("g",{"clip-path":"url(#"+id+"-scene-clip)"});layer.append(rect(0,0,300,360,0,"url(#"+id+"-scene)"));
- const fir=(x,y,w,h,fill,snow)=>{for(let j=0;j<3;j++){let yy=y+j*h*.24,ww=w*(.42+j*.29);layer.append(p("M"+x+" "+yy+" L"+(x-ww)+" "+(yy+h*.5)+" Q"+x+" "+(yy+h*.58)+" "+(x+ww)+" "+(yy+h*.5)+"Z",fill));if(snow)layer.append(p("M"+x+" "+(yy+3)+" L"+(x-ww*.52)+" "+(yy+h*.29)+" Q"+x+" "+(yy+h*.23)+" "+(x+ww*.52)+" "+(yy+h*.29)+"Z",snow))}};
- const stars=(n,col)=>{for(let i=0;i<n;i++)layer.append(circle((i*67+19)%300,(i*47+12)%268,.6+(i%4)*.45,col))};
- if(kind==="snowforest"){
- layer.append(circle(235,60,28,"#fff7dc"),p("M0 193 Q61 109 109 183 T220 172 T300 154 V360 H0Z","#bdcfd5"),p("M0 254 Q60 200 130 245 T300 213 V360 H0Z","#dbe8e9"));
- for(const [x,y,w,h] of [[-4,71,37,172],[37,128,29,132],[66,178,23,96],[278,63,39,181],[244,124,24,133],[218,176,20,91]])fir(x,y,w,h,"#789c9d","#e7f1ef");
- layer.append(p("M0 289 Q75 270 139 305 T300 283 V360 H0Z","#f8fbfa"),p("M0 338 Q88 306 170 339 T300 326 V360 H0Z","#e9f0f1"));stars(45,"#ffffffc0");
- }else if(kind==="cabinroom"){
- for(let y=0;y<300;y+=27)layer.append(p("M0 "+y+" H300","none","#523329",1.2));
- layer.append(rect(17,30,75,117,35,"#e9bd8a"),rect(23,36,63,104,30,"#324f66"),circle(65,61,12,"#fff2c3"),p("M24 110 Q43 89 85 112 V140 H24Z","#e5eaf0"),p("M54 36 V140 M23 83 H86","none","#b88a62",4));
- layer.append(rect(222,171,78,104,4,"#6e4a40"),rect(228,180,65,86,3,"#9b7461"),rect(238,203,46,55,18,"#3c2a28"),p("M250 254 Q238 239 258 220 Q254 241 264 233 Q286 243 269 257Z","#ffb45d"),p("M259 254 Q253 244 265 236 Q273 245 267 255Z","#fff0a3"),rect(216,168,84,8,2,"#d4a87e"));
- layer.append(p("M0 286 H300 V360 H0Z","#af8060"));for(let x=-100;x<500;x+=45)layer.append(p("M150 284 L"+x+" 360","none","#916449",1));layer.append(ellipse(150,333,120,21,"#d9b5a0"));
- }else if(kind==="wintervillage"){
- layer.append(circle(242,47,24,"#fff0c0"),circle(253,40,23,a));stars(42,"#f9e9c9");
- layer.append(p("M0 185 Q60 143 116 196 T233 182 T300 171 V360 H0Z","#91a9ba"));
- for(const [x,y,w,h] of [[4,196,46,65],[55,211,34,47],[252,194,43,69],[211,220,34,43]]){
- layer.append(rect(x,y,w,h,2,"#896f70"),p("M"+(x-5)+" "+y+" L"+(x+w/2)+" "+(y-29)+" L"+(x+w+5)+" "+y+"Z","#e2e9ea"),rect(x+w*.2,y+13,9,13,1,"#ffe5a0"),rect(x+w*.65,y+13,9,13,1,"#ffe5a0"),rect(x+w*.43,y+h-22,10,22,2,"#554f61"));
- }layer.append(p("M0 281 Q70 257 153 286 T300 270 V360 H0Z","#e9f1f5"),p("M0 337 Q140 308 300 334 V360 H0Z","#d5e4ed"));stars(27,"#fff");
- }else{
- layer.append(p("M0 291 Q150 277 300 291 V360 H0Z","#fff9f4"),ellipse(150,331,117,19,"#eacbd9"));
- for(let i=0;i<22;i++){const x=(i*79+7)%300,y=(i*39+13)%280;layer.append(circle(x,y,2+i%4,"#ffffffb0"))}
- for(const x of [8,292]){layer.append(p("M"+x+" 0 Q"+(x<150?50:250)+" 60 "+x+" 190","none","#fff9f1",2));for(let j=0;j<9;j++)layer.append(circle(x+(x<150?1:-1)*Math.sin(j*.44)*17,j*20+11,2.5,"#fff4c0"))}
- layer.append(p("M0 9 Q75 40 150 15 Q225 40 300 9","none","#cfa6ae",1.5));for(let x=6;x<300;x+=18)layer.append(circle(x,15+Math.sin(x/150*Math.PI)*10,2.8,"#fff2c0"));
- }
- g.append(layer);s.insertBefore(g,s.firstChild);return s;
-}
+export function addSceneBackground(s,kind,id,level="medium"){if(kind!=="none")depthBackground(s,kind,id,level);return s;}
 export function decorateScene(s,scene,id="nt"){
- addSceneBackground(s,scene.gardenBackgrounds,id);
+ addSceneBackground(s,scene.gardenBackgrounds,id,scene.gardenBackgroundLevel);
  const {gardenBases:base,gardenSides:side,gardenTops:top}=scene;
  if(base==="basket"){s.append(p("M117 294 H183 L176 336 H124Z","#c49c6a","#806044",2));for(let y=301;y<335;y+=7){s.append(p("M124 "+y+" H176","none","#edd5aa",2));for(let x=126;x<176;x+=8)s.append(p("M"+x+" "+y+" l5 6","none","#92704a",1))}}
  if(base==="pot")s.append(p("M115 295 H185 L176 336 H124Z","#b76a57","#8c4c43",2),rect(112,292,76,9,3,"#da9882"));
@@ -114,5 +85,6 @@ export function decorateScene(s,scene,id="nt"){
  if(top!=="star"){s.querySelector(".nt-star-top")?.remove();if(top==="bow")sticker(s,"bow_red",122,3,56);if(top==="snowflake")sticker(s,"snow_white",122,3,56)}
  extraAccessories(s,scene,sticker);
  if(["bethlehem","moravian","sunburst","pearlstar","filigreestar","rubystar","aurorastar","cometstar","artdecostar","rosettestar","tiara","twinbells","lotusgem"].includes(top))luxeTop(s,top,id,{...scene,gardenLightStrength:"soft"});
+ if(scene.gardenBackgrounds!=="none"&&s.getAttribute("viewBox")==="0 0 300 360")isolateBackgroundForeground(s);
  return s;
 }
