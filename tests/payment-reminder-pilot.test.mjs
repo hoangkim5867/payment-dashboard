@@ -1,0 +1,11 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {reminderClock,collectReminders} from "../site/assets/js/payment-reminder-pilot.mjs";
+import injection from "../deployment/payment-reminder-pilot-inject.cjs";
+const clock=(day,hour="09")=>reminderClock(new Date("2026-11-"+day+"T"+hour+":00:00+07:00"));
+const row={id:"1",paymentMonth:"2026-11",personInCharge:"A",project:"TEST",processPaper:"internal_signing",processPlatformPlan:"",processSettlement:"n/a",processPlatformPayment:"done"};
+const opt={owner:"a",ownerKey:v=>String(v||"").toLowerCase(),eligible:r=>!r.deleted&&!r.cancelled,done:v=>v==="done"||v===true,paperDone:v=>v==="done",notApplicable:v=>v==="n/a"};
+test("Vietnam time and 21st phase boundary, only 15–25",()=>{assert.equal(clock("14").phase,null);assert.equal(clock("15").phase,"paper");assert.equal(clock("20").phase,"paper");assert.equal(clock("21").phase,"both");assert.equal(clock("25").phase,"both");assert.equal(clock("26").phase,null);assert.equal(clock("21","08").slot,null);assert.equal(clock("21","14").slot,"14")});
+test("only own active month, no extra reminder when complete",()=>{const rows=[row,{...row,id:"2",personInCharge:"B"},{...row,id:"3",paymentMonth:"2026-10"},{...row,id:"4",deleted:true},{...row,id:"5",cancelled:true},{...row,id:"6",processPaper:"done",processPlatformPlan:"done"}];assert.deepEqual(collectReminders(rows,{...opt,clock:clock("15")}).map(r=>[r.id,r.paper,r.system]),[["1",true,[]]]);assert.deepEqual(collectReminders(rows,{...opt,clock:clock("21")}).map(r=>[r.id,r.paper,r.system]),[["1",true,["processPlatformPlan"]]]);assert.deepEqual(collectReminders(rows,{...opt,clock:clock("27")}),[])});
+test("real Payment source has guarded integration anchors; no new Firebase API",()=>{const raw=readFileSync(new URL("../site/payment.html",import.meta.url),"utf8");const built=injection.injectPaymentReminder(raw);assert.ok(built.includes("paymentReminderPilot.update({"));assert.ok(built.includes("normalizedMonth===reminderClock().month"));for(const token of ["getDocs(","getDoc(","onSnapshot(","setDoc(","updateDoc("])assert.equal(built.split(token).length,raw.split(token).length);assert.throws(()=>injection.injectPaymentReminder(built));});
