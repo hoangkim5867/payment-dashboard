@@ -10,6 +10,33 @@ export const materialStyles=["watercolor","knitted","crystal","forest"];
 export const accessoryOptions={gardenBases:["default","basket","pot","snowmat","wood"],gardenSides:["none","gifts","fence","lantern","snowman","tiger","cat","deer"],gardenTops:["star","bow","snowflake","none"],gardenBackgrounds:["none","snowforest","cabinroom","wintervillage","pastelstudio"]};
 export const safeAccessory=(key,v)=>accessoryOptions[key].includes(v)?v:accessoryOptions[key][0];
 export const sceneAt=(m,i)=>Object.fromEntries(Object.keys(accessoryOptions).map(k=>[k,safeAccessory(k,m[k]?.[i])]));
+// Material-specific garlands follow each silhouette. Reuse the existing CSS
+// twinkle classes (including reduced-motion handling); no timers or extra reads.
+const garlands={
+ forest:[[124,96,176,96,150,118],[100,150,200,150,150,181],[72,206,228,206,150,239],[42,267,258,267,150,299]],
+ watercolor:[[120,98,180,98,150,119],[94,155,206,155,150,188],[62,216,238,216,150,252],[38,270,262,270,150,303]],
+ knitted:[[126,94,174,94,150,111],[101,154,199,154,150,177],[77,214,223,214,150,237],[52,274,248,274,150,298]],
+ crystal:[[126,111,174,111,150,141],[102,173,198,173,150,206],[76,235,224,235,150,271]]
+};
+const lightPalettes={forest:["#fffdf3","#ffcf70","#fff0b7","#ffdda0"],watercolor:["#fffdf7","#ffd881","#ffc1d6","#fff0bd"],knitted:["#fff9e9","#ffcc77","#ffc2ab","#fff0b2"],crystal:["#ffffff","#c5f5ff","#fff0b8","#d9d3ff"]};
+function materialLights(s,style){
+ const lights=el("g",{class:"nt-fairy-lights","pointer-events":"none"}),palette=lightPalettes[style];
+ for(const [j,[x1,y1,x2,y2,cx,cy]] of garlands[style].entries()){
+  const d="M"+x1+" "+y1+" Q"+cx+" "+cy+" "+x2+" "+y2;
+  const cord=p(d,"none",style==="crystal"?"#effaff":"#ffe6a1",1.3);cord.setAttribute("opacity",".8");lights.append(cord);
+  const n=9+j*2;for(let k=0;k<n;k++){const t=k/(n-1),u=1-t,x=u*u*x1+2*u*t*cx+t*t*x2,y=u*u*y1+2*u*t*cy+t*t*y2;
+   lights.append(el("circle",{cx:x,cy:y,r:style==="knitted"?2.7:3,fill:palette[(k+j)%palette.length],class:"nt-light",style:"--delay:"+(-((k+j*3)%7)*.36)+"s"}));
+  }
+ }
+ const glints=el("g",{class:"nt-glints","pointer-events":"none"});
+ const points=[[104,49,5],[197,57,6],[90,106,7],[213,112,6],[56,172,8],[248,178,7],[20,240,8],[279,250,8],[63,301,5],[238,309,5]];
+ if(style==="crystal")points.push([150,128,5],[114,190,5],[182,239,6]);
+ for(const [i,[x,y,r]] of points.entries()){
+  const d="M"+x+" "+(y-r)+" Q"+(x+1)+" "+(y-1)+" "+(x+r)+" "+y+" Q"+(x+1)+" "+(y+1)+" "+x+" "+(y+r)+" Q"+(x-1)+" "+(y+1)+" "+(x-r)+" "+y+" Q"+(x-1)+" "+(y-1)+" "+x+" "+(y-r);
+  glints.append(el("path",{d,fill:style==="crystal"?"#e5f9ff":"#fff7ca",class:"nt-glint",style:"--delay:"+(-i*.43)+"s"}));
+ }
+ s.append(lights,glints);
+}
 export function materialArt(color,style,id){
  const [a,b,c]=colors[color]||colors.green,s=el("svg",{viewBox:"0 0 300 360",class:"nt-tree-svg","aria-hidden":"true"}),defs=el("defs"),g=el("linearGradient",{id:id+"-mat",x1:"0%",y1:"0%",x2:"100%",y2:"100%"});
  for(const [offset,fill] of [["0%",b],["52%",a],["100%",c]])g.append(el("stop",{offset,"stop-color":fill}));defs.append(g);s.append(defs,ellipse(150,332,119,12,"#e7e8e6"),rect(136,264,28,61,5,"#8d664d"));
@@ -28,6 +55,7 @@ export function materialArt(color,style,id){
   // Natural fir: layered branch tips instead of a scalloped triangle.
   for(let i=8;i>=0;i--){const y=49+i*28,w=13+i*14;const d="M150 "+(y-29)+" Q"+(150-w*.4)+" "+(y+8)+" "+(150-w)+" "+(y+25)+" L"+(150-w*.64)+" "+(y+21)+" L"+(150-w*.82)+" "+(y+34)+" L"+(150-w*.35)+" "+(y+25)+" L150 "+(y+39)+" L"+(150+w*.35)+" "+(y+25)+" L"+(150+w*.82)+" "+(y+34)+" L"+(150+w*.64)+" "+(y+21)+" L"+(150+w)+" "+(y+25)+" Q"+(150+w*.4)+" "+(y+8)+" 150 "+(y-29)+"Z";s.append(p(d,i%2?a:c,c,.7));for(const dir of [-1,1])s.append(p("M150 "+(y-10)+" Q"+(150+dir*w*.3)+" "+(y+10)+" "+(150+dir*w*.83)+" "+(y+23),"none",b,3),p("M"+(150+dir*w*.18)+" "+(y+7)+" Q"+(150+dir*w*.4)+" "+(y+15)+" "+(150+dir*w*.72)+" "+(y+20),"none","#f8fcff",4.5))}
  }
+ materialLights(s,style);
  s.append(p("M150 6 158 25 180 27 164 41 169 63 150 51 131 63 136 41 120 27 142 25Z","#ffdb7d","#ffeab0",2));s.lastChild.setAttribute("class","nt-star-top");return s;
 }
 function sticker(s,kind,x,y,w){const a=ornamentArt(kind);if(a.namespaceURI===ns){a.setAttribute("x",x);a.setAttribute("y",y);a.setAttribute("width",w);a.setAttribute("height",w);s.append(a)}else{const t=el("text",{x:x+w/2,y:y+w*.8,"text-anchor":"middle","font-size":w*.8,"font-family":"Apple Color Emoji, Segoe UI Emoji, sans-serif"});t.textContent=a.textContent;s.append(t)}}
