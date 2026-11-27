@@ -23,6 +23,7 @@ function buildSite({source,output,target,stagingConfig,enableIndexQueries=false}
  let configs=0,indexReadGuards=0,v2PageGuards=0;
  for(const name of fs.readdirSync(out).filter(n=>n.endsWith('.html'))){const file=path.join(out,name);let text=fs.readFileSync(file,'utf8');const pattern=/const firebaseConfig\s*=\s*\{[\s\S]*?\};/g;
  text=text.replace(pattern,original=>{configs++;return target==='staging'?'const firebaseConfig='+JSON.stringify(stagingConfig)+';':original});
+ if(name==='payment.html')text=require('./payment-reminder-pilot-inject.cjs').injectPaymentReminder(text);
  if(name==='cash-control.html'){
    // Cash Control Excel (and its Google monthly source projection) use one
    // classification. Design service fees are direct project costs, never
