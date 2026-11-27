@@ -2,7 +2,12 @@
 // Rasterize the actual SVG tree and the visible ornament art, not a new tree design.
 const ns="http://www.w3.org/2000/svg";
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-function snapshotSVG(source){
+export function stripDesktopBackdrop(copy){
+ for(const layer of copy.querySelectorAll(".nt-depth-background"))layer.remove();
+ copy.style.removeProperty("background");copy.style.removeProperty("background-color");
+ return copy;
+}
+function snapshotSVG(source,{transparent=false}={}){
  const copy=source.cloneNode(true),original=[source,...source.querySelectorAll("*")],clones=[copy,...copy.querySelectorAll("*")];
  for(let i=0;i<original.length;i++){
   const a=original[i],b=clones[i];if(a.namespaceURI!==ns)continue;
@@ -16,6 +21,7 @@ function snapshotSVG(source){
   b.style.setProperty("animation","none");b.style.setProperty("transition","none");
   if(a.localName==="text"){b.style.fontFamily=css.fontFamily;b.style.fontSize=css.fontSize}
  }
+ if(transparent)stripDesktopBackdrop(copy);
  copy.setAttribute("xmlns",ns);copy.style.width="";copy.style.height="";
  const box=source.getBoundingClientRect();copy.setAttribute("width",String(Math.max(1,Math.round(box.width*2))));copy.setAttribute("height",String(Math.max(1,Math.round(box.height*2))));
  return new XMLSerializer().serializeToString(copy);
@@ -46,7 +52,7 @@ function drawOrnament(ctx,g){
  if(g.image)ctx.drawImage(g.image,-g.w/2,-g.h/2,g.w,g.h);else if(g.text){ctx.font=g.font;ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(g.text,0,1)}
  ctx.restore();
 }
-export async function exportDesktopTree(canvas,{name="Noel",background="none",mode="twinkle",lights="original",progress=()=>{},isActive=()=>true}={}){
+export async function exportDesktopTree(canvas,{name="Noel",mode="twinkle",lights="original",progress=()=>{},isActive=()=>true}={}){
  const source=canvas.querySelector(":scope > .nt-tree-svg");if(!source)throw Error("TREE_NOT_VISIBLE");
  const box=canvas.getBoundingClientRect();if(box.width<10||box.height<10)throw Error("TREE_NOT_VISIBLE");
  const w=box.width,h=box.height,scale=600/w,pad=24,output=document.createElement("canvas");output.width=Math.ceil(w*scale+pad*2);output.height=Math.ceil(h*scale+pad*2);
@@ -55,12 +61,9 @@ export async function exportDesktopTree(canvas,{name="Noel",background="none",mo
  const motion=mode!=="static"&&lights!=="off"&&!matchMedia("(prefers-reduced-motion: reduce)").matches,frameCount=motion?8:1,interval=420,frames=[];
  for(let i=0;i<frameCount;i++){
   if(!isActive()||!canvas.isConnected)throw Error("TREE_CHANGED");
-  const started=performance.now(),im=await decodeSVG(snapshotSVG(source));
+  const started=performance.now(),im=await decodeSVG(snapshotSVG(source,{transparent:true}));
   ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,output.width,output.height);ctx.setTransform(scale,0,0,scale,pad,pad);
-  if(background==="none"){
-   // Transparent, soft ambient glow like the Payment tree stage.
-   ctx.save();ctx.translate(w*.5,h*.53);ctx.scale(w*.53,h*.5);const glow=ctx.createRadialGradient(0,0,0,0,0,1);glow.addColorStop(0,"rgba(255,246,219,.50)");glow.addColorStop(.38,"rgba(255,241,198,.35)");glow.addColorStop(.75,"rgba(255,241,198,.12)");glow.addColorStop(1,"rgba(255,241,198,0)");ctx.fillStyle=glow;ctx.fillRect(-1,-1,2,2);ctx.restore();
-  }
+  // Preserve the tree and individual light glows only. The desktop background stays fully transparent.
   ctx.drawImage(im,0,0,w,h);for(const ornament of ornaments)drawOrnament(ctx,ornament);
   frames.push(output.toDataURL("image/png").split(",")[1]);progress(i+1,frameCount);
   if(i+1<frameCount)await wait(Math.max(0,interval-(performance.now()-started)));
