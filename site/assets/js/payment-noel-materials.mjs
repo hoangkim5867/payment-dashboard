@@ -1,5 +1,6 @@
 // Static SVG material artwork. No network, external images or Firebase calls.
 import {colors,ornamentArt} from "./payment-noel-tree-catalog.mjs";
+import {extraOptions,extraBackground,extraAccessories} from "./payment-noel-scene-expansion.mjs";
 const ns="http://www.w3.org/2000/svg";
 const el=(tag,a={})=>{const e=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(a))e.setAttribute(k,String(v));return e};
 const p=(d,fill,stroke="none",w=1)=>el("path",{d,fill,stroke,"stroke-width":w,"stroke-linejoin":"round","stroke-linecap":"round"});
@@ -8,6 +9,7 @@ const circle=(cx,cy,r,fill)=>el("circle",{cx,cy,r,fill});
 const rect=(x,y,width,height,rx,fill)=>el("rect",{x,y,width,height,rx,fill});
 export const materialStyles=["watercolor","knitted","crystal","forest"];
 export const accessoryOptions={gardenBases:["default","basket","pot","snowmat","wood"],gardenSides:["none","gifts","fence","lantern","snowman","tiger","cat","deer"],gardenTops:["star","bow","snowflake","none"],gardenBackgrounds:["none","snowforest","cabinroom","wintervillage","pastelstudio"]};
+for(const k of Object.keys(extraOptions))accessoryOptions[k].push(...extraOptions[k]);
 export const safeAccessory=(key,v)=>accessoryOptions[key].includes(v)?v:accessoryOptions[key][0];
 export const sceneAt=(m,i)=>Object.fromEntries(Object.keys(accessoryOptions).map(k=>[k,safeAccessory(k,m[k]?.[i])]));
 // Material-specific garlands follow each silhouette. Reuse the existing CSS
@@ -62,6 +64,7 @@ function sticker(s,kind,x,y,w){const a=ornamentArt(kind);if(a.namespaceURI===ns)
 // Original vector scenery, shared by the editor, village, album and PNG.
 export function addSceneBackground(s,kind,id){
  if(kind==="none")return s;
+ if(extraBackground(s,kind,id))return s;
  const palette={snowforest:["#c6dce3","#f8eee0","#a4b9bd"],cabinroom:["#674337","#c99b77","#a67d5e"],wintervillage:["#18334f","#667c99","#bed4e0"],pastelstudio:["#f2dce6","#fff8ed","#e8ccd6"]}[kind];
  if(!palette)return s;
  const [a,b,c]=palette,g=el("g",{"aria-hidden":"true"}),defs=el("defs"),grad=el("linearGradient",{id:id+"-scene",x1:"0",y1:"0",x2:"0",y2:"100%"}),clip=el("clipPath",{id:id+"-scene-clip"});
@@ -106,5 +109,6 @@ export function decorateScene(s,scene,id="nt"){
  if(side==="cat")sticker(s,"kitty_white",225,276,66);
  if(side==="deer")sticker(s,"deer",225,275,66);
  if(top!=="star"){s.querySelector(".nt-star-top")?.remove();if(top==="bow")sticker(s,"bow_red",122,3,56);if(top==="snowflake")sticker(s,"snow_white",122,3,56)}
+ extraAccessories(s,scene,sticker);
  return s;
 }
