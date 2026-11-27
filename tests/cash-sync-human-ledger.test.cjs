@@ -44,7 +44,7 @@ test('new November payment appended to named Chinese main tab and hidden mirror,
  const snapshot={meta,view:old.rows,formulas:old.formulas};
  const out=human.compileHumanBatch({plan:nextPlan,previousPlan,snapshot,historySheetId:41});
  assert.equal(out.human,true);
- assert.equal(out.requests.length,5);
+ assert.equal(out.requests.length,6);
  assert.equal(out.requests[3].repeatCell.cell.userEnteredFormat.textFormat.bold,false);
  assert.equal(out.requests[4].repeatCell.cell.userEnteredFormat.textFormat.bold,true);
  assert.deepEqual(out.requests.filter(x=>x.updateCells).map(x=>x.updateCells.range.sheetId),[10000,10001]);
@@ -56,6 +56,9 @@ test('new November payment appended to named Chinese main tab and hidden mirror,
  assert.equal(ledger[ledger.length-2].values[13].userEnteredValue.formulaValue,'=N7+G8-SUM(H8:M8)');
  assert.equal(ledger.at(-1).values[0].userEnteredValue.stringValue,'合计');
  assert.equal(out.requests[0].updateCells.rows.length,3);
+ const border=out.requests.at(-1).updateBorders;
+ assert.deepEqual(border.range,{sheetId:10001,startRowIndex:4,endRowIndex:ledger.length,startColumnIndex:0,endColumnIndex:14});
+ for(const side of ['top','bottom','left','right','innerHorizontal','innerVertical'])assert.equal(border[side].style,'SOLID');
 });
 test('manual amount or total formula edits prevent posting',()=>{
  const changed=render(previousPlan);
@@ -101,7 +104,7 @@ test('empty new project sheet preserves positive/negative opening without fake t
     const prepared=human.compileHumanBatch({plan:nextPlan,
       previousPlan:plan,snapshot:{meta,view:rows,formulas},
       historySheetId:0});
-    assert.equal(prepared.requests.length,5);
+    assert.equal(prepared.requests.length,6);
     assert.ok(prepared.requests.every(req=>
       !req.updateCells||req.updateCells.range.sheetId!==0));
     assert.equal(prepared.requests[1].updateCells.rows.length,6);
