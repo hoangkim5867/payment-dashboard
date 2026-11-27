@@ -125,16 +125,18 @@ export function buildMainOnlyWorkbook(xlsx,model){
   alignment:{horizontal:'center',vertical:'center'}};
  const periodStyle={font:{name:'Arial',sz:10,italic:true,color:color('455A48')},
   fill:{fgColor:color('F4F8F4')},alignment:{horizontal:'left',vertical:'center'}};
+ const gridLine={style:'thin',color:color('CCD4D9')};
+ const gridBorder={top:gridLine,bottom:gridLine,left:gridLine,right:gridLine};
  const headStyle={font:{name:'Arial',sz:10,bold:true,color:color('233F30')},
   fill:{fgColor:color('D9E3D9')},
   alignment:{horizontal:'center',vertical:'center',wrapText:true},
   border:{bottom:{style:'thin',color:color('A9B8AD')}}};
  const totalStyle={font:{name:'Arial',sz:10,bold:true,color:color('17395E')},
   fill:{fgColor:color('EAF1F8')},
-  border:{top:{style:'thin',color:color('99ABBD')}}};
+  border:{...gridBorder,top:{style:'thin',color:color('99ABBD')}}};
  const normal={font:{name:'Arial',sz:10,color:color('263443')},
   alignment:{vertical:'center'},
-  border:{bottom:{style:'hair',color:color('E5EAF0')}}};
+  border:gridBorder};
  for(let r=0;r<rows.length;r++)for(let c=0;c<colCount;c++){
   const key=cellName(r,c);
   if(!ws[key])ws[key]={t:'s',v:''};
