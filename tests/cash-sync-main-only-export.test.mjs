@@ -45,6 +45,7 @@ test('format like PHU HUNG: grouped title, Chinese two-level headings, total and
  assert.equal(wb.Sheets.ELYSIAN['!merges'].length,11);
  assert.equal(wb.Sheets.ELYSIAN['!cols'].length,14);
  assert.equal(wb.Sheets.ELYSIAN.N7.v,700);
+ for(const address of ['A5','B5','H5','N5','A7','N7'])for(const side of ['top','bottom','left','right'])assert.equal(wb.Sheets.ELYSIAN[address].s.border[side].style,'thin');
  assert.equal(wb.Sheets.ELYSIAN['!freeze'].ySplit,4);
  assert.ok(!JSON.stringify(wb).includes('sourceId'));
  assert.ok(!JSON.stringify(wb).includes('DATA_CASHCONTROL'));

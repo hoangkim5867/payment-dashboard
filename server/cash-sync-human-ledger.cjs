@@ -203,6 +203,12 @@ function compileHumanBatch({plan,previousPlan,snapshot,historySheetId,foxconn=fa
      textFormat:{fontFamily:'Calibri',fontSize:11,bold:true}}},
    fields:'userEnteredFormat.backgroundColor,userEnteredFormat.textFormat.fontFamily,userEnteredFormat.textFormat.fontSize,userEnteredFormat.textFormat.bold'
  }});
+ // Real thin cell borders, retained in Google Sheets native XLSX downloads.
+ // Keep merged title/period/header cells intact; apply the grid to detail and total only.
+ const line={style:'SOLID',color:{red:0.80,green:0.83,blue:0.85}};
+ requests.push({updateBorders:{range:{sheetId:viewId,startRowIndex:4,endRowIndex:n,
+   startColumnIndex:0,endColumnIndex:c},top:line,bottom:line,left:line,right:line,
+   innerHorizontal:line,innerVertical:line}});
  return {requests,historySheetId,viewId,mirrorId,human:true,
    fingerprint:require('./cash-sync-multi-project-core.cjs').sha({
      project,month:plan.month,source:plan.mirrorNext.map(r=>r.id),

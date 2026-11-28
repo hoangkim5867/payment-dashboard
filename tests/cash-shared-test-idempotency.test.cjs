@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {run,SAMPLE}=require('../api/cash-shared-test-idempotency.js')._internals;
+const {run,SAMPLE}=require('../server/cash-shared-test-idempotency.cjs')._internals;
 const {HEADER}=require('../site/assets/js/cash-shared-google-test-transport.js');
 const id='K'.repeat(36),secret='T'.repeat(160);
 const baseEnv={VERCEL_ENV:'preview',CASH_SYNC_FIREBASE_PROJECT_ID:'cash-control-staging',

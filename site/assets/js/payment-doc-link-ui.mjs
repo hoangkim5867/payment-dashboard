@@ -2,7 +2,7 @@
 import {getApps,getApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {createIpcDrivePicker} from "./drive-ipc-picker-ui.mjs";
 import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,doc,getDoc,updateDoc,deleteField,serverTimestamp,FieldPath,writeBatch} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getFirestore,doc,getDoc,updateDoc,deleteField,serverTimestamp,FieldPath,writeBatch,runTransaction} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 const OWNER_ADMIN_UID="HTx2QuATHxh8zgAawwreg88w65M2";
 const $=(s,p=document)=>p.querySelector(s);
 const clean=s=>String(s??"").trim();
@@ -32,12 +32,18 @@ const picker=createIpcDrivePicker({
   const u=await role();
   if(!u.admin||u.uid!==auth.currentUser?.uid)throw Error("Chỉ Admin được lưu link.");
   const ref=doc(db,"payments",row.id);
-  const snap=await getDoc(ref);
-  if(!snap.exists())throw Error("Khoản đã bị xóa.");
-  const fresh=snap.data();
-  if([fresh.project,fresh.contractNo,fresh.ipcNo].some((v,i)=>String(v??"").trim()!==String([row.project,row.contractNo,row.ipcNo][i]??"").trim()))
-   throw Error("Thông tin khoản đã đổi. Tải lại danh sách trước khi gắn link.");
-  await updateDoc(ref,{ipcDocumentUrl:valid,ipcDocumentUpdatedAt:serverTimestamp(),ipcDocumentUpdatedByUid:u.uid});
+  await runTransaction(db,async tx=>{
+   if(auth.currentUser?.uid!==u.uid)throw Error("Phiên Admin đã đổi.");
+   const snap=await tx.get(ref);
+   if(!snap.exists())throw Error("Khoản đã bị xóa.");
+   const fresh=snap.data();
+   if(fresh.deleted===true||fresh.archived===true||String(fresh.archiveState||"").toLowerCase()==="archived"||["cancelled","carried_forward"].includes(String(fresh.monthOutcome||"").toLowerCase()))throw Error("Khoản không còn thuộc Payment đang xử lý; dùng Kho nếu đã lưu trữ.");
+   if(["project","contractNo","ipcNo","paymentMonth"].some(k=>clean(fresh[k])!==clean(row[k])))throw Error("Thông tin khoản đã đổi. Tải lại danh sách trước khi gắn link.");
+   if(clean(fresh.ipcDocumentUrl))throw Error("Khoản đã có link, không ghi đè.");
+   tx.update(ref,{ipcDocumentUrl:valid,ipcDocumentUpdatedAt:serverTimestamp(),ipcDocumentUpdatedByUid:u.uid});
+  });
+  row.ipcDocumentUrl=valid;
+  window.__ipcDriveWriteThrough?.(row.id,valid);
   mark(row.id,true);
  }
 });
@@ -116,6 +122,8 @@ async function openStaffArchiveDossier(id){
  }
 }
 async function showLink(id){
+ if(picker.isBusy())return;
+ $("#docLinkTitle").textContent="📁 Hồ sơ thanh toán";input.hidden=false;$("#docLinkEditor").querySelector('label[for="docLinkInput"]').hidden=false;
  if(!id||!init())return;
  if(!auth.currentUser){alert("Cần đăng nhập Payment trước.");return;}
  activeId=id;const token=++generation;
@@ -145,7 +153,7 @@ async function showLink(id){
   mark(id,!!activeUrl);
  }catch(e){if(token===generation)notice("Không đọc được hồ sơ: "+(e?.message||e),true);}
 }
-const close=()=>{if(busy)return;generation++;wrapper.hidden=true;activeId="";activeArchiveMonth="";setLink("");picker.onClose();};
+const close=()=>{if(busy||picker.isBusy())return;generation++;wrapper.hidden=true;activeId="";activeArchiveMonth="";setLink("");picker.onClose();};
 $("#docLinkClose").addEventListener("click",close);
 wrapper.addEventListener("click",e=>{if(e.target===wrapper)close();});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!wrapper.hidden)close();});
@@ -198,6 +206,17 @@ const button=(id,archive=false)=>{
 };
 const payment=$("#paymentBody");
 if(payment){
+ const launch=$("#toolsPaymentIpcBulkBtn");
+ launch?.addEventListener("click",async()=>{
+  if(picker.isBusy()||!init()||!auth.currentUser)return;
+  try{
+   const u=await role();if(!u.admin||u.uid!==auth.currentUser?.uid)throw Error("Chỉ Admin được quét hồ sơ.");
+   const rows=window.__ipcDriveBatchRows?.()||[];
+   if(!rows.length){alert("Không có khoản Payment phù hợp trong bộ lọc hiện tại.");return;}
+   activeId="";activeArchiveMonth="";setBusy(false);setLink("");setEditor(true);save.hidden=true;remove.hidden=true;input.hidden=true;$("#docLinkEditor").querySelector('label[for="docLinkInput"]').hidden=true;
+   $("#docLinkTitle").textContent="📁 Quét & gắn hồ sơ IPC hàng loạt";$("#docLinkItem").textContent="Payment · "+rows.length+" khoản trong bộ lọc hiện tại";notice("");wrapper.hidden=false;picker.onBulkOpen(rows);
+  }catch(e){alert(e.message||e);}
+ });
  const decorate=()=>{
   for(const row of payment.querySelectorAll("tr")){
    const at=$(".timeline-detail-btn[data-id]",row);

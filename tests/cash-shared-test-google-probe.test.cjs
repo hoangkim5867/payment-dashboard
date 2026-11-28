@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const handler=require('../api/cash-shared-test-google-probe.js');
+const handler=require('../server/cash-shared-test-google-probe.cjs');
 const {HEADER}=require('../site/assets/js/cash-shared-google-test-transport.js');
 const TEST_ID='E'.repeat(35);
 const env={

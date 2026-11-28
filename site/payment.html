@@ -1669,6 +1669,7 @@ html[data-theme] .data-first-summary .enterprise-filter-main > .global-search-fi
                 <button type="button" data-tools-action="activity">🧾 Lịch sử thao tác</button>
                 <div class="tools-menu-section-title" id="adminPaymentToolsLabel" style="display:none;">Admin · Payment</div>
                 <button type="button" data-tools-action="bulk-unc" id="toolsBulkUncBtn" style="display:none;">📎 Up UNC hàng loạt</button>
+                <button type="button" data-tools-action="ipc-bulk" id="toolsPaymentIpcBulkBtn" style="display:none;">📁 Quét & gắn hồ sơ IPC hàng loạt</button>
                 <button type="button" data-tools-action="archive-month" id="toolsArchiveMonthBtn" style="display:none;">🗃 Đưa mục đã chọn vào Kho chứng từ</button>
                 <button type="button" data-tools-action="carry-payment" id="toolsCarryPaymentBtn" style="display:none;">→ Chuyển các dòng đã chọn sang tháng sau</button>
                 <button type="button" data-tools-action="repair-carry-progress" id="toolsRepairCarryProgressBtn" style="display:none;">↺ Khôi phục tiến trình dòng chuyển tháng</button>
@@ -9621,7 +9622,7 @@ function applyRoleUI(){
                 : "none";
     }
 
-    [adminPaymentToolsLabel,toolsBulkUncBtn,toolsArchiveMonthBtn,toolsCarryPaymentBtn,toolsRepairCarryProgressBtn,toolsCancelPaymentBtn]
+    [adminPaymentToolsLabel,toolsBulkUncBtn,document.getElementById("toolsPaymentIpcBulkBtn"),toolsArchiveMonthBtn,toolsCarryPaymentBtn,toolsRepairCarryProgressBtn,toolsCancelPaymentBtn]
         .filter(Boolean)
         .forEach(element => {
             element.style.display = adminAccess ? "" : "none";
@@ -33847,6 +33848,12 @@ function initThemePicker(){
         }
     );
 
+    window.addEventListener("resize",() => {
+        if(panel.classList.contains("show")){
+            positionViewportPopover(panel,button,8);
+        }
+    });
+
     updateThemePickerLanguage();
     loadSavedTheme();
 }
@@ -33889,11 +33896,7 @@ function mountAllModalsAtBodyRoot(){
         }
     );
 
-    window.addEventListener("resize",() => {
-        if(panel.classList.contains("show")){
-            positionViewportPopover(panel,button,8);
-        }
-    });
+
 }
 
 mountAllModalsAtBodyRoot();
@@ -40141,8 +40144,14 @@ document.addEventListener("keydown",event=>{
    if(!isAdmin()||!currentAuthUser)return [];
    const visible=new Set([...paymentBody.querySelectorAll(".timeline-detail-btn[data-id]")].map(el=>String(el.dataset.id||"")));
    return getFilteredPayments()
-     .filter(p=>p.deleted!==true&&visible.has(String(p.id)))
-     .map(p=>({id:String(p.id),project:String(p.project||""),contractNo:String(p.contractNo||""),ipcNo:String(p.ipcNo||"")}));
+     .filter(p=>p.deleted!==true&&!isPaymentArchived(p)&&!isPaymentCancelled(p)&&!isPaymentCarriedForward(p)&&visible.has(String(p.id)))
+     .map(p=>({id:String(p.id),project:String(p.project||""),contractNo:String(p.contractNo||""),ipcNo:String(p.ipcNo||""),paymentMonth:String(p.paymentMonth||""),ipcDocumentUrl:String(p.ipcDocumentUrl||"")}));
+ };
+ // Write-through only after the server transaction succeeds, so archive uses the saved link.
+ window.__ipcDriveWriteThrough=(id,url)=>{
+   if(!isAdmin()||!currentAuthUser)return;
+   const row=allPayments.find(p=>String(p.id)===String(id));
+   if(row)row.ipcDocumentUrl=String(url||"");
  };
  </script>
 
