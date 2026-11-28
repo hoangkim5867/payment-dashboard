@@ -1,4 +1,3 @@
-import {queueBackgroundPreview} from "./payment-reminder-push-client.mjs";
 // Payment reminders: a read-only projection of the existing authenticated Payment snapshot.
 // No Firebase imports, network requests, extra listeners, or writes.
 // Explicit pilot recipient list: account IDs, not inferred language or nationality.
@@ -39,14 +38,14 @@ const labels={
  zh:{title:"待处理工作",paper:"纸版资料",system:"平台流程",details:"待更新资料",allow:"启用 Windows 通知",blocked:"Windows 通知已被阻止",hide:"收起",show:"查看详情",notice:"您还有资料待更新，请打开 Payment 查看。"}
 };
 export function createPaymentReminder(){
- let host=null,root=null,data=null,expanded=false,timer=null,notification=null,testMode="",previewLanguage="vi",settingsOpen=false,menuBtn=null,pushBusy=false,pushStatus="";
+ let host=null,root=null,data=null,expanded=false,timer=null,notification=null,testMode="",previewLanguage="vi",settingsOpen=false,menuBtn=null;
  const el=(tag,text,cls)=>{const e=document.createElement(tag);if(text)e.textContent=text;if(cls)e.className=cls;return e};
  function closeNotice(){try{notification?.close()}catch{}notification=null}
- function clear(){data=null;expanded=false;testMode="";previewLanguage="vi";settingsOpen=false;pushBusy=false;pushStatus="";menuBtn?.remove();menuBtn=null;closeNotice();if(timer!==null)clearInterval(timer);timer=null;host?.remove();host=root=null}
+ function clear(){data=null;expanded=false;testMode="";previewLanguage="vi";settingsOpen=false;menuBtn?.remove();menuBtn=null;closeNotice();if(timer!==null)clearInterval(timer);timer=null;host?.remove();host=root=null}
  function button(text,fn){const b=el("button",text);b.type="button";b.addEventListener("click",fn);return b}
  function mountMenu(){
   const menu=document.getElementById("toolsMenu");if(!menu)return;
-  if(!menuBtn){menuBtn=button("",()=>{if(!data)return;settingsOpen=true;testMode="";pushStatus="";menu.classList.remove("show");paint()});menuBtn.id="paymentReminderSettingsBtn";menu.append(menuBtn)}
+  if(!menuBtn){menuBtn=button("",()=>{if(!data)return;settingsOpen=true;testMode="";menu.classList.remove("show");paint()});menuBtn.id="paymentReminderSettingsBtn";menu.append(menuBtn)}
   menuBtn.textContent=reminderLanguage(data.username,data.language)==="zh"?"🔔 工作提醒设置":"🔔 Cài đặt nhắc việc";
  }
  function paint(){
@@ -88,13 +87,7 @@ export function createPaymentReminder(){
       }
      }catch{}paint()
     }));
-    const bg=button("Gửi thử khi đóng tab (sau 12 giây)",async()=>{
-     if(pushBusy||!data?.admin||!data.getToken)return;
-     const owner=data.uid,mode=testMode,lang=previewLanguage,active=()=>!!data?.admin&&data.uid===owner;
-     pushBusy=true;pushStatus="Đang chuẩn bị Web Push…";paint();
-     try{await queueBackgroundPreview({getToken:data.getToken,mode,language:lang,isActive:active,onStatus:(state,error)=>{if(!active())return;pushStatus=state==="queued"?"Đã hẹn gửi thử sau 12 giây. M có thể đóng tab Payment.":state==="accepted"?"Máy chủ Push đã nhận lệnh gửi. Kiểm tra thông báo Windows.":"Chưa gửi được: "+error;pushBusy=state==="queued";paint()}})}catch(e){if(active()){pushBusy=false;pushStatus=e.message;paint()}}
-    });bg.disabled=pushBusy;tools.append(bg);
-    if(pushStatus)tools.append(el("p",pushStatus,"muted"));
+
    }box.append(tools);
   }
   if(settingsOpen&&!items.length&&!weeklyPending&&!testing)box.append(el("p",word("Không có hồ sơ cần nhắc hôm nay.","No pending reminders today.","今日无待提醒事项。")));
