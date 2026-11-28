@@ -14,9 +14,11 @@ test('only nine deployed API entries; legacy routes preserved; Web Push removed'
  }
  assert.ok(!files.includes('payment-reminder-push.js'));
  assert.ok(!fs.existsSync(path.join(root,'site/payment-reminder-push/sw.js')));
- const ui=fs.readFileSync(path.join(root,'site/assets/js/payment-reminder-pilot.mjs'),'utf8');
- assert.doesNotMatch(ui,/queueBackgroundPreview|pushBusy|pushStatus/);
- assert.match(ui,/!items.length&&!weeklyPending&&!settingsOpen/);
+ for(const file of ['site/assets/js/payment-reminder-pilot.mjs','deployment/payment-reminder-pilot-inject.cjs','site/assets/js/payment-reminder-push-client.mjs','server/payment-reminder-push.cjs'])assert.ok(!fs.existsSync(path.join(root,file)),file);
+ const build=fs.readFileSync(path.join(root,'deployment/build-site.cjs'),'utf8');
+ const source=fs.readFileSync(path.join(root,'site/payment.html'),'utf8');
+ assert.doesNotMatch(build,/injectPaymentReminder|payment-reminder-pilot/);
+ assert.doesNotMatch(source,/paymentReminderPilot|createPaymentReminder|paymentReminderSettingsBtn|payment-reminder-push/);
 });
 test('router rejects production and rejects unknown or ambiguous operations; delegates original request without bypassing origin gate',async()=>{
  const old=process.env.VERCEL_ENV;
