@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {compareSourceToHistory,validateSource,run}=require('../api/cash-shared-test-real-compare.js')._internals;
+const {compareSourceToHistory,validateSource,run}=require('../server/cash-shared-test-real-compare.cjs')._internals;
 const {sha,parseValues}=require('../server/cash-sync-multi-project-core.cjs');
 const closing=35246364496;
 const env={VERCEL_ENV:'preview',CASH_SYNC_FIREBASE_PROJECT_ID:'cash-control-staging',

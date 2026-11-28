@@ -25,5 +25,23 @@
         }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/cash-shared-test-google-probe",
+      "destination": "/api/cash-shared-test?operation=google-probe"
+    },
+    {
+      "source": "/api/cash-shared-test-history-audit",
+      "destination": "/api/cash-shared-test?operation=history-audit"
+    },
+    {
+      "source": "/api/cash-shared-test-idempotency",
+      "destination": "/api/cash-shared-test?operation=idempotency"
+    },
+    {
+      "source": "/api/cash-shared-test-real-compare",
+      "destination": "/api/cash-shared-test?operation=real-compare"
+    }
   ]
 }

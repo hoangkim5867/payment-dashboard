@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {audit}=require('../api/cash-shared-test-history-audit.js')._internals;
+const {audit}=require('../server/cash-shared-test-history-audit.cjs')._internals;
 const {HEADER}=require('../site/assets/js/cash-shared-google-test-transport.js');
 const spreadsheetId='Q'.repeat(38);
 const env={
